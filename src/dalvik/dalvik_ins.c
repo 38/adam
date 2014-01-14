@@ -52,3 +52,7 @@ dalvik_instruction_t* dalvik_instruction_new( void )
     return dalvik_instruction_pool + (_dalvik_instruction_pool_size ++);
 }
 
+const char* dalvik_instruction_prase(const char* sx, dalvik_instruction_t* buf)
+{
+    //TODO
+}
