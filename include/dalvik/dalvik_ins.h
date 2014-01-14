@@ -1,4 +1,5 @@
 #ifndef __DALVIK_INS_H__
+
 #include <stdint.h>
 
 #define DALVIK_POOL_INIT_SIZE 1024
@@ -151,4 +152,7 @@ int dalvik_instruction_finalize( void );
 
 /* parse a instruction from a S-Expression (sx,buf) -> nextPosition*/
 const char* dalvik_instruction_prase(const char* sx, dalvik_instruction_t* buf);
+
+/* Error Codes */
+
 #endif /* __DALVIK_INS_H__ */

@@ -1,4 +1,4 @@
-#include <sexp.h>
+#include <dalvik/sexp.h>
 
 const char* sexp_parse(const char* str, sexpression_t* buf)
 {

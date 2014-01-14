@@ -12,7 +12,7 @@ typedef struct {
     char data[0];
 } sexpression_t;
 
-typedef struct sexp_nil_t;
+typedef struct {} sexp_nil_t;
 
 typedef const char* sexp_str_t;
 
