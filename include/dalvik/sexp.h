@@ -38,7 +38,9 @@ typedef struct{
 const char* sexp_parse(const char* str, sexpression_t** buf);
 
 /* free memory for a S-Expression recursively */
-const char* sexp_free(sexpression_t* buf);
+void sexp_free(sexpression_t* buf);
+
+int sexp_init(void);
 
 #define SEXP_NIL NULL
 

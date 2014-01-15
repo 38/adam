@@ -18,10 +18,25 @@ static inline sexpression_t* _sexpr_alloc(int type)
     }
     return (sexpression_t*) malloc(sizeof(sexpression_t));
 }
-const char* sexp_free(sexpression_t* buf)
+void sexp_free(sexpression_t* buf)
 {
-
+    sexp_cons_t* cons_data;
+    if(SEXP_NIL == buf)  return; /* A empty S-Expression */
+    switch(type)
+    {
+        case SEXP_TYPE_CONS:     /* A Cons S-Expression, free the memory recursively */
+            cons_data = (sexp_cons_t*) buf->data;
+            sexp_free(cons_data->left);
+            sexp_free(cons_data->right);
+        default:
+            free(buf);
+    }
+}
+int sexp_init(void)
+{
+    
 }
 const char* sexp_parse(const char* str, sexpression_t* buf)
 {
+
 }

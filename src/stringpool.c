@@ -12,7 +12,7 @@ stringpool_hashnode_t **_stringpool_hash;
 size_t  _stringpool_size;
 static int _stringpool_hash_func(const char* str, uint32_t* h)
 {
-	const uint32_t m = 0xc6a4a793;
+	const uint32_t m = STRINGPOOL_MURMUR_MAGIC;
 	const unsigned char* data = (unsigned char*) str;
 	h[0] = 0x5f2c2345^(strlen(str)*m);	//Murmur
 	h[1] = 0;					//sum
