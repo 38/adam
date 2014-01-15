@@ -56,12 +56,14 @@ static int _stringpool_hash_func(const char* str, uint32_t* h)
 }
 const char* stringpool_query(const char* str)
 {
+    if(NULL == str) return NULL;
+
     uint32_t h[4];
     int len;
     len = _stringpool_hash_func(str, h);
     int idx = h[0]%_stringpool_size;
     stringpool_hashnode_t* ptr;
-    for(ptr = _stringpool_hash[idx]; NULL == ptr; ptr = ptr->next)
+    for(ptr = _stringpool_hash[idx]; NULL != ptr; ptr = ptr->next)
     {
         if(ptr->h[0] == h[0] &&
            ptr->h[1] == h[1] &&
@@ -70,7 +72,9 @@ const char* stringpool_query(const char* str)
            strcmp(ptr->str, str) == 0) 
             return ptr->str;
     }
-    
+   
+    /* If we reach this point, that means we can not find the previous address for this string */
+
     ptr = (stringpool_hashnode_t*)malloc(sizeof(stringpool_hashnode_t));
 
     if(NULL == ptr) goto ERR;
@@ -121,11 +125,13 @@ void stringpool_fianlize(void)
         {
             stringpool_hashnode_t* cur = ptr;
             ptr = ptr->next;
-            if(ptr->str)
+            if(cur->str)
             {
-                free(ptr->str);
-                free(ptr);
+                free(cur->str);
+                free(cur);
             }
         }
     }
+    free(_stringpool_hash);
+    _stringpool_hash = NULL;
 }
