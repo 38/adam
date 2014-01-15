@@ -22,12 +22,12 @@ void sexp_free(sexpression_t* buf)
 {
     sexp_cons_t* cons_data;
     if(SEXP_NIL == buf)  return; /* A empty S-Expression */
-    switch(type)
+    switch(buf->type)
     {
         case SEXP_TYPE_CONS:     /* A Cons S-Expression, free the memory recursively */
             cons_data = (sexp_cons_t*) buf->data;
-            sexp_free(cons_data->left);
-            sexp_free(cons_data->right);
+            sexp_free(cons_data->first);
+            sexp_free(cons_data->second);
         default:
             free(buf);
     }
@@ -36,7 +36,7 @@ int sexp_init(void)
 {
     
 }
-const char* sexp_parse(const char* str, sexpression_t* buf)
+const char* sexp_parse(const char* str, sexpression_t** buf)
 {
 
 }

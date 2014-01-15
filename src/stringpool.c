@@ -12,11 +12,11 @@ stringpool_hashnode_t **_stringpool_hash;
 size_t  _stringpool_size;
 static int _stringpool_hash_func(const char* str, uint32_t* h)
 {
-	const uint32_t m = STRINGPOOL_MURMUR_MAGIC;
+	const uint32_t m = STRINGPOOL_MURMUR_M;
 	const unsigned char* data = (unsigned char*) str;
-	h[0] = 0x5f2c2345^(strlen(str)*m);	//Murmur
+	h[0] = STRINGPOOL_MURMUR_SEED;//Murmur3
 	h[1] = 0;					//sum
-	h[2] = 0x23f4537;   	    //muliply
+	h[2] = STRINGPOOL_MULTIPLY_SEED;   	    //muliply
 	h[3] = 0;					//ELF Hash
 	int i = 0;
 	for(i = 0; str[i]; i ++)
@@ -24,34 +24,50 @@ static int _stringpool_hash_func(const char* str, uint32_t* h)
 		if((i&3) == 0 && i != 0)
 		{
 			uint32_t k = *(uint32_t*)(data + i - 4);
-			h[0] += k;
-			h[0] *= m;
-			h[0] ^= h[0]>>16;
+            k *= STRINGPOOL_MURMUR_C1;
+            k  = (k << STRINGPOOL_MURMUR_R1) | (k >> (32 - STRINGPOOL_MURMUR_R1));
+            k *= STRINGPOOL_MURMUR_C2;
+
+			h[0] ^= k;
+			h[0] *= (h[0] << STRINGPOOL_MURMUR_R2) | (h[0] >> (32 - STRINGPOOL_MURMUR_R2));
+			h[0] ^= h[0] * STRINGPOOL_MURMUR_M + STRINGPOOL_MURMUR_N;
 		}
-		h[1] = (h[1] + data[i] + (data[i]<<17) + (data[i]>>15))%0xfffe7985UL;
-		h[2] = (data[i] * h[2])%0xee6b27ebUL;
+		h[1] = (h[1] + data[i] + (data[i]<<STRINGPOOL_SUM_R1) + (data[i]>>STRINGPOOL_SUM_R2))%STRINGPOOL_SUM_M;
+		h[2] = (data[i] * h[2])%STRINGPOOL_MULTIPLY_M;
 		h[3] = (h[3] << 4) + data[i];
-		uint32_t g = h[3] & 0xf0000000ul;
+		uint32_t g = h[3] & STRINGPOOL_ELF_MSK;
 		if(g) h[3]^=g>>24;
 		h[3] &= ~g;
 	}
+    /* process the unprocessed input, and swap endian order */
+    uint32_t remaining = 0;
 	switch(i&3)
 	{
+        /* following code assume big endian, for little endian, this is not needed */
 		case 0:
-			h[0] += data[i-4] << 24;
+			remaining |= data[i-4] << 24;
 		case 3:
-			h[0] += data[i-3] << 16;
+		    remaining |= data[i-3] << 16;
 		case 2:
-			h[0] += data[i-2] << 8;
+			remaining |= data[i-2] << 8;
 		case 1: 
-			h[0] += data[i-1];
-			h[0] *= m;
-			h[0] ^= h[0] >> 16;
+			remaining |= data[i-1];
 	}
-	h[0] *= m;
-	h[0] ^= h[0]>>10;
-	h[0] *= m;
-	h[0] ^= h[0]>>17;
+    remaining *= STRINGPOOL_MURMUR_C1;
+    remaining  = (remaining << STRINGPOOL_MURMUR_R1) | (remaining >> STRINGPOOL_MURMUR_R2);
+    remaining *= STRINGPOOL_MURMUR_C2;
+    h[0] ^= remaining;
+
+    /* we are finishing */
+    h[0] ^= i;
+    h[0] ^= h[0] >> 16;
+	h[0] *= 0x85ebca6b;
+	h[0] ^= h[0]>>13;
+	h[0] *= 0xc2b2ae35;
+	h[0] ^= h[0]>>16;
+
+    /* finally return the length */
+
     return i;
 }
 const char* stringpool_query(const char* str)
@@ -134,4 +150,11 @@ void stringpool_fianlize(void)
     }
     free(_stringpool_hash);
     _stringpool_hash = NULL;
+}
+void stringpool_accumulator_init(stringpool_accumulator_t* buf, const char* begin)
+{
+    if(NULL == buf) return;
+    buf->begin = begin;
+    buf->count = 0;
+    //TODO: here
 }

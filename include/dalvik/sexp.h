@@ -25,7 +25,7 @@ typedef const char* sexp_str_t;
 typedef const char* sexp_lit_t;
 
 typedef struct{
-    sexpression_t * fisrt;
+    sexpression_t * first;
     sexpression_t * second;
 } sexp_cons_t;
 
