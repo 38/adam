@@ -10,9 +10,9 @@ typedef struct _stringpool_hashnode_t{
 } stringpool_hashnode_t;
 stringpool_hashnode_t **_stringpool_hash;
 size_t  _stringpool_size;
-static int _stringpool_hash_func(const char* str, uint32_t* h)
+/* compute the hash function of the string, store the output of hash functions to h */
+static inline int _stringpool_hash_func(const char* str, uint32_t* h)
 {
-	const uint32_t m = STRINGPOOL_MURMUR_M;
 	const unsigned char* data = (unsigned char*) str;
 	h[0] = STRINGPOOL_MURMUR_SEED;//Murmur3
 	h[1] = 0;					//sum
@@ -24,6 +24,7 @@ static int _stringpool_hash_func(const char* str, uint32_t* h)
 		if((i&3) == 0 && i != 0)
 		{
 			uint32_t k = *(uint32_t*)(data + i - 4);
+            printf("%u, %d\n", k, i);
             k *= STRINGPOOL_MURMUR_C1;
             k  = (k << STRINGPOOL_MURMUR_R1) | (k >> (32 - STRINGPOOL_MURMUR_R1));
             k *= STRINGPOOL_MURMUR_C2;
@@ -54,8 +55,8 @@ static int _stringpool_hash_func(const char* str, uint32_t* h)
 			remaining |= data[i-1];
 	}
     remaining *= STRINGPOOL_MURMUR_C1;
-    remaining  = (remaining << STRINGPOOL_MURMUR_R1) | (remaining >> STRINGPOOL_MURMUR_R2);
-    remaining *= STRINGPOOL_MURMUR_C2;
+    remaining  = (remaining << STRINGPOOL_MURMUR_R1) | (remaining >> (32 - STRINGPOOL_MURMUR_R1));
+    remaining *= STRINGPOOL_MURMUR_C2; 
     h[0] ^= remaining;
 
     /* we are finishing */
@@ -70,26 +71,58 @@ static int _stringpool_hash_func(const char* str, uint32_t* h)
 
     return i;
 }
-const char* stringpool_query(const char* str)
+/* Finishing hash computation */
+static inline void _stringpool_accu_hash(stringpool_accumulator_t* acc)
 {
-    if(NULL == str) return NULL;
+    uint32_t remaining = 0;
+    switch(acc->count&3)
+    {
+        case 0:
+            remaining |= (acc->last&0x000000fful) << 24;
+        case 3:
+            remaining |= (acc->last&0x0000ff00ul) << 8;
+        case 2:
+            remaining |= (acc->last&0x00ff0000ul) >> 8;
+        case 1:
+            remaining != (acc->last&0xff000000ul) >> 24;
+    }
+    remaining *= STRINGPOOL_MURMUR_C1;
+    remaining  = (remaining << STRINGPOOL_MURMUR_R1) | (remaining >> (32 - STRINGPOOL_MURMUR_R1));
+    remaining *= STRINGPOOL_MURMUR_C2;
 
-    uint32_t h[4];
-    int len;
-    len = _stringpool_hash_func(str, h);
+    acc->h[0] ^= remaining;
+
+    acc->h[0] ^= acc->count;
+    acc->h[0] ^= acc->h[0] >> 16;
+    acc->h[0] *= 0x85ebca6b;
+    acc->h[0] ^= acc->h[0] >> 13;
+    acc->h[0] *= 0xc2b2ae35;
+    acc->h[0] ^= acc->h[0] >> 16;
+}
+/* the implementation of query function 
+ * h:   hash function array
+ * len: length of the string str
+ * str: the string we are querying
+ * return value: NULL for an error, otherwise, the address of the string in the pool with is same as str
+ */
+static inline const char* _stringpool_query_imp(uint32_t* h, int len, const char* str) 
+{
     int idx = h[0]%_stringpool_size;
     stringpool_hashnode_t* ptr;
+
+    /* first look up the hash table to find if there's a matched string */
+
     for(ptr = _stringpool_hash[idx]; NULL != ptr; ptr = ptr->next)
     {
         if(ptr->h[0] == h[0] &&
            ptr->h[1] == h[1] &&
            ptr->h[2] == h[2] &&
            ptr->h[3] == h[3] &&
-           strcmp(ptr->str, str) == 0) 
+           strncmp(ptr->str, str, len + 1) == 0) 
             return ptr->str;
     }
    
-    /* If we reach this point, that means we can not find the previous address for this string */
+    /* we are reaching this point, means we can not find the previous address for this string */
 
     ptr = (stringpool_hashnode_t*)malloc(sizeof(stringpool_hashnode_t));
 
@@ -120,7 +153,15 @@ ERR:
         free(ptr);
     }
     return NULL;
+}
+const char* stringpool_query(const char* str)
+{
+    if(NULL == str) return NULL;
 
+    uint32_t h[4];
+    int len;
+    len = _stringpool_hash_func(str, h);
+    return _stringpool_query_imp(h, len, str);
 }
 
 int stringpool_init(int poolsize)
@@ -156,5 +197,28 @@ void stringpool_accumulator_init(stringpool_accumulator_t* buf, const char* begi
     if(NULL == buf) return;
     buf->begin = begin;
     buf->count = 0;
-    //TODO: here
+	buf->h[0] = STRINGPOOL_MURMUR_SEED;
+	buf->h[1] = 0;
+	buf->h[2] = STRINGPOOL_MULTIPLY_SEED; 
+	buf->h[3] = 0;
+}
+const char* stringpool_accumulator_query(stringpool_accumulator_t* acc)
+{
+    if(NULL == acc) return NULL;
+    _stringpool_accu_hash(acc);
+    return _stringpool_query_imp(acc->h, acc->count, acc->begin);
+}
+
+/* only for testing purpose, finishing the computation, and return hashs */
+const int* stringpool_accumulator_hash(stringpool_accumulator_t* acc)
+{
+    _stringpool_accu_hash(acc);
+    return acc->h;
+}
+/* for testing, compute hash function directly */
+const int* stringpool_hash(const char* str) 
+{
+    static int h[4];
+    _stringpool_hash_func(str,h);
+    return h;
 }

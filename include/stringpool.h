@@ -1,6 +1,7 @@
 #ifndef __STRINGPOOL_H__
 
 #include <stdint.h>
+#include <stdio.h>
 
 #define STRINGPOOL_MURMUR_C1 0xcc9e2d51ul
 #define STRINGPOOL_MURMUR_C2 0x1b873593ul
@@ -64,6 +65,7 @@ static inline void stringpool_accumulator_next(stringpool_accumulator_t* acc, ch
     if(acc->count%4 == 0 && acc->count != 0)
     {
         uint32_t k = acc->last;
+        printf("-%u\n", k);
         k *= STRINGPOOL_MURMUR_C1;
         k  = (k << STRINGPOOL_MURMUR_R1) | (k >> (32 - STRINGPOOL_MURMUR_R1));
         k *= STRINGPOOL_MURMUR_C2;
