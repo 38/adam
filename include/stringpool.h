@@ -9,7 +9,7 @@
 #define STRINGPOOL_MURMUR_R1 15
 #define STRINGPOOL_MURMUR_R2 13
 #define STRINGPOOL_MURMUR_M  5
-#define STRINGPOOL_MURMUR_SEED 0x23f53423l
+#define STRINGPOOL_MURMUR_SEED 0xf3f53423l
 
 #define STRINGPOOL_MULTIPLY_SEED 0x23f4537l
 #define STRINGPOOL_MULTIPLY_M    0xee6b27ebul
@@ -60,12 +60,10 @@ void stringpool_accumulator_init(stringpool_accumulator_t* buf, const char* begi
 static inline void stringpool_accumulator_next(stringpool_accumulator_t* acc, char c)
 {
     uint8_t data = (uint8_t)c;
-    acc->last = (acc->last >> 8) | (data<<24);   /* assume big endian */
     /* TODO: Little endian */
     if(acc->count%4 == 0 && acc->count != 0)
     {
         uint32_t k = acc->last;
-        printf("-%u\n", k);
         k *= STRINGPOOL_MURMUR_C1;
         k  = (k << STRINGPOOL_MURMUR_R1) | (k >> (32 - STRINGPOOL_MURMUR_R1));
         k *= STRINGPOOL_MURMUR_C2;
@@ -76,8 +74,10 @@ static inline void stringpool_accumulator_next(stringpool_accumulator_t* acc, ch
         acc->h[0] ^= acc->h[0] * STRINGPOOL_MURMUR_M + STRINGPOOL_MURMUR_N;
     }
     
+    acc->last = (acc->last >> 8) | (data<<24);   /* assume big endian */
+    
     acc->h[1] = (acc->h[1] + data + (data << STRINGPOOL_SUM_R1) + (data >> STRINGPOOL_SUM_R2))%STRINGPOOL_SUM_M;
-    acc->h[2] = (data * acc->h[2])%STRINGPOOL_MULTIPLY_M;
+    acc->h[2] = (acc->h[2] + data * data);
     acc->h[3] = (acc->h[3] << 4) + data;
     uint32_t g = acc->h[3] & STRINGPOOL_ELF_MSK;
     if(g) acc->h[3] ^= g >> 24;

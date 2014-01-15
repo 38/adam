@@ -24,7 +24,6 @@ static inline int _stringpool_hash_func(const char* str, uint32_t* h)
 		if((i&3) == 0 && i != 0)
 		{
 			uint32_t k = *(uint32_t*)(data + i - 4);
-            printf("%u, %d\n", k, i);
             k *= STRINGPOOL_MURMUR_C1;
             k  = (k << STRINGPOOL_MURMUR_R1) | (k >> (32 - STRINGPOOL_MURMUR_R1));
             k *= STRINGPOOL_MURMUR_C2;
@@ -34,7 +33,7 @@ static inline int _stringpool_hash_func(const char* str, uint32_t* h)
 			h[0] ^= h[0] * STRINGPOOL_MURMUR_M + STRINGPOOL_MURMUR_N;
 		}
 		h[1] = (h[1] + data[i] + (data[i]<<STRINGPOOL_SUM_R1) + (data[i]>>STRINGPOOL_SUM_R2))%STRINGPOOL_SUM_M;
-		h[2] = (data[i] * h[2])%STRINGPOOL_MULTIPLY_M;
+		h[2] = (h[2] + data[i] * data[i]);
 		h[3] = (h[3] << 4) + data[i];
 		uint32_t g = h[3] & STRINGPOOL_ELF_MSK;
 		if(g) h[3]^=g>>24;
@@ -42,23 +41,25 @@ static inline int _stringpool_hash_func(const char* str, uint32_t* h)
 	}
     /* process the unprocessed input, and swap endian order */
     uint32_t remaining = 0;
-	switch(i&3)
-	{
-        /* following code assume big endian, for little endian, this is not needed */
-		case 0:
-			remaining |= data[i-4] << 24;
-		case 3:
-		    remaining |= data[i-3] << 16;
-		case 2:
-			remaining |= data[i-2] << 8;
-		case 1: 
-			remaining |= data[i-1];
-	}
-    remaining *= STRINGPOOL_MURMUR_C1;
-    remaining  = (remaining << STRINGPOOL_MURMUR_R1) | (remaining >> (32 - STRINGPOOL_MURMUR_R1));
-    remaining *= STRINGPOOL_MURMUR_C2; 
-    h[0] ^= remaining;
-
+	if(i > 0)
+    {
+        switch(i&3)
+        {
+            /* following code assume big endian, for little endian, this is not needed */
+            case 0:
+                remaining |= data[i-4] << 24;
+            case 3:
+                remaining |= data[i-3] << 16;
+            case 2:
+                remaining |= data[i-2] << 8;
+            case 1: 
+                remaining |= data[i-1];
+        }
+        remaining *= STRINGPOOL_MURMUR_C1;
+        remaining  = (remaining << STRINGPOOL_MURMUR_R1) | (remaining >> (32 - STRINGPOOL_MURMUR_R1));
+        remaining *= STRINGPOOL_MURMUR_C2; 
+        h[0] ^= remaining;
+    }
     /* we are finishing */
     h[0] ^= i;
     h[0] ^= h[0] >> 16;
@@ -75,22 +76,24 @@ static inline int _stringpool_hash_func(const char* str, uint32_t* h)
 static inline void _stringpool_accu_hash(stringpool_accumulator_t* acc)
 {
     uint32_t remaining = 0;
-    switch(acc->count&3)
+    if(acc->count > 0)
     {
-        case 0:
-            remaining |= (acc->last&0x000000fful) << 24;
-        case 3:
-            remaining |= (acc->last&0x0000ff00ul) << 8;
-        case 2:
-            remaining |= (acc->last&0x00ff0000ul) >> 8;
-        case 1:
-            remaining != (acc->last&0xff000000ul) >> 24;
+        switch(acc->count&3)
+        {
+            case 0:
+                remaining |= (acc->last&0x000000fful) << 24;
+            case 3:
+                remaining |= (acc->last&0x0000ff00ul) << 8;
+            case 2:
+                remaining |= (acc->last&0x00ff0000ul) >> 8;
+            case 1:
+                remaining |= (acc->last&0xff000000ul) >> 24;
+        }
+        remaining *= STRINGPOOL_MURMUR_C1;
+        remaining  = (remaining << STRINGPOOL_MURMUR_R1) | (remaining >> (32 - STRINGPOOL_MURMUR_R1));
+        remaining *= STRINGPOOL_MURMUR_C2;
+        acc->h[0] ^= remaining;
     }
-    remaining *= STRINGPOOL_MURMUR_C1;
-    remaining  = (remaining << STRINGPOOL_MURMUR_R1) | (remaining >> (32 - STRINGPOOL_MURMUR_R1));
-    remaining *= STRINGPOOL_MURMUR_C2;
-
-    acc->h[0] ^= remaining;
 
     acc->h[0] ^= acc->count;
     acc->h[0] ^= acc->h[0] >> 16;
@@ -139,7 +142,9 @@ static inline const char* _stringpool_query_imp(uint32_t* h, int len, const char
     
     if(NULL == ptr->str) goto ERR;
 
-    strcpy(ptr->str, str);
+    strncpy(ptr->str, str, len);
+
+    ptr->str[len] = 0;
 
     _stringpool_hash[idx] = ptr;
 
