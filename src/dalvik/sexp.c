@@ -233,12 +233,39 @@ int sexp_match(const sexpression_t* sexpr, const char* pattern, ...)
 {
    va_list va;
    int ret = 1;
+   int type;
+   void** this_arg;
    if(NULL == pattern) return 0;
    va_start(va,pattern);
    if(pattern[0] != '(')
    {
-       /* TODO: verify it */
+       /* OK, we are going to match a list */
+       if( 0 == pattern[1]) /* Ok, we got an NIL*/
+       {
+           ret = (SEXP_NIL == sexpr);
+           goto DONE;
+       }
+       pattern ++;
+       this_arg = va_arg(va, void **);
+       /* what type ? */
+       switch(*pattern)
+       {
+           case 'C':
+               type = SEXP_TYPE_CONS;
+               break;
+           case 'L':
+               type = SEXP_TYPE_LIT;
+               break;
+           case 'S':
+               type = SEXP_TYPE_LIT;
+               break;
+           default:
+               ret = -1;
+               goto DONE;
+       }
+       /* TODO: verfiy this arg */
    }
+DONE:
    va_end(va);
    return ret;
 }
