@@ -1,12 +1,15 @@
 cmake_minimum_required(VERSION 2.6)
 project(anadroid)
 
-
-set(CFLAGS -g\ -DLOG_LEVEL=${glimpse_log_level}\ -DENABLE_PROFILER\ -DGLIMPSE_DEBUG)
-set(LDFLAGS \ )
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY bin)
-
+file(MAKE_DIRECTORY bin/lib)
 file(MAKE_DIRECTORY bin/test)
+
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY bin)
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY bin/lib)
+
+set(CFLAGS -g\ )
+set(LDFLAGS \ )
+
 
 include_directories("include" ".")
 
