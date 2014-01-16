@@ -4,6 +4,9 @@ project(anadroid)
 
 set(CFLAGS -g\ -DLOG_LEVEL=${glimpse_log_level}\ -DENABLE_PROFILER\ -DGLIMPSE_DEBUG)
 set(LDFLAGS \ )
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY bin)
+
+file(MAKE_DIRECTORY bin/test)
 
 include_directories("include" ".")
 

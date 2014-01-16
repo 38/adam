@@ -20,7 +20,7 @@
 *.swp
 
 #tests
-test/test_*
+bin/*
 
 #tags
 tags
