@@ -43,13 +43,13 @@ void sexp_free(sexpression_t* buf);
 int sexp_init(void);
 
 /* Check S-Expression matches a pattern 
- * Pattern := [ {Type Desc([Pattern])?} * ]
- * Type    := L|S|C|A  //Literal, String, Cons, Any
- * Desc    :  ?|=|*|   //Output, Input, Optional 
+ * Pattern := (TypeDesc*|Type
+ * Type    := L|S|C  //Literal, String, Cons, Any
+ * Desc    :  ?|=|*   //Output, Input, Multiple 
  *
- * eg:  [L=L=C[L?L?]] 
+ * eg:  sexp_match(expr, "(L=L=S?", "first", "second", third); will match (first second third) ...
  */
-int sexp_match(sexpression_t* sexpr, const char* pattern, ...);
+int sexp_match(const sexpression_t* sexpr, const char* pattern, ...);
 
 #define SEXP_NIL NULL
 

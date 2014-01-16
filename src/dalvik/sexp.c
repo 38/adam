@@ -1,5 +1,7 @@
 #include <dalvik/sexp.h>
 #include <stringpool.h>
+#include <stdarg.h>
+
 const char* sexpr_keywords[SEXPR_MAX_NUM_KEYWORDS];
 
 const char* _sexpr_keywords_defs[SEXPR_MAX_NUM_KEYWORDS] = {
@@ -139,7 +141,10 @@ static inline int _sexp_parse_ws(const char** p)
     for(; **p == ' ' || 
           **p == '\t' ||
           **p == '\r' ||
-          **p == '\n';
+          **p == '\n'||
+          **p == '/' ||
+          **p == '-' ||
+          **p == ',';
           (*p) ++) ret = 1;
     return ret;
 }
@@ -175,7 +180,7 @@ static inline const char* _sexp_parse_string(const char* str, sexpression_t** bu
 {
     int escape = 0;
     stringpool_accumulator_t accumulator;
-    stringpool_accumulator_init(&accumulator, str + 1); 
+    stringpool_accumulator_init(&accumulator, str); 
     for(;*str; str ++)
     {
         if(escape == 0)
@@ -202,7 +207,7 @@ static inline const char* _sexp_parse_string(const char* str, sexpression_t** bu
     return NULL;
 }
 /* parse a literal */
-#define RANGE(l,r,v) (((l) <= (v)) && ((v) <= (l)))
+#define RANGE(l,r,v) (((l) <= (v)) && ((v) <= (r)))
 static inline const char* _sexpr_parse_literal(const char* str, sexpression_t** buf)
 {
     stringpool_accumulator_t accumulator;
@@ -219,7 +224,21 @@ static inline const char* _sexpr_parse_literal(const char* str, sexpression_t** 
 const char* sexp_parse(const char* str, sexpression_t** buf)
 {
     sexpression_t* this; 
-    _sexpr_parse_ws(&str);
+    _sexp_parse_ws(&str);
     if(*str == '(') return _sexp_parse_list(str + 1, buf);
-    if(*str == '"') return _sexp_parse_string(str, buf);
+    if(*str == '"') return _sexp_parse_string(str + 1, buf);
+    return _sexpr_parse_literal(str, buf);
+}
+int sexp_match(const sexpression_t* sexpr, const char* pattern, ...)
+{
+   va_list va;
+   int ret = 1;
+   if(NULL == pattern) return 0;
+   va_start(va,pattern);
+   if(pattern[0] != '(')
+   {
+       /* TODO: verify it */
+   }
+   va_end(va);
+   return ret;
 }
