@@ -1,4 +1,10 @@
 #include <dalvik/sexp.h>
+const char* sexpr_keywords[SEXPR_MAX_NUM_KEYWORDS];
+
+const char* _sexpr_keywords_defs[SEXPR_MAX_NUM_KEYWORDS] = {
+    NULL
+}; 
+
 static inline sexpression_t* _sexpr_alloc(int type)
 {
     size_t size = sizeof(sexpression_t);
@@ -34,7 +40,10 @@ void sexp_free(sexpression_t* buf)
 }
 int sexp_init(void)
 {
-    
+    int i;
+    for(i = 0; _sexpr_keywords_defs[i]; i ++)
+        sexpr_keywords[i] = stringpool_query(_sexpr_keywords_defs[i]);
+    return 0;
 }
 const char* sexp_parse(const char* str, sexpression_t** buf)
 {

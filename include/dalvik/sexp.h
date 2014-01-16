@@ -42,6 +42,92 @@ void sexp_free(sexpression_t* buf);
 
 int sexp_init(void);
 
+/* Check S-Expression matches a pattern 
+ * Pattern := [ {Type Desc([Pattern])?} * ]
+ * Type    := L|S|C|A  //Literal, String, Cons, Any
+ * Desc    :  ?|=|*|   //Output, Input, Optional 
+ *
+ * eg:  [L=L=C[L?L?]] 
+ */
+int sexp_match(sexpression_t* sexpr, const char* pattern, ...);
+
 #define SEXP_NIL NULL
+
+#define SEXPR_MAX_NUM_KEYWORDS 256
+
+extern const char* sexpr_keywords[SEXPR_MAX_NUM_KEYWORDS];
+
+#define SEXPR_KW_MOVE       (sexpr_keywords[0])
+#define SEXPR_KW_RETURN     (sexpr_keywords[1])
+#define SEXPR_KW_CONST      (sexpr_keywords[2])
+#define SEXPR_KW_MONITOR    (sexpr_keywords[3])
+#define SEXPR_KW_CHECK      (sexpr_keywords[4])
+#define SEXPR_KW_INSTANCE   (sexpr_keywords[5])
+#define SEXPR_KW_ARRAY      (sexpr_keywords[6])
+#define SEXPR_KW_NEW        (sexpr_keywords[7])
+#define SEXPR_KW_FILLED     (sexpr_keywords[7])
+#define SEXPR_KW_16         (sexpr_keywords[8])
+#define SEXPR_KW_FROM16     (sexpr_keywords[9])
+#define SEXPR_KW_WIDE       (sexpr_keywords[10])
+#define SEXPR_KW_OBJECT     (sexpr_keywords[11])
+#define SEXPR_KW_RESULT     (sexpr_keywords[12])
+#define SEXPR_KW_EXCEPTION  (sexpr_keywords[13])
+#define SEXPR_KW_VOID       (sexpr_keywords[14])
+#define SEXPR_KW_4          (sexpr_keywords[15])
+#define SEXPR_KW_HIGH16     (sexpr_keywords[16])
+#define SEXPR_KW_32         (sexpr_keywords[17])
+#define SEXPR_KW_CLASS      (sexpr_keywords[18])
+#define SEXPR_KW_JUMBO      (sexpr_keywords[19])
+#define SEXPR_KW_ENTER      (sexpr_keywords[20])
+#define SEXPR_KW_EXIT       (sexpr_keywords[21])
+#define SEXPR_KW_CASK       (sexpr_keywords[22])
+#define SEXPR_KW_OF         (sexpr_keywords[23])
+#define SEXPR_KW_LENGTH     (sexpr_keywords[24])
+#define SEXPR_KW_RANGE      (sexpr_keywords[25])
+#define SEXPR_KW_THROW      (sexpr_keywords[26])
+#define SEXPR_KW_GOTO       (sexpr_keywords[27])
+#define SEXPR_KW_PACKED     (sexpr_keywords[28])
+#define SEXPR_KW_SWITCH     (sexpr_keywords[29])
+#define SEXPR_KW_SPARSE     (sexpr_keywords[30])
+#define SEXPR_KW_CMPL       (sexpr_keywords[31])
+#define SEXPR_KW_CMPG       (sexpr_keywords[32])
+#define SEXPR_KW_CMP        (sexpr_keywords[33])
+#define SEXPR_KW_FLOAT      (sexpr_keywords[34])
+#define SEXPR_KW_DOUBLE     (sexpr_keywords[35])
+#define SEXPR_KW_LONG       (sexpr_keywords[36])
+#define SEXPR_KW_IF         (sexpr_keywords[37])
+#define SEXPR_KW_EQ         (sexpr_keywords[38])
+#define SEXPR_KW_NE         (sexpr_keywords[39])
+#define SEXPR_KW_LE         (sexpr_keywords[40])
+#define SEXPR_KW_GE         (sexpr_keywords[41])
+#define SEXPR_KW_GT         (sexpr_keywords[42])
+#define SEXPR_KW_LT         (sexpr_keywords[43])
+#define SEXPR_KW_EQZ        (sexpr_keywords[44])
+#define SEXPR_KW_NEZ        (sexpr_keywords[45])
+#define SEXPR_KW_LEZ        (sexpr_keywords[46])
+#define SEXPR_KW_GEZ        (sexpr_keywords[47])
+#define SEXPR_KW_GTZ        (sexpr_keywords[48])
+#define SEXPR_KW_LTZ        (sexpr_keywords[49])
+#define SEXPR_KW_BOOLEAN    (sexpr_keywords[50])
+#define SEXPR_KW_BYTE       (sexpr_keywords[51])
+#define SEXPR_KW_CHAR       (sexpr_keywords[52])
+#define SEXPR_KW_SHORT      (sexpr_keywords[53])
+#define SEXPR_KW_AGET       (sexpr_keywords[54])
+#define SEXPR_KW_APUT       (sexpr_keywords[55])
+#define SEXPR_KW_SGET       (sexpr_keywords[56])
+#define SEXPR_KW_SPUT       (sexpr_keywords[57])
+#define SEXPR_KW_IGET       (sexpr_keywords[58])
+#define SEXPR_KW_IPUT       (sexpr_keywords[59])
+#define SEXPR_KW_INVOKE     (sexpr_keywords[60])
+#define SEXPR_KW_VIRTUAL    (sexpr_keywords[61])
+#define SEXPR_KW_SUPER      (sexpr_keywords[62])
+#define SEXPR_KW_DIRECT     (sexpr_keywords[63])
+#define SEXPR_KW_STATIC     (sexpr_keywords[64])
+#define SEXPR_KW_INTERFACE  (sexpr_keywords[65])
+#define SEXPR_KW_INT        (sexpr_keywords[66])
+#define SEXPR_KW_TO         (sexpr_keywords[67])
+#define SEXPR_KW_NEG        (sexpr_keywords[68])
+#define SEXPR_KW_NOT        (sexpr_keywords[69])
+//TODO binary operators 
 
 #endif /* __SEXP_H__ */
