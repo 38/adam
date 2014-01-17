@@ -92,6 +92,7 @@ const char* _sexpr_keywords_defs[SEXPR_MAX_NUM_KEYWORDS] = {
     "lit8",
     "lit16",
     "nop",
+    "string",
     NULL
 }; 
 
@@ -332,4 +333,43 @@ int sexp_match(const sexpression_t* sexpr, const char* pattern, ...)
 DONE:
    va_end(va);
    return ret;
+}
+sexpression_t* sexp_strip(sexpression_t* sexpr, ...)
+{
+    va_list va;
+    if(NULL == sexpr) return sexpr;
+    if(sexpr->type != SEXP_TYPE_CONS) return sexpr;
+    va_start(va, sexpr);
+    sexp_cons_t*   cons = (sexp_cons_t*) sexpr->data;
+    void* first_addr = *(void**)cons->first->data;
+    for(;;)
+    {
+        const char* this;
+        this = va_arg(va, const char*);
+        if(this == NULL) break;   /* we are reaching the end of the list */
+        if(first_addr == this)
+            return cons->second;   /* strip the expected element */
+    }
+    va_end(va);
+    return sexpr;   /* nothing to strip */
+}
+const char* sexp_get_object_path(sexpression_t* sexpr)
+{
+    int len = 0;
+    static char buf[4096];   /* Issue: thread safe */
+    if(sexpr == NULL) return NULL;
+    for(; sexpr != SEXP_NIL;)
+    {
+        if(sexpr->type != SEXP_TYPE_CONS) return NULL;   /* Because the property of parser, we are excepting a cons here */
+        sexp_cons_t *cons = (sexp_cons_t*)sexpr->data;
+        if(SEXP_NIL == cons->first || cons->first->type != SEXP_TYPE_LIT) return NULL;    /* first should not be a non-literial */
+        const char *p;
+        for(p = *(const char**)cons->first->data;
+            *p;
+             p++) buf[len++] = *p;
+        buf[len ++] = '/';
+        sexpr = cons->second;
+    }
+    buf[--len] = 0;
+    return stringpool_query(buf);
 }

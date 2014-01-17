@@ -32,7 +32,7 @@ enum{
     DVM_OPERAND_SIZE_32,
     DVM_OPERAND_SIZE_64
 };
-
+#define DVM_OPERAND_FLAG_WIDE       0x1u
 /* Type Specifier */
 enum {
     DVM_OPERAND_TYPE_ANY,
@@ -50,7 +50,10 @@ enum {
     DVM_OPERAND_TYPE_VOID,
     DVM_OPERAND_TYPE_TARGET
 };
-
+#define DVM_OPERAND_FLAG_TYPE(what) ((what)<<1)
+#define DVM_OPERAND_FLAG_CONST      0x20
+#define DVM_OPERAND_FLAG_RESULT     0x40
+#define DVM_OPERAND_FLAG_EXCEPTION  0x80
 typedef union {
     uint8_t    flags;
     struct {
@@ -78,13 +81,13 @@ typedef struct {
         int64_t            int64;
         struct _dalvik_instruction_t* target;   /* target instruction */
     } payload;
-} dalvik_operand;
+} dalvik_operand_t;
 
 typedef struct _dalvik_instruction_t{
     uint8_t            opcode:4;
     uint8_t            num_oprands:2;
     uint16_t        flags:10;
-    dalvik_operand  operands[4];
+    dalvik_operand_t operands[4];
     const char*     path;
     int             line;
     struct _dalvik_instruction_t* next;

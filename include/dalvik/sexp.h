@@ -60,6 +60,21 @@ int sexp_init(void);
  */
 int sexp_match(const sexpression_t* sexpr, const char* pattern, ...);
 
+/* strip one expected elements (either string or literal) in front of the sexpr if there's some,
+ * This is useful because, instructions like
+ * move, move/16, move/from16 has no difference.
+ * sexpr : the S-Expression to be stripped. 
+ * VA    : the expected value, all values are const char*. the arg list ends with a NULL pointer
+ * for example sexpr = (from16 v123,456)
+ * sexp_strip(sexpr, "from16", "16", NULL) = (v123,456)
+ * sexp_strip(sexpr, "abc", "def", NULL) = (from16 v123,456)
+ * NOTICE: All string assumed to be a pooled string, that means address equal <==> value equal 
+ */
+sexpression_t* sexp_strip(sexpression_t* sexpr, ...);
+
+/* Get object path (a b c) ==> a/b/c */
+const char* sexp_get_object_path(sexpression_t* sexpr);
+
 #define SEXP_NIL NULL
 
 #define SEXPR_MAX_NUM_KEYWORDS 256
@@ -153,4 +168,5 @@ extern const char* sexpr_keywords[SEXPR_MAX_NUM_KEYWORDS];
 #define SEXPR_KW_LIT8       (sexpr_keywords[84])
 #define SEXPR_KW_LIT16      (sexpr_keywords[85])
 #define SEXPR_KW_NOP        (sexpr_keywords[86])
+#define SEXPR_KW_STRING     (sexpr_keywords[87])
 #endif /* __SEXP_H__ */
