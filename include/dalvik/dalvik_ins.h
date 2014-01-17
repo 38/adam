@@ -1,6 +1,8 @@
 #ifndef __DALVIK_INS_H__
-
+#define __DALVIK_INS_H__
 #include <stdint.h>
+
+#include <dalvik/sexp.h>
 
 #define DALVIK_POOL_INIT_SIZE 1024
 
@@ -83,6 +85,8 @@ typedef struct _dalvik_instruction_t{
     uint8_t            num_oprands:2;
     uint16_t        flags:10;
     dalvik_operand  operands[4];
+    const char*     path;
+    int             line;
     struct _dalvik_instruction_t* next;
 } dalvik_instruction_t;
 
@@ -150,8 +154,13 @@ dalvik_instruction_t* dalvik_instruction_new( void );
 int dalvik_instruction_init( void );
 int dalvik_instruction_finalize( void );
 
-/* parse a instruction from a S-Expression (sx,buf) -> nextPosition*/
-const char* dalvik_instruction_prase(const char* sx, dalvik_instruction_t* buf);
+/* 
+ * make a new dalvik instruction from a S-Expression
+ * sexp: The S-Expression to be convert
+ * buf:  Store the result
+ * return value: <0 error, 0 success
+ */ 
+int dalvik_instruction_from_sexp(sexpression_t* sexp, dalvik_instruction_t* buf, int line, const char* file);
 
 /* Error Codes */
 

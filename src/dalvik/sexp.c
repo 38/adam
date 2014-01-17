@@ -91,6 +91,7 @@ const char* _sexpr_keywords_defs[SEXPR_MAX_NUM_KEYWORDS] = {
     "2addr",
     "lit8",
     "lit16",
+    "nop",
     NULL
 }; 
 

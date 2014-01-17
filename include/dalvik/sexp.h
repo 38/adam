@@ -1,4 +1,5 @@
 #ifndef __SEXP_H__
+#define __SEXP_H__
 #include <stdint.h>
 #include <stdlib.h>
 
@@ -151,4 +152,5 @@ extern const char* sexpr_keywords[SEXPR_MAX_NUM_KEYWORDS];
 #define SEXPR_KW_2ADDR      (sexpr_keywords[83])
 #define SEXPR_KW_LIT8       (sexpr_keywords[84])
 #define SEXPR_KW_LIT16      (sexpr_keywords[85])
+#define SEXPR_KW_NOP        (sexpr_keywords[86])
 #endif /* __SEXP_H__ */

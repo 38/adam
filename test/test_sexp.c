@@ -16,6 +16,7 @@ int main()
     sexp_free(exp);
     assert(0 == strcmp(" remaining", sexp_parse("(move/from16 v123,v456) remaining", &exp)));
     const char* a,*b,*c; 
+    sexp_free(exp);
     assert(1 == sexp_match(exp, "(L=L?L?L?", SEXPR_KW_MOVE, &a, &b, &c));
     assert(a == SEXPR_KW_FROM16);
     assert(0 == strcmp(b, "v123"));
@@ -36,5 +37,6 @@ int main()
         assert(0 == strcmp(excepted[i], a));
     }
     assert(excepted[i] == NULL);
+    
     return 0;
 }
