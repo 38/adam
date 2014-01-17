@@ -46,7 +46,7 @@ enum {
     DVM_OPERAND_TYPE_FLOAT,
     DVM_OPERAND_TYPE_OBJECT,
     DVM_OPERAND_TYPE_STRING,
-    DVM_OPERAND_TYPE_CLASS,
+    DVM_OPERAND_TYPE_CLASS, 
     DVM_OPERAND_TYPE_VOID,
     DVM_OPERAND_TYPE_TARGET
 };
@@ -71,6 +71,7 @@ typedef struct {
     dalvik_operand_header header;
     union{
         const char*        string;  /* for a string constant */
+        const char*        methpath; /* for a method path */
         uint8_t            uint8;     
         uint16_t           uint16;
         uint32_t           uint32;
@@ -79,6 +80,8 @@ typedef struct {
         int16_t            int16;
         int32_t            int32;
         int64_t            int64;
+        double             real64;
+        float              real32;
         struct _dalvik_instruction_t* target;   /* target instruction */
     } payload;
 } dalvik_operand_t;

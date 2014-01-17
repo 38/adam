@@ -175,17 +175,17 @@ __DI_CONSTRUCTOR(RETURN)
 __DI_CONSTRUCTOR(CONST)
 {
     buf->opcode = DVM_CONST;
-    buf->num_oprands = 1;
+    buf->num_oprands = 2;
     const char* curlit, *dest, *sour;
     int rc;
-    rc = sexp_match(next, "(L?A", &curlit, &next);
     next = sexp_strip(next, SEXPR_KW_4, SEXPR_KW_16, NULL);     /* We don't care the size of instance number */
+    rc = sexp_match(next, "(L?A", &curlit, &next);
     if(curlit == SEXPR_KW_HIGH16) /* const/high16 */
     {
-        if(sexp_match(next, "(L?L?", &dest, sour))
+        if(sexp_match(next, "(L?L?", &dest, &sour))
         {
             __DI_SETUP_OPERAND(0, 0, __DI_REGNUM(dest));
-            __DI_SETUP_OPERAND(1, DVM_OPERAND_FLAG_CONST, __DI_REGNUM(sour) << 16);
+            __DI_SETUP_OPERAND(1, DVM_OPERAND_FLAG_CONST, __DI_INSNUM(sour) << 16);
         }
         else return -1;
     }
@@ -197,12 +197,13 @@ __DI_CONSTRUCTOR(CONST)
            __DI_SETUP_OPERAND(0, DVM_OPERAND_FLAG_WIDE, __DI_REGNUM(dest));
            __DI_SETUP_OPERAND(1, DVM_OPERAND_FLAG_WIDE | DVM_OPERAND_FLAG_CONST, ((uint64_t)__DI_INSNUM(sour)) << 48);
         }
-        else
+        else if(sexp_match(next, "(L?L?", &dest, &sour))
         {
             /* const-wide */
             __DI_SETUP_OPERAND(0, DVM_OPERAND_FLAG_WIDE, __DI_REGNUM(dest));
             __DI_SETUP_OPERAND(1, DVM_OPERAND_FLAG_CONST | DVM_OPERAND_FLAG_WIDE, __DI_INSNUMLL(sour));
         }
+        else return -1;
     }
     else if(curlit == SEXPR_KW_STRING) /* const-string */
     {
@@ -219,19 +220,78 @@ __DI_CONSTRUCTOR(CONST)
         if(sexp_match(next, "(L?A", &dest, &next))
         {
            __DI_SETUP_OPERAND(0, DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_OBJECT), __DI_REGNUM(dest));
-           __DI_SETUP_OPERAND(1, DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_STRING) | DVM_OPERAND_FLAG_CONST, sexp_get_object_path(next));
+           __DI_SETUP_OPERAND(1, DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_CLASS) | DVM_OPERAND_FLAG_CONST, sexp_get_object_path(next));
         }
         else return -1;
     }
     else /* const or const/4 or const/16 */
     {
-        if(sexp_match(next, "(L?L?", &dest, &sour))
+        dest = curlit;
+        if(sexp_match(next, "(L?", &sour))
         {
             __DI_SETUP_OPERAND(0, 0, __DI_REGNUM(dest));
             __DI_SETUP_OPERAND(1, DVM_OPERAND_FLAG_CONST, __DI_INSNUM(sour));
         }
         else return -1;
     }
+    return 0;
+}
+__DI_CONSTRUCTOR(MONITOR)
+{
+    buf->opcode = DVM_MONITOR;
+    buf->num_oprands = 1;
+    const char* curlit, *arg;
+    int rc;
+    rc = sexp_match(next, "(L?A", &curlit, &next);
+    if(curlit == SEXPR_KW_ENTER)  /* monitor-enter */
+    {
+        buf->flags = DVM_FLAG_MONITOR_ENT;
+        if(sexp_match(next, "(L?", &arg))
+        {
+            __DI_SETUP_OPERAND(0, 0, __DI_REGNUM(arg));
+        }
+        else return -1;
+    }
+    else if(curlit == SEXPR_KW_EXIT) /* monitor-exit */
+    {
+        buf->flags = DVM_FLAG_MONITOR_EXT;
+        if(sexp_match(next, "(L?", &arg))
+        {
+            __DI_SETUP_OPERAND(0, 0, __DI_REGNUM(arg));
+        }
+        else return -1;
+    }
+    return 0;
+}
+__DI_CONSTRUCTOR(CHECK)
+{
+    buf->opcode = DVM_MONITOR;
+    buf->num_oprands = 3;
+    const char* curlit, *sour;
+    int rc;
+    rc = sexp_match(next, "(L?A", &curlit, &next);
+    if(curlit == SEXPR_KW_CAST)  /* check-cast */
+    {
+        if(sexp_match(next, "(L?A", &sour, &next))
+        {
+            __DI_SETUP_OPERAND(0, DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_OBJECT), __DI_REGNUM(sour));
+            __DI_SETUP_OPERAND(1, DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_CLASS), sexp_get_object_path(next));
+        }
+        else return -1;
+    }
+    else return -1;
+    return 0;
+}
+__DI_CONSTRUCTOR(THROW)
+{
+    buf->opcode = DVM_THROW;
+    buf->num_oprands = 1;
+    const char* sour;
+    if(sexp_match(next, "(L?", &sour))
+    {
+        __DI_SETUP_OPERAND(0, DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_OBJECT), __DI_REGNUM(sour));
+    }
+    else return -1;
     return 0;
 }
 #undef __DI_CONSTRUCTOR
@@ -250,7 +310,10 @@ int dalvik_instruction_from_sexp(sexpression_t* sexp, dalvik_instruction_t* buf,
         __DI_CASE(NOP)
         __DI_CASE(MOVE)
         __DI_CASE(RETURN)
-        __DI_CASE(CONST)   /* TODO: test */
+        __DI_CASE(CONST)
+        __DI_CASE(MONITOR)
+        __DI_CASE(CHECK)
+        __DI_CASE(THROW)
     __DI_END
 #undef __DI_END
 #undef __DI_CASE
