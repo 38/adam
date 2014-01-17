@@ -121,7 +121,8 @@ static inline const char* _stringpool_query_imp(uint32_t* h, int len, const char
            ptr->h[1] == h[1] &&
            ptr->h[2] == h[2] &&
            ptr->h[3] == h[3] &&
-           strncmp(ptr->str, str, len + 1) == 0) 
+           strncmp(ptr->str, str, len) == 0 &&
+           ptr->str[len] == 0 ) /* This is safe, because it's reachable only when str is not shorter than len */
             return ptr->str;
     }
    

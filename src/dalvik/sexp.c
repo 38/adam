@@ -5,7 +5,7 @@
 const char* sexpr_keywords[SEXPR_MAX_NUM_KEYWORDS];
 
 const char* _sexpr_keywords_defs[SEXPR_MAX_NUM_KEYWORDS] = {
-    "momve",
+    "move",
     "return",
     "const",
     "monitor",
@@ -111,7 +111,9 @@ static inline sexpression_t* _sexp_alloc(int type)
         default:
             return NULL;
     }
-    return (sexpression_t*) malloc(sizeof(sexpression_t));
+    sexpression_t* ret = (sexpression_t*) malloc(sizeof(sexpression_t));
+    if(NULL != ret) ret->type = type;
+    return ret;
 }
 void sexp_free(sexpression_t* buf)
 {
@@ -229,41 +231,102 @@ const char* sexp_parse(const char* str, sexpression_t** buf)
     if(*str == '"') return _sexp_parse_string(str + 1, buf);
     return _sexpr_parse_literal(str, buf);
 }
-int sexp_match(const sexpression_t* sexpr, const char* pattern, ...)
+static inline int _sexp_match_one(const sexpression_t* sexpr, char tc, char sc, const void** this_arg)
 {
-   va_list va;
    int ret = 1;
    int type;
-   void** this_arg;
+   /* Determine the type expected */
+   switch(tc)
+   {
+       case 'C':
+           type = SEXP_TYPE_CONS;
+           break;
+       case 'L':
+           type = SEXP_TYPE_LIT;
+           break;
+       case 'S':
+           type = SEXP_TYPE_STR;
+           break;
+       default:
+           ret = 0;
+           goto DONE;
+   }
+   if(type != sexpr->type)
+   {
+       /* The type does not match ? */
+       ret = 0;
+       goto DONE;
+   }
+   if(sc == 0)
+   {
+       /* A type name without a suffix, bad pattern */
+       ret = 0;
+       goto DONE;
+   }
+   if(SEXP_TYPE_CONS == type && sc == '=')
+   {
+       /* Cons can not used as input */
+       ret = 0;
+       goto DONE;
+   }
+   if(sc == '=')
+   {
+       /* We are going to verify it*/
+       const char* this_chr = (const char*) this_arg;
+       if(this_chr == *(const char**)sexpr->data) 
+           ret = 1;
+       else 
+           ret = 0;
+       goto DONE;
+   }
+   else if(sc == '?')
+   {
+       /* Copy the point to user */
+       ret = 1;
+       (*this_arg) = *(const void**)sexpr->data;
+   }
+DONE:
+   return ret;
+}
+int sexp_match(const sexpression_t* sexpr, const char* pattern, ...)
+{
+   int ret = 1;
+   va_list va;
+   const void** this_arg;
    if(NULL == pattern) return 0;
    va_start(va,pattern);
    if(pattern[0] != '(')
    {
-       /* OK, we are going to match a list */
-       if( 0 == pattern[1]) /* Ok, we got an NIL*/
+       this_arg = va_arg(va, const void **);
+       if(*pattern != 0) 
+           ret = _sexp_match_one(sexpr, pattern[0], pattern[1], this_arg);
+       else
+           ret = 0;
+   }
+   else
+   {
+       for(pattern++; *pattern && ret ; pattern += 2)
        {
-           ret = (SEXP_NIL == sexpr);
-           goto DONE;
+           this_arg = va_arg(va, const void**);
+           if('A' == pattern[0])
+           {
+               pattern ++;
+               (*this_arg) = sexpr;
+               sexpr = SEXP_NIL;
+               break;
+           }
+           if(sexpr == SEXP_NIL) break;
+           if(sexpr->type != SEXP_TYPE_CONS) 
+           {
+               ret = 0;
+               break;
+           }
+           sexp_cons_t* cons = (sexp_cons_t*)sexpr->data;
+           ret = _sexp_match_one(cons->first, pattern[0], pattern[1], this_arg);
+           sexpr = cons->second;
        }
-       pattern ++;
-       this_arg = va_arg(va, void **);
-       /* what type ? */
-       switch(*pattern)
-       {
-           case 'C':
-               type = SEXP_TYPE_CONS;
-               break;
-           case 'L':
-               type = SEXP_TYPE_LIT;
-               break;
-           case 'S':
-               type = SEXP_TYPE_LIT;
-               break;
-           default:
-               ret = -1;
-               goto DONE;
-       }
-       /* TODO: verfiy this arg */
+       if(*pattern == 0 && sexpr == SEXP_NIL && ret) ret = 1;
+       else ret = 0;
    }
 DONE:
    va_end(va);

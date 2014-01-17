@@ -48,15 +48,14 @@ int sexp_init(void);
  * The pattern can be defined as
  * PATTERN := ({TYPE DESC}* | TYPE DESC
  * TYPE    :=  C|L|S|A
- * DESC    :=  ?|=|*
+ * DESC    :=  ?|=
  * If the pattern starts with a (, that means the pattern is going to match into a list
  * The type name is either C, L, S, A, which means Cons, Literal and String and Anything
  * The desc field indicates how to use this variable. If the desc is =, that means this
  *     part of the list must have THE SAME TARGET ADDRESS and same type.
  *     Notice that type C can not have '='
  *     '?' means we what to store the value in a variable and also, verify the type
- *     * also require the function store the value, buf * means the program will produce 
- *     an array which contains all values 
+ *     The type A is only used at the end of list, which return the remaining list
  */
 int sexp_match(const sexpression_t* sexpr, const char* pattern, ...);
 
