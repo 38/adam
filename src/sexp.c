@@ -1,100 +1,8 @@
-#include <dalvik/sexp.h>
-#include <stringpool.h>
 #include <stdarg.h>
 
-const char* sexpr_keywords[SEXPR_MAX_NUM_KEYWORDS];
+#include <sexp.h>
+#include <stringpool.h>
 
-const char* _sexpr_keywords_defs[SEXPR_MAX_NUM_KEYWORDS] = {
-    "move",
-    "return",
-    "const",
-    "monitor",
-    "check",
-    "instance",
-    "array",
-    "new",
-    "filled",
-    "16",
-    "from16",
-    "wide",
-    "object",
-    "result",
-    "exception",
-    "void",
-    "4",
-    "high16",
-    "32",
-    "class",
-    "jumbo",
-    "enter",
-    "exit",
-    "cast",
-    "of",
-    "length",
-    "range",
-    "throw",
-    "goto",
-    "packed",
-    "switched",
-    "sparse",
-    "cmpl",
-    "cmpg",
-    "cmp",
-    "float",
-    "double",
-    "long",
-    "if",
-    "eq",
-    "ne",
-    "le",
-    "ge",
-    "gt",
-    "lt",
-    "eqz",
-    "nez",
-    "lez",
-    "gez",
-    "gtz",
-    "ltz",
-    "boolean",
-    "byte",
-    "char",
-    "short",
-    "aget",
-    "aput",
-    "sget",
-    "sput",
-    "iget",
-    "iput",
-    "invoke",
-    "virtual",
-    "super",
-    "direct",
-    "static",
-    "interface",
-    "int",
-    "to",
-    "neg",
-    "not",
-    "add",
-    "sub",
-    "mul",
-    "div",
-    "rem",
-    "and",
-    "or",
-    "xor",
-    "shl",
-    "shr",
-    "ushl",
-    "ushr",
-    "2addr",
-    "lit8",
-    "lit16",
-    "nop",
-    "string",
-    NULL
-}; 
 
 static inline sexpression_t* _sexp_alloc(int type)
 {
@@ -130,13 +38,6 @@ void sexp_free(sexpression_t* buf)
         default:
             free(buf);
     }
-}
-int sexp_init(void)
-{
-    int i;
-    for(i = 0; _sexpr_keywords_defs[i]; i ++)
-        sexpr_keywords[i] = stringpool_query(_sexpr_keywords_defs[i]);
-    return 0;
 }
 /* strip the white space, return value if the function eated a space */
 static inline int _sexp_parse_ws(const char** p) 

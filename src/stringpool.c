@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <malloc.h>
+#include <log.h>
 typedef struct _stringpool_hashnode_t{
     uint32_t h[4];
     char* str;
@@ -123,7 +124,10 @@ static inline const char* _stringpool_query_imp(uint32_t* h, int len, const char
            ptr->h[3] == h[3] &&
            strncmp(ptr->str, str, len) == 0 &&
            ptr->str[len] == 0 ) /* This is safe, because it's reachable only when str is not shorter than len */
+        {
+            LOG_DEBUG("Find string@0x%x", ptr->str);
             return ptr->str;
+        }
     }
    
     /* we are reaching this point, means we can not find the previous address for this string */
@@ -152,6 +156,7 @@ static inline const char* _stringpool_query_imp(uint32_t* h, int len, const char
     return ptr->str;
 
 ERR:
+    LOG_ERROR("can not find address for string");
     if(NULL != ptr) 
     {
         if(NULL != ptr->str)
@@ -176,16 +181,25 @@ int stringpool_init(int poolsize)
     _stringpool_hash = (stringpool_hashnode_t**)malloc(sizeof(stringpool_hashnode_t*) * poolsize);
     if(NULL == _stringpool_hash) return -1;
     memset(_stringpool_hash, 0, sizeof(stringpool_hashnode_t*) * _stringpool_size);
+    LOG_DEBUG("String Pool initialized");
     return 0;
 }
 void stringpool_fianlize(void)
 {
+    int maxlen = 0;
+    int len = 0;
     int i;
     for(i = 0; i < _stringpool_size; i ++)
     {
         stringpool_hashnode_t* ptr;
+#if LOG_LEVEL >= 6
+        len = 0;
+#endif
         for(ptr = _stringpool_hash[i]; ptr;)
         {
+#if LOG_LEVEL >= 6
+            len ++;
+#endif
             stringpool_hashnode_t* cur = ptr;
             ptr = ptr->next;
             if(cur->str)
@@ -194,9 +208,15 @@ void stringpool_fianlize(void)
                 free(cur);
             }
         }
+#if LOG_LEVEL >= 6
+        if(maxlen < len) maxlen = len;
+#endif
     }
     free(_stringpool_hash);
     _stringpool_hash = NULL;
+#if LOG_LEVEL >= 6
+    LOG_DEBUG("String pool max chain length = %d", maxlen);
+#endif
 }
 void stringpool_accumulator_init(stringpool_accumulator_t* buf, const char* begin)
 {

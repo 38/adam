@@ -2,10 +2,9 @@
 #define __DALVIK_INS_H__
 #include <stdint.h>
 
-#include <dalvik/sexp.h>
-
+#include <sexp.h>
+#include <dalvik/dalvik_tokens.h>
 #include <vector.h>
-
 #include <dalvik/label.h>
 
 #ifndef DALVIK_POOL_INIT_SIZE
@@ -96,18 +95,18 @@ typedef struct {
 } dalvik_operand_t;
 
 typedef struct _dalvik_instruction_t{
-    uint8_t            opcode:4;
-    uint8_t            num_oprands:2;
-    uint16_t        flags:10;
-    dalvik_operand_t operands[4];
-    const char*     path;
-    int             line;
-    struct _dalvik_instruction_t* next;
+    uint8_t            opcode:4;        /* Opcode of the instruction */
+    uint8_t            num_oprands:2;   /* How many operand ? */
+    uint16_t           flags:10;        /* Additional flags for instruction, DVM_FLAG_OPTYPE_NAME */
+    dalvik_operand_t   operands[4];     /* Operand array */
+    const char*        path;            /* The file name assigned to this instruction */
+    int                line;            /* Line number of this instruction */
+    struct _dalvik_instruction_t* next; /* The next instruction pointer */
 } dalvik_instruction_t;
 
 enum {
-    DVM_FLAG_MONITOR_ENT,
-    DVM_FLAG_MONITOR_EXT
+    DVM_FLAG_MONITOR_ENT,       /* monitor-enter */
+    DVM_FLAG_MONITOR_EXT        /* monitor-end */
 };
 
 enum {
@@ -178,6 +177,5 @@ int dalvik_instruction_finalize( void );
 int dalvik_instruction_from_sexp(sexpression_t* sexp, dalvik_instruction_t* buf, int line, const char* file);
 void dalvik_instruction_free(dalvik_instruction_t* buf);
 
-/* Error Codes */
 
 #endif /* __DALVIK_INS_H__ */

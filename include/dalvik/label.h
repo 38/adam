@@ -5,7 +5,9 @@
 #ifndef DAVLIK_LABEL_POOL_SIZE
 #   define DAVLIK_LABEL_POOL_SIZE 65521
 #endif
-
+/* previous definitions */
+struct _dalvik_instruction_t;
+typedef struct _dalvik_instruction_t dalvik_instruction_t;
 /* this is the jump table for the labels */
 extern dalvik_instruction_t* davlik_label_jump_table[DAVLIK_LABEL_POOL_SIZE];
 

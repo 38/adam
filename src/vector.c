@@ -1,6 +1,7 @@
 #include <vector.h>
 #include <stdlib.h>
 #include <string.h>
+#include <log.h>
 vector_t* vector_new(size_t elem_size)
 {
     vector_t* ret = NULL;
@@ -33,6 +34,7 @@ static inline int _vector_resize(vector_t* vec)  /* double the capacity of a vec
 {
     if(NULL == vec) return -1;
     if(NULL == vec->data) return -1;
+    LOG_DEBUG("resize vector @0x%x from size %d to %d", vec, vec->capacity, vec->capacity * 2);
     size_t new_capacity = vec->capacity * 2;
     void* data = realloc(vec->data, new_capacity * vec->elem_size);
     if(NULL == data) return -1;

@@ -1,8 +1,10 @@
-#include <dalvik/dalvik_ins.h>
-#include <dalvik/sexp.h>
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
+
+#include <dalvik/dalvik_ins.h>
+#include <sexp.h>
+#include <dalvik/dalvik_tokens.h>
 
 dalvik_instruction_t* dalvik_instruction_pool = NULL;
 
@@ -78,16 +80,16 @@ __DI_CONSTRUCTOR(MOVE)
     int rc;
     rc = sexp_match(next, "(L?A", &curlit, &next);
     if(rc == 0) return -1;
-    else if(curlit == SEXPR_KW_FROM16 || curlit == SEXPR_KW_16)  /* move/from16 or move/16 */
+    else if(curlit == DALVIK_TOKEN_FROM16 || curlit == DALVIK_TOKEN_16)  /* move/from16 or move/16 */
     {
         rc = sexp_match(next, "(L?L?", &dest, &sour);
         if(rc == 0) return -1;
         __DI_SETUP_OPERAND(0, 0, __DI_REGNUM(dest));
         __DI_SETUP_OPERAND(1, 0, __DI_REGNUM(sour));
     }
-    else if(curlit == SEXPR_KW_WIDE)  /* move-wide */
+    else if(curlit == DALVIK_TOKEN_WIDE)  /* move-wide */
     {
-        next = sexp_strip(next, SEXPR_KW_FROM16, SEXPR_KW_16, NULL); /* strip 'from16' and '16', because we don't distinguish the range of register */
+        next = sexp_strip(next, DALVIK_TOKEN_FROM16, DALVIK_TOKEN_16, NULL); /* strip 'from16' and '16', because we don't distinguish the range of register */
         if(sexp_match(next, "(L?L?", &dest, &sour)) 
         {
             __DI_SETUP_OPERAND(0, DVM_OPERAND_FLAG_WIDE, __DI_REGNUM(dest));
@@ -95,23 +97,23 @@ __DI_CONSTRUCTOR(MOVE)
         }
         else return -1; 
     }
-    else if(curlit == SEXPR_KW_OBJECT)  /*move-object*/
+    else if(curlit == DALVIK_TOKEN_OBJECT)  /*move-object*/
     {
-        next = sexp_strip(next, SEXPR_KW_FROM16, SEXPR_KW_16, NULL);  /* for the same reason, strip it frist */
+        next = sexp_strip(next, DALVIK_TOKEN_FROM16, DALVIK_TOKEN_16, NULL);  /* for the same reason, strip it frist */
         if(sexp_match(next, "(L?L?", &dest, &sour)) 
         {
             __DI_SETUP_OPERAND(0, DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_OBJECT), __DI_REGNUM(dest));
             __DI_SETUP_OPERAND(1, DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_OBJECT), __DI_REGNUM(sour));
         }
     }
-    else if(curlit == SEXPR_KW_RESULT)  /* move-result */
+    else if(curlit == DALVIK_TOKEN_RESULT)  /* move-result */
     {
-        if(sexp_match(next, "(L=L?", SEXPR_KW_WIDE, &dest))  /* move-result/wide */
+        if(sexp_match(next, "(L=L?", DALVIK_TOKEN_WIDE, &dest))  /* move-result/wide */
         {
             __DI_SETUP_OPERAND(0, DVM_OPERAND_FLAG_WIDE, __DI_REGNUM(dest));
             __DI_SETUP_OPERAND(1, DVM_OPERAND_FLAG_WIDE | DVM_OPERAND_FLAG_RESULT, 0);
         }
-        else if(sexp_match(next, "(L=L?", SEXPR_KW_OBJECT, &dest)) /* move-result/object */
+        else if(sexp_match(next, "(L=L?", DALVIK_TOKEN_OBJECT, &dest)) /* move-result/object */
         {
             __DI_SETUP_OPERAND(0, DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_OBJECT), __DI_REGNUM(dest));
             __DI_SETUP_OPERAND(1, DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_OBJECT) | DVM_OPERAND_FLAG_RESULT, 0);
@@ -123,7 +125,7 @@ __DI_CONSTRUCTOR(MOVE)
         }
         else return -1;
     }
-    else if(curlit == SEXPR_KW_EXCEPTION)  /* move-exception */
+    else if(curlit == DALVIK_TOKEN_EXCEPTION)  /* move-exception */
     {
         if(sexp_match(next, "(L?", &dest))
         {
@@ -150,17 +152,17 @@ __DI_CONSTRUCTOR(RETURN)
     const char* curlit, *dest;
     int rc;
     rc = sexp_match(next, "(L?A", &curlit, &next);
-    if(curlit == SEXPR_KW_VOID) /* return-void */
+    if(curlit == DALVIK_TOKEN_VOID) /* return-void */
     {
         __DI_SETUP_OPERAND(0, DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_VOID), 0);
     }
-    else if(curlit == SEXPR_KW_WIDE) /* return wide */
+    else if(curlit == DALVIK_TOKEN_WIDE) /* return wide */
     {
         if(sexp_match(next, "(L?", &dest))
             __DI_SETUP_OPERAND(0, DVM_OPERAND_FLAG_WIDE, __DI_REGNUM(dest));
         else return -1;
     }
-    else if(curlit == SEXPR_KW_OBJECT) /* return-object */
+    else if(curlit == DALVIK_TOKEN_OBJECT) /* return-object */
     {
         if(sexp_match(next, "(L?", &dest))
             __DI_SETUP_OPERAND(0, DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_OBJECT), __DI_REGNUM(dest));
@@ -178,9 +180,9 @@ __DI_CONSTRUCTOR(CONST)
     buf->num_oprands = 2;
     const char* curlit, *dest, *sour;
     int rc;
-    next = sexp_strip(next, SEXPR_KW_4, SEXPR_KW_16, NULL);     /* We don't care the size of instance number */
+    next = sexp_strip(next, DALVIK_TOKEN_4, DALVIK_TOKEN_16, NULL);     /* We don't care the size of instance number */
     rc = sexp_match(next, "(L?A", &curlit, &next);
-    if(curlit == SEXPR_KW_HIGH16) /* const/high16 */
+    if(curlit == DALVIK_TOKEN_HIGH16) /* const/high16 */
     {
         if(sexp_match(next, "(L?L?", &dest, &sour))
         {
@@ -189,10 +191,10 @@ __DI_CONSTRUCTOR(CONST)
         }
         else return -1;
     }
-    else if(curlit == SEXPR_KW_WIDE) /* const-wide */
+    else if(curlit == DALVIK_TOKEN_WIDE) /* const-wide */
     {
-        next = sexp_strip(next, SEXPR_KW_16, SEXPR_KW_32, NULL);
-        if(sexp_match(next, "(L=L?L?", SEXPR_KW_HIGH16, &dest, &sour))  /* const-wide/high16 */
+        next = sexp_strip(next, DALVIK_TOKEN_16, DALVIK_TOKEN_32, NULL);
+        if(sexp_match(next, "(L=L?L?", DALVIK_TOKEN_HIGH16, &dest, &sour))  /* const-wide/high16 */
         {
            __DI_SETUP_OPERAND(0, DVM_OPERAND_FLAG_WIDE, __DI_REGNUM(dest));
            __DI_SETUP_OPERAND(1, DVM_OPERAND_FLAG_WIDE | DVM_OPERAND_FLAG_CONST, ((uint64_t)__DI_INSNUM(sour)) << 48);
@@ -205,9 +207,9 @@ __DI_CONSTRUCTOR(CONST)
         }
         else return -1;
     }
-    else if(curlit == SEXPR_KW_STRING) /* const-string */
+    else if(curlit == DALVIK_TOKEN_STRING) /* const-string */
     {
-       next = sexp_strip(next, SEXPR_KW_JUMBO, NULL);   /* Jumbo is useless for us */
+       next = sexp_strip(next, DALVIK_TOKEN_JUMBO, NULL);   /* Jumbo is useless for us */
        if(sexp_match(next, "(L?S?", &dest, &sour))
        {
            __DI_SETUP_OPERAND(0, DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_STRING), __DI_REGNUM(dest));
@@ -215,7 +217,7 @@ __DI_CONSTRUCTOR(CONST)
        }
        else return -1;
     }
-    else if(curlit == SEXPR_KW_CLASS)  /* const-class */
+    else if(curlit == DALVIK_TOKEN_CLASS)  /* const-class */
     {
         if(sexp_match(next, "(L?A", &dest, &next))
         {
@@ -243,7 +245,7 @@ __DI_CONSTRUCTOR(MONITOR)
     const char* curlit, *arg;
     int rc;
     rc = sexp_match(next, "(L?A", &curlit, &next);
-    if(curlit == SEXPR_KW_ENTER)  /* monitor-enter */
+    if(curlit == DALVIK_TOKEN_ENTER)  /* monitor-enter */
     {
         buf->flags = DVM_FLAG_MONITOR_ENT;
         if(sexp_match(next, "(L?", &arg))
@@ -252,7 +254,7 @@ __DI_CONSTRUCTOR(MONITOR)
         }
         else return -1;
     }
-    else if(curlit == SEXPR_KW_EXIT) /* monitor-exit */
+    else if(curlit == DALVIK_TOKEN_EXIT) /* monitor-exit */
     {
         buf->flags = DVM_FLAG_MONITOR_EXT;
         if(sexp_match(next, "(L?", &arg))
@@ -270,7 +272,7 @@ __DI_CONSTRUCTOR(CHECK)
     const char* curlit, *sour;
     int rc;
     rc = sexp_match(next, "(L?A", &curlit, &next);
-    if(curlit == SEXPR_KW_CAST)  /* check-cast */
+    if(curlit == DALVIK_TOKEN_CAST)  /* check-cast */
     {
         if(sexp_match(next, "(L?A", &sour, &next))
         {
@@ -299,7 +301,7 @@ __DI_CONSTRUCTOR(GOTO)
     buf->opcode = DVM_GOTO;
     buf->num_oprands = 1;
     const char* label;
-    next = sexp_strip(next, SEXPR_KW_16, SEXPR_KW_32, NULL);   /* We don't care the size of offest */
+    next = sexp_strip(next, DALVIK_TOKEN_16, DALVIK_TOKEN_32, NULL);   /* We don't care the size of offest */
     if(sexp_match(next, "(L?", &label))   /* goto label */
     {
         int lid = dalvik_label_get_label_id(label);
@@ -312,7 +314,7 @@ __DI_CONSTRUCTOR(PACKED)
 {
     buf->opcode = DVM_SWITCH;
     const char *reg, *begin;
-    if(sexp_match(next, "(L=L?L?A", SEXPR_KW_SWITCH, &reg, &begin, &next))/* (packed-switch reg begin label1..label N) */
+    if(sexp_match(next, "(L=L?L?A", DALVIK_TOKEN_SWITCH, &reg, &begin, &next))/* (packed-switch reg begin label1..label N) */
     {
         const char* label;
         vector_t*   jump_table;
@@ -351,7 +353,7 @@ int dalvik_instruction_from_sexp(sexpression_t* sexp, dalvik_instruction_t* buf,
     int rc;
     rc = sexp_match(sexp, "(L?A", &firstword, &next);
 #define __DI_BEGIN if(0 == rc){return -1;}
-#define __DI_CASE(kw) else if(firstword == SEXPR_KW_##kw){ rc = _dalvik_instruction_##kw(next, buf); }
+#define __DI_CASE(kw) else if(firstword == DALVIK_TOKEN_##kw){ rc = _dalvik_instruction_##kw(next, buf); }
 #define __DI_END else rc = -1;
     __DI_BEGIN
         __DI_CASE(NOP)
@@ -368,7 +370,7 @@ int dalvik_instruction_from_sexp(sexpression_t* sexp, dalvik_instruction_t* buf,
          * TODO:
          * 1. test vector
          * 2. test label pool
-         * 3. test packed parser
+         * 3. test packed parser & test goto
          * 4. finish sparse
          * 5. unfished : from instance-of to fill-array-data 
          */

@@ -1,5 +1,6 @@
 #include <dalvik/label.h>
 #include <string.h>
+#include <log.h>
 
 dalvik_instruction_t* davlik_label_jump_table[DAVLIK_LABEL_POOL_SIZE];
 
@@ -16,6 +17,7 @@ void dalvik_label_init(void)
 {
     _dalvik_label_count = 0;
     memset(_dalvik_label_map_table, 0, sizeof(_dalvik_label_map_table));
+    LOG_DEBUG("Dalvik Label Pool initialized");
 }
 void dalvik_label_free(void)
 {
@@ -25,7 +27,7 @@ void dalvik_label_free(void)
         dalvik_label_map_t* ptr;
         for(ptr = _dalvik_label_map_table[i]; ptr; )
         {
-            dalvik_label_table_map_t* this = ptr;
+            dalvik_label_map_t* this = ptr;
             ptr = ptr->next;
             free(this);
         }
@@ -44,5 +46,6 @@ int dalvik_label_get_label_id(const char* label)
     ptr->idx   = _dalvik_label_count ++;
     ptr->next  = _dalvik_label_map_table[idx];
     _dalvik_label_map_table[idx] = ptr;
+    LOG_DEBUG("Find label map %s --> %d", label, ptr->idx);
     return ptr->idx;
 }

@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 2.6)
 project(anadroid)
 
+set(CMAKE_USE_RELATIVE_PATHS ON)
+
 file(MAKE_DIRECTORY bin/lib)
 file(MAKE_DIRECTORY bin/test)
 

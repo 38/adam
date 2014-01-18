@@ -1,6 +1,7 @@
 #include <stringpool.h>
 #include <dalvik/dalvik_ins.h>
-#include <dalvik/sexp.h>
+#include <sexp.h>
+#include <dalvik/dalvik_tokens.h>
 #include <assert.h>
 sexpression_t *sexp;
 dalvik_instruction_t inst;
@@ -174,7 +175,7 @@ void test_const()
 int main()
 {
     stringpool_init(1027);
-    sexp_init();
+    dalvik_tokens_init();
 
     test_move();
     test_return();
