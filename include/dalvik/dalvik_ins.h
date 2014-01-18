@@ -4,7 +4,13 @@
 
 #include <dalvik/sexp.h>
 
-#define DALVIK_POOL_INIT_SIZE 1024
+#include <vector.h>
+
+#include <dalvik/label.h>
+
+#ifndef DALVIK_POOL_INIT_SIZE
+#   define DALVIK_POOL_INIT_SIZE 1024
+#endif
 
 /* Define all opcodes for Dalvik Virtual Machine */
 enum {
@@ -48,7 +54,8 @@ enum {
     DVM_OPERAND_TYPE_STRING,
     DVM_OPERAND_TYPE_CLASS, 
     DVM_OPERAND_TYPE_VOID,
-    DVM_OPERAND_TYPE_TARGET
+    DVM_OPERAND_TYPE_LABEL,
+    DVM_OPERAND_TYPE_LABELVECTOR
 };
 #define DVM_OPERAND_FLAG_TYPE(what) ((what)<<1)
 #define DVM_OPERAND_FLAG_CONST      0x20
@@ -58,7 +65,8 @@ typedef union {
     uint8_t    flags;
     struct {
         uint8_t size:1;            /* Size of the operand, 32 bit or 64 bit */
-        uint8_t type:4;            /* Type specified by the instruction. If it's unspecified, it should be DVM_OPERAND_TYPE_ANY */
+        uint8_t type:4;            /* Type specified by the instruction. 
+                                      If it's unspecified, it should be DVM_OPERAND_TYPE_ANY */
         uint8_t is_const:1;        /* Wether or not the oprand a constant */
         uint8_t is_result:1;       /* move-result instruction actually take 2 args, but one is a result */
         uint8_t is_expection:1;    /* if the oprand a exception */
@@ -82,7 +90,8 @@ typedef struct {
         int64_t            int64;
         double             real64;
         float              real32;
-        struct _dalvik_instruction_t* target;   /* target instruction */
+        int32_t            labelid;             /* label id in label pool */
+        vector_t*          branches;            /* a group of branch */
     } payload;
 } dalvik_operand_t;
 
@@ -167,6 +176,7 @@ int dalvik_instruction_finalize( void );
  * return value: <0 error, 0 success
  */ 
 int dalvik_instruction_from_sexp(sexpression_t* sexp, dalvik_instruction_t* buf, int line, const char* file);
+void dalvik_instruction_free(dalvik_instruction_t* buf);
 
 /* Error Codes */
 

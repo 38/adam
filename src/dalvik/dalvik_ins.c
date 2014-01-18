@@ -294,6 +294,53 @@ __DI_CONSTRUCTOR(THROW)
     else return -1;
     return 0;
 }
+__DI_CONSTRUCTOR(GOTO)
+{
+    buf->opcode = DVM_GOTO;
+    buf->num_oprands = 1;
+    const char* label;
+    next = sexp_strip(next, SEXPR_KW_16, SEXPR_KW_32, NULL);   /* We don't care the size of offest */
+    if(sexp_match(next, "(L?", &label))   /* goto label */
+    {
+        int lid = dalvik_label_get_label_id(label);
+        __DI_SETUP_OPERAND(0, DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_LABEL) | DVM_OPERAND_FLAG_CONST, label);
+    }
+    else return -1;
+    return 0;
+}
+__DI_CONSTRUCTOR(PACKED)
+{
+    buf->opcode = DVM_SWITCH;
+    const char *reg, *begin;
+    if(sexp_match(next, "(L=L?L?A", SEXPR_KW_SWITCH, &reg, &begin, &next))/* (packed-switch reg begin label1..label N) */
+    {
+        const char* label;
+        vector_t*   jump_table;
+        __DI_SETUP_OPERAND(0, DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_LABELVECTOR) |
+                              DVM_OPERAND_FLAG_CONST,
+                              jump_table = vector_new(sizeof(uint32_t)));
+        if(NULL == jump_table) return -1;
+        while(SEXP_NIL != next)
+        {
+            if(!sexp_match(next, "(L?A", &label, next)) 
+            {
+                vector_free(jump_table);
+                return -1;
+            }
+            
+            int lid = dalvik_label_get_label_id(label);
+
+            if(lid < 0) 
+            {
+                vector_free(jump_table);
+                return -1;
+            }
+
+            vector_pushback(jump_table, &lid);
+        }
+    }
+    return 0;
+}
 #undef __DI_CONSTRUCTOR
 int dalvik_instruction_from_sexp(sexpression_t* sexp, dalvik_instruction_t* buf, int line, const char* file)
 {
@@ -314,9 +361,33 @@ int dalvik_instruction_from_sexp(sexpression_t* sexp, dalvik_instruction_t* buf,
         __DI_CASE(MONITOR)
         __DI_CASE(CHECK)
         __DI_CASE(THROW)
+        __DI_CASE(GOTO)
+        __DI_CASE(PACKED)
+        //__DI_CASE(SPARSE)
+        /* 
+         * TODO:
+         * 1. test vector
+         * 2. test label pool
+         * 3. test packed parser
+         * 4. finish sparse
+         * 5. unfished : from instance-of to fill-array-data 
+         */
+
     __DI_END
 #undef __DI_END
 #undef __DI_CASE
 #undef __DI_BEGIN
     return rc;
+}
+
+void dalvik_instruction_free(dalvik_instruction_t* buf)
+{
+    if(NULL == buf) return;
+    int i;
+    for(i = 0; i < buf->num_oprands; i ++)
+    {
+        if(buf->operands[i].header.info.is_const &&
+           buf->operands[i].header.info.type == DVM_OPERAND_TYPE_LABELVECTOR)
+            vector_free(buf->operands[i].payload.branches);
+    }
 }

@@ -225,13 +225,29 @@ static inline const char* _sexpr_parse_literal(const char* str, sexpression_t** 
     *data = stringpool_accumulator_query(&accumulator);
     return str;
 }
+void _sexp_parse_comment(const char** str)
+{
+    if(**str == ';')
+    {
+        (*str) ++;
+        while(**str && **str != '\n')
+            (*str) ++;
+    }
+}
 const char* sexp_parse(const char* str, sexpression_t** buf)
 {
+    if(NULL == str) return NULL;
     sexpression_t* this; 
     _sexp_parse_ws(&str);
-    if(*str == '(') return _sexp_parse_list(str + 1, buf);
-    if(*str == '"') return _sexp_parse_string(str + 1, buf);
-    return _sexpr_parse_literal(str, buf);
+    _sexp_parse_comment(&str);
+    if(*str == 0)
+    {
+        (*buf) = SEXP_NIL;
+        return str;
+    }
+    else if(*str == '(') return _sexp_parse_list(str + 1, buf);
+    else if(*str == '"') return _sexp_parse_string(str + 1, buf);
+    else return _sexpr_parse_literal(str, buf);
 }
 static inline int _sexp_match_one(const sexpression_t* sexpr, char tc, char sc, const void** this_arg)
 {
