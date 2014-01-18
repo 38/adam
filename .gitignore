@@ -18,6 +18,7 @@
 
 #vim files
 *.swp
+*.swo
 
 #tests
 bin/*
