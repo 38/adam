@@ -1,7 +1,7 @@
 #ifndef __LABEL_H__
 #define __LABEL_H__
 #include <stdint.h>
-#include <dalvik/dalvik_ins.h>
+#include <dalvik/dalvik_instruction.h>
 #ifndef DAVLIK_LABEL_POOL_SIZE
 #   define DAVLIK_LABEL_POOL_SIZE 65521
 #endif

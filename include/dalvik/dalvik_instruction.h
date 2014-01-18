@@ -1,11 +1,11 @@
-#ifndef __DALVIK_INS_H__
-#define __DALVIK_INS_H__
+#ifndef __DALVIK_INSTRUCTION_H__
+#define __DALVIK_INSTRUCTION_H__
 #include <stdint.h>
 
 #include <sexp.h>
 #include <dalvik/dalvik_tokens.h>
 #include <vector.h>
-#include <dalvik/label.h>
+#include <dalvik/dalvik_label.h>
 
 #ifndef DALVIK_POOL_INIT_SIZE
 #   define DALVIK_POOL_INIT_SIZE 1024
@@ -178,4 +178,4 @@ int dalvik_instruction_from_sexp(sexpression_t* sexp, dalvik_instruction_t* buf,
 void dalvik_instruction_free(dalvik_instruction_t* buf);
 
 
-#endif /* __DALVIK_INS_H__ */
+#endif /* __DALVIK_INSTRCTION_H__ */

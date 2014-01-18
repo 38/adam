@@ -179,50 +179,9 @@ void test_monitor()
     assert(inst.opcode == DVM_MONITOR);
     assert(inst.num_oprands == 1);
     assert(inst.operands[0].header.info.type == 0);
-    assert(inst.operands[0].payload.uint16 == 123);
+    assert(inst.operands[0].payload.uint16_t == 123);
     assert(inst.operands[0].header.info.is_const == 0);
-    assert(inst.flags == DVM_FLAG_MONITOR_ENT);
-    sexp_free(sexp);
-    
-    assert(NULL != sexp_parse("(monitor-exit v123)", &sexp));
-    assert(0 == dalvik_instruction_from_sexp(sexp, &inst, 0 , NULL));
-    assert(inst.opcode == DVM_MONITOR);
-    assert(inst.num_oprands == 1);
-    assert(inst.operands[0].header.info.type == 0);
-    assert(inst.operands[0].payload.uint16 == 123);
-    assert(inst.operands[0].header.info.is_const == 0);
-    assert(inst.flags == DVM_FLAG_MONITOR_EXT);
-    sexp_free(sexp);
-}
-void test_packed()
-{
-    assert(NULL != sexp_parse(
-           "(packed-switch v123, 456,\n"
-           "  l456,     ;case456\n"
-           "  l457,     ;case457\n"
-           "  l458,     ;case458\n"
-           "  ldefault  ;default\n"
-           ")", &sexp));
-    assert(0 == dalvik_instruction_from_sexp(sexp, &inst, 0, NULL));
-    assert(DVM_SWITCH == inst.opcode);
-    assert(3 == inst.num_oprands);
-    assert(123 == inst.operands[0].payload.uint16);
-    assert(0 == inst.operands[0].header.flags);
-    assert(1 == inst.operands[1].header.info.is_const);
-    assert(456 == inst.operands[1].payload.uint16);
-    assert(inst.operands[1].header.info.type == DVM_OPERAND_TYPE_INT);
-    assert(inst.operands[2].header.info.type == DVM_OPERAND_TYPE_LABELVECTOR);
-    assert(inst.operands[2].header.info.is_const == 1);
-    assert(inst.operands[2].payload.branches != NULL);
-    vector_t* v = inst.operands[2].payload.branches;
-    assert(0 == *(int*)vector_get(v, 0));
-    assert(1 == *(int*)vector_get(v, 1));
-    assert(2 == *(int*)vector_get(v, 2));
-    assert(3 == *(int*)vector_get(v, 3));
-    assert(0 == dalvik_label_get_label_id(stringpool_query("l456")));
-    assert(1 == dalvik_label_get_label_id(stringpool_query("l457")));
-    assert(2 == dalvik_label_get_label_id(stringpool_query("l458")));
-    assert(3 == dalvik_label_get_label_id(stringpool_query("ldefault")));
+    assert(inst.flags == DVM_FLAG_MONITOR_ENT;
     sexp_free(sexp);
 }
 int main()
@@ -234,7 +193,7 @@ int main()
     test_return();
     test_const();
     test_monitor();
-    test_packed(); 
+    
     stringpool_fianlize();
     
     return 0;

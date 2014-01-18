@@ -1,4 +1,4 @@
-#include <dalvik/label.h>
+#include <dalvik/dalvik_label.h>
 #include <string.h>
 #include <log.h>
 
@@ -19,7 +19,7 @@ void dalvik_label_init(void)
     memset(_dalvik_label_map_table, 0, sizeof(_dalvik_label_map_table));
     LOG_DEBUG("Dalvik Label Pool initialized");
 }
-void dalvik_label_free(void)
+void dalvik_label_finalize(void)
 {
     int i;
     for(i = 0; i < DAVLIK_LABEL_POOL_SIZE; i ++)
@@ -39,9 +39,18 @@ int dalvik_label_get_label_id(const char* label)
     dalvik_label_map_t* ptr;
     for(ptr = _dalvik_label_map_table[idx]; ptr; ptr = ptr->next)
         if(ptr->label == label) return ptr->idx;
+    LOG_DEBUG("Creating new mapping for label %s", label);
     ptr = (dalvik_label_map_t*)malloc(sizeof(dalvik_label_map_t));
-    if(NULL == ptr) return -1;
-    if(_dalvik_label_count >= DAVLIK_LABEL_POOL_SIZE) return -1;  /* oops, too many labels */
+    if(NULL == ptr) 
+    {
+        LOG_ERROR("can not create mapping %s -> %d", label, _dalvik_label_count);
+        return -1;
+    }
+    if(_dalvik_label_count >= DAVLIK_LABEL_POOL_SIZE) 
+    {
+        LOG_ERROR("too many labels");
+        return -1;
+    }
     ptr->label = label;
     ptr->idx   = _dalvik_label_count ++;
     ptr->next  = _dalvik_label_map_table[idx];

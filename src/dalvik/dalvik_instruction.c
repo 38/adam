@@ -2,7 +2,8 @@
 #include <string.h>
 #include <assert.h>
 
-#include <dalvik/dalvik_ins.h>
+#include <log.h>
+#include <dalvik/dalvik_instruction.h>
 #include <sexp.h>
 #include <dalvik/dalvik_tokens.h>
 
@@ -14,6 +15,8 @@ size_t _dalvik_instruction_pool_size = 0;
 
 int _dalvik_instruction_pool_resize()
 {
+    LOG_DEBUG("resize dalvik instruction pool from %d to %d", _dalvik_instruction_pool_size, 
+                                                              _dalvik_instruction_pool_size *2);
     dalvik_instruction_t* old_pool;
     assert(dalvik_instruction_pool != NULL);
     
@@ -34,9 +37,11 @@ int dalvik_instruction_init( void )
 {
     _dalvik_instruction_pool_size = 0;
     if(NULL == dalvik_instruction_pool) 
-        dalvik_instruction_pool = (dalvik_instruction_t*)malloc(sizeof(dalvik_instruction_t) * _dalvik_instruction_pool_capacity);
+        dalvik_instruction_pool = 
+            (dalvik_instruction_t*)malloc(sizeof(dalvik_instruction_t) * _dalvik_instruction_pool_capacity);
     if(NULL == dalvik_instruction_pool)
         return -1;
+    LOG_DEBUG("dalvik instruction pool initialized");
     return 0;
 }
 
@@ -277,7 +282,9 @@ __DI_CONSTRUCTOR(CHECK)
         if(sexp_match(next, "(L?A", &sour, &next))
         {
             __DI_SETUP_OPERAND(0, DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_OBJECT), __DI_REGNUM(sour));
-            __DI_SETUP_OPERAND(1, DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_CLASS), sexp_get_object_path(next));
+            __DI_SETUP_OPERAND(1, DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_CLASS) |
+                                  DVM_OPERAND_FLAG_CONST , 
+                                  sexp_get_object_path(next));
         }
         else return -1;
     }
@@ -289,7 +296,7 @@ __DI_CONSTRUCTOR(THROW)
     buf->opcode = DVM_THROW;
     buf->num_oprands = 1;
     const char* sour;
-    if(sexp_match(next, "(L?", &sour))
+    if(sexp_match(next, "(L?", &sour))  /* throw */
     {
         __DI_SETUP_OPERAND(0, DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_OBJECT), __DI_REGNUM(sour));
     }
@@ -305,7 +312,7 @@ __DI_CONSTRUCTOR(GOTO)
     if(sexp_match(next, "(L?", &label))   /* goto label */
     {
         int lid = dalvik_label_get_label_id(label);
-        __DI_SETUP_OPERAND(0, DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_LABEL) | DVM_OPERAND_FLAG_CONST, label);
+        __DI_SETUP_OPERAND(0, DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_LABEL) | DVM_OPERAND_FLAG_CONST, lid);
     }
     else return -1;
     return 0;
@@ -313,18 +320,23 @@ __DI_CONSTRUCTOR(GOTO)
 __DI_CONSTRUCTOR(PACKED)
 {
     buf->opcode = DVM_SWITCH;
+    buf->num_oprands = 3;
     const char *reg, *begin;
-    if(sexp_match(next, "(L=L?L?A", DALVIK_TOKEN_SWITCH, &reg, &begin, &next))/* (packed-switch reg begin label1..label N) */
+    if(sexp_match(next, "(L=L?L?A", DALVIK_TOKEN_SWITCH, &reg, &begin, &next))/*(packed-switch reg begin label1..label N)*/
     {
         const char* label;
         vector_t*   jump_table;
-        __DI_SETUP_OPERAND(0, DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_LABELVECTOR) |
+        __DI_SETUP_OPERAND(0, 0, __DI_REGNUM(reg));
+        __DI_SETUP_OPERAND(1, DVM_OPERAND_FLAG_CONST |
+                              DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_INT),
+                              __DI_INSNUM(begin));
+        __DI_SETUP_OPERAND(2, DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_LABELVECTOR) |
                               DVM_OPERAND_FLAG_CONST,
                               jump_table = vector_new(sizeof(uint32_t)));
         if(NULL == jump_table) return -1;
         while(SEXP_NIL != next)
         {
-            if(!sexp_match(next, "(L?A", &label, next)) 
+            if(!sexp_match(next, "(L?A", &label, &next)) 
             {
                 vector_free(jump_table);
                 return -1;
@@ -341,6 +353,7 @@ __DI_CONSTRUCTOR(PACKED)
             vector_pushback(jump_table, &lid);
         }
     }
+    else return -1;
     return 0;
 }
 #undef __DI_CONSTRUCTOR
@@ -368,9 +381,6 @@ int dalvik_instruction_from_sexp(sexpression_t* sexp, dalvik_instruction_t* buf,
         //__DI_CASE(SPARSE)
         /* 
          * TODO:
-         * 1. test vector
-         * 2. test label pool
-         * 3. test packed parser & test goto
          * 4. finish sparse
          * 5. unfished : from instance-of to fill-array-data 
          */

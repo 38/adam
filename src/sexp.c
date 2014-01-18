@@ -53,11 +53,23 @@ static inline int _sexp_parse_ws(const char** p)
           (*p) ++) ret = 1;
     return ret;
 }
+void _sexp_parse_comment(const char** str)
+{
+    if(**str == ';')
+    {
+        (*str) ++;
+        while(**str && **str != '\n')
+            (*str) ++;
+        _sexp_parse_ws(str);
+        _sexp_parse_comment(str);
+    }
+}
 /* parse the list from str  .... ), the first '(' is already eatten */
 static inline const char* _sexp_parse_list(const char* str, sexpression_t** buf)
 {
     /* strip the leading white spaces */
     _sexp_parse_ws(&str);
+    _sexp_parse_comment(&str);
     /* If it's an empty list, then return NIL */
     if(*str == ')') 
     {
@@ -125,15 +137,6 @@ static inline const char* _sexpr_parse_literal(const char* str, sexpression_t** 
     data = (sexp_lit_t*)((*buf)->data);
     *data = stringpool_accumulator_query(&accumulator);
     return str;
-}
-void _sexp_parse_comment(const char** str)
-{
-    if(**str == ';')
-    {
-        (*str) ++;
-        while(**str && **str != '\n')
-            (*str) ++;
-    }
 }
 const char* sexp_parse(const char* str, sexpression_t** buf)
 {

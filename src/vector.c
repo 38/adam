@@ -15,6 +15,7 @@ vector_t* vector_new(size_t elem_size)
     if(NULL == ret->data) goto ERR;
     return ret;
 ERR:
+    LOG_ERROR("can not create new vector");
     if(NULL != ret)
     {
         if(NULL != ret->data) free(ret->data);
@@ -49,9 +50,14 @@ int vector_pushback(vector_t* vec, void* data)
     if(vec->size == vec->capacity)
     {
         int rc = _vector_resize(vec);
-        if(rc < 0) return rc;
+        if(rc < 0) 
+        {
+            LOG_ERROR("can not resize vector @0x%x", vec);
+            return rc;
+        }
     }
     void* addr = vec->data + vec->size * vec->elem_size;
     memcpy(addr, data, vec->elem_size);
+    vec->size ++;
     return 0;
 }
