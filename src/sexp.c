@@ -283,9 +283,13 @@ const char* sexp_get_object_path(sexpression_t* sexpr)
     if(sexpr == NULL) return NULL;
     for(; sexpr != SEXP_NIL;)
     {
-        if(sexpr->type != SEXP_TYPE_CONS) return NULL;   /* Because the property of parser, we are excepting a cons here */
+        /* Because the property of parser, we are excepting a cons here */
+        if(sexpr->type != SEXP_TYPE_CONS) 
+            return NULL;   
         sexp_cons_t *cons = (sexp_cons_t*)sexpr->data;
-        if(SEXP_NIL == cons->first || cons->first->type != SEXP_TYPE_LIT) return NULL;    /* first should not be a non-literial */
+         /* first should not be a non-literial */
+        if(SEXP_NIL == cons->first || cons->first->type != SEXP_TYPE_LIT) 
+            return NULL;   
         const char *p;
         for(p = *(const char**)cons->first->data;
             *p;

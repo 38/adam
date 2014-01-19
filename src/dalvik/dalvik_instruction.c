@@ -474,14 +474,53 @@ __DI_CONSTRUCTOR(IF)
     else return -1;
     return 0;
 }
-__DI_CONSTRUCTOR(AGET)
+/*
+ * parse a S-Expression to a type name 
+ */
+static inline char* _dalvik_instruction_get_typename(sexpression_t* sexp)
 {
-    buf->opcode = DVM_ARRAY;
-    buf->num_operands = 3;
-    buf->flags = DVM_FLAG_ARRAY_GET;
+    const char* peek;
+    if(sexp_match(sexp, "(L?A", &peek, &sexp))
+    {
+        if(DALVIK_TOKEN_INT == peek    ||
+           DALVIK_TOKEN_FLOAT == peek  ||
+           DALVIK_TOKEN_DOUBLE == peek ||
+           DALVIK_TOKEN_CHAR   == peek ||
+           DALVIK_TOKEN_BYTE == peek   ||
+           DALVIK_TOKEN_BOOLEAN == peek)  /* Is any atmoic type missing ? */
+        {
+            if(sexp == SEXP_NIL) 
+                return peek;
+        }
+        else if(DALVIK_TOKEN_OBJECT == peek)
+        {
+            return sexp_get_object_path(sexp);
+        }
+    }
+    return NULL;
+}
+/* This function is used for build a group of similar instructions :
+ * iget iput aget aput sget sput
+ */
+static inline int _dalvik_instruction_setup_object_operations(
+        int opcode, 
+        int flags,
+        sexpression_t* next,
+        dalvik_instruction_t* buf)
+{
+    buf->opcode = opcode;
+    if(opcode == DVM_ARRAY)
+    {
+        buf->num_operands = 3;
+    }
+    else
+    {
+        buf->num_operands = 4;   /* one more operand for type specifier */
+    }
+    buf->flags = flags;
     const char* curlit;
     const char *dest, *sour, *index;
-    int flag = 0;
+    int flag = 0;    /* this is the flags for the second operand */
     if(sexp_match(next, "(L?A", &curlit, &next) == 0)
         return -1;
     if(curlit == DALVIK_TOKEN_WIDE   ||
@@ -489,7 +528,7 @@ __DI_CONSTRUCTOR(AGET)
        curlit == DALVIK_TOKEN_BOOLEAN||
        curlit == DALVIK_TOKEN_BYTE   ||
        curlit == DALVIK_TOKEN_CHAR   ||
-       curlit == DALVIK_TOKEN_SHORT) /* aget-type */
+       curlit == DALVIK_TOKEN_SHORT) /* Xget-type */
     {
         if(curlit == DALVIK_TOKEN_WIDE) 
             flag = DVM_OPERAND_FLAG_WIDE;
@@ -503,21 +542,42 @@ __DI_CONSTRUCTOR(AGET)
             flag = DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_CHAR);
         else if(curlit == DALVIK_TOKEN_SHORT) 
             flag = DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_SHORT);
-        if(!sexp_match(next, "(L?L?L?", &dest, &sour, &index))  
-            return -1;
+        if(opcode == DVM_ARRAY)
+        {
+            if(!sexp_match(next, "(L?L?L?", &dest, &sour, &index))  
+                return -1;
+        }
+        else
+        {
+            //TODO: Otehr cases
+        }
     }
     else
     {
         dest = curlit;
         flag = 0;
-        if(!sexp_match(next, "(L?L", &sour, &index)) 
-            return -1;
+        if(opcode == DVM_ARRAY)
+        {
+            if(!sexp_match(next, "(L?L", &sour, &index)) 
+                return -1;
+        }
+        else
+        {
+            //TODO: Other cases
+        }
     }
-    /* Set-up the flags */
+    /* Set-up the operands */
     __DI_SETUP_OPERAND(0, flag, __DI_REGNUM(dest));
-    __DI_SETUP_OPERAND(0, DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_OBJECT), __DI_REGNUM(sour));
-    __DI_SETUP_OPERAND(0, 0, __DI_REGNUM(index));
+    __DI_SETUP_OPERAND(1, DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_OBJECT), __DI_REGNUM(sour));
+    __DI_SETUP_OPERAND(2, 0, __DI_REGNUM(index));
+    if(opcode != DVM_ARRAY)
+    {
+        //TODO: Setup the 4th operand 
+    }
     return 0;
+}
+__DI_CONSTRUCTOR(AGET)  /* TODO: REVIEW */
+{
 }
 #undef __DI_CONSTRUCTOR
 int dalvik_instruction_from_sexp(sexpression_t* sexp, dalvik_instruction_t* buf, int line, const char* file)
