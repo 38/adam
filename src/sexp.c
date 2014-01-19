@@ -71,7 +71,7 @@ static inline const char* _sexp_parse_list(const char* str, sexpression_t** buf)
     _sexp_parse_ws(&str);
     _sexp_parse_comment(&str);
     /* If it's an empty list, then return NIL */
-    if(*str == ')') 
+    if(*str == ')' || *str == ']') 
     {
         *buf = SEXP_NIL;
         return str + 1;
@@ -149,7 +149,7 @@ const char* sexp_parse(const char* str, sexpression_t** buf)
         (*buf) = SEXP_NIL;
         return str;
     }
-    else if(*str == '(') return _sexp_parse_list(str + 1, buf);
+    else if(*str == '(' || *str == '[') return _sexp_parse_list(str + 1, buf);
     else if(*str == '"') return _sexp_parse_string(str + 1, buf);
     else return _sexpr_parse_literal(str, buf);
 }
@@ -205,7 +205,10 @@ static inline int _sexp_match_one(const sexpression_t* sexpr, char tc, char sc, 
    {
        /* Copy the point to user */
        ret = 1;
-       (*this_arg) = *(const void**)sexpr->data;
+       if(type != SEXP_TYPE_CONS)
+           (*this_arg) = *(const void**)sexpr->data;
+       else
+           (*this_arg) = sexpr;
    }
 DONE:
    return ret;

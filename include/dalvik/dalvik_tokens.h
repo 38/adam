@@ -93,6 +93,7 @@ extern const char* dalvik_keywords[DALVIK_MAX_NUM_KEYWORDS];
 #define DALVIK_TOKEN_LIT16      (dalvik_keywords[85])
 #define DALVIK_TOKEN_NOP        (dalvik_keywords[86])
 #define DALVIK_TOKEN_STRING     (dalvik_keywords[87])
+#define DALVIK_TOKEN_DEFAULT    (dalvik_keywords[88])
 
 int dalvik_tokens_init(void);
 

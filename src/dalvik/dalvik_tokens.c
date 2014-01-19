@@ -94,6 +94,7 @@ const char* _dalvik_token_defs[DALVIK_MAX_NUM_KEYWORDS] = {
     "lit16",
     "nop",
     "string",
+    "default",
     NULL
 }; 
 

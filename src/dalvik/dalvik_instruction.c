@@ -72,7 +72,7 @@ static inline void _dalvik_instruction_operand_setup(dalvik_operand_t* operand, 
 __DI_CONSTRUCTOR(NOP)
 {
     buf->opcode = DVM_NOP;
-    buf->num_oprands = 0;
+    buf->num_operands = 0;
     buf->flags = 0;
     return 0;
 }
@@ -80,7 +80,7 @@ __DI_CONSTRUCTOR(MOVE)
 {
     const char *sour, *dest;
     buf->opcode = DVM_MOVE;
-    buf->num_oprands = 2;
+    buf->num_operands = 2;
     const char* curlit;
     int rc;
     rc = sexp_match(next, "(L?A", &curlit, &next);
@@ -153,7 +153,7 @@ __DI_CONSTRUCTOR(MOVE)
 __DI_CONSTRUCTOR(RETURN)
 {
     buf->opcode = DVM_RETURN;
-    buf->num_oprands = 1;
+    buf->num_operands = 1;
     const char* curlit, *dest;
     int rc;
     rc = sexp_match(next, "(L?A", &curlit, &next);
@@ -182,7 +182,7 @@ __DI_CONSTRUCTOR(RETURN)
 __DI_CONSTRUCTOR(CONST)
 {
     buf->opcode = DVM_CONST;
-    buf->num_oprands = 2;
+    buf->num_operands = 2;
     const char* curlit, *dest, *sour;
     int rc;
     next = sexp_strip(next, DALVIK_TOKEN_4, DALVIK_TOKEN_16, NULL);     /* We don't care the size of instance number */
@@ -246,7 +246,7 @@ __DI_CONSTRUCTOR(CONST)
 __DI_CONSTRUCTOR(MONITOR)
 {
     buf->opcode = DVM_MONITOR;
-    buf->num_oprands = 1;
+    buf->num_operands = 1;
     const char* curlit, *arg;
     int rc;
     rc = sexp_match(next, "(L?A", &curlit, &next);
@@ -273,7 +273,7 @@ __DI_CONSTRUCTOR(MONITOR)
 __DI_CONSTRUCTOR(CHECK)
 {
     buf->opcode = DVM_MONITOR;
-    buf->num_oprands = 3;
+    buf->num_operands = 3;
     const char* curlit, *sour;
     int rc;
     rc = sexp_match(next, "(L?A", &curlit, &next);
@@ -294,7 +294,7 @@ __DI_CONSTRUCTOR(CHECK)
 __DI_CONSTRUCTOR(THROW)
 {
     buf->opcode = DVM_THROW;
-    buf->num_oprands = 1;
+    buf->num_operands = 1;
     const char* sour;
     if(sexp_match(next, "(L?", &sour))  /* throw */
     {
@@ -306,7 +306,7 @@ __DI_CONSTRUCTOR(THROW)
 __DI_CONSTRUCTOR(GOTO)
 {
     buf->opcode = DVM_GOTO;
-    buf->num_oprands = 1;
+    buf->num_operands = 1;
     const char* label;
     next = sexp_strip(next, DALVIK_TOKEN_16, DALVIK_TOKEN_32, NULL);   /* We don't care the size of offest */
     if(sexp_match(next, "(L?", &label))   /* goto label */
@@ -320,7 +320,8 @@ __DI_CONSTRUCTOR(GOTO)
 __DI_CONSTRUCTOR(PACKED)
 {
     buf->opcode = DVM_SWITCH;
-    buf->num_oprands = 3;
+    buf->num_operands = 3;
+    buf->flags = DVM_FLAG_SWITCH_PACKED;
     const char *reg, *begin;
     if(sexp_match(next, "(L=L?L?A", DALVIK_TOKEN_SWITCH, &reg, &begin, &next))/*(packed-switch reg begin label1..label N)*/
     {
@@ -356,6 +357,168 @@ __DI_CONSTRUCTOR(PACKED)
     else return -1;
     return 0;
 }
+__DI_CONSTRUCTOR(SPARSE)
+{
+    buf->opcode = DVM_SWITCH;
+    buf->flags  = DVM_FLAG_SWITCH_SPARSE;
+    buf->num_operands = 2;
+    const char* reg;
+    if(sexp_match(next, "(L=L?A", DALVIK_TOKEN_SWITCH, &reg, &next))
+    {
+        const char *label;
+        const char *cond;
+        vector_t* jump_table;
+        __DI_SETUP_OPERAND(0, 0, __DI_REGNUM(reg));
+        __DI_SETUP_OPERAND(1, DVM_OPERAND_FLAG_CONST |
+                              DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_SPARSE),
+                              jump_table = vector_new(sizeof(dalvik_sparse_switch_branch_t)));
+        if(NULL == jump_table) return -1;
+        while(SEXP_NIL != next)
+        {
+            sexpression_t* this;
+            if(!sexp_match(next, "(C?A", &this, &next))
+            {
+                vector_free(jump_table);
+                return -1;
+            }
+
+            if(sexp_match(this, "(L?L?", &cond, &label))
+            {
+                int lid = dalvik_label_get_label_id(label);
+                int cit = __DI_INSNUM(cond);
+                if(lid < 0)
+                {
+                    vector_free(jump_table);
+                    return -1;
+                }
+                dalvik_sparse_switch_branch_t branch;
+                if(cond == DALVIK_TOKEN_DEFAULT)
+                    branch.is_default = 1;
+                else
+                    branch.is_default = 0;
+                branch.cond = cit;
+                branch.labelid = lid;
+                vector_pushback(jump_table, &branch);
+            }
+            else
+            {
+                vector_free(jump_table);
+                return -1;
+            }
+        }
+    }
+    else return -1;
+    return 0;
+}
+__DI_CONSTRUCTOR(CMP)
+{
+    buf->opcode = DVM_CMP;
+    buf->num_operands = 3;
+    const char *type, *dest, *sourA, *sourB; 
+    if(sexp_match(next, "(L?L?L?L?", &type, &dest, &sourA, &sourB))
+    {
+        __DI_SETUP_OPERAND(0, 0, __DI_REGNUM(dest));
+        uint32_t flag;
+        if(DALVIK_TOKEN_FLOAT == type)
+            flag = DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_FLOAT);
+        else if(DALVIK_TOKEN_DOUBLE == type)
+            flag = DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_DOUBLE) | DVM_OPERAND_FLAG_WIDE;
+        else if(DALVIK_TOKEN_LONG == type)
+            flag = DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_LONG);
+        else return -1;
+        __DI_SETUP_OPERAND(1, flag, __DI_REGNUM(sourA));
+        __DI_SETUP_OPERAND(2, flag, __DI_REGNUM(sourB));
+    }
+    else return -1;
+    return 0;
+}
+__DI_CONSTRUCTOR(IF)
+{
+    buf->opcode = DVM_IF;
+    buf->num_operands = 3;
+    const char* how, *sourA, *sourB, *label;
+    int rc, lid;
+    rc = sexp_match(next, "(L?L?A", &how, &sourA ,&next);
+    if(!rc) return -1;
+    /* setup the first operand */
+    __DI_SETUP_OPERAND(0, 0, __DI_REGNUM(sourA));
+    if(DALVIK_TOKEN_EQZ == how ||
+       DALVIK_TOKEN_LTZ == how ||
+       DALVIK_TOKEN_GTZ == how ||
+       DALVIK_TOKEN_GEZ == how ||
+       DALVIK_TOKEN_LEZ == how ||
+       DALVIK_TOKEN_NEZ == how)
+        __DI_SETUP_OPERAND(1, DVM_OPERAND_FLAG_CONST, 0);   /* use 0 as the second operand */
+    else
+    {
+        /* read the second operand */
+        rc = sexp_match(next, "(L?A", &sourB, &next);
+        if(!rc) return -1;
+        __DI_SETUP_OPERAND(1, 0, __DI_REGNUM(sourB));
+    }
+    rc = sexp_match(next, "(L?", &label);
+    if(!rc) return -1;
+    lid = dalvik_label_get_label_id(label);
+    if(lid < 0) return -1;
+    /* setup the third operand */
+    __DI_SETUP_OPERAND(2, DVM_OPERAND_FLAG_CONST |
+                          DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_LABEL),
+                       lid);
+    /* setup the instruction flags */
+    if     (DALVIK_TOKEN_NEZ == how || DALVIK_TOKEN_NE == how) buf->flags = DVM_FLAG_IF_NE;
+    else if(DALVIK_TOKEN_LEZ == how || DALVIK_TOKEN_LE == how) buf->flags = DVM_FLAG_IF_LE;
+    else if(DALVIK_TOKEN_GEZ == how || DALVIK_TOKEN_GE == how) buf->flags = DVM_FLAG_IF_GE;
+    else if(DALVIK_TOKEN_GTZ == how || DALVIK_TOKEN_GT == how) buf->flags = DVM_FLAG_IF_GT;
+    else if(DALVIK_TOKEN_LTZ == how || DALVIK_TOKEN_LT == how) buf->flags = DVM_FLAG_IF_LT;
+    else if(DALVIK_TOKEN_EQZ == how || DALVIK_TOKEN_EQ == how) buf->flags = DVM_FLAG_IF_EQ;
+    else return -1;
+    return 0;
+}
+__DI_CONSTRUCTOR(AGET)
+{
+    buf->opcode = DVM_ARRAY;
+    buf->num_operands = 3;
+    buf->flags = DVM_FLAG_ARRAY_GET;
+    const char* curlit;
+    const char *dest, *sour, *index;
+    int flag = 0;
+    if(sexp_match(next, "(L?A", &curlit, &next) == 0)
+        return -1;
+    if(curlit == DALVIK_TOKEN_WIDE   ||
+       curlit == DALVIK_TOKEN_OBJECT ||
+       curlit == DALVIK_TOKEN_BOOLEAN||
+       curlit == DALVIK_TOKEN_BYTE   ||
+       curlit == DALVIK_TOKEN_CHAR   ||
+       curlit == DALVIK_TOKEN_SHORT) /* aget-type */
+    {
+        if(curlit == DALVIK_TOKEN_WIDE) 
+            flag = DVM_OPERAND_FLAG_WIDE;
+        else if(curlit == DALVIK_TOKEN_OBJECT)  
+            flag = DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_OBJECT);
+        else if(curlit == DALVIK_TOKEN_BOOLEAN) 
+            flag = DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_BOOLEAN);
+        else if(curlit == DALVIK_TOKEN_BYTE) 
+            flag = DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_BYTE);
+        else if(curlit == DALVIK_TOKEN_CHAR) 
+            flag = DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_CHAR);
+        else if(curlit == DALVIK_TOKEN_SHORT) 
+            flag = DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_SHORT);
+        if(!sexp_match(next, "(L?L?L?", &dest, &sour, &index))  
+            return -1;
+    }
+    else
+    {
+        dest = curlit;
+        flag = 0;
+        if(!sexp_match(next, "(L?L", &sour, &index)) 
+            return -1;
+    }
+    /* Set-up the flags */
+    __DI_SETUP_OPERAND(0, flag, __DI_REGNUM(dest));
+    __DI_SETUP_OPERAND(0, DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_OBJECT), __DI_REGNUM(sour));
+    __DI_SETUP_OPERAND(0, 0, __DI_REGNUM(index));
+    return 0;
+}
 #undef __DI_CONSTRUCTOR
 int dalvik_instruction_from_sexp(sexpression_t* sexp, dalvik_instruction_t* buf, int line, const char* file)
 {
@@ -378,11 +541,21 @@ int dalvik_instruction_from_sexp(sexpression_t* sexp, dalvik_instruction_t* buf,
         __DI_CASE(THROW)
         __DI_CASE(GOTO)
         __DI_CASE(PACKED)
-        //__DI_CASE(SPARSE)
+        __DI_CASE(SPARSE)
+        __DI_CASE(CMP)
+        /* dirty hack, in this way, we can reuse the same handler */
+#       define _dalvik_instruction_CMPL _dalvik_instruction_CMP 
+#       define _dalvik_instruction_CMPG _dalvik_instruction_CMP
+        __DI_CASE(CMPL)   /* Because we don't care about lt/gt bais */
+        __DI_CASE(CMPG)
+#       undef _dalvik_instruction_CMPL
+#       undef _dalvik_instruction_CMPG
+        __DI_CASE(IF)
+        __DI_CASE(AGET)
         /* 
          * TODO:
-         * 4. finish sparse
          * 5. unfished : from instance-of to fill-array-data 
+         * 6. test cmp, if, aget, aput
          */
 
     __DI_END
@@ -396,10 +569,13 @@ void dalvik_instruction_free(dalvik_instruction_t* buf)
 {
     if(NULL == buf) return;
     int i;
-    for(i = 0; i < buf->num_oprands; i ++)
+    for(i = 0; i < buf->num_operands; i ++)
     {
         if(buf->operands[i].header.info.is_const &&
            buf->operands[i].header.info.type == DVM_OPERAND_TYPE_LABELVECTOR)
             vector_free(buf->operands[i].payload.branches);
+        else if(buf->operands[i].header.info.is_const &&
+                buf->operands[i].header.info.type == DVM_OPERAND_TYPE_SPARSE)
+            vector_free(buf->operands[i].payload.sparse);
     }
 }

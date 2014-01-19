@@ -54,7 +54,8 @@ enum {
     DVM_OPERAND_TYPE_CLASS, 
     DVM_OPERAND_TYPE_VOID,
     DVM_OPERAND_TYPE_LABEL,
-    DVM_OPERAND_TYPE_LABELVECTOR
+    DVM_OPERAND_TYPE_LABELVECTOR,
+    DVM_OPERAND_TYPE_SPARSE
 };
 #define DVM_OPERAND_FLAG_TYPE(what) ((what)<<1)
 #define DVM_OPERAND_FLAG_CONST      0x20
@@ -74,6 +75,19 @@ typedef union {
 
 struct _dalvik_instruction_t;
 
+/* this structure is used for reprensting 
+ * a conditonal brach.
+ * if the register euqals the `cond'
+ * then the instruction makes the DVM
+ * jump to labelid 
+ */
+typedef struct {
+    int32_t     cond;
+    uint8_t     is_default:1;
+    int32_t     labelid:31;
+} dalvik_sparse_switch_branch_t; 
+
+/* General operand type */
 typedef struct {
     dalvik_operand_header header;
     union{
@@ -91,12 +105,13 @@ typedef struct {
         float              real32;
         int32_t            labelid;             /* label id in label pool */
         vector_t*          branches;            /* a group of branch */
+        vector_t*          sparse;              /* a sparse-switch oprand */
     } payload;
 } dalvik_operand_t;
 
 typedef struct _dalvik_instruction_t{
     uint8_t            opcode:4;        /* Opcode of the instruction */
-    uint8_t            num_oprands:2;   /* How many operand ? */
+    uint8_t            num_operands:2;   /* How many operand ? */
     uint16_t           flags:10;        /* Additional flags for instruction, DVM_FLAG_OPTYPE_NAME */
     dalvik_operand_t   operands[4];     /* Operand array */
     const char*        path;            /* The file name assigned to this instruction */
@@ -107,6 +122,11 @@ typedef struct _dalvik_instruction_t{
 enum {
     DVM_FLAG_MONITOR_ENT,       /* monitor-enter */
     DVM_FLAG_MONITOR_EXT        /* monitor-end */
+};
+
+enum {
+    DVM_FLAG_SWITCH_PACKED,
+    DVM_FLAG_SWITCH_SPARSE
 };
 
 enum {
@@ -123,6 +143,8 @@ enum {
     DVM_FLAG_ARRAY_NEW,
     DVM_FLAG_ARRAY_FILLED_NEW,
     DVM_FLAG_ARRAY_FILLED_NEW_RANGE,
+    DVM_FLAG_ARRAY_GET,
+    DVM_FLAG_ARRAY_PUT
 };
 
 enum {
@@ -134,32 +156,32 @@ enum {
 };
 
 enum {
-    DVM_IF_EQ,
-    DVM_IF_NE,
-    DVM_IF_GT,
-    DVM_IF_GE,
-    DVM_IF_LE,
-    DVM_IF_LT
+    DVM_FLAG_IF_EQ,
+    DVM_FLAG_IF_NE,
+    DVM_FLAG_IF_GT,
+    DVM_FLAG_IF_GE,
+    DVM_FLAG_IF_LE,
+    DVM_FLAG_IF_LT
 };
 
 enum {
-    DVM_UOP_NEG,
-    DVM_UOP_NOT,
-    DVM_UOP_TO,
+    DVM_FLAG_UOP_NEG,
+    DVM_FLAG_UOP_NOT,
+    DVM_FLAG_UOP_TO,
 };
 
 enum {
-    DVM_BINOP_ADD,
-    DVM_BINOP_SUB,
-    DVM_BINOP_MUL,
-    DVM_BINOP_DIV,
-    DVM_BINOP_REM,
-    DVM_BINOP_AND,
-    DVM_BINOP_OR,
-    DVM_BINOP_SHR,
-    DVM_BINOP_SHL,
-    DVM_BINOP_USHR,
-    DVM_BINOP_USHL
+    DVM_FLAG_BINOP_ADD,
+    DVM_FLAG_BINOP_SUB,
+    DVM_FLAG_BINOP_MUL,
+    DVM_FLAG_BINOP_DIV,
+    DVM_FLAG_BINOP_REM,
+    DVM_FLAG_BINOP_AND,
+    DVM_FLAG_BINOP_OR,
+    DVM_FLAG_BINOP_SHR,
+    DVM_FLAG_BINOP_SHL,
+    DVM_FLAG_BINOP_USHR,
+    DVM_FLAG_BINOP_USHL
 };
 
 extern dalvik_instruction_t* dalvik_instruction_pool;
