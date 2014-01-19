@@ -10,6 +10,7 @@
 #include <dalvik/dalvik_instruction.h>
 #include <dalvik/dalvik_tokens.h>
 #include <dalvik/dalvik_label.h>
+#include <dalvik/dalvik_type.h>
 
 #ifndef STRING_POOL_SIZE
 #   define STRING_POOL_SIZE 100003

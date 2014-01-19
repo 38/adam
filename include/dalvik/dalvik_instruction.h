@@ -6,6 +6,7 @@
 #include <dalvik/dalvik_tokens.h>
 #include <vector.h>
 #include <dalvik/dalvik_label.h>
+#include <dalvik/dalvik_type.h>
 
 #ifndef DALVIK_POOL_INIT_SIZE
 #   define DALVIK_POOL_INIT_SIZE 1024
@@ -51,11 +52,12 @@ enum {
     DVM_OPERAND_TYPE_FLOAT,
     DVM_OPERAND_TYPE_OBJECT,
     DVM_OPERAND_TYPE_STRING,
-    DVM_OPERAND_TYPE_CLASS, 
+    DVM_OPERAND_TYPE_CLASS,     /* class path */
     DVM_OPERAND_TYPE_VOID,
     DVM_OPERAND_TYPE_LABEL,
     DVM_OPERAND_TYPE_LABELVECTOR,
-    DVM_OPERAND_TYPE_SPARSE
+    DVM_OPERAND_TYPE_SPARSE,
+    DVM_OPERAND_TYPE_TYPEDESC
 };
 #define DVM_OPERAND_FLAG_TYPE(what) ((what)<<1)
 #define DVM_OPERAND_FLAG_CONST      0x20
@@ -106,6 +108,7 @@ typedef struct {
         int32_t            labelid;             /* label id in label pool */
         vector_t*          branches;            /* a group of branch */
         vector_t*          sparse;              /* a sparse-switch oprand */
+        dalvik_type_t*     type;
     } payload;
 } dalvik_operand_t;
 

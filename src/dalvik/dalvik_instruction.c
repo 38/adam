@@ -474,110 +474,136 @@ __DI_CONSTRUCTOR(IF)
     else return -1;
     return 0;
 }
-/*
- * parse a S-Expression to a type name 
- */
-static inline const char* _dalvik_instruction_get_typename(sexpression_t* sexp)
-{
-    const char* peek;
-    if(sexp_match(sexp, "(L?A", &peek, &sexp))
-    {
-        if(DALVIK_TOKEN_INT == peek    ||
-           DALVIK_TOKEN_FLOAT == peek  ||
-           DALVIK_TOKEN_DOUBLE == peek ||
-           DALVIK_TOKEN_CHAR   == peek ||
-           DALVIK_TOKEN_BYTE == peek   ||
-           DALVIK_TOKEN_BOOLEAN == peek)  /* Is any atmoic type missing ? */
-        {
-            if(sexp == SEXP_NIL) 
-                return peek;
-        }
-        else if(DALVIK_TOKEN_OBJECT == peek)
-        {
-            return sexp_get_object_path(sexp);
-        }
-    }
-    return NULL;
-}
 /* This function is used for build a group of similar instructions :
  * iget iput aget aput sget sput
  */
 static inline int _dalvik_instruction_setup_object_operations(
-        int opcode, 
-        int flags,
-        sexpression_t* next,
-        dalvik_instruction_t* buf)
+        int opcode,                 /* opcode we what to set */
+        int flags,                  /* opcode flags */
+        sexpression_t* next,        /* the sexpression */
+        dalvik_instruction_t* buf   /* the output */
+        )
 {
+    int ins_kind = 0;        /* Indicates what kind of instruction we have 
+                              * 0: 3 operands <dest, obj, idx>
+                              * 1: 3 operands <dest, path, type>
+                              * 2: 4 operands <dest, obj, path, type>
+                              */
     buf->opcode = opcode;
     if(opcode == DVM_ARRAY)
     {
         buf->num_operands = 3;
+        ins_kind = 0;
     }
     else
     {
-        buf->num_operands = 4;   /* one more operand for type specifier */
+        if(flags == DVM_FLAG_INSTANCE_SGET ||
+           flags == DVM_FLAG_INSTANCE_SPUT)
+        {
+            ins_kind = 1;            /* For static method we need <dest, path, type> */
+            buf->num_operands = 3;   /* Although one more operand for type, but we don't need object reg */
+        }
+        else
+        {
+            ins_kind = 2;
+            buf->num_operands = 4;   /* one more operand for type specifier */
+        }
+
     }
     buf->flags = flags;
     const char* curlit;
-    const char *dest, *sour, *index;
-    int flag = 0;    /* this is the flags for the second operand */
+    const char *dest, *obj, *idx, *path;
+    dalvik_type_t* type;
+    int opflags = 0;    /* Indicates the property of oprands */
+    sexpression_t *previous;
+    previous = next;   /* store the previous S-Expression, because we might be want to go back */
     if(sexp_match(next, "(L?A", &curlit, &next) == 0)
         return -1;
+    /* Determine the type flags */
     if(curlit == DALVIK_TOKEN_WIDE   ||
        curlit == DALVIK_TOKEN_OBJECT ||
        curlit == DALVIK_TOKEN_BOOLEAN||
        curlit == DALVIK_TOKEN_BYTE   ||
        curlit == DALVIK_TOKEN_CHAR   ||
-       curlit == DALVIK_TOKEN_SHORT) /* Xget-type */
+       curlit == DALVIK_TOKEN_SHORT) /* xyyy-type */
     {
         if(curlit == DALVIK_TOKEN_WIDE) 
-            flag = DVM_OPERAND_FLAG_WIDE;
+            opflags = DVM_OPERAND_FLAG_WIDE;
         else if(curlit == DALVIK_TOKEN_OBJECT)  
-            flag = DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_OBJECT);
+            opflags = DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_OBJECT);
         else if(curlit == DALVIK_TOKEN_BOOLEAN) 
-            flag = DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_BOOLEAN);
+            opflags = DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_BOOLEAN);
         else if(curlit == DALVIK_TOKEN_BYTE) 
-            flag = DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_BYTE);
+            opflags = DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_BYTE);
         else if(curlit == DALVIK_TOKEN_CHAR) 
-            flag = DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_CHAR);
+            opflags = DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_CHAR);
         else if(curlit == DALVIK_TOKEN_SHORT) 
-            flag = DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_SHORT);
-        if(opcode == DVM_ARRAY)
-        {
-            if(!sexp_match(next, "(L?L?L?", &dest, &sour, &index))  
-                return -1;
-        }
-        else
-        {
-            //TODO: Otehr cases
-        }
+            opflags = DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_SHORT);
     }
     else
     {
-        dest = curlit;
-        flag = 0;
-        if(opcode == DVM_ARRAY)
-        {
-            if(!sexp_match(next, "(L?L", &sour, &index)) 
-                return -1;
-        }
-        else
-        {
-            //TODO: Other cases
-        }
+        opflags = 0;
+        next = previous;   /* we go back */
     }
-    /* Set-up the operands */
-    __DI_SETUP_OPERAND(0, flag, __DI_REGNUM(dest));
-    __DI_SETUP_OPERAND(1, DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_OBJECT), __DI_REGNUM(sour));
-    __DI_SETUP_OPERAND(2, 0, __DI_REGNUM(index));
-    if(opcode != DVM_ARRAY)
+    
+    /* Get the destination register */
+    if(sexp_match(next, "(L?A", &dest, &next) == 0)
+        return -1;
+    __DI_SETUP_OPERAND(0, opflags, __DI_REGNUM(dest));
+    /* Move on to the next operand */
+    if(ins_kind != 1)   /* We need a object register */
     {
-        //TODO: Setup the 4th operand 
+        if(sexp_match(next, "(L?A", &idx, next) == 0)
+            return -1;
+        __DI_SETUP_OPERAND(1, DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_OBJECT), __DI_REGNUM(idx));
+    }
+    /* Move on to the next one/two operand(s) */
+    if(ins_kind != 0 && ins_kind != 2)   /* We need a path and a type */
+    {
+        if(NULL == (path = sexp_get_object_path_remaining(next, &next)))
+            return -1;
+        if(NULL == (type = dalvik_type_from_sexp(next)))
+            return -1;
+        __DI_SETUP_OPERAND(2, DVM_OPERAND_FLAG_CONST |
+                              DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_CLASS),
+                              path);
+        __DI_SETUP_OPERAND(3, DVM_OPERAND_FLAG_CONST |
+                              DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_TYPEDESC),
+                              type);
+    }
+    else                /* We need a index */
+    {
+        if(sexp_match(next, "(L?", &idx))
+        {
+            __DI_SETUP_OPERAND(2, DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_INT), __DI_REGNUM(idx));
+        }
+        else return -1;
     }
     return 0;
 }
-__DI_CONSTRUCTOR(AGET)  /* TODO: REVIEW */
+__DI_CONSTRUCTOR(AGET)
 {
+    return _dalvik_instruction_setup_object_operations(DVM_ARRAY, DVM_FLAG_ARRAY_GET, next, buf);
+}
+__DI_CONSTRUCTOR(APUT)
+{
+    return _dalvik_instruction_setup_object_operations(DVM_ARRAY, DVM_FLAG_ARRAY_PUT, next, buf);
+}
+__DI_CONSTRUCTOR(IGET)
+{
+    return _dalvik_instruction_setup_object_operations(DVM_INSTANCE, DVM_FLAG_INSTANCE_GET, next, buf);
+}
+__DI_CONSTRUCTOR(IPUT)
+{
+    return _dalvik_instruction_setup_object_operations(DVM_INSTANCE, DVM_FLAG_INSTANCE_PUT, next, buf);
+}
+__DI_CONSTRUCTOR(SGET)
+{
+    return _dalvik_instruction_setup_object_operations(DVM_INSTANCE, DVM_FLAG_INSTANCE_SGET, next, buf);
+}
+__DI_CONSTRUCTOR(SPUT)
+{
+    return _dalvik_instruction_setup_object_operations(DVM_INSTANCE, DVM_FLAG_INSTANCE_SPUT, next, buf);
 }
 #undef __DI_CONSTRUCTOR
 int dalvik_instruction_from_sexp(sexpression_t* sexp, dalvik_instruction_t* buf, int line, const char* file)
@@ -612,10 +638,15 @@ int dalvik_instruction_from_sexp(sexpression_t* sexp, dalvik_instruction_t* buf,
 #       undef _dalvik_instruction_CMPG
         __DI_CASE(IF)
         __DI_CASE(AGET)
+        __DI_CASE(APUT)
+        __DI_CASE(IGET)
+        __DI_CASE(IPUT)
+        __DI_CASE(SGET)
+        __DI_CASE(SPUT)
         /* 
          * TODO:
          * 5. unfished : from instance-of to fill-array-data 
-         * 6. test cmp, if, aget, aput
+         * 6. test cmp, if, aget, aput, sget, sput, iget, iput
          */
 
     __DI_END
@@ -637,5 +668,8 @@ void dalvik_instruction_free(dalvik_instruction_t* buf)
         else if(buf->operands[i].header.info.is_const &&
                 buf->operands[i].header.info.type == DVM_OPERAND_TYPE_SPARSE)
             vector_free(buf->operands[i].payload.sparse);
+        else if(buf->operands[i].header.info.is_const &&
+                buf->operands[i].header.info.type == DVM_OPERAND_TYPE_TYPEDESC)
+            dalvik_type_free(buf->operands[i].payload.type);
     }
 }

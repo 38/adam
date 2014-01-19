@@ -73,6 +73,9 @@ sexpression_t* sexp_strip(sexpression_t* sexpr, ...);
 /* Get object path (a b c) ==> a/b/c */
 const char* sexp_get_object_path(sexpression_t* sexpr);
 
+/* Get object path and return the last element in the list  (a b c xxx) ==> a/b/c, xxx */
+const char* sexp_get_object_path_remaining(sexpression_t* sexpr, sexpression_t** remaining);
+
 #define SEXP_NIL NULL
 
 #endif /* __SEXP_H__ */

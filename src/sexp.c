@@ -300,3 +300,34 @@ const char* sexp_get_object_path(sexpression_t* sexpr)
     buf[--len] = 0;
     return stringpool_query(buf);
 }
+const char* sexp_get_object_path_remaining(sexpression_t* sexpr, sexpression_t** remaining)
+{
+    int len = 0;
+    static char buf[4096];   /* Issue: thread safe */
+    if(sexpr == NULL) return NULL;
+    for(; sexpr != SEXP_NIL;)
+    {
+        /* Because the property of parser, we are excepting a cons here */
+        if(sexpr->type != SEXP_TYPE_CONS) 
+            return NULL;   
+        sexp_cons_t *cons = (sexp_cons_t*)sexpr->data;
+        /* We are reaching the last element of the S-Expression */
+        if(cons->second == SEXP_NIL)
+        {
+            (*remaining) = cons->first;
+            break;
+        }
+         /* first should not be a non-literial */
+        if(SEXP_NIL == cons->first || cons->first->type != SEXP_TYPE_LIT)
+            return NULL;
+        const char *p;
+        for(p = *(const char**)cons->first->data;
+            *p;
+             p++) buf[len++] = *p;
+        buf[len ++] = '/';
+        sexpr = cons->second;
+    }
+    buf[--len] = 0;
+    return stringpool_query(buf);
+}
+
