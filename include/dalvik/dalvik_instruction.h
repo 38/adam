@@ -111,8 +111,8 @@ typedef struct {
 
 typedef struct _dalvik_instruction_t{
     uint8_t            opcode:4;        /* Opcode of the instruction */
-    uint8_t            num_operands:2;   /* How many operand ? */
-    uint16_t           flags:10;        /* Additional flags for instruction, DVM_FLAG_OPTYPE_NAME */
+    uint8_t            num_operands:3;   /* How many operand ? */
+    uint16_t           flags:9;        /* Additional flags for instruction, DVM_FLAG_OPTYPE_NAME */
     dalvik_operand_t   operands[4];     /* Operand array */
     const char*        path;            /* The file name assigned to this instruction */
     int                line;            /* Line number of this instruction */

@@ -477,7 +477,7 @@ __DI_CONSTRUCTOR(IF)
 /*
  * parse a S-Expression to a type name 
  */
-static inline char* _dalvik_instruction_get_typename(sexpression_t* sexp)
+static inline const char* _dalvik_instruction_get_typename(sexpression_t* sexp)
 {
     const char* peek;
     if(sexp_match(sexp, "(L?A", &peek, &sexp))
