@@ -47,6 +47,11 @@ int dalvik_instruction_init( void )
 
 int dalvik_instruction_finalize( void )
 {
+    int i;
+    
+    for(i = 0; i < _dalvik_instruction_pool_size; i ++)
+        dalvik_instruction_free(dalvik_instruction_pool + i);
+
     if(dalvik_instruction_pool != NULL) free(dalvik_instruction_pool);
     return 0;
 }
@@ -861,6 +866,62 @@ __DI_CONSTRUCTOR(RSUB)
 {
     return _dalvik_instruction_setup_binary_operator(DVM_FLAG_BINOP_RSUB, next, buf);
 }
+__DI_CONSTRUCTOR(INSTANCE)
+{
+    buf->opcode = DVM_INSTANCE;
+    buf->flags  = DVM_FLAG_INSTANCE_OF;
+    buf->num_operands = 3;
+    const char *dest, *sour, *path;
+    if(!sexp_match(next, "(L=L?L?A",DALVIK_TOKEN_OF ,&dest, &sour, &next))  return -1;
+    if(NULL == (path = sexp_get_object_path(next, NULL))) return -1;
+    __DI_SETUP_OPERAND(0, 0, __DI_REGNUM(dest));
+    __DI_SETUP_OPERAND(1, DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_OBJECT), __DI_REGNUM(sour));
+    __DI_SETUP_OPERAND(2, DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_CLASS) | 
+                          DVM_OPERAND_FLAG_CONST ,
+                          path);
+    return 0;
+}
+__DI_CONSTRUCTOR(ARRAY)
+{
+    buf->opcode = DVM_ARRAY;
+    buf->flags   = DVM_FLAG_ARRAY_LENGTH;
+    buf->num_operands = 2;
+    const char* dest, *sour;
+    if(!sexp_match(next, "(L=L?L?", DALVIK_TOKEN_LENGTH, &dest, &sour)) return -1;
+    __DI_SETUP_OPERAND(0, 0, __DI_REGNUM(dest));
+    __DI_SETUP_OPERAND(1, DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_OBJECT), __DI_REGNUM(sour));
+    return 0;
+}
+__DI_CONSTRUCTOR(NEW)
+{
+    const char* curlit;
+    if(!sexp_match(next, "(L?A", &curlit, &next)) return -1;
+    if(curlit == DALVIK_TOKEN_ARRAY)
+        buf->opcode = DVM_ARRAY;
+    else if(curlit == DALVIK_TOKEN_INSTANCE)
+        buf->opcode = DVM_INSTANCE;
+    else return -1;
+    const char *dest, *size, *path;
+    if(!sexp_match(next, "(L?A", &dest, &next)) return -1;
+    __DI_SETUP_OPERAND(0, 0, __DI_REGNUM(dest));
+    if(buf->opcode == DVM_ARRAY)
+    {
+        if(!sexp_match(next, "L?A", &size, &next)) return -1;
+        __DI_SETUP_OPERAND(1, 0, __DI_REGNUM(size));
+    }
+    if(NULL == (path = sexp_get_object_path(next, NULL))) return -1;
+    __DI_SETUP_OPERAND(buf->opcode == DVM_ARRAY?2:1, 
+                       DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_CLASS) |
+                       DVM_OPERAND_FLAG_CONST,
+                       path);
+    
+    return 0;
+}
+__DI_CONSTRUCTOR(FILLED)
+{
+    //TODO
+    return 0;
+}
 #undef __DI_CONSTRUCTOR
 int dalvik_instruction_from_sexp(sexpression_t* sexp, dalvik_instruction_t* buf, int line, const char* file)
 {
@@ -920,10 +981,15 @@ int dalvik_instruction_from_sexp(sexpression_t* sexp, dalvik_instruction_t* buf,
         __DI_CASE(USHR)
 
         __DI_CASE(RSUB)
+
+        __DI_CASE(INSTANCE)
+        __DI_CASE(ARRAY)
+        __DI_CASE(NEW)
+
+        __DI_CASE(FILLED)
+
         /* 
-         * TODO:
-         * 5. unfished : from instance-of to fill-array-data & binary operators 
-         * 6. test cmp, if, invoke, operators
+         * test cmp, if, invoke, operators
          */
 
     __DI_END

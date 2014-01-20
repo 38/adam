@@ -42,7 +42,9 @@ dalvik_type_t* dalvik_type_from_sexp(sexpression_t* sexp)
    const char* curlit;
    if(sexp_match(sexp, "L?", &curlit))  /* A single literal ? atom */
    {
-       if(curlit == DALVIK_TOKEN_INT)
+       if(curlit == DALVIK_TOKEN_VOID)
+           return DALVIK_TYPE_VOID;
+       else if(curlit == DALVIK_TOKEN_INT)
            return DALVIK_TYPE_INT;
        else if(curlit == DALVIK_TOKEN_WIDE)
            return DALVIK_TYPE_WIDE;

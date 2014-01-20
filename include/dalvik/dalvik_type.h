@@ -9,6 +9,7 @@ typedef struct {
     struct _dalvik_type_t* elem_type;
 } dalvik_type_array_t;
 enum {
+    DALVIK_TYPECODE_VOID  ,
     DALVIK_TYPECODE_INT   ,
     DALVIK_TYPECODE_LONG  ,
     DALVIK_TYPECODE_SHORT ,
@@ -58,5 +59,6 @@ void dalvik_type_free(dalvik_type_t* sexp);
 #define DALVIK_TYPE_CHAR DALVIK_TYPE_ATOM(CHAR)
 #define DALVIK_TYPE_BYTE DALVIK_TYPE_ATOM(BYTE)
 #define DALVIK_TYPE_BOOLEAN DALVIK_TYPE_ATOM(BOOLEAN)
+#define DALVIK_TYPE_VOID DALVIK_TYPE_ATOM(VOID)
 
 #endif /* __DALVIK_TYPE_H__ */

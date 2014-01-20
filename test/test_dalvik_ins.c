@@ -323,6 +323,15 @@ void test_instanceops()
     sexp_free(sexp);
     dalvik_instruction_free(&inst);
 }
+void test_invoke()
+{
+    assert(NULL != sexp_parse("(invoke-virtual {v1,v2,v3} this.is.a.test int int int)", &sexp));
+    assert(0 == dalvik_instruction_from_sexp(sexp,&inst, 0, NULL));
+    assert(inst.opcode == DVM_INVOKE);
+    assert(inst.flags == DVM_FLAG_INVOKE_VIRTUAL);
+    assert(inst.num_operands == 4);
+    //TODO: test it 
+}
 int main()
 {
     stringpool_init(1027);
@@ -336,6 +345,7 @@ int main()
     test_sparse();
     test_arrayops();
     test_instanceops();
+    test_invoke();
     stringpool_fianlize();
     
     return 0;

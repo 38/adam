@@ -96,6 +96,16 @@ const char* _dalvik_token_defs[DALVIK_MAX_NUM_KEYWORDS] = {
     "string",
     "default",
     "rsub",
+    "method",
+    "attrs",
+    "abstract",
+    "annotation",
+    "final",
+    "private",
+    "protected",
+    "public",
+    "synchronized",
+    "transient",
     NULL
 }; 
 

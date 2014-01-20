@@ -185,6 +185,9 @@ static inline int _sexp_match_one(const sexpression_t* sexpr, char tc, char sc, 
        case 'S':
            type = SEXP_TYPE_STR;
            break;
+       case '_':
+           type = sexpr->type;
+           break;
        default:
            ret = 0;
            goto DONE;
@@ -204,6 +207,12 @@ static inline int _sexp_match_one(const sexpression_t* sexpr, char tc, char sc, 
    if(SEXP_TYPE_CONS == type && sc == '=')
    {
        /* Cons can not used as input */
+       ret = 0;
+       goto DONE;
+   }
+   if(tc == '_' && sc == '=')
+   {
+       /* wildcard can not used as input */
        ret = 0;
        goto DONE;
    }
@@ -319,37 +328,14 @@ const char* sexp_get_object_path(sexpression_t* sexpr, sexpression_t** remaining
     buf[--len] = 0;
     return stringpool_query(buf);
 }
-#if 0
-const char* sexp_get_object_path_remaining(sexpression_t* sexpr, sexpression_t** remaining)
+int sexp_length(sexpression_t* sexp)
 {
-    int len = 0;
-    static char buf[4096];   /* Issue: thread safe */
-    if(sexpr == NULL) return NULL;
-    for(; sexpr != SEXP_NIL;)
-    {
-        /* Because the property of parser, we are excepting a cons here */
-        if(sexpr->type != SEXP_TYPE_CONS) 
-            return NULL;   
-        sexp_cons_t *cons = (sexp_cons_t*)sexpr->data;
-        /* We are reaching the last element of the S-Expression */
-        if(cons->second == SEXP_NIL)
-        {
-            (*remaining) = cons->first;
-            break;
-        }
-         /* first should not be a non-literial */
-        if(SEXP_NIL == cons->first || cons->first->type != SEXP_TYPE_LIT)
-            return NULL;
-        const char *p;
-        for(p = *(const char**)cons->first->data;
-            *p;
-             p++) buf[len++] = *p;
-        buf[len ++] = '/';
-        /*if(cons->seperator != '.' && cons->seperator != '/')
-            break;*/
-        sexpr = cons->second;
-    }
-    buf[--len] = 0;
-    return stringpool_query(buf);
+    if(SEXP_NIL == sexp) return 0;
+    if(sexp->type == SEXP_TYPE_LIT ||
+       sexp->type == SEXP_TYPE_STR) 
+        return 1;
+    int ret = 0;
+    for(;sexp != SEXP_NIL && sexp->type == SEXP_TYPE_CONS; ret ++)
+        sexp = ((sexp_cons_t*)sexp->data)->second;
+    return ret;
 }
-#endif

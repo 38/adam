@@ -71,8 +71,11 @@ int sexp_match(const sexpression_t* sexpr, const char* pattern, ...);
  */
 sexpression_t* sexp_strip(sexpression_t* sexpr, ...);
 
-/* Get object path (a b c) ==> a/b/c */
+/* Get object path (a/b/c d) ==> 'a/b/c' && (d) */
 const char* sexp_get_object_path(sexpression_t* sexpr, sexpression_t** remaining);
+
+/* sexp_length(s) <==> (length s) */
+int sexp_length(sexpression_t* sexp);
 
 #define SEXP_NIL NULL
 
