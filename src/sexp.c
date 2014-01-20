@@ -2,7 +2,7 @@
 
 #include <sexp.h>
 #include <stringpool.h>
-
+#include <string.h>
 
 static inline sexpression_t* _sexp_alloc(int type)
 {
@@ -230,7 +230,7 @@ static inline int _sexp_match_one(const sexpression_t* sexpr, char tc, char sc, 
    {
        /* Copy the point to user */
        ret = 1;
-       if(type != SEXP_TYPE_CONS)
+       if(type != SEXP_TYPE_CONS && tc != '_')
            (*this_arg) = *(const void**)sexpr->data;
        else
            (*this_arg) = sexpr;
@@ -337,5 +337,37 @@ int sexp_length(sexpression_t* sexp)
     int ret = 0;
     for(;sexp != SEXP_NIL && sexp->type == SEXP_TYPE_CONS; ret ++)
         sexp = ((sexp_cons_t*)sexp->data)->second;
+    return ret;
+}
+char* sexp_to_string(sexpression_t* sexp, char* buf)
+{
+    char * ret;
+    ret = buf;
+    if(NULL == buf) return NULL;
+    if(SEXP_NIL == sexp) 
+    {
+        sprintf(buf, "nil");
+        return buf;
+    }
+    if(sexp->type == SEXP_TYPE_LIT)
+    {
+        sprintf(buf, "%s ", *(sexp_lit_t*)sexp->data);
+    }
+    else if(sexp->type == SEXP_TYPE_STR)
+    {
+        sprintf(buf, "'%s' ", *(sexp_str_t*)sexp->data);
+    }
+    else if(sexp->type == SEXP_TYPE_CONS)
+    {
+        sexp_cons_t *cons = (sexp_cons_t*)sexp->data;
+        buf[0] = '(';
+        buf ++;
+        if(NULL == sexp_to_string(cons->first, buf)) return NULL;
+        buf += strlen(buf);
+        if(NULL == sexp_to_string(cons->second, buf)) return NULL;
+        buf += strlen(buf);
+        buf[0] = ')';
+        buf[1] = 0;
+    }
     return ret;
 }

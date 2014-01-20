@@ -77,6 +77,8 @@ const char* sexp_get_object_path(sexpression_t* sexpr, sexpression_t** remaining
 /* sexp_length(s) <==> (length s) */
 int sexp_length(sexpression_t* sexp);
 
+char* sexp_to_string(sexpression_t* sexp, char* buf);
+
 #define SEXP_NIL NULL
 
 #endif /* __SEXP_H__ */

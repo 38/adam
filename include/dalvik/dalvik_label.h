@@ -9,7 +9,7 @@
 struct _dalvik_instruction_t;
 typedef struct _dalvik_instruction_t dalvik_instruction_t;
 /* this is the jump table for the labels */
-extern dalvik_instruction_t* davlik_label_jump_table[DAVLIK_LABEL_POOL_SIZE];
+extern dalvik_instruction_t* dalvik_label_jump_table[DAVLIK_LABEL_POOL_SIZE];
 
 void dalvik_label_init(void);   /* initialize the label pool */
 void dalvik_label_free(void);   

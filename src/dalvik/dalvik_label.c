@@ -2,7 +2,7 @@
 #include <string.h>
 #include <log.h>
 
-dalvik_instruction_t* davlik_label_jump_table[DAVLIK_LABEL_POOL_SIZE];
+dalvik_instruction_t* dalvik_label_jump_table[DAVLIK_LABEL_POOL_SIZE];
 
 typedef struct _dalvik_label_map_t {
     const char* label;

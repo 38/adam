@@ -22,7 +22,7 @@ typedef struct {
     uint32_t             flags;    /* Flags */
     dalvik_type_t*       return_type;
     uint32_t             num_args;
-    dalvik_instruction_t entry;
+    dalvik_instruction_t* entry;
     dalvik_type_t*       args_type[0];
     /* DO NOT ADD DEFINITION AFTER args_type */
 } dalvik_method_t;
