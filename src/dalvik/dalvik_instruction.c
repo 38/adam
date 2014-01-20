@@ -769,6 +769,98 @@ __DI_CONSTRUCTOR(DOUBLE)
 {
     return _dalvik_instruction_convert_operator(next, buf, DVM_OPERAND_TYPE_DOUBLE);
 }
+static inline int _dalvik_instruction_setup_binary_operator(int flags, sexpression_t* next, dalvik_instruction_t *buf)
+{
+    buf->opcode = DVM_BINOP;
+    buf->flags = flags;
+    int opflags;
+    opflags = _dalvik_instruction_sexpression_fetch_type(&next, 0);
+    if(opflags == -1) return -1;
+    const char* curlit;
+    sexpression_t *previous;
+    int const_operand = 0;
+    previous = next;
+    if(!sexp_match(next, "(L?A", &curlit, &next)) return -1;
+
+    buf->num_operands = 2;
+    
+    if(curlit == DALVIK_TOKEN_2ADDR)  /* xxxx/2addr */
+        buf->num_operands = 2;
+    if(curlit == DALVIK_TOKEN_LIT16 ||
+       curlit == DALVIK_TOKEN_LIT8)   /* xxxxx/lityy */
+        const_operand = 1;
+    else 
+        next = previous; 
+
+    /* Setup reg0 and reg1 */
+    const char* reg0, *reg1;
+    if(!sexp_match(next, "(L?L?A", &reg0, &reg1, &next)) return -1;
+    __DI_SETUP_OPERAND(0, opflags, __DI_REGNUM(reg0));
+    __DI_SETUP_OPERAND(1, opflags, __DI_REGNUM(reg1));
+
+    /* Setpu the last reg */
+    const char* reg3;
+    if(buf->num_operands < 3) return 0;
+    if(!sexp_match(next, "(L?", &reg3)) return -1;
+    if(const_operand)
+    {
+        opflags |= DVM_OPERAND_FLAG_CONST;
+        __DI_SETUP_OPERAND(2, opflags, __DI_INSNUM(reg3));
+    }
+    else
+    {
+        __DI_SETUP_OPERAND(2, opflags, __DI_REGNUM(reg3));
+    }
+    return 0;
+}
+__DI_CONSTRUCTOR(ADD)
+{
+    return _dalvik_instruction_setup_binary_operator(DVM_FLAG_BINOP_ADD, next, buf);
+}
+__DI_CONSTRUCTOR(SUB)
+{
+    return _dalvik_instruction_setup_binary_operator(DVM_FLAG_BINOP_SUB, next, buf);
+}
+__DI_CONSTRUCTOR(MUL)
+{
+    return _dalvik_instruction_setup_binary_operator(DVM_FLAG_BINOP_MUL, next, buf);
+}
+__DI_CONSTRUCTOR(DIV)
+{
+    return _dalvik_instruction_setup_binary_operator(DVM_FLAG_BINOP_DIV, next, buf);
+}
+__DI_CONSTRUCTOR(REM)
+{
+    return _dalvik_instruction_setup_binary_operator(DVM_FLAG_BINOP_REM, next, buf);
+}
+__DI_CONSTRUCTOR(AND)
+{
+    return _dalvik_instruction_setup_binary_operator(DVM_FLAG_BINOP_AND, next, buf);
+}
+__DI_CONSTRUCTOR(OR)
+{
+    return _dalvik_instruction_setup_binary_operator(DVM_FLAG_BINOP_OR, next, buf);
+}
+__DI_CONSTRUCTOR(XOR)
+{
+    return _dalvik_instruction_setup_binary_operator(DVM_FLAG_BINOP_XOR, next, buf);
+}
+__DI_CONSTRUCTOR(SHL)
+{
+    return _dalvik_instruction_setup_binary_operator(DVM_FLAG_BINOP_SHL, next, buf);
+}
+__DI_CONSTRUCTOR(SHR)
+{
+    return _dalvik_instruction_setup_binary_operator(DVM_FLAG_BINOP_SHR, next, buf);
+}
+__DI_CONSTRUCTOR(USHR)
+{
+    return _dalvik_instruction_setup_binary_operator(DVM_FLAG_BINOP_USHR, next, buf);
+}
+__DI_CONSTRUCTOR(RSUB)
+{
+    return _dalvik_instruction_setup_binary_operator(DVM_FLAG_BINOP_RSUB, next, buf);
+}
 #undef __DI_CONSTRUCTOR
 int dalvik_instruction_from_sexp(sexpression_t* sexp, dalvik_instruction_t* buf, int line, const char* file)
 {
@@ -814,6 +906,20 @@ int dalvik_instruction_from_sexp(sexpression_t* sexp, dalvik_instruction_t* buf,
         __DI_CASE(LONG)
         __DI_CASE(FLOAT)
         __DI_CASE(DOUBLE)
+
+        __DI_CASE(ADD)
+        __DI_CASE(SUB)
+        __DI_CASE(MUL)
+        __DI_CASE(DIV)
+        __DI_CASE(REM)
+        __DI_CASE(AND)
+        __DI_CASE(OR)
+        __DI_CASE(XOR)
+        __DI_CASE(SHL)
+        __DI_CASE(SHR)
+        __DI_CASE(USHR)
+
+        __DI_CASE(RSUB)
         /* 
          * TODO:
          * 5. unfished : from instance-of to fill-array-data & binary operators 

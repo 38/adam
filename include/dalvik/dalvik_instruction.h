@@ -182,10 +182,11 @@ enum {
     DVM_FLAG_BINOP_REM,
     DVM_FLAG_BINOP_AND,
     DVM_FLAG_BINOP_OR,
+    DVM_FLAG_BINOP_XOR,
     DVM_FLAG_BINOP_SHR,
     DVM_FLAG_BINOP_SHL,
     DVM_FLAG_BINOP_USHR,
-    DVM_FLAG_BINOP_USHL
+    DVM_FLAG_BINOP_RSUB
 };
 
 extern dalvik_instruction_t* dalvik_instruction_pool;
