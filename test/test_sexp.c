@@ -51,7 +51,7 @@ int main()
     sexp_free(exp);
 
     assert(0 == strcmp("", sexp_parse("(java/utils/xxxxx)", &exp)));
-    assert(0 == strcmp("java/utils/xxxxx",sexp_get_object_path(exp)));
+    assert(0 == strcmp("java/utils/xxxxx",sexp_get_object_path(exp, NULL)));
     sexp_free(exp);
     return 0;
 }

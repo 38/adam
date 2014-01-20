@@ -21,7 +21,7 @@ static inline sexpression_t* _sexp_alloc(int type)
         default:
             return NULL;
     }
-    sexpression_t* ret = (sexpression_t*) malloc(sizeof(sexpression_t));
+    sexpression_t* ret = (sexpression_t*) malloc(size);
     if(NULL != ret) ret->type = type;
     return ret;
 }
@@ -49,7 +49,8 @@ static inline int _sexp_parse_ws(const char** p)
           **p == '\n'||
           **p == '/' ||
           **p == '-' ||
-          **p == ',';
+          **p == ',' ||
+          **p == '.';
           (*p) ++) ret = 1;
     return ret;
 }
@@ -71,7 +72,7 @@ static inline const char* _sexp_parse_list(const char* str, sexpression_t** buf)
     _sexp_parse_ws(&str);
     _sexp_parse_comment(&str);
     /* If it's an empty list, then return NIL */
-    if(*str == ')' || *str == ']') 
+    if(*str == ')' || *str == ']' || *str == '}') 
     {
         *buf = SEXP_NIL;
         return str + 1;
@@ -84,6 +85,7 @@ static inline const char* _sexp_parse_list(const char* str, sexpression_t** buf)
         if(NULL == *buf) goto ERR;
         str = sexp_parse(str, &data->first);
         if(NULL == str) goto ERR;
+        data->seperator = *str;
         str = _sexp_parse_list(str, &data->second);
         if(NULL == str) goto ERR;
         return str;
@@ -129,7 +131,21 @@ static inline const char* _sexpr_parse_literal(const char* str, sexpression_t** 
 {
     stringpool_accumulator_t accumulator;
     stringpool_accumulator_init(&accumulator, str);
-    for(;RANGE('0','9',*str) || RANGE('a','z',*str) || RANGE('A','Z',*str) ; str++)
+    for(; *str != '\r' &&
+          *str != '\n' &&
+          *str != ' '  &&
+          *str != '\t' &&
+          *str != '/'  &&
+          *str != '-'  &&
+          *str != '.'  &&
+          *str != ','  &&
+          *str != '('  &&
+          *str != ')'  &&
+          *str != '['  &&
+          *str != ']'  &&
+          *str != '{'  &&
+          *str != '}'  &&
+          *str != 0; str++)
         stringpool_accumulator_next(&accumulator, *str);
     *buf = _sexp_alloc(SEXP_TYPE_LIT);
     if(*buf == NULL) return NULL;
@@ -149,7 +165,7 @@ const char* sexp_parse(const char* str, sexpression_t** buf)
         (*buf) = SEXP_NIL;
         return str;
     }
-    else if(*str == '(' || *str == '[') return _sexp_parse_list(str + 1, buf);
+    else if(*str == '(' || *str == '[' || *str == '{') return _sexp_parse_list(str + 1, buf);
     else if(*str == '"') return _sexp_parse_string(str + 1, buf);
     else return _sexpr_parse_literal(str, buf);
 }
@@ -276,7 +292,7 @@ sexpression_t* sexp_strip(sexpression_t* sexpr, ...)
     va_end(va);
     return sexpr;   /* nothing to strip */
 }
-const char* sexp_get_object_path(sexpression_t* sexpr)
+const char* sexp_get_object_path(sexpression_t* sexpr, sexpression_t** remaining)
 {
     int len = 0;
     static char buf[4096];   /* Issue: thread safe */
@@ -296,10 +312,14 @@ const char* sexp_get_object_path(sexpression_t* sexpr)
              p++) buf[len++] = *p;
         buf[len ++] = '/';
         sexpr = cons->second;
+        if(cons->seperator != '.' && cons->seperator != '/')
+            break;
     }
+    if(NULL != remaining) (*remaining) = sexpr;
     buf[--len] = 0;
     return stringpool_query(buf);
 }
+#if 0
 const char* sexp_get_object_path_remaining(sexpression_t* sexpr, sexpression_t** remaining)
 {
     int len = 0;
@@ -325,9 +345,11 @@ const char* sexp_get_object_path_remaining(sexpression_t* sexpr, sexpression_t**
             *p;
              p++) buf[len++] = *p;
         buf[len ++] = '/';
+        /*if(cons->seperator != '.' && cons->seperator != '/')
+            break;*/
         sexpr = cons->second;
     }
     buf[--len] = 0;
     return stringpool_query(buf);
 }
-
+#endif

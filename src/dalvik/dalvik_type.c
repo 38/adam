@@ -70,18 +70,23 @@ dalvik_type_t* dalvik_type_from_sexp(sexpression_t* sexp)
            dalvik_type_t* ret;
            ret = _dalvik_type_alloc(DALVIK_TYPECODE_OBJECT);
            if(NULL == ret) return NULL;
-           if(NULL == (ret->data.object.path = sexp_get_object_path(sexp)))
+           if(NULL == (ret->data.object.path = sexp_get_object_path(sexp,NULL)))
            {
                dalvik_type_free(ret);
                return NULL;
            }
            return ret;
        }
-       else  /* [array ...] */
+       else if(curlit == DALVIK_TOKEN_ARRAY)  /* [array ...] */
        {
            dalvik_type_t* ret;
            ret = _dalvik_type_alloc(DALVIK_TYPECODE_ARRAY);
            if(NULL == ret) return NULL;
+           
+           /* We have too unpack the sexp first */
+
+           if(sexp_match(sexp, "(C?", &sexp) == 0) return NULL;
+           
            if(NULL == (ret->data.array.elem_type = dalvik_type_from_sexp(sexp)))
            {
                dalvik_type_free(ret);

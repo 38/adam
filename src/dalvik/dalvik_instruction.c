@@ -227,7 +227,7 @@ __DI_CONSTRUCTOR(CONST)
         if(sexp_match(next, "(L?A", &dest, &next))
         {
            __DI_SETUP_OPERAND(0, DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_OBJECT), __DI_REGNUM(dest));
-           __DI_SETUP_OPERAND(1, DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_CLASS) | DVM_OPERAND_FLAG_CONST, sexp_get_object_path(next));
+           __DI_SETUP_OPERAND(1, DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_CLASS) | DVM_OPERAND_FLAG_CONST, sexp_get_object_path(next, NULL));
         }
         else return -1;
     }
@@ -284,7 +284,7 @@ __DI_CONSTRUCTOR(CHECK)
             __DI_SETUP_OPERAND(0, DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_OBJECT), __DI_REGNUM(sour));
             __DI_SETUP_OPERAND(1, DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_CLASS) |
                                   DVM_OPERAND_FLAG_CONST , 
-                                  sexp_get_object_path(next));
+                                  sexp_get_object_path(next, NULL));
         }
         else return -1;
     }
@@ -553,14 +553,18 @@ static inline int _dalvik_instruction_setup_object_operations(
     /* Move on to the next operand */
     if(ins_kind != 1)   /* We need a object register */
     {
-        if(sexp_match(next, "(L?A", &idx, next) == 0)
+        if(sexp_match(next, "(L?A", &obj, &next) == 0)
             return -1;
-        __DI_SETUP_OPERAND(1, DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_OBJECT), __DI_REGNUM(idx));
+        __DI_SETUP_OPERAND(1, DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_OBJECT), __DI_REGNUM(obj));
     }
     /* Move on to the next one/two operand(s) */
-    if(ins_kind != 0 && ins_kind != 2)   /* We need a path and a type */
+    if(ins_kind != 0)   /* We need a path and a type */
     {
-        if(NULL == (path = sexp_get_object_path_remaining(next, &next)))
+        if(NULL == (path = sexp_get_object_path(next, &next)))
+            return -1;
+        if(SEXP_NIL == next) 
+            return -1;
+        if(!sexp_match(next, "(C?", &next)) 
             return -1;
         if(NULL == (type = dalvik_type_from_sexp(next)))
             return -1;
@@ -605,6 +609,166 @@ __DI_CONSTRUCTOR(SPUT)
 {
     return _dalvik_instruction_setup_object_operations(DVM_INSTANCE, DVM_FLAG_INSTANCE_SPUT, next, buf);
 }
+__DI_CONSTRUCTOR(INVOKE)
+{
+    buf->opcode = DVM_INVOKE;
+    const char* curlit;
+    if(!sexp_match(next, "(L?A", &curlit, &next)) return -1;
+    if(curlit == DALVIK_TOKEN_VIRTUAL)
+        buf->flags = DVM_FLAG_INVOKE_VIRTUAL;
+    else if(curlit == DALVIK_TOKEN_SUPER)
+        buf->flags = DVM_FLAG_INVOKE_SUPER;
+    else if(curlit == DALVIK_TOKEN_DIRECT)
+        buf->flags = DVM_FLAG_INVOKE_DIRECT;
+    else if(curlit == DALVIK_TOKEN_STATIC)
+        buf->flags = DVM_FLAG_INVOKE_STATIC;
+    else if(curlit == DALVIK_TOKEN_INTERFACE)
+        buf->flags = DVM_FLAG_INVOKE_INTERFACE;
+    else return -1;
+    sexpression_t* args;
+    const char* path , *reg1, *reg2;
+    if(sexp_match(next, "(L=A", DALVIK_TOKEN_RANGE, &next)) /* invoke-xxx/range */
+    {
+        int reg_from, reg_to;
+
+        buf->flags |= DVM_FLAG_INVOKE_RANGE;
+        buf->num_operands = 3;
+        if(sexp_match(next, "(C?A", &args, &next))
+        {
+            path = sexp_get_object_path(next, NULL); 
+            if(NULL == path) return -1;
+            /* We don't care the type, because we can infer from the method definition */
+            __DI_SETUP_OPERAND(0, DVM_OPERAND_FLAG_CONST |
+                                  DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_CLASS),
+                                  path);
+            if(sexp_match(args, "(L?L?", &reg1, &reg2))
+            {
+                reg_from = __DI_REGNUM(reg1);
+                reg_to   = __DI_REGNUM(reg2);
+            }
+            else if(sexp_match(args, "(L?", &reg1))
+            {
+                reg_from = reg_to = __DI_REGNUM(reg1);
+            }
+            else return -1;
+            /* We use a constant indicates the range */
+            __DI_SETUP_OPERAND(1, DVM_OPERAND_FLAG_CONST, reg_from);
+            __DI_SETUP_OPERAND(2, DVM_OPERAND_FLAG_CONST, reg_to);
+        }
+        else return -1;
+    }
+    else   /* invoke-xxx */
+    {
+        if(sexp_match(next, "(C?A", &args, &next))
+        {
+            path = sexp_get_object_path(next, NULL); 
+            if(NULL == path) return -1;
+            /* We don't care the type, because we can infer from the method definition */
+            __DI_SETUP_OPERAND(0, DVM_OPERAND_FLAG_CONST |
+                                  DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_CLASS),
+                                  path);
+            buf->num_operands = 1;
+            for(;args != SEXP_NIL;)
+            {
+                if(sexp_match(args, "(L?A", &reg1, &args))
+                {
+                    __DI_SETUP_OPERAND(buf->num_operands ++, 0, __DI_REGNUM(reg1));
+                }
+                else return -1;
+            }
+        }
+    }
+    return 0;
+}
+static inline int32_t _dalvik_instruction_sexpression_fetch_type(sexpression_t** psexp, int addtional_flags)
+{
+    int ret = addtional_flags;
+    sexpression_t* sexp = *psexp;
+    const char* type;
+    if(sexp_match(sexp, "(L?A", type, psexp))
+    {
+        if(DALVIK_TOKEN_INT == type) 
+            ret |= DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_INT);
+        else if(DALVIK_TOKEN_LONG == type)
+            ret |= DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_LONG);
+        else if(DALVIK_TOKEN_FLOAT == type)
+            ret |= DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_FLOAT);
+        else if(DALVIK_TOKEN_DOUBLE == type)
+            ret |= DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_DOUBLE);
+        else if(DALVIK_TOKEN_BYTE == type)
+            ret |= DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_BYTE);
+        else if(DALVIK_TOKEN_CHAR == type)
+            ret |= DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_CHAR);
+        else if(DALVIK_TOKEN_SHORT == type)
+            ret |= DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_SHORT);
+        else return -1;
+    }
+    else return -1;
+    return ret;
+}
+static inline int _dalvik_instruction_setup_arithmetic(
+        int opcode, 
+        int flags,    /* flag of the instruction */
+        int num_operands,
+        int operand_flags[],   /* flag of the first operand */
+        sexpression_t* next,
+        dalvik_instruction_t* buf)
+{
+    buf->opcode = opcode;
+    buf->flags = flags;
+    buf->num_operands = num_operands;
+    int i;
+    const char* reg;
+    for(i = 0; i < num_operands; i ++)
+    {
+        if(operand_flags[i] == -1) return -1;
+        if(sexp_match(next, "(L?A", &reg, &next))
+        {
+            if(operand_flags[i] & DVM_OPERAND_FLAG_CONST)
+                __DI_SETUP_OPERAND(i, operand_flags[i], __DI_INSNUM(reg));
+            else
+                __DI_SETUP_OPERAND(i, operand_flags[i], __DI_REGNUM(reg));
+        }
+        else return -1;
+    }
+    return 0;
+}
+__DI_CONSTRUCTOR(NEG)
+{
+    int operand_flags[2];
+    operand_flags[0] = operand_flags[1] = _dalvik_instruction_sexpression_fetch_type(&next, 0);
+    return _dalvik_instruction_setup_arithmetic(DVM_UNOP, DVM_FLAG_UOP_NEG, 2, operand_flags, next, buf);
+}
+__DI_CONSTRUCTOR(NOT)
+{
+    int operand_flags[2];
+    operand_flags[0] = operand_flags[1] = _dalvik_instruction_sexpression_fetch_type(&next, 0);
+    return _dalvik_instruction_setup_arithmetic(DVM_UNOP, DVM_FLAG_UOP_NOT, 2, operand_flags, next, buf);
+}
+static inline int _dalvik_instruction_convert_operator(sexpression_t* next, dalvik_instruction_t* buf, int type)
+{
+    int operand_flags[2];
+    if(sexp_match(next, "(L=A", DALVIK_TOKEN_TO, &next)) return -1;
+    operand_flags[0] = DVM_OPERAND_FLAG_TYPE(type);
+    operand_flags[1] = _dalvik_instruction_sexpression_fetch_type(&next, 0);
+    return _dalvik_instruction_setup_arithmetic(DVM_UNOP, DVM_FLAG_UOP_TO, 2, operand_flags, next, buf);
+}
+__DI_CONSTRUCTOR(INT)
+{
+    return _dalvik_instruction_convert_operator(next, buf, DVM_OPERAND_TYPE_INT);
+}
+__DI_CONSTRUCTOR(LONG)
+{
+    return _dalvik_instruction_convert_operator(next, buf, DVM_OPERAND_TYPE_LONG);
+}
+__DI_CONSTRUCTOR(FLOAT)
+{
+    return _dalvik_instruction_convert_operator(next, buf, DVM_OPERAND_TYPE_FLOAT);
+}
+__DI_CONSTRUCTOR(DOUBLE)
+{
+    return _dalvik_instruction_convert_operator(next, buf, DVM_OPERAND_TYPE_DOUBLE);
+}
 #undef __DI_CONSTRUCTOR
 int dalvik_instruction_from_sexp(sexpression_t* sexp, dalvik_instruction_t* buf, int line, const char* file)
 {
@@ -643,10 +807,17 @@ int dalvik_instruction_from_sexp(sexpression_t* sexp, dalvik_instruction_t* buf,
         __DI_CASE(IPUT)
         __DI_CASE(SGET)
         __DI_CASE(SPUT)
+        __DI_CASE(INVOKE)
+        __DI_CASE(NEG)
+        __DI_CASE(NOT)
+        __DI_CASE(INT)
+        __DI_CASE(LONG)
+        __DI_CASE(FLOAT)
+        __DI_CASE(DOUBLE)
         /* 
          * TODO:
-         * 5. unfished : from instance-of to fill-array-data 
-         * 6. test cmp, if, aget, aput, sget, sput, iget, iput
+         * 5. unfished : from instance-of to fill-array-data & binary operators 
+         * 6. test cmp, if, invoke, operators
          */
 
     __DI_END

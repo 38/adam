@@ -26,6 +26,7 @@ typedef const char* sexp_str_t;
 typedef const char* sexp_lit_t;
 
 typedef struct{
+    char seperator;
     sexpression_t * first;
     sexpression_t * second;
 } sexp_cons_t;
@@ -71,10 +72,7 @@ int sexp_match(const sexpression_t* sexpr, const char* pattern, ...);
 sexpression_t* sexp_strip(sexpression_t* sexpr, ...);
 
 /* Get object path (a b c) ==> a/b/c */
-const char* sexp_get_object_path(sexpression_t* sexpr);
-
-/* Get object path and return the last element in the list  (a b c xxx) ==> a/b/c, xxx */
-const char* sexp_get_object_path_remaining(sexpression_t* sexpr, sexpression_t** remaining);
+const char* sexp_get_object_path(sexpression_t* sexpr, sexpression_t** remaining);
 
 #define SEXP_NIL NULL
 
