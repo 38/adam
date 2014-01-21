@@ -1,6 +1,7 @@
 #ifndef __DALVIK_ATTRS_H__
 #define __DALVIK_ATTRS_H__
 
+/* The general attribute flags should use low 16 bits only */
 #define DALVIK_ATTRS_ABSTARCT    0x1
 #define DALVIK_ATTRS_ANNOTATION  0x2
 #define DALVIK_ATTRS_FINAL       0x4
@@ -11,6 +12,7 @@
 #define DALVIK_ATTRS_SYNCRONIZED 0x80
 #define DALVIK_ATTRS_TRASIENT    0x100
 
+/* DO NOT define any attribute lager than 0xffff */
 
 int dalvik_attrs_from_sexp(sexpression_t* sexp);
 #endif
