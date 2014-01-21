@@ -108,7 +108,7 @@ void dalvik_type_free(dalvik_type_t* type)
     {
         case DALVIK_TYPECODE_ARRAY:
             dalvik_type_free(type->data.array.elem_type);
-        case DALVIK_TYPECODE_OBJECT: 
+        default: 
             free(type);
     }
 }

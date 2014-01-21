@@ -121,7 +121,9 @@ int main()
 "  (invoke-virtual {v2 v3} java/io/PrintStream/println [object java/lang/String] )\n"
 "  (goto l36fd6)\n)";
     assert(NULL != sexp_parse(method_code, &sexp));
-    assert(NULL != (dalvik_method_from_sexp(sexp, NULL, NULL)));
+    assert(NULL != (method = dalvik_method_from_sexp(sexp, NULL, NULL)));
+    sexp_free(sexp);
+    dalvik_method_free(method);
     anadroid_finalize();
     return 0;
 }

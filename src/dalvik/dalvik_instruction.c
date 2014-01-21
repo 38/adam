@@ -140,7 +140,7 @@ __DI_CONSTRUCTOR(MOVE)
         if(sexp_match(next, "(L?", &dest))
         {
             __DI_SETUP_OPERAND(0, 0, __DI_REGNUM(dest));
-            __DI_SETUP_OPERAND(1, DVM_OPERAND_FLAG_EXCEPTION, 0);
+            __DI_SETUP_OPERAND(1, DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_EXCEPTION), 0);
         }
         else return -1;
     }
@@ -569,16 +569,18 @@ static inline int _dalvik_instruction_setup_object_operations(
             return -1;
         if(SEXP_NIL == next) 
             return -1;
-        if(!sexp_match(next, "(C?", &next)) 
+        if(!sexp_match(next, "(_?", &next)) 
             return -1;
         if(NULL == (type = dalvik_type_from_sexp(next)))
             return -1;
-        __DI_SETUP_OPERAND(2, DVM_OPERAND_FLAG_CONST |
-                              DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_CLASS),
-                              path);
-        __DI_SETUP_OPERAND(3, DVM_OPERAND_FLAG_CONST |
-                              DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_TYPEDESC),
-                              type);
+        __DI_SETUP_OPERAND(ins_kind==1?1:2, 
+                           DVM_OPERAND_FLAG_CONST |
+                           DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_CLASS),
+                           path);
+        __DI_SETUP_OPERAND(ins_kind==1?2:3, 
+                           DVM_OPERAND_FLAG_CONST |
+                           DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_TYPEDESC),
+                           type);
     }
     else                /* We need a index */
     {
@@ -690,7 +692,7 @@ static inline int32_t _dalvik_instruction_sexpression_fetch_type(sexpression_t**
     int ret = addtional_flags;
     sexpression_t* sexp = *psexp;
     const char* type;
-    if(sexp_match(sexp, "(L?A", type, psexp))
+    if(sexp_match(sexp, "(L?A", &type, &psexp))
     {
         if(DALVIK_TOKEN_INT == type) 
             ret |= DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_INT);
@@ -996,6 +998,11 @@ int dalvik_instruction_from_sexp(sexpression_t* sexp, dalvik_instruction_t* buf,
 #undef __DI_END
 #undef __DI_CASE
 #undef __DI_BEGIN
+    if(rc == 0)
+    {
+        buf->line = line;
+        buf->file = file;
+    }
     return rc;
 }
 

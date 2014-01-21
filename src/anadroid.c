@@ -13,5 +13,4 @@ void anadroid_finalize(void)
     dalvik_label_finalize();
     stringpool_fianlize();
     dalvik_type_finalize();
-    dalvik_instruction_finalize();
 }

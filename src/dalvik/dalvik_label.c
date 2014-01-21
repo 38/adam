@@ -38,7 +38,11 @@ int dalvik_label_get_label_id(const char* label)
     int idx = ((uint64_t)label)%DAVLIK_LABEL_POOL_SIZE;
     dalvik_label_map_t* ptr;
     for(ptr = _dalvik_label_map_table[idx]; ptr; ptr = ptr->next)
-        if(ptr->label == label) return ptr->idx;
+        if(ptr->label == label) 
+        {
+            LOG_DEBUG("Find label map %s --> %d", label, ptr->idx);
+            return ptr->idx;
+        }
     LOG_DEBUG("Creating new mapping for label %s", label);
     ptr = (dalvik_label_map_t*)malloc(sizeof(dalvik_label_map_t));
     if(NULL == ptr) 

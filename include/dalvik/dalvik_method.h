@@ -6,19 +6,11 @@
 #include <sexp.h>
 #include <dalvik/dalvik_instruction.h>
 #include <dalvik/dalvik_type.h>
-
-#define DALVIK_METHOD_FLAG_ABSTARCT    0x1
-#define DALVIK_METHOD_FLAG_ANNOTATION  0x2
-#define DALVIK_METHOD_FLAG_FINAL       0x4
-#define DALVIK_METHOD_FLAG_PRIVATE     0x8
-#define DALVIK_METHOD_FLAG_PROCTED     0x10
-#define DALVIK_METHOD_FLAG_PUBLIC      0x20
-#define DALVIK_METHOD_FLAG_STATIC      0x40
-#define DALVIK_METHOD_FLAG_SYNCRONIZED 0x80
-#define DALVIK_METHOD_FLAG_TRASIENT    0x100
+#include <dalvik/dalvik_attrs.h>
 
 typedef struct {
     const char*          path;     /* Method Path */
+    const char*          file;     /* File Name  */
     uint32_t             flags;    /* Flags */
     dalvik_type_t*       return_type;
     uint32_t             num_args;

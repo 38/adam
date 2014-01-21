@@ -57,21 +57,20 @@ enum {
     DVM_OPERAND_TYPE_LABEL,
     DVM_OPERAND_TYPE_LABELVECTOR,
     DVM_OPERAND_TYPE_SPARSE,
-    DVM_OPERAND_TYPE_TYPEDESC
+    DVM_OPERAND_TYPE_TYPEDESC,
+    DVM_OPERAND_TYPE_EXCEPTION     /* If a operand is this type, that means the operand won't use the payload */
 };
 #define DVM_OPERAND_FLAG_TYPE(what) ((what)<<1)
-#define DVM_OPERAND_FLAG_CONST      0x20
-#define DVM_OPERAND_FLAG_RESULT     0x40
-#define DVM_OPERAND_FLAG_EXCEPTION  0x80
+#define DVM_OPERAND_FLAG_CONST      0x40
+#define DVM_OPERAND_FLAG_RESULT     0x80
 typedef union {
     uint8_t    flags;
     struct {
         uint8_t size:1;            /* Size of the operand, 32 bit or 64 bit */
-        uint8_t type:4;            /* Type specified by the instruction. 
+        uint8_t type:5;            /* Type specified by the instruction. 
                                       If it's unspecified, it should be DVM_OPERAND_TYPE_ANY */
         uint8_t is_const:1;        /* Wether or not the oprand a constant */
         uint8_t is_result:1;       /* move-result instruction actually take 2 args, but one is a result */
-        uint8_t is_expection:1;    /* if the oprand a exception */
     } info;
 } dalvik_operand_header;
 
@@ -117,7 +116,7 @@ typedef struct _dalvik_instruction_t{
     uint8_t            num_operands:3;   /* How many operand ? */
     uint16_t           flags:9;        /* Additional flags for instruction, DVM_FLAG_OPTYPE_NAME */
     dalvik_operand_t   operands[4];     /* Operand array */
-    const char*        path;            /* The file name assigned to this instruction */
+    const char*        file;            /* The file name assigned to this instruction */
     int                line;            /* Line number of this instruction */
     struct _dalvik_instruction_t* next; /* The next instruction pointer */
 } dalvik_instruction_t;

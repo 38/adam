@@ -1,39 +1,6 @@
 #include <dalvik/dalvik_method.h>
 #include <dalvik/dalvik_tokens.h>
 #include <dalvik/dalvik_label.h>
-static inline int _dalvik_method_get_attrs(sexpression_t* sexp)
-{
-    int flags = 0;
-    if(!sexp_match(sexp, "(L=A", DALVIK_TOKEN_ATTRS, &sexp)) return -1;
-    for(; SEXP_NIL != sexp;)
-    {
-        const char* this_attr;
-        if(!sexp_match(sexp, "(L?A", &this_attr, &sexp)) return -1;
-        if(DALVIK_TOKEN_ABSTRACT == this_attr)
-            flags |= DALVIK_METHOD_FLAG_ABSTARCT;
-        else if(DALVIK_TOKEN_ANNOTATION == this_attr)
-            flags |= DALVIK_METHOD_FLAG_ANNOTATION;
-        else if(DALVIK_TOKEN_FINAL == this_attr)
-            flags |= DALVIK_METHOD_FLAG_FINAL;
-        else if(DALVIK_TOKEN_PRIVATE == this_attr)
-            flags |= DALVIK_METHOD_FLAG_PRIVATE;
-        else if(DALVIK_TOKEN_PROTECTED == this_attr)
-            flags |= DALVIK_METHOD_FLAG_PROCTED;
-        else if(DALVIK_TOKEN_PUBLIC == this_attr)
-            flags |= DALVIK_METHOD_FLAG_PUBLIC;
-        else if(DALVIK_TOKEN_SYNCHRNIZED == this_attr)
-            flags |= DALVIK_METHOD_FLAG_SYNCRONIZED;
-        else if(DALVIK_TOKEN_STATIC == this_attr)
-            flags |= DALVIK_METHOD_FLAG_STATIC;
-        else if(DALVIK_TOKEN_TRANSIENT == this_attr)
-            flags |= DALVIK_METHOD_FLAG_TRASIENT;
-        else 
-        {
-            LOG_WARNING("unknown method attribute %s", this_attr);
-        }
-    }
-    return flags;
-}
 dalvik_method_t* dalvik_method_from_sexp(sexpression_t* sexp, const char* class_path,const char* file)
 {
     dalvik_method_t* method = NULL;
@@ -51,7 +18,7 @@ dalvik_method_t* dalvik_method_from_sexp(sexpression_t* sexp, const char* class_
 
     /* get attributes */
     int attrnum;
-    if((attrnum = _dalvik_method_get_attrs(attrs)) < 0)
+    if((attrnum = dalvik_attrs_from_sexp(attrs)) < 0)
         return NULL;
 
     /* get number of arguments */
@@ -62,6 +29,9 @@ dalvik_method_t* dalvik_method_from_sexp(sexpression_t* sexp, const char* class_
     method = (dalvik_method_t*)malloc(sizeof(dalvik_method_t) + sizeof(dalvik_type_t*) * num_args);
     if(NULL == method) return NULL;
 
+    method->num_args = num_args;
+    method->path = class_path;
+    method->file = file;
 
     /* Setup the type of argument list */
     int i;
@@ -163,4 +133,5 @@ void dalvik_method_free(dalvik_method_t* method)
     for(i = 0; i < method->num_args; i ++)
         if(NULL != method->args_type[i])
             dalvik_type_free(method->args_type[i]);
+    free(method);
 }
