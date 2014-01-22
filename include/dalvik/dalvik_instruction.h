@@ -58,6 +58,7 @@ enum {
     DVM_OPERAND_TYPE_LABELVECTOR,
     DVM_OPERAND_TYPE_SPARSE,
     DVM_OPERAND_TYPE_TYPEDESC,
+    DVM_OPERAND_TYPE_FIELD,
     DVM_OPERAND_TYPE_EXCEPTION     /* If a operand is this type, that means the operand won't use the payload */
 };
 #define DVM_OPERAND_FLAG_TYPE(what) ((what)<<1)
@@ -108,6 +109,7 @@ typedef struct {
         vector_t*          branches;            /* a group of branch */
         vector_t*          sparse;              /* a sparse-switch oprand */
         dalvik_type_t*     type;
+        const char*        field;               /* The field we what to operate */
     } payload;
 } dalvik_operand_t;
 

@@ -505,19 +505,19 @@ static inline int _dalvik_instruction_setup_object_operations(
         if(flags == DVM_FLAG_INSTANCE_SGET ||
            flags == DVM_FLAG_INSTANCE_SPUT)
         {
-            ins_kind = 1;            /* For static method we need <dest, path, type> */
-            buf->num_operands = 3;   /* Although one more operand for type, but we don't need object reg */
+            ins_kind = 1;            /* For static method we need <dest, path, field, type> */
+            buf->num_operands = 4;   /* Although one more operand for type, but we don't need object reg */
         }
         else
         {
             ins_kind = 2;
-            buf->num_operands = 4;   /* one more operand for type specifier */
+            buf->num_operands = 5;   /* one more operand for type specifier */
         }
 
     }
     buf->flags = flags;
     const char* curlit;
-    const char *dest, *obj, *idx, *path;
+    const char *dest, *obj, *idx, *path, *field;
     dalvik_type_t* type;
     int opflags = 0;    /* Indicates the property of oprands */
     sexpression_t *previous;
@@ -567,6 +567,8 @@ static inline int _dalvik_instruction_setup_object_operations(
     {
         if(NULL == (path = sexp_get_object_path(next, &next)))
             return -1;
+        if(!sexp_match(next, "(L?A", &field, &next))
+            return -1;
         if(SEXP_NIL == next) 
             return -1;
         if(!sexp_match(next, "(_?", &next)) 
@@ -577,7 +579,11 @@ static inline int _dalvik_instruction_setup_object_operations(
                            DVM_OPERAND_FLAG_CONST |
                            DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_CLASS),
                            path);
-        __DI_SETUP_OPERAND(ins_kind==1?2:3, 
+        __DI_SETUP_OPERAND(ins_kind==1?2:3,
+                           DVM_OPERAND_FLAG_CONST |
+                           DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_FIELD),
+                           field);
+        __DI_SETUP_OPERAND(ins_kind==1?3:4, 
                            DVM_OPERAND_FLAG_CONST |
                            DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_TYPEDESC),
                            type);
@@ -633,21 +639,26 @@ __DI_CONSTRUCTOR(INVOKE)
         buf->flags = DVM_FLAG_INVOKE_INTERFACE;
     else return -1;
     sexpression_t* args;
-    const char* path , *reg1, *reg2;
+    const char* path , *field, *reg1, *reg2;
     if(sexp_match(next, "(L=A", DALVIK_TOKEN_RANGE, &next)) /* invoke-xxx/range */
     {
         int reg_from, reg_to;
 
         buf->flags |= DVM_FLAG_INVOKE_RANGE;
-        buf->num_operands = 3;
+        buf->num_operands = 4;
         if(sexp_match(next, "(C?A", &args, &next))
         {
             path = sexp_get_object_path(next, NULL); 
             if(NULL == path) return -1;
+            if(!sexp_match(next, "(L?A", &field, &next))
+                return -1;
             /* We don't care the type, because we can infer from the method definition */
             __DI_SETUP_OPERAND(0, DVM_OPERAND_FLAG_CONST |
                                   DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_CLASS),
                                   path);
+            __DI_SETUP_OPERAND(1, DVM_OPERAND_FLAG_CONST |
+                                  DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_FIELD),
+                                  field);
             if(sexp_match(args, "(L?L?", &reg1, &reg2))
             {
                 reg_from = __DI_REGNUM(reg1);
@@ -659,8 +670,8 @@ __DI_CONSTRUCTOR(INVOKE)
             }
             else return -1;
             /* We use a constant indicates the range */
-            __DI_SETUP_OPERAND(1, DVM_OPERAND_FLAG_CONST, reg_from);
-            __DI_SETUP_OPERAND(2, DVM_OPERAND_FLAG_CONST, reg_to);
+            __DI_SETUP_OPERAND(2, DVM_OPERAND_FLAG_CONST, reg_from);
+            __DI_SETUP_OPERAND(3, DVM_OPERAND_FLAG_CONST, reg_to);
         }
         else return -1;
     }
@@ -670,11 +681,16 @@ __DI_CONSTRUCTOR(INVOKE)
         {
             path = sexp_get_object_path(next, NULL); 
             if(NULL == path) return -1;
+            if(!sexp_match(next, "(L?A", &field, &next)) 
+                    return -1;
             /* We don't care the type, because we can infer from the method definition */
             __DI_SETUP_OPERAND(0, DVM_OPERAND_FLAG_CONST |
                                   DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_CLASS),
                                   path);
-            buf->num_operands = 1;
+            __DI_SETUP_OPERAND(1, DVM_OPERAND_FLAG_CONST |
+                                  DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_FIELD),
+                                  field);
+            buf->num_operands = 2;
             for(;args != SEXP_NIL;)
             {
                 if(sexp_match(args, "(L?A", &reg1, &args))

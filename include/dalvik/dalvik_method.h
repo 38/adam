@@ -9,10 +9,10 @@
 #include <dalvik/dalvik_attrs.h>
 
 typedef struct {
-    const char*          name;     /* Method Name */
+    /* DO NOT ADD ANY DEFINITION HERE */
+    const char*          name;     /* Method Name. THIS MUST BE THE FIRST MEMBER OF THE STRCUT*/
     const char*          path;     /* class Path */
     const char*          file;     /* File Name  */
-    int                  class;    /* TODO: Class ID */
     uint32_t             flags;    /* Flags */
     dalvik_type_t*       return_type;
     uint32_t             num_args;

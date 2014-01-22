@@ -321,7 +321,7 @@ const char* sexp_get_object_path(sexpression_t* sexpr, sexpression_t** remaining
              p++) buf[len++] = *p;
         buf[len ++] = '/';
         sexpr = cons->second;
-        if(cons->seperator != '.' && cons->seperator != '/')
+        if(cons->seperator != '/')
             break;
     }
     if(NULL != remaining) (*remaining) = sexpr;

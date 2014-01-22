@@ -25,7 +25,7 @@ enum {
     DALVIK_TYPECODE_OBJECT= 0x80,
     DALVIK_TYPECODE_ARRAY = 0x81
 };
-#define DALVIK_TYPE_IS_ATOM(typenum) ((typenum)&0x7f)
+#define DALVIK_TYPE_IS_ATOM(typenum) ((~typenum)&0x80)
 typedef struct _dalvik_type_t{
     uint32_t typecode;
     union{

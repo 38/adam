@@ -110,6 +110,9 @@ const char* _dalvik_token_defs[DALVIK_MAX_NUM_KEYWORDS] = {
     "limit",
     "registers",
     "label",
+    "field",
+    "source",
+    "implements",
     NULL
 }; 
 
