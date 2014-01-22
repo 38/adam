@@ -173,6 +173,15 @@ static inline int _sexp_match_one(const sexpression_t* sexpr, char tc, char sc, 
 {
    int ret = 1;
    int type;
+   if(sexpr == SEXP_NIL) 
+   {
+       if(tc == 'C' && sc == '?') 
+       {
+           (*this_arg) = SEXP_NIL;
+           return 1;
+       }
+       return 0;
+   }
    /* Determine the type expected */
    switch(tc)
    {

@@ -8,9 +8,7 @@
 #include <dalvik/dalvik_label.h>
 #include <dalvik/dalvik_type.h>
 
-#ifndef DALVIK_POOL_INIT_SIZE
-#   define DALVIK_POOL_INIT_SIZE 1024
-#endif
+#include <constants.h>
 
 /* Define all opcodes for Dalvik Virtual Machine */
 enum {

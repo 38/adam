@@ -3,7 +3,7 @@
 #include <stdio.h>
 #include <string.h>
 
-
+#include <constants.h>
 #include <log.h>
 #include <stringpool.h>
 #include <sexp.h>
@@ -11,10 +11,11 @@
 #include <dalvik/dalvik_tokens.h>
 #include <dalvik/dalvik_label.h>
 #include <dalvik/dalvik_type.h>
+#include <dalvik/dalvik_memberdict.h>
+#include <dalvik/dalvik_class.h>
+#include <dalvik/dalvik_method.h>
+#include <dalvik/dalvik_field.h>
 
-#ifndef STRING_POOL_SIZE
-#   define STRING_POOL_SIZE 100003
-#endif
 
 /* following two function is used for system inintialization and
  * finalization 

@@ -15,6 +15,7 @@ dalvik_class_t* dalvik_class_from_sexp(sexpression_t* sexp)
     int is_interface;
     const char* class_path;
     int attrs;
+    int field_count = 0;
     if(SEXP_NIL == sexp) goto ERR;
     const char* firstlit;
     sexpression_t* attr_list;
@@ -71,12 +72,15 @@ dalvik_class_t* dalvik_class_from_sexp(sexpression_t* sexp)
                 goto ERR;
             if(firstlit == DALVIK_TOKEN_METHOD)
             {
+                static char buf[10240];
+                LOG_DEBUG("we are resuloving method %s", sexp_to_string(this_def, buf));
                 dalvik_method_t* method;
                 if(NULL == (method = dalvik_method_from_sexp(this_def, class->path, source)))
                     goto ERR;
                 /* Register it */
                 if(dalvik_memberdict_register_method(class->path, method) < 0)
                     goto ERR;
+                class->members[field_count++] = method->name;
             }
             else if(firstlit == DALVIK_TOKEN_FIELD)
             {
@@ -85,10 +89,15 @@ dalvik_class_t* dalvik_class_from_sexp(sexpression_t* sexp)
                     goto ERR;
                 if(dalvik_memberdict_register_field(class->path, field) < 0)
                     goto ERR;
+                class->members[field_count++] = field->name;
+            }
+            else 
+            {
+                LOG_WARNING("we are ingoring a field");
             }
         }
     }
-    dalvik_memberdict_register_class(class->path, class);
+    if(dalvik_memberdict_register_class(class->path, class) < 0) goto ERR;
     return class;
 ERR:
     if(NULL != class) free(class);

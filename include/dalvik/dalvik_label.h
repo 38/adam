@@ -1,10 +1,8 @@
 #ifndef __LABEL_H__
 #define __LABEL_H__
+#include <constants.h>
 #include <stdint.h>
 #include <dalvik/dalvik_instruction.h>
-#ifndef DAVLIK_LABEL_POOL_SIZE
-#   define DAVLIK_LABEL_POOL_SIZE 65521
-#endif
 /* previous definitions */
 struct _dalvik_instruction_t;
 typedef struct _dalvik_instruction_t dalvik_instruction_t;

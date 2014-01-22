@@ -32,6 +32,7 @@ dalvik_method_t* dalvik_method_from_sexp(sexpression_t* sexp, const char* class_
     method->num_args = num_args;
     method->path = class_path;
     method->file = file;
+    method->name = name;
 
     /* Setup the type of argument list */
     int i;
