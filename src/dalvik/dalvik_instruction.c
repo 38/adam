@@ -891,12 +891,26 @@ __DI_CONSTRUCTOR(INSTANCE)
     buf->num_operands = 3;
     const char *dest, *sour, *path;
     if(!sexp_match(next, "(L=L?L?A",DALVIK_TOKEN_OF ,&dest, &sour, &next))  return -1;
-    if(NULL == (path = sexp_get_object_path(next, NULL))) return -1;
     __DI_SETUP_OPERAND(0, 0, __DI_REGNUM(dest));
     __DI_SETUP_OPERAND(1, DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_OBJECT), __DI_REGNUM(sour));
-    __DI_SETUP_OPERAND(2, DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_CLASS) | 
-                          DVM_OPERAND_FLAG_CONST ,
-                          path);
+    
+    if(NULL != (path = sexp_get_object_path(next, NULL))) 
+    {
+        __DI_SETUP_OPERAND(2, DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_CLASS) | 
+                              DVM_OPERAND_FLAG_CONST ,
+                              path);
+    }
+    else
+    {
+        if(sexp_match(next, "(_?", &next))
+        {
+            dalvik_type_t* type = dalvik_type_from_sexp(next);
+            __DI_SETUP_OPERAND(2, DVM_OPERAND_FLAG_CONST|
+                                  DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_TYPEDESC),
+                                  type);
+        }
+        else return -1;
+    }
     return 0;
 }
 __DI_CONSTRUCTOR(ARRAY)

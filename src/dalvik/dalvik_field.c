@@ -27,7 +27,7 @@ dalvik_field_t* dalvik_field_from_sexp(sexpression_t* sexp, const char* class_pa
     if(SEXP_NIL != sexp)
     {
         /* it has a defualt value */
-        if(!sexp_match(sexp, "(_?", &ret->defualt_value)) goto ERR;
+        if(!sexp_match(sexp, "(A", &ret->defualt_value)) goto ERR;
     }
 
     return ret;

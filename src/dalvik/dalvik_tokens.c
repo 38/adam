@@ -116,6 +116,7 @@ const char* _dalvik_token_defs[DALVIK_MAX_NUM_KEYWORDS] = {
     "data",
     "catch",
     "catchall",
+    "fill",
     NULL
 }; 
 

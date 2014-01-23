@@ -4,6 +4,6 @@
 int main()
 {
     anadroid_init();
-    dalvik_loader_from_directory("../pushdownoo/jdex2sex/test");
+    dalvik_loader_from_directory("../pushdownoo/jdex2sex/test1");
     anadroid_finalize();
 }

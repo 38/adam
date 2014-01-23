@@ -93,7 +93,7 @@ dalvik_class_t* dalvik_class_from_sexp(sexpression_t* sexp)
                 dalvik_method_t* method;
                 if(NULL == (method = dalvik_method_from_sexp(this_def, class->path, source)))
                 {
-                    LOG_ERROR("can not resolve instruction %s", sexp_to_string(this_def, NULL));
+                    LOG_ERROR("can not resolve method %s", sexp_to_string(this_def, NULL));
                     goto ERR;
                 }
                 /* Register it */

@@ -92,6 +92,5 @@ ERR:
         free(result[i]);
     free(result);
     LOG_ERROR("dalvik loader is returninng a failure");
-    if(NULL != result) free(result);
     return -1;
 }
