@@ -76,7 +76,10 @@ dalvik_class_t* dalvik_class_from_sexp(sexpression_t* sexp)
                 LOG_DEBUG("we are resuloving method %s", sexp_to_string(this_def, buf));
                 dalvik_method_t* method;
                 if(NULL == (method = dalvik_method_from_sexp(this_def, class->path, source)))
+                {
+                    LOG_ERROR("can not resolve method %s", sexp_to_string(this_def, NULL));
                     goto ERR;
+				}
                 /* Register it */
                 if(dalvik_memberdict_register_method(class->path, method) < 0)
                     goto ERR;

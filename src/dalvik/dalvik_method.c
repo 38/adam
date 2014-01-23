@@ -75,8 +75,9 @@ dalvik_method_t* dalvik_method_from_sexp(sexpression_t* sexp, const char* class_
         }
         /* First check if the statement is a psuedo-instruction */
         const char* arg;
-        char buf[4096];
-        LOG_DEBUG("current instruction : %s",sexp_to_string(this_smt, buf));
+        char buf[40906];
+        static int counter = 0;
+        LOG_DEBUG("#%d current instruction : %s",(++counter) ,sexp_to_string(this_smt, buf) );
         if(sexp_match(this_smt, "(L=L=L?", DALVIK_TOKEN_LIMIT, DALVIK_TOKEN_REGISTERS, &arg))
         {
             /* (limit registers ...) */
@@ -98,13 +99,32 @@ dalvik_method_t* dalvik_method_from_sexp(sexpression_t* sexp, const char* class_
             }
             last_label = lid;
         }
+<<<<<<< HEAD
+=======
+        else if(sexp_match(this_smt, "(L=A", DALVIK_TOKEN_ANNOTATION, &arg))
+            /* Simplely ignore */;
+        else if(sexp_match(this_smt, "(L=L=A", DALVIK_TOKEN_DATA, DALVIK_TOKEN_ARRAY, &arg))
+            /* TODO: what is (data-array ....)statement currently ignored */;
+        else if(sexp_match(this_smt, "(L=A", DALVIK_TOKEN_CATCH, &arg))
+        {
+            //TODO: implmenentation of catch
+        }
+        else if(sexp_match(this_smt, "(L=A", DALVIK_TOKEN_CATCHALL, &arg))
+        {
+            //TODO: implmenentation of catch
+        }
+        else if(sexp_match(this_smt, "(L=A", DALVIK_TOKEN_FILL, &arg))
+        {
+            //TODO: fill-array-data psuedo-instruction
+        }
+>>>>>>> fix memory leak
         else
         {
             dalvik_instruction_t* inst = dalvik_instruction_new();
             if(NULL == inst) goto ERR;
             if(dalvik_instruction_from_sexp(this_smt, inst, current_line_number, file) < 0)
             {
-                LOG_ERROR("can not recognize instuction, maybe method body is broken");
+                LOG_ERROR("can not recognize instuction %s", sexp_to_string(this_smt, NULL));
                 goto ERR;
             }
             if(NULL == last) method->entry = inst;

@@ -1,0 +1,17 @@
+test_vector 30 0.000677864
+test_dalvik_field 30 0.000810337
+test_dalvik_method 30 0.000871666
+test_sexp 30 0.000792003
+test_cesk_set 30 0.000790763
+test_cesk_store 30 0.0368253
+test_strpool 30 0.00497936
+test_dalvik_label 30 0.0054411
+test_dalvik_ins 30 0.000292134
+test_cesk_block 27 0.000860002
+test_cesk_object 29 0.0374489
+test_dalvik_loader 30 0.034365
+test_dalvik_block 30 0.0339384
+test_cesk_frame 30 0.0350988
+test_class 30 0.000400265
+test_cesk_reloc 1 0.013515
+---
