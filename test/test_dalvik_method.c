@@ -124,6 +124,12 @@ int main()
     assert(NULL != (method = dalvik_method_from_sexp(sexp, NULL, NULL)));
     sexp_free(sexp);
     dalvik_method_free(method);
+    char input2[] = "(method (attrs public abstract ) beginTree([object antlr/Token] )void (annotation systemVisibility [object dalvik/annotation/Throws] (value [array [object java/lang/String]] [object antlr/SemanticException]) ) )";
+    //TODO: TEST IT. ISSUE : should not be a failure
+    assert(NULL != sexp_parse(input2, &sexp));
+    assert(NULL != (method = dalvik_method_from_sexp(sexp, NULL, NULL)));
+    sexp_free(sexp);
+    dalvik_method_free(method);
     anadroid_finalize();
     return 0;
 }

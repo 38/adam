@@ -115,7 +115,7 @@ typedef struct _dalvik_instruction_t{
     uint8_t            opcode:4;        /* Opcode of the instruction */
     uint8_t            num_operands:3;   /* How many operand ? */
     uint16_t           flags:9;        /* Additional flags for instruction, DVM_FLAG_OPTYPE_NAME */
-    dalvik_operand_t   operands[4];     /* Operand array */
+    dalvik_operand_t   operands[16];     /* Operand array */
     const char*        file;            /* The file name assigned to this instruction */
     int                line;            /* Line number of this instruction */
     struct _dalvik_instruction_t* next; /* The next instruction pointer */

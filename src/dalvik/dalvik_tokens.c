@@ -113,6 +113,9 @@ const char* _dalvik_token_defs[DALVIK_MAX_NUM_KEYWORDS] = {
     "field",
     "source",
     "implements",
+    "data",
+    "catch",
+    "catchall",
     NULL
 }; 
 

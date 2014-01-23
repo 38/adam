@@ -13,6 +13,7 @@ typedef struct {
     const char*    file;   /* the source file name */
     dalvik_type_t* type;   /* type of this field */
     int            attrs;  /* attributes of the field */
+    sexpression_t*    defualt_value;   /* default value */
 } dalvik_field_t;
 
 dalvik_field_t* dalvik_field_from_sexp(sexpression_t* sexp, const char* class_path, const char* file_name);

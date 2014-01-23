@@ -75,7 +75,7 @@ dalvik_method_t* dalvik_method_from_sexp(sexpression_t* sexp, const char* class_
         }
         /* First check if the statement is a psuedo-instruction */
         const char* arg;
-        char buf[4096];
+        char buf[40906];
         LOG_DEBUG("current instruction : %s",sexp_to_string(this_smt, buf));
         if(sexp_match(this_smt, "(L=L=L?", DALVIK_TOKEN_LIMIT, DALVIK_TOKEN_REGISTERS, &arg))
         {
@@ -97,6 +97,18 @@ dalvik_method_t* dalvik_method_from_sexp(sexpression_t* sexp, const char* class_
                 goto ERR;
             }
             last_label = lid;
+        }
+        else if(sexp_match(this_smt, "(L=A", DALVIK_TOKEN_ANNOTATION, &arg))
+            /* Simplely ignore */;
+        else if(sexp_match(this_smt, "(L=L=A", DALVIK_TOKEN_DATA, DALVIK_TOKEN_ARRAY, &arg))
+            /* TODO: what is (data-array ....)statement currently ignored */;
+        else if(sexp_match(this_smt, "(L=A", DALVIK_TOKEN_CATCH, &arg))
+        {
+            //TODO: implmenentation of catch
+        }
+        else if(sexp_match(this_smt, "(L=A", DALVIK_TOKEN_CATCHALL, &arg))
+        {
+            //TODO: implmenentation of catch
         }
         else
         {

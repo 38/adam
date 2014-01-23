@@ -10,9 +10,9 @@ void anadroid_init(void)
 }
 void anadroid_finalize(void)
 {
+    dalvik_memberdict_finalize();
     dalvik_instruction_finalize();
     dalvik_label_finalize();
     stringpool_fianlize();
     dalvik_type_finalize();
-    dalvik_memberdict_finalize();
 }

@@ -20,19 +20,32 @@ dalvik_class_t* dalvik_class_from_sexp(sexpression_t* sexp)
     const char* firstlit;
     sexpression_t* attr_list;
     if(!sexp_match(sexp, "(L?C?A", &firstlit, &attr_list, &sexp))
+    {
+        LOG_ERROR("can't peek the first literial");
         goto ERR;
+    }
     if(DALVIK_TOKEN_CLASS == firstlit)
         is_interface = 0;
     else if(DALVIK_TOKEN_INTERFACE == firstlit)
         is_interface = 1;
-    else goto ERR;
+    else 
+    {
+        LOG_ERROR("first literal of a class should not be %s", firstlit);
+        goto ERR;
+    }
     
     if((attrs = dalvik_attrs_from_sexp(attr_list)) < 0)
+    {
+        LOG_ERROR("invalid attribute %s", sexp_to_string(attr_list,NULL));
         goto ERR;
+    }
     
     if(NULL == (class_path = sexp_get_object_path(sexp, &sexp)))
+    {
+        LOG_ERROR("invalid attribute");
         goto ERR;
-    
+    }
+
     if((length = sexp_length(sexp)) < 0)
         goto ERR;
 
@@ -65,6 +78,10 @@ dalvik_class_t* dalvik_class_from_sexp(sexpression_t* sexp)
             if(NULL == (class->implements = sexp_get_object_path(tail, NULL)))
                 goto ERR;
         }
+        else if(sexp_match(this_def, "(L=A", DALVIK_TOKEN_ANNOTATION, &tail))
+        {
+            /* just ingore */
+        }
         else
         {
             const char* firstlit;
@@ -72,23 +89,34 @@ dalvik_class_t* dalvik_class_from_sexp(sexpression_t* sexp)
                 goto ERR;
             if(firstlit == DALVIK_TOKEN_METHOD)
             {
-                static char buf[10240];
-                LOG_DEBUG("we are resuloving method %s", sexp_to_string(this_def, buf));
+                //LOG_DEBUG("we are resuloving method %s", sexp_to_string(this_def, buf));
                 dalvik_method_t* method;
                 if(NULL == (method = dalvik_method_from_sexp(this_def, class->path, source)))
+                {
+                    LOG_ERROR("can not resolve instruction %s", sexp_to_string(this_def, NULL));
                     goto ERR;
+                }
                 /* Register it */
                 if(dalvik_memberdict_register_method(class->path, method) < 0)
+                {
+                    LOG_ERROR("can not register new method %s.%s", class->path, method->name);
                     goto ERR;
+                }
                 class->members[field_count++] = method->name;
             }
             else if(firstlit == DALVIK_TOKEN_FIELD)
             {
                 dalvik_field_t* field;
                 if(NULL == (field = dalvik_field_from_sexp(this_def, class->path, source)))
+                {
+                    LOG_ERROR("can not resolve field %s", sexp_to_string(this_def, NULL));
                     goto ERR;
+                }
                 if(dalvik_memberdict_register_field(class->path, field) < 0)
+                {
+                    LOG_ERROR("can not register new method %s.%s", class->path, field->name);
                     goto ERR;
+                }
                 class->members[field_count++] = field->name;
             }
             else 

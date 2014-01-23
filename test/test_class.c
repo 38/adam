@@ -1,4 +1,6 @@
+#include <anadroid.h>
 #include <dalvik/dalvik_class.h>
+#include <dalvik/dalvik_memberdict.h>
 const char input[] = 
 "(class (attrs ) antlr/TokenRangeElement\n"
 " (super antlr/AlternativeElement)\n"
@@ -158,6 +160,7 @@ int main()
     dalvik_class_t* class;
     assert(sexp_parse(input, &sexp));
     assert(NULL != (class = dalvik_class_from_sexp(sexp)));
+    sexp_free(sexp);
     anadroid_finalize();
     return 0;
 }

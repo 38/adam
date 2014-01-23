@@ -9,7 +9,7 @@ file(MAKE_DIRECTORY bin/test)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY bin)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY bin/lib)
 
-set(CFLAGS -g\ )
+set(CFLAGS -g\ -DLOG_LEVEL=5)
 set(LDFLAGS \ )
 
 

@@ -15,14 +15,14 @@ size_t _dalvik_instruction_pool_size = 0;
 
 int _dalvik_instruction_pool_resize()
 {
-    LOG_DEBUG("resize dalvik instruction pool from %d to %d", _dalvik_instruction_pool_size, 
-                                                              _dalvik_instruction_pool_size *2);
+    LOG_DEBUG("resize dalvik instruction pool from %d to %d", _dalvik_instruction_pool_capacity, 
+                                                              _dalvik_instruction_pool_capacity *2);
     dalvik_instruction_t* old_pool;
     assert(dalvik_instruction_pool != NULL);
     
     old_pool = dalvik_instruction_pool;
     
-    dalvik_instruction_pool = realloc(old_pool, _dalvik_instruction_pool_capacity * 2);
+    dalvik_instruction_pool = realloc(old_pool, sizeof(dalvik_instruction_t) * _dalvik_instruction_pool_capacity * 2);
 
     if(NULL == dalvik_instruction_pool) 
     {
@@ -771,7 +771,7 @@ __DI_CONSTRUCTOR(NOT)
 static inline int _dalvik_instruction_convert_operator(sexpression_t* next, dalvik_instruction_t* buf, int type)
 {
     int operand_flags[2];
-    if(sexp_match(next, "(L=A", DALVIK_TOKEN_TO, &next)) return -1;
+    if(!sexp_match(next, "(L=A", DALVIK_TOKEN_TO, &next)) return -1;
     operand_flags[0] = DVM_OPERAND_FLAG_TYPE(type);
     operand_flags[1] = _dalvik_instruction_sexpression_fetch_type(&next, 0);
     return _dalvik_instruction_setup_arithmetic(DVM_UNOP, DVM_FLAG_UOP_TO, 2, operand_flags, next, buf);
@@ -924,15 +924,30 @@ __DI_CONSTRUCTOR(NEW)
     __DI_SETUP_OPERAND(0, 0, __DI_REGNUM(dest));
     if(buf->opcode == DVM_ARRAY)
     {
-        if(!sexp_match(next, "L?A", &size, &next)) return -1;
+        if(!sexp_match(next, "(L?A", &size, &next)) return -1;
         __DI_SETUP_OPERAND(1, 0, __DI_REGNUM(size));
     }
-    if(NULL == (path = sexp_get_object_path(next, NULL))) return -1;
-    __DI_SETUP_OPERAND(buf->opcode == DVM_ARRAY?2:1, 
-                       DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_CLASS) |
-                       DVM_OPERAND_FLAG_CONST,
-                       path);
-    
+    if(buf->opcode == DVM_INSTANCE)
+    {
+        if(NULL == (path = sexp_get_object_path(next, NULL))) return -1;
+        __DI_SETUP_OPERAND(1, 
+                           DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_CLASS) |
+                           DVM_OPERAND_FLAG_CONST,
+                           path);
+        buf->num_operands = 2; 
+    }
+    else
+    {
+        dalvik_type_t* type;
+        sexpression_t* type_sexp;
+        if(!sexp_match(next, "(_?", &type_sexp)) return -1;
+        if(NULL == (type = dalvik_type_from_sexp(type_sexp))) return -1;
+        __DI_SETUP_OPERAND(2, 
+                           DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_TYPEDESC) |
+                           DVM_OPERAND_FLAG_CONST,
+                           type);
+        buf->num_operands = 3; 
+    }
     return 0;
 }
 __DI_CONSTRUCTOR(FILLED)
