@@ -7,6 +7,7 @@
 #include <vector.h>
 #include <dalvik/dalvik_label.h>
 #include <dalvik/dalvik_type.h>
+#include <dalvik/davlik_exception.h> 
 
 #include <constants.h>
 
@@ -119,6 +120,7 @@ typedef struct _dalvik_instruction_t{
     const char*        file;            /* The file name assigned to this instruction */
     int                line;            /* Line number of this instruction */
     struct _dalvik_instruction_t* next; /* The next instruction pointer */
+    dalvik_exception_handler_set_t* handler_set;   /* The handler set for exception */
 } dalvik_instruction_t;
 
 enum {
