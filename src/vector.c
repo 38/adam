@@ -2,6 +2,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <log.h>
+#include <debug.h>
+
 vector_t* vector_new(size_t elem_size)
 {
     vector_t* ret = NULL;

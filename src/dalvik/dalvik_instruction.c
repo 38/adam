@@ -6,6 +6,12 @@
 #include <dalvik/dalvik_instruction.h>
 #include <sexp.h>
 #include <dalvik/dalvik_tokens.h>
+#include <debug.h>
+
+
+#ifdef PARSER_COUNT
+int dalvik_instruction_count = 0;
+#endif
 
 dalvik_instruction_t* dalvik_instruction_pool = NULL;
 
@@ -972,6 +978,10 @@ __DI_CONSTRUCTOR(FILLED)
 #undef __DI_CONSTRUCTOR
 int dalvik_instruction_from_sexp(sexpression_t* sexp, dalvik_instruction_t* buf, int line, const char* file)
 {
+#ifdef PARSER_COUNT
+    dalvik_instruction_count ++;
+#endif
+
     if(sexp == SEXP_NIL) return -1;
     if(NULL == buf) return -1;
     const char* firstword;

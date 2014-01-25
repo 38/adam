@@ -3,5 +3,6 @@
 #include <log.h>
 
 int dalvik_loader_from_directory(const char* path);
+void dalvik_loader_summary();
 
 #endif

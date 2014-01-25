@@ -3,6 +3,8 @@
 #include <log.h>
 #include <string.h>
 #include <dalvik/dalvik_tokens.h>
+#include <debug.h>
+
 dalvik_type_t* dalvik_type_atom[DALVIK_TYPECODE_NUM_ATOM];
 static inline dalvik_type_t* _dalvik_type_alloc(int typecode)
 {

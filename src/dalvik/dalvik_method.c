@@ -1,8 +1,20 @@
 #include <dalvik/dalvik_method.h>
 #include <dalvik/dalvik_tokens.h>
 #include <dalvik/dalvik_label.h>
+#include <dalvik/dalvik_exception.h>
+#include <debug.h>
+
+#ifdef PARSER_COUNT
+int dalvik_method_count = 0;
+#endif
+
 dalvik_method_t* dalvik_method_from_sexp(sexpression_t* sexp, const char* class_path,const char* file)
 {
+
+#ifdef PARSER_COUNT
+    dalvik_method_count ++;
+#endif
+
     dalvik_method_t* method = NULL;
 
     if(SEXP_NIL == sexp) return NULL;
@@ -65,6 +77,15 @@ dalvik_method_t* dalvik_method_from_sexp(sexpression_t* sexp, const char* class_
     int current_line_number;    /* Current Line Number */
     dalvik_instruction_t *last = NULL;
     int last_label = -1;
+    int from_label[DALVIK_MAX_CATCH_BLOCK];    /* NOTICE: the maximum number of catch block is limited to this constant */
+    int to_label  [DALVIK_MAX_CATCH_BLOCK];
+    int label_st  [DALVIK_MAX_CATCH_BLOCK];    /* 0: haven't seen any label related to the label. 
+                                                * 1: seen from label before
+                                                * 2: seen from and to label
+                                                */
+    dalvik_exception_handler_t* excepthandler[DALVIK_MAX_CATCH_BLOCK] = {};
+    dalvik_exception_handler_set_t* current_ehset = NULL;
+    int number_of_exception_handler = 0;
     for(;body != SEXP_NIL;)
     {
         sexpression_t *this_smt;
@@ -81,7 +102,7 @@ dalvik_method_t* dalvik_method_from_sexp(sexpression_t* sexp, const char* class_
         if(sexp_match(this_smt, "(L=L=L?", DALVIK_TOKEN_LIMIT, DALVIK_TOKEN_REGISTERS, &arg))
         {
             /* (limit registers ...) */
-            /* simple ignore */
+            /* simplely ignore */
         }
         else if(sexp_match(this_smt, "(L=L?", DALVIK_TOKEN_LINE, &arg))
         {
@@ -92,24 +113,50 @@ dalvik_method_t* dalvik_method_from_sexp(sexpression_t* sexp, const char* class_
         {
             /* (label arg) */
             int lid = dalvik_label_get_label_id(arg);
+            int i;
             if(lid == -1) 
             {
                 LOG_ERROR("can not create label for %s", arg);
                 goto ERR;
             }
             last_label = lid;
+            int enbaled_count = 0;
+            dalvik_exception_handler_t* exceptionset[DALVIK_MAX_CATCH_BLOCK];
+            for(i = 0; i < number_of_exception_handler; i ++)
+            {
+                if(lid == from_label[i] && label_st[i] == 0)
+                    label_st[i] = 1;
+                else if(lid == to_label[i] && label_st[i] == 1)
+                    label_st[i] = 2;
+                else if(lid == from_label[i] && label_st[i] != 0)
+                    LOG_WARNING("meet from label twice, it might be a mistake");
+                else if(lid == to_label[i] && label_st[i] != 1)
+                    LOG_WARNING("to label is before from label, it might be a mistake");
+                
+                if(label_st[i] == 1)
+                    exceptionset[enbaled_count++] = excepthandler[i];
+            }
+            current_ehset = dalvik_exception_new_handler_set(enbaled_count, excepthandler);
         }
         else if(sexp_match(this_smt, "(L=A", DALVIK_TOKEN_ANNOTATION, &arg))
             /* Simplely ignore */;
         else if(sexp_match(this_smt, "(L=L=A", DALVIK_TOKEN_DATA, DALVIK_TOKEN_ARRAY, &arg))
             /* TODO: what is (data-array ....)statement currently ignored */;
-        else if(sexp_match(this_smt, "(L=A", DALVIK_TOKEN_CATCH, &arg))
+        else if(sexp_match(this_smt, "(L=A", DALVIK_TOKEN_CATCH, &arg) || 
+                sexp_match(this_smt, "(L=A", DALVIK_TOKEN_CATCHALL, &arg))
         {
-            //TODO: implmenentation of catch
-        }
-        else if(sexp_match(this_smt, "(L=A", DALVIK_TOKEN_CATCHALL, &arg))
-        {
-            //TODO: implmenentation of catch
+            excepthandler[number_of_exception_handler] = 
+                dalvik_exception_handler_from_sexp(
+                        this_smt, 
+                        from_label + number_of_exception_handler, 
+                        to_label + number_of_exception_handler);
+            if(excepthandler[number_of_exception_handler] == NULL)
+            {
+                LOG_WARNING("invalid exception handler %s", sexp_to_string(this_smt, NULL));
+                continue;
+            }
+            label_st[number_of_exception_handler] = 0;
+            number_of_exception_handler ++;
         }
         else if(sexp_match(this_smt, "(L=A", DALVIK_TOKEN_FILL, &arg))
         {
@@ -130,6 +177,7 @@ dalvik_method_t* dalvik_method_from_sexp(sexpression_t* sexp, const char* class_
                 last->next = inst;
                 last = inst;
             }
+            inst->handler_set = current_ehset; 
             if(last_label >= 0)
             {
                 dalvik_label_jump_table[last_label] = inst;

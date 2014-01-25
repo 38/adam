@@ -5,6 +5,14 @@
 
 #include <dalvik/dalvik_loader.h>
 #include <dalvik/dalvik_class.h>
+#include <debug.h>
+#ifdef PARSER_COUNT
+extern int dalvik_method_count;
+extern int dalvik_instruction_count;
+extern int dalvik_label_count;
+extern int dalvik_field_count;
+extern int dalvik_class_count;
+#endif
 int _dalvik_loader_filter(const struct dirent* ent)
 {
     if(ent->d_name[0] == '.') return 0;
@@ -94,3 +102,14 @@ ERR:
     LOG_ERROR("dalvik loader is returninng a failure");
     return -1;
 }
+#ifdef PARSER_COUNT
+void dalvik_loader_summary()
+{
+
+    LOG_INFO("%d Classes Loaded", dalvik_class_count);
+    LOG_INFO("%d Method Loaded", dalvik_method_count);
+    LOG_INFO("%d Field Loaded", dalvik_field_count);
+    LOG_INFO("%d Label Loaded", dalvik_label_count);
+    LOG_INFO("%d Instructions Loaded", dalvik_instruction_count);
+}
+#endif

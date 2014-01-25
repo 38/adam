@@ -6,10 +6,18 @@
 #include <dalvik/dalvik_method.h>
 #include <dalvik/dalvik_memberdict.h>
 #include <string.h>
+#include <debug.h>
 
+#ifdef PARSER_COUNT
+int dalvik_class_count = 0;
+#endif
 
 dalvik_class_t* dalvik_class_from_sexp(sexpression_t* sexp)
 {
+#ifdef PARSER_COUNT
+    dalvik_class_count ++;
+#endif
+
     dalvik_class_t* class = NULL;
     int length;
     int is_interface;
@@ -126,6 +134,7 @@ dalvik_class_t* dalvik_class_from_sexp(sexpression_t* sexp)
         }
     }
     if(dalvik_memberdict_register_class(class->path, class) < 0) goto ERR;
+    LOG_DEBUG("Class %s Loaded", class->path);
     return class;
 ERR:
     if(NULL != class) free(class);

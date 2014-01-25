@@ -7,7 +7,7 @@
 #include <vector.h>
 #include <dalvik/dalvik_label.h>
 #include <dalvik/dalvik_type.h>
-#include <dalvik/davlik_exception.h> 
+#include <dalvik/dalvik_exception.h> 
 
 #include <constants.h>
 

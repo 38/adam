@@ -3,6 +3,7 @@
 #include <sexp.h>
 #include <stringpool.h>
 #include <string.h>
+#include <debug.h>
 
 static inline sexpression_t* _sexp_alloc(int type)
 {
@@ -125,6 +126,27 @@ static inline const char* _sexp_parse_string(const char* str, sexpression_t** bu
     }
     return NULL;
 }
+/* parse char */
+static inline const char* _sexp_parse_char(const char* str, sexpression_t** buf)
+{
+    char tmp[3] = {};
+    *buf = _sexp_alloc(SEXP_TYPE_STR);
+    if(NULL == *buf) return NULL;
+    sexp_str_t* data = (sexp_str_t*)((*buf)->data);
+    if(str[0] == '\\')
+    {
+        tmp[0] = str[1];
+        if(str[1] == 0) str ++;
+        else str += 2;
+    }
+    else 
+    {
+        tmp[0] = str[0];
+        str ++;
+    }
+    *data = stringpool_query(tmp);
+    return str;
+}
 /* parse a literal */
 #define RANGE(l,r,v) (((l) <= (v)) && ((v) <= (r)))
 static inline const char* _sexpr_parse_literal(const char* str, sexpression_t** buf)
@@ -167,6 +189,7 @@ const char* sexp_parse(const char* str, sexpression_t** buf)
     }
     else if(*str == '(' || *str == '[' || *str == '{') return _sexp_parse_list(str + 1, buf);
     else if(*str == '"') return _sexp_parse_string(str + 1, buf);
+    else if(*str == '#') return _sexp_parse_char(str + 1, buf);
     else return _sexpr_parse_literal(str, buf);
 }
 static inline int _sexp_match_one(const sexpression_t* sexpr, char tc, char sc, const void** this_arg)
