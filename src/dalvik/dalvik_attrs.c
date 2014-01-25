@@ -2,6 +2,7 @@
 #include <log.h>
 #include <dalvik/dalvik_attrs.h>
 #include <dalvik/dalvik_tokens.h>
+#include <debug.h>
 
 int dalvik_attrs_from_sexp(sexpression_t* sexp)
 {

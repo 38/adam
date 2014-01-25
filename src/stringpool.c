@@ -4,6 +4,8 @@
 #include <stdint.h>
 #include <malloc.h>
 #include <log.h>
+#include <debug.h>
+
 typedef struct _stringpool_hashnode_t{
     uint32_t h[4];
     char* str;

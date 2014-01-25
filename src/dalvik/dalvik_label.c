@@ -1,6 +1,11 @@
 #include <dalvik/dalvik_label.h>
 #include <string.h>
 #include <log.h>
+#include <debug.h>
+
+#ifdef PARSER_COUNT
+int dalvik_label_count = 0;
+#endif
 
 dalvik_instruction_t* dalvik_label_jump_table[DAVLIK_LABEL_POOL_SIZE];
 
@@ -44,6 +49,11 @@ int dalvik_label_get_label_id(const char* label)
             return ptr->idx;
         }
     LOG_DEBUG("Creating new mapping for label %s", label);
+
+#ifdef PARSER_COUNT
+    dalvik_label_count ++;
+#endif
+
     ptr = (dalvik_label_map_t*)malloc(sizeof(dalvik_label_map_t));
     if(NULL == ptr) 
     {

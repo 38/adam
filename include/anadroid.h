@@ -15,6 +15,7 @@
 #include <dalvik/dalvik_class.h>
 #include <dalvik/dalvik_method.h>
 #include <dalvik/dalvik_field.h>
+#include <dalvik/dalvik_exception.h>
 
 
 /* following two function is used for system inintialization and

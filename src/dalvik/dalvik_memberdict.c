@@ -5,6 +5,7 @@
 #include <dalvik/dalvik_class.h>
 #include <dalvik/dalvik_method.h>
 #include <dalvik/dalvik_field.h>
+#include <debug.h>
 
 #define _TYPE_METHOD 0
 #define _TYPE_FIELD 1

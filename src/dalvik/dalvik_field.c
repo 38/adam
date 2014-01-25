@@ -2,9 +2,18 @@
 #include <dalvik/dalvik_field.h>
 #include <string.h>
 #include <stdlib.h>
+#include <debug.h>
+
+#ifdef PARSER_COUNT
+int dalvik_field_count = 0;
+#endif
 
 dalvik_field_t* dalvik_field_from_sexp(sexpression_t* sexp, const char* class_path, const char* file_name)
 {
+#ifdef PARSER_COUNT
+    dalvik_field_count ++;
+#endif
+
     dalvik_field_t* ret = NULL;
     if(SEXP_NIL == sexp) goto ERR;
     if(NULL == class_path) class_path = "(undefined)";

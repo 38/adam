@@ -2,6 +2,7 @@
 #include <dalvik/dalvik_tokens.h>
 #include <stringpool.h>
 #include <log.h>
+#include <debug.h>
 
 const char* dalvik_keywords[DALVIK_MAX_NUM_KEYWORDS];
 
@@ -119,7 +120,12 @@ const char* _dalvik_token_defs[DALVIK_MAX_NUM_KEYWORDS] = {
     "catch",
     "catchall",
     "fill",
+<<<<<<< HEAD
 >>>>>>> fix memory leak
+=======
+    "using",
+    "from",
+>>>>>>> exception handler
     NULL
 }; 
 
