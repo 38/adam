@@ -17,6 +17,7 @@ include_directories("include" ".")
 
 aux_source_directory(src/ anadroid_FILES)
 aux_source_directory(src/dalvik anadroid_FILES)
+aux_source_directory(src/cesk anadroid_FILES)
 set_source_files_properties(${anadroid_FILES} PROPERTIES COMPILE_FLAGS ${CFLAGS})
 add_library(anadroid ${anadroid_FILES})
 
