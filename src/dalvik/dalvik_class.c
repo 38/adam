@@ -110,7 +110,8 @@ dalvik_class_t* dalvik_class_from_sexp(sexpression_t* sexp)
                     LOG_ERROR("can not register new method %s.%s", class->path, method->name);
                     goto ERR;
                 }
-                class->members[field_count++] = method->name;
+                /* because the method in fact is static object, we can retrive the method thru member dict */
+                //class->members[field_count++] = method->name;
             }
             else if(firstlit == DALVIK_TOKEN_FIELD)
             {
@@ -125,7 +126,11 @@ dalvik_class_t* dalvik_class_from_sexp(sexpression_t* sexp)
                     LOG_ERROR("can not register new method %s.%s", class->path, field->name);
                     goto ERR;
                 }
-                class->members[field_count++] = field->name;
+                if((field->attrs & DALVIK_ATTRS_STATIC) == 0)
+                {
+                    field->offset = field_count;
+                    class->members[field_count++] = field->name;
+                }
             }
             else 
             {
@@ -134,7 +139,7 @@ dalvik_class_t* dalvik_class_from_sexp(sexpression_t* sexp)
         }
     }
     if(dalvik_memberdict_register_class(class->path, class) < 0) goto ERR;
-    LOG_DEBUG("Class %s Loaded", class->path);
+    LOG_NOTICE("Class %s Loaded", class->path);
     return class;
 ERR:
     if(NULL != class) free(class);

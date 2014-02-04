@@ -43,7 +43,7 @@ int dalvik_loader_from_directory(const char* path)
         }
         else 
         {
-            LOG_NOTICE("Scanning file %s/%s", path, result[i]->d_name);
+            LOG_DEBUG("Scanning file %s/%s", path, result[i]->d_name);
             sprintf(buf, "%s/%s", path, result[i]->d_name);
             FILE* fp = fopen(buf, "r");
             fseek(fp, 0, SEEK_END);

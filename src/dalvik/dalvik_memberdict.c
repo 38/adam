@@ -139,10 +139,10 @@ static inline void* _dalvik_memberdict_find_object(const char* path, const char*
     {
         if(ptr->class_path == path && ptr->member_name == name && ptr->type == type)  
         {
-            //return ptr->object;
             dalvik_memberdict_node_list_t* lptr;
-            for(lptr = ptr->list; lptr != NULL && bufsize > 1; bufsize --, buf ++)
+            for(lptr = ptr->list; lptr != NULL && bufsize > 0; bufsize --, buf ++)
                 (*buf) = lptr->object;
+            return buf;
         }
     }
     return NULL;
