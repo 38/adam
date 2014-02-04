@@ -32,16 +32,18 @@ int dalvik_memberdict_register_class(
         const char*     class_path,
         dalvik_class_t* class);
 /* retrive a method by class_path and name */
-dalvik_method_t* dalvik_memberdict_get_method(
+dalvik_method_t** dalvik_memberdict_get_methods(
         const char*     class_path,
         const char*     name);
 /* retrive a field by class path and name */
-dalvik_field_t* dalvik_memberdict_get_field(
+dalvik_field_t** dalvik_memberdict_get_fields(
         const char*     class_path,
         const char*     name);
 /* retrive a class by class path */
-dalvik_class_t* dalvik_memberdict_get_class(
-        const char*     class_path);
+dalvik_class_t** dalvik_memberdict_get_classes(
+        const char*     class_path,
+        dalvik_class_t** buf,
+        size_t bufsize);
 
 
 #endif /* __DALVIK_MEMBERDICT_H__ */
