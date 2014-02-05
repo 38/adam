@@ -2,6 +2,12 @@
 #define __CESK_VALUE_T__
 #include <constants.h>
 
+/* The process of looking for a value :
+ *             Mem Address         Offest                   RegisterName
+ * Global Value <----- Frame Store <----- Register/Field Set <------ Frame 
+ * This file constains defination of Global Values
+ */
+
 /* previous defination */
 struct   _cesk_value_t;
 typedef  struct _cesk_value_t cesk_value_t;
@@ -47,12 +53,13 @@ typedef struct {
 } cesk_value_array_t;
 
 typedef struct _cesk_value_t {
-    uint8_t     type;      /* type of this value */
-    char        data[0];   /* actuall data payload */
-} cesk_value_t;   /* this is a abstract value */
+    uint8_t     type;       /* type of this value */
+    uint32_t    refcnt;     /* the reference counter */
+    struct _cesk_value_t 
+                *prev, *next; /* the previous and next pointer used by value list */
+    char        data[0];    /* actuall data payload */
+} cesk_value_t; 
 
-
-typedef struct _cesk_value_set_t cesk_value_set_t;
 
 /* 
  * What initilize function does :
@@ -62,17 +69,19 @@ typedef struct _cesk_value_set_t cesk_value_set_t;
 void cesk_value_init();
 void cesk_value_finalize();
 
+#if 0
+/* We calculate the hash function and cache it in frame store */
 hashval_t cesk_value_hashcode(cesk_value_t* value);
+#endif 
+/* create a new value using the class */
+cesk_value_t* cesk_value_from_classpath(const char* classpath);
 /* create a new value from a constant operand */
-cesk_value_t* cesk_value_from_operand(dalvik_operand_t* operand);  /* TODO */
-
-
-hashval_t cesk_value_set_hashcode(cesk_value_set_t* value);  /* TODO */
-cesk_value_set_t* cesk_value_set_emptyset();
-void cesk_value_set_join(cesk_value_set_t* first, cesk_value_set_t* second);
-void cesk_value_set_add(cesk_value_set_t* set, cesk_value_t value);
-void cesk_value_set_equal(cesk_value_set_t* first, cesk_value_set_t* second);
-
-
+cesk_value_t* cesk_value_from_operand(dalvik_operand_t* operand);
+/* fork the value, inorder to modify */
+cesk_value_t* cesk_value_fork(cesk_value_t* value);
+/* increase the reference counter */
+void cesk_value_incref(cesk_value_t* value);
+/* decrease the reference counter */
+void cesk_value_decref(cesk_value_t* value);
 
 #endif /* __CESK_VALUE_T__ */
