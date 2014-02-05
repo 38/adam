@@ -517,7 +517,7 @@ static inline int _dalvik_instruction_setup_object_operations(
         else
         {
             ins_kind = 2;
-            buf->num_operands = 5;   /* one more operand for type specifier */
+            buf->num_operands = 5;   /* one more operand for type specifier, <dest, obj, path, field, type> */
         }
 
     }

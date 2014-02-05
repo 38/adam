@@ -179,6 +179,11 @@ const char* stringpool_query(const char* str)
 
 int stringpool_init(int poolsize)
 {
+    if(_stringpool_hash != NULL)
+    {
+        LOG_WARNING("string pool has been initialized already!");
+        return -1;
+    }
     _stringpool_size = poolsize;
     _stringpool_hash = (stringpool_hashnode_t**)malloc(sizeof(stringpool_hashnode_t*) * poolsize);
     if(NULL == _stringpool_hash) return -1;

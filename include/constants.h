@@ -17,4 +17,9 @@
 #   define DALVIK_MAX_CATCH_BLOCK 1024
 #endif
 
+#ifndef DALVIK_MEMBERDICT_SIZE
+#   define DALVIK_MEMBERDICT_SIZE 100007
+#endif
+
+#define hashval_t uint32_t
 #endif

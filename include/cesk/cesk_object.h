@@ -11,11 +11,17 @@ typedef struct {
 } cesk_object_struct_t;  
 
 typedef struct {
-    size_t         depth;      /* the depth in inherence tree */
+    uint16_t         depth;      /* the depth in inherence tree */
     cesk_object_struct_t  members[0]; /* the length of the tree */
 } cesk_object_t;
 
 
 /* Create a new instance object of class in <classpath> */
-cesk_object_t* cesk_object_new(const char* classpath);
+cesk_object_t*   cesk_object_new(const char* classpath);
+/* Get address of a dynamic field in an object, 
+ * this function is to return a reference to the cell contains the value*/
+cesk_value_set_t** cesk_object_get(cesk_object_t* object, const char* classpath, const char* field);
+
+/* get the hash code of a object */
+hashval_t cesk_object_hashcode(cesk_object_t* object); 
 #endif
