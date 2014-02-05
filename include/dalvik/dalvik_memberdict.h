@@ -1,15 +1,11 @@
 #ifndef __DALVIK_MEMBERDICT_H__
 #define __DALVIK_MEMBERDICT_H__
-
+#include <constants.h>
 #include <dalvik/dalvik_method.h>
 #include <dalvik/dalvik_field.h>
 #include <dalvik/dalvik_class.h>
 
 #include <log.h>
-
-#ifndef DALVIK_MEMBERDICT_SIZE
-#   define DALVIK_MEMBERDICT_SIZE 1027
-#endif
 
 /* This file provide a group of function that can be used for member searching,
  * The search key is <pooled_class_path, pooled_member_name>

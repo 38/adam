@@ -64,9 +64,9 @@ static inline uint32_t _dalvik_memberdict_hash(const char* class_path, const cha
 {
     /* it's fine when running on a 32 bit machine */
     static const uint32_t typeid[] = {0xe3defu, 0x12fcdeu, 0x2323feu};
-    uint64_t a = (uint64_t)class_path;
-    uint64_t b = (uint64_t)member_name;
-    return ((a * 100003) + b)^typeid[type];
+    uint32_t a = ((uint64_t)class_path) & 0xffffffff;
+    uint32_t b = ((uint64_t)member_name) & 0xffffffff;
+    return (a * 100003 + b)^typeid[type];
 }
 
 static inline int _dalvik_memberdict_register_object(const char* class_path, const char* object_name, int type, void* obj)
