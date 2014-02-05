@@ -63,6 +63,16 @@ void cesk_value_init();
 void cesk_value_finalize();
 
 hashval_t cesk_value_hashcode(cesk_value_t* value);
-hashval_t cesk_value_set_hashcode(cesk_value_set_t* value);
+/* create a new value from a constant operand */
+cesk_value_t* cesk_value_from_operand(dalvik_operand_t* operand);  /* TODO */
+
+
+hashval_t cesk_value_set_hashcode(cesk_value_set_t* value);  /* TODO */
+cesk_value_set_t* cesk_value_set_emptyset();
+void cesk_value_set_join(cesk_value_set_t* first, cesk_value_set_t* second);
+void cesk_value_set_add(cesk_value_set_t* set, cesk_value_t value);
+void cesk_value_set_equal(cesk_value_set_t* first, cesk_value_set_t* second);
+
+
 
 #endif /* __CESK_VALUE_T__ */
