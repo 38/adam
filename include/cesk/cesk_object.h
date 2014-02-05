@@ -16,5 +16,6 @@ typedef struct {
 } cesk_object_t;
 
 
+/* Create a new instance object of class in <classpath> */
 cesk_object_t* cesk_object_new(const char* classpath);
 #endif

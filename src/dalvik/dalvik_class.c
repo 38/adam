@@ -121,15 +121,15 @@ dalvik_class_t* dalvik_class_from_sexp(sexpression_t* sexp)
                     LOG_ERROR("can not resolve field %s", sexp_to_string(this_def, NULL));
                     goto ERR;
                 }
-                if(dalvik_memberdict_register_field(class->path, field) < 0)
-                {
-                    LOG_ERROR("can not register new method %s.%s", class->path, field->name);
-                    goto ERR;
-                }
                 if((field->attrs & DALVIK_ATTRS_STATIC) == 0)
                 {
                     field->offset = field_count;
                     class->members[field_count++] = field->name;
+                }
+                if(dalvik_memberdict_register_field(class->path, field) < 0)
+                {
+                    LOG_ERROR("can not register new method %s.%s", class->path, field->name);
+                    goto ERR;
                 }
             }
             else 

@@ -8,7 +8,7 @@ cesk_object_t* cesk_object_new(const char* classpath)
 {
     int field_count = 0;
     int class_count = 0;
-    dalvik_class_t classes[1024]; 
+    dalvik_class_t* classes[1024]; 
     for(;;)
     {
         LOG_NOTICE("try to find class %s", classpath);
@@ -23,13 +23,14 @@ cesk_object_t* cesk_object_new(const char* classpath)
         for(i = 0; target_class->members[i]; i ++)
             field_count ++;
         classes[class_count ++] = target_class;
+        LOG_INFO("found class %s at %p", classpath, target_class);
         classpath = target_class->super;
     }
     size_t size = sizeof(cesk_object_t) +                   /* header */
                   sizeof(cesk_object_struct_t) * class_count +     /* class header */
                   sizeof(cesk_value_set_t*) * field_count;   /* fields */
 
-    cesk_object_t* object = (cesk_object_t*)malloc(sizeof(cesk_object_t));
+    cesk_object_t* object = (cesk_object_t*)malloc(size);
     cesk_object_struct_t* base = object->members; 
     if(NULL == object)
     {
@@ -37,22 +38,24 @@ cesk_object_t* cesk_object_new(const char* classpath)
         return NULL;
     }
     int i;
-
     for(i = 0; i < class_count; i ++)
     {
         int j;
         for(j = 0; classes[i]->members[j]; j ++)
         {
             dalvik_field_t* field = NULL;   /* because only function can overload */
-            if(NULL == dalvik_memberdict_get_fields(classes[i]->path, classes[i]->member[j], &field, 1))
+            if(NULL == dalvik_memberdict_get_fields(classes[i]->path, classes[i]->members[j], &field, 1))
             {
-                LOG_ERROR("We can not find field %s/%s", clases[i].path, classes[i].member[j]);
+                LOG_ERROR("We can not find field %s/%s", classes[i]->path, classes[i]->members[j]);
                 continue;
             }
-            base->valuelist[field->offset] = NULL;   /* TODO: create new value object */
-            LOG_INFO("Create new filed %s/%s for class %s at offset %d", classes[0]->path, classes[i]->path, filed->offset);
+            base->valuelist[field->offset] = NULL;  /* TODO:          create new value object */
+            LOG_INFO("Create new filed %s/%s for class %s at offset %d", classes[i]->path, 
+                                                                         classes[i]->members[j], 
+                                                                         classes[0]->path, 
+                                                                         field->offset);
         }
         base = (cesk_object_struct_t*)(base->valuelist + j);
     }
-    //object = (cesk_object_t*) malloc(
+    return 0;
 }
