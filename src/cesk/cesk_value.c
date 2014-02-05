@@ -1,7 +1,6 @@
 #include <log.h>
 #include <cesk/cesk_value.h>
 cesk_value_t*  _cesk_value_numberic_values_storage[3] = {};
-/* In this way, the function can support [-1] [0] [1] */
 cesk_value_t** _cesk_value_numberic_values = _cesk_value_numberic_values_storage + 1;
 
 cesk_value_t*  _cesk_value_string = NULL;
@@ -101,11 +100,12 @@ hashval_t cesk_value_hashcode(cesk_value_t* value)
         case CESK_TYPE_BOOLEAN:
         case CESK_TYPE_STRING:
             /* atomic value */
-            return (uint32_t)2654435761 * ((uint64_t)value&0xfffffffful);
+            return 2654435761ul * ((uint64_t)value&0xfffffffful);
         case CESK_TYPE_OBJECT:
             /* object */
             return cesk_object_hashcode(*(cesk_object_t**)value->data);
         case CESK_TYPE_ARRAY:
+            /* array */
             return cesk_value_set_hashcode((*(cesk_value_array_t**)value->data)->values);
         default:
             return 0;
