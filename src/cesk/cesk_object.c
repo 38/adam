@@ -95,7 +95,12 @@ cesk_value_set_t** cesk_object_get(cesk_object_t* object, const char* classpath,
     }
     return this->valuelist + field->offset;
 }
-
+void cesk_object_free(cesk_object_t* object)
+{
+    if(NULL == object) return;
+    free(object);   /* the object occupies consequence memory */
+}
+#if 0
 /* use a Murmur Hash Function */
 hashval_t cesk_object_hashcode(cesk_object_t* object)
 {
@@ -110,7 +115,7 @@ hashval_t cesk_object_hashcode(cesk_object_t* object)
         int j;
         for(j = 0; j < this->num_members; j ++)
         {
-            hashval_t k = cesk_value_set_hashcode(this->valuelist[j]);
+            hashval_t k = /*TODO cesk_value_set_hashcode(this->valuelist[j])*/;
             k *= STRINGPOOL_MURMUR_C1;
             k = (k << STRINGPOOL_MURMUR_R1) | (k >> (32 - STRINGPOOL_MURMUR_R1));
             k *= STRINGPOOL_MURMUR_C2;
@@ -129,3 +134,4 @@ hashval_t cesk_object_hashcode(cesk_object_t* object)
     hash ^= (hash >> 16);
     return hash;
 }
+#endif

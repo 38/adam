@@ -22,6 +22,14 @@ cesk_object_t*   cesk_object_new(const char* classpath);
  * this function is to return a reference to the cell contains the value*/
 cesk_value_set_t** cesk_object_get(cesk_object_t* object, const char* classpath, const char* field);
 
+/* free the object */
+void cesk_object_free(cesk_object_t* object);
+
+#if 0
+/* Because the method we look for a value, it's not possible to compute
+ * a hash function without konwing the frame 
+ */
 /* get the hash code of a object */
 hashval_t cesk_object_hashcode(cesk_object_t* object); 
+#endif
 #endif
