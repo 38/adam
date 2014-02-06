@@ -80,7 +80,7 @@ cesk_value_t* cesk_store_get_rw(cesk_store_t* store, uint32_t addr)
     cesk_value_t* val = block->slots[offset];
     if(NULL == val)
     {
-        LOG_ERROR("ooops, this should not happen");
+        LOG_TRACE("is this an empty slot?");
         return NULL;
     }
     if(val->refcnt > 1)
@@ -114,4 +114,88 @@ cesk_value_t* cesk_store_get_rw(cesk_store_t* store, uint32_t addr)
         val = newval;
     }
     return val;
+}
+
+uint32_t cesk_store_allocate(cesk_store_t** p_store)
+{
+    cesk_store_t* store = *p_store;
+    size_t capacity = store->nblocks * CESK_STORE_BLOCK_SIZE;
+    uint32_t block = 0;
+    uint32_t offset = 0;
+    if(capacity <= store->num_ent)
+    {
+        LOG_DEBUG("store is full, allocate a new block for it");
+        store = realloc(store, sizeof(cesk_store_t) + sizeof(cesk_store_block_t*) * (store->nblocks + 1));
+        if(NULL == store)
+        {
+            LOG_ERROR("can not increase the size of store");
+            return CESK_STORE_ADDR_NULL;
+        }
+        *p_store = store;
+        block = store->nblocks ++;
+        offset = 0;
+    }
+    else
+    {
+        /* store is not full, find a empty slot */
+        for(block = 0; block < store->nblocks; block ++)
+        {
+            if(store->blocks[block]->num_ent < CESK_STORE_BLOCK_SIZE)
+            {
+                /* find a block that has unused slots */
+                for(offset = 0; offset < CESK_STORE_BLOCK_SIZE; offset ++)
+                {
+                    if(NULL == store->blocks[block]->slots[offset]) 
+                    {
+                        goto FOUND;
+                    }
+                }
+            }
+        }
+        LOG_ERROR("unreachable code");
+        return CESK_STORE_ADDR_NULL;
+    }
+FOUND:
+    return block * CESK_STORE_BLOCK_SIZE + offset;
+}
+
+int cesk_store_attach(cesk_store_t* store, uint32_t addr,cesk_value_t* value)
+{
+    if(NULL == store || CESK_STORE_BLOCK_SIZE == addr || NULL == value)
+    {
+        LOG_ERROR("invalid arguments");
+        return -1;
+    }
+    uint32_t block = addr / CESK_STORE_BLOCK_SIZE;
+    uint32_t offset = addr % CESK_STORE_BLOCK_SIZE;
+    if(block >= store->nblocks)
+    {
+        LOG_ERROR("out of memory");
+        return -1;
+    }
+    if(value == store->blocks[block]->slots[offset])
+    {
+        LOG_TRACE("value is already attached to this addr");
+        return 0;
+    }
+    if(NULL != store->blocks[block]->slots[offset])
+    {
+        /* dereference to previous object */
+        cesk_value_decref(store->blocks[block]->slots[offset]);
+    }
+    if(store->blocks[block]->refcnt > 1)
+    {
+        /* copy this block */
+        cesk_store_block_t* newblock = _cesk_store_block_fork(store->blocks[block]);
+        if(NULL == newblock)
+        {
+            LOG_ERROR("can't fork store");
+            return -1;
+        }
+        store->blocks[block]->refcnt --;
+        newblock->refcnt ++;
+        store->blocks[block] = newblock;
+    }
+    store->blocks[block]->slots[offset] = value;
+    return 0;
 }
