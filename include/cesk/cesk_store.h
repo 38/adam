@@ -4,6 +4,9 @@
 #include <constants.h>
 
 #include <cesk/cesk_value.h>
+
+#define CESK_STORE_ADDR_NULL 0xfffffffful
+
 /* This file contains declarations for Frame Store
  * The Frame Store unlike the nomally store, the 
  * store is owned by a signle frame, and have virtual address
@@ -26,10 +29,19 @@ typedef struct {
 cesk_store_t* cesk_store_empty_store();
 /* make a copy of a store */
 cesk_store_t* cesk_store_fork(cesk_store_t* store);
+
+
 /* get a read/write pointer */
 cesk_value_t* cesk_store_get_rw(cesk_store_t* store, uint32_t addr);
 /* get a read-only pointer */
 const cesk_value_t* cesk_store_get_ro(cesk_store_t* store, uint32_t addr);
+
+
+/* allocate a fresh address for a new value, CESK_STORE_ADDR_NULL indicates an error */
+uint32_t cesk_store_allocate(cesk_store_t* store);
+/* attach a value to an address, >0 means success, <0 error */
+int cesk_store_attach(cesk_store_t* store, uint32_t addr,cesk_value_t* value);
+
 /* deallocate the store, you should free memory manually */
 void cesk_store_free(cesk_store_t* store);
 #endif
