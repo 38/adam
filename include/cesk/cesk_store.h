@@ -37,8 +37,11 @@ cesk_value_t* cesk_store_get_rw(cesk_store_t* store, uint32_t addr);
 const cesk_value_t* cesk_store_get_ro(cesk_store_t* store, uint32_t addr);
 
 
-/* allocate a fresh address for a new value, CESK_STORE_ADDR_NULL indicates an error */
-uint32_t cesk_store_allocate(cesk_store_t* store);
+/* allocate a fresh address for a new value, CESK_STORE_ADDR_NULL indicates an error 
+ * If the store is resized, the address might be change,
+ * So the parameter store might change after allocate function is called
+ */
+uint32_t cesk_store_allocate(cesk_store_t** p_store);
 /* attach a value to an address, >0 means success, <0 error */
 int cesk_store_attach(cesk_store_t* store, uint32_t addr,cesk_value_t* value);
 
