@@ -127,7 +127,7 @@ static inline const char* _stringpool_query_imp(uint32_t* h, int len, const char
            strncmp(ptr->str, str, len) == 0 &&
            ptr->str[len] == 0 ) /* This is safe, because it's reachable only when str is not shorter than len */
         {
-            LOG_DEBUG("Find string@0x%x", ptr->str);
+            //LOG_DEBUG("Find string@0x%x", ptr->str);
             return ptr->str;
         }
     }

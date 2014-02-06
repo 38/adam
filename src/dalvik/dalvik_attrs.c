@@ -6,6 +6,7 @@
 
 int dalvik_attrs_from_sexp(sexpression_t* sexp)
 {
+    LOG_DEBUG("sexp = %s", sexp_to_string(sexp, NULL));
     int flags = 0;
     if(!sexp_match(sexp, "(L=A", DALVIK_TOKEN_ATTRS, &sexp)) return -1;
     for(; SEXP_NIL != sexp;)
@@ -35,5 +36,6 @@ int dalvik_attrs_from_sexp(sexpression_t* sexp)
             LOG_WARNING("unknown method attribute %s", this_attr);
         }
     }
+    LOG_DEBUG("attribute = %x", flags);
     return flags;
 }

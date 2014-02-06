@@ -24,7 +24,11 @@ dalvik_class_t* dalvik_class_from_sexp(sexpression_t* sexp)
     const char* class_path;
     int attrs;
     int field_count = 0;
-    if(SEXP_NIL == sexp) goto ERR;
+    if(SEXP_NIL == sexp) 
+    {
+        LOG_ERROR("bad S-Expression");
+        goto ERR;
+    }
     const char* firstlit;
     sexpression_t* attr_list;
     if(!sexp_match(sexp, "(L?C?A", &firstlit, &attr_list, &sexp))
@@ -55,12 +59,19 @@ dalvik_class_t* dalvik_class_from_sexp(sexpression_t* sexp)
     }
 
     if((length = sexp_length(sexp)) < 0)
+    {
+        LOG_ERROR("unexcepted length of S-Expression");
         goto ERR;
+    }
 
     /* We allocate length + 1 because we need a NULL at the end of member list */
     class = (dalvik_class_t*)malloc(sizeof(dalvik_class_t) + sizeof(const char*) * (length + 1));  
 
-    if(class == NULL) goto ERR;
+    if(class == NULL) 
+    {
+        LOG_ERROR("can not allocate memory for class");
+        goto ERR;
+    }
 
     class->path = class_path;
     class->attrs = attrs;
@@ -73,28 +84,44 @@ dalvik_class_t* dalvik_class_from_sexp(sexpression_t* sexp)
     {
         sexpression_t* this_def, *tail;
         if(!sexp_match(sexp, "(C?A", &this_def, &sexp))
+        {
+            LOG_DEBUG("failed to fetch next defination in the class, aborting");
             goto ERR;
+        }
         if(sexp_match(this_def, "(L=S?", DALVIK_TOKEN_SOURCE, &source))
-            /* Do Nothing*/;
+        {
+            LOG_DEBUG("source file %s", source);
+            /* Do Nothing*/
+        }
         else if(sexp_match(this_def, "(L=A", DALVIK_TOKEN_SUPER, &tail))
         {
             if(NULL == (class->super = sexp_get_object_path(tail,NULL)))
+            {
+                LOG_ERROR("can not get the classpath for the super class");
                 goto ERR;
+            }
         }
         else if(sexp_match(this_def, "(L=A", DALVIK_TOKEN_IMPLEMENTS, &tail))
         {
             if(NULL == (class->implements = sexp_get_object_path(tail, NULL)))
+            {
+                LOG_ERROR("can not get the classpath for the interface the class implements");
                 goto ERR;
+            }
         }
         else if(sexp_match(this_def, "(L=A", DALVIK_TOKEN_ANNOTATION, &tail))
         {
+            LOG_DEBUG("ingored psuedo-instruction (annotation)");
             /* just ingore */
         }
         else
         {
             const char* firstlit;
             if(!sexp_match(this_def, "(L?A", &firstlit, &tail))
+            {
+                LOG_ERROR("failed to peek the first literal");
                 goto ERR;
+            }
             if(firstlit == DALVIK_TOKEN_METHOD)
             {
                 //LOG_DEBUG("we are resuloving method %s", sexp_to_string(this_def, buf));
@@ -110,6 +137,7 @@ dalvik_class_t* dalvik_class_from_sexp(sexpression_t* sexp)
                     LOG_ERROR("can not register new method %s.%s", class->path, method->name);
                     goto ERR;
                 }
+                LOG_DEBUG("new class method %s.%s", class->path, method->name);
                 /* because the method in fact is static object, we can retrive the method thru member dict */
                 //class->members[field_count++] = method->name;
             }
@@ -131,6 +159,7 @@ dalvik_class_t* dalvik_class_from_sexp(sexpression_t* sexp)
                     LOG_ERROR("can not register new method %s.%s", class->path, field->name);
                     goto ERR;
                 }
+                LOG_DEBUG("new class method %s.%s", class->path, field->name);
             }
             else 
             {
@@ -139,7 +168,7 @@ dalvik_class_t* dalvik_class_from_sexp(sexpression_t* sexp)
         }
     }
     if(dalvik_memberdict_register_class(class->path, class) < 0) goto ERR;
-    LOG_NOTICE("Class %s Loaded", class->path);
+    LOG_TRACE("Class %s Loaded", class->path);
     return class;
 ERR:
     if(NULL != class) free(class);
