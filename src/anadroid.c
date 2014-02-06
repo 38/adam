@@ -9,7 +9,7 @@ void anadroid_init(void)
 void anadroid_finalize(void)
 {
     cesk_finalize();
-    log_finalize();
     dalvik_finalize();
     stringpool_fianlize();
+    log_finalize();
 }

@@ -15,6 +15,13 @@ int main()
     uint32_t    addr = cesk_store_allocate(&store2);
 
     cesk_store_attach(store2, addr, objval);
+
+    cesk_store_t* store3 = cesk_store_fork(store2);
+
+    const cesk_value_t* value_ro = cesk_store_get_ro(store3, addr);
+
+    cesk_value_t* value_rw = cesk_store_get_rw(store3, addr);
+
     anadroid_finalize();
     return 0;
 }

@@ -138,13 +138,14 @@ cesk_value_t* cesk_value_from_classpath(const char* classpath)
 {
     cesk_value_t* ret = _cesk_value_alloc(CESK_TYPE_OBJECT);
     if(NULL == ret) return ret;
-    *(void**)ret->data = NULL;
     cesk_object_t* class = cesk_object_new(classpath);
     if(NULL == class) 
     {
+        *(void**)ret->data = NULL;
         LOG_ERROR("can not create class %s", classpath);
         return NULL;
     }
+    *(cesk_object_t**)ret->data = class;
     return ret;
 }
 

@@ -6,6 +6,7 @@
 /* make a copy of a store block */
 static inline cesk_store_block_t* _cesk_store_block_fork(cesk_store_block_t* block)
 {
+    /* copy the store block */
     cesk_store_block_t* new_block = (cesk_store_block_t*)malloc(CESK_STORE_BLOCK_SIZE);
     if(NULL == new_block) 
     {
@@ -14,6 +15,11 @@ static inline cesk_store_block_t* _cesk_store_block_fork(cesk_store_block_t* blo
     }
     memcpy(new_block, block, CESK_STORE_BLOCK_SIZE);
     new_block->refcnt = 0;
+    /* increase the reference counter of the vlaues in the block */
+    int i;
+    for(i = 0; i < CESK_STORE_BLOCK_SIZE; i ++)
+        if(new_block->slots[i] != NULL)
+            cesk_value_incref(new_block->slots[i]);
     return new_block;
 }
 
@@ -32,7 +38,7 @@ cesk_store_t* cesk_store_empty_store()
 cesk_store_t* cesk_store_fork(cesk_store_t* store)
 {
     int i;
-    size_t size = sizeof(cesk_store_t) + sizeof(cesk_store_block_t) * store->nblocks;
+    size_t size = sizeof(cesk_store_t) + sizeof(cesk_store_block_t*) * store->nblocks;
     cesk_store_t* ret = (cesk_store_t*)malloc(size);
     if(NULL == ret)
     {
@@ -42,7 +48,7 @@ cesk_store_t* cesk_store_fork(cesk_store_t* store)
     memcpy(ret, store, size);
     /* increase refrence counter of all blocks */
     for(i = 0; i < ret->nblocks; i ++)
-        ret->blocks[i] ++;
+        ret->blocks[i]->refcnt++;
     LOG_DEBUG("a store of %d entities is being forked, %d bytes copied", ret->num_ent, size);
     return ret;
 }
@@ -87,13 +93,14 @@ cesk_value_t* cesk_store_get_rw(cesk_store_t* store, uint32_t addr)
     }
     if(val->refcnt > 1)
     {
-        LOG_DEBUG("this value is referenced by other frame, so fork it first");
+        LOG_DEBUG("this value is referenced by other frame block, so fork it first");
         cesk_value_t* newval = cesk_value_fork(val);
         if(NULL == newval)
         {
             LOG_ERROR("error during fork the value, aborting copy");
             return NULL;
         }
+
         if(block->refcnt > 1)
         {
             LOG_DEBUG("this block is referenced by other frame, so fork it before modify");
@@ -115,6 +122,7 @@ cesk_value_t* cesk_store_get_rw(cesk_store_t* store, uint32_t addr)
 
         val = newval;
     }
+    //TODO: fixme value ref = 1 & block ref > 1
     return val;
 }
 
