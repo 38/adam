@@ -30,6 +30,7 @@ static inline cesk_value_t* _cesk_value_alloc(uint32_t type)
             break;
         case CESK_TYPE_SET:
             size += sizeof(cesk_set_t*);
+            break;
         default:
             LOG_ERROR("unknown type %d", type);
             return NULL;
@@ -103,6 +104,9 @@ void cesk_value_finalize()
         ptr = ptr->next;
         switch(old->type)
         {
+            case CESK_TYPE_NUMERIC:
+            case CESK_TYPE_BOOLEAN:
+                break;
             case CESK_TYPE_OBJECT:
                 if(*(cesk_object_t**)old->data != NULL)
                     cesk_object_free(*(cesk_object_t**)old->data);
@@ -115,7 +119,7 @@ void cesk_value_finalize()
                 LOG_INFO("fixme: set value not disposed");
                 break;
             default:
-                LOG_WARNING("unknown type, do not know how to free");
+                LOG_WARNING("unknown type %d, do not know how to free", old->type);
         }
         _cesk_value_free(old);
     }

@@ -9,6 +9,8 @@ enum{
     TRACE,
     DEBUG
 };
+void log_init();
+void log_finalize();
 void log_write(int level, const char* file, const char* function, int line, const char* fmt, ...);
 
 #define __LOG__(level,fmt,arg...) do{\

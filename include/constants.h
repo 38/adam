@@ -25,5 +25,9 @@
 #   define CESK_STORE_BLOCK_SIZE 4096
 #endif
 
+#ifndef CONFIG_PATH
+#   define CONFIG_PATH "."
+#endif
+
 #define hashval_t uint32_t
 #endif

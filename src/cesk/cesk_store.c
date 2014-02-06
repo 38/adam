@@ -1,5 +1,7 @@
 #include <string.h>
 
+#include <log.h>
+
 #include <cesk/cesk_store.h>
 /* make a copy of a store block */
 static inline cesk_store_block_t* _cesk_store_block_fork(cesk_store_block_t* block)
@@ -132,6 +134,14 @@ uint32_t cesk_store_allocate(cesk_store_t** p_store)
             return CESK_STORE_ADDR_NULL;
         }
         *p_store = store;
+        store->blocks[store->nblocks] = (cesk_store_block_t*)malloc(CESK_STORE_BLOCK_SIZE);
+        if(NULL == store->blocks[store->nblocks]) 
+        {
+            LOG_ERROR("can not allocate memory for new store block");
+            return CESK_STORE_ADDR_NULL;
+        }
+        memset(store->blocks[store->nblocks], 0, CESK_STORE_BLOCK_SIZE);
+        store->blocks[store->nblocks]->refcnt ++;
         block = store->nblocks ++;
         offset = 0;
     }
@@ -178,11 +188,6 @@ int cesk_store_attach(cesk_store_t* store, uint32_t addr,cesk_value_t* value)
         LOG_TRACE("value is already attached to this addr");
         return 0;
     }
-    if(NULL != store->blocks[block]->slots[offset])
-    {
-        /* dereference to previous object */
-        cesk_value_decref(store->blocks[block]->slots[offset]);
-    }
     if(store->blocks[block]->refcnt > 1)
     {
         /* copy this block */
@@ -196,6 +201,46 @@ int cesk_store_attach(cesk_store_t* store, uint32_t addr,cesk_value_t* value)
         newblock->refcnt ++;
         store->blocks[block] = newblock;
     }
+    if(store->blocks[block]->slots[offset] == NULL && value != NULL) 
+    {
+        store->blocks[block]->num_ent ++;
+        store->num_ent ++;
+    }
+    else if(store->blocks[block]->slots[offset] != NULL && value == NULL)
+    {
+        store->blocks[block]->num_ent --;
+        store->num_ent --;
+    }
+    if(NULL != store->blocks[block]->slots[offset])
+    {
+        /* dereference to previous object */
+        cesk_value_decref(store->blocks[block]->slots[offset]);
+    }
+    if(value)
+    {
+        /* reference to new value */
+        cesk_value_incref(value);
+    }
     store->blocks[block]->slots[offset] = value;
     return 0;
+}
+
+void cesk_store_free(cesk_store_t* store)
+{
+    int i;
+    if(NULL == store) return;
+    for(i = 0; i < store->nblocks; i ++)
+    {
+        if(store->blocks[i]->refcnt > 0)
+            store->blocks[i]->refcnt --;
+        if(store->blocks[i]->refcnt == 0)
+        {
+            int j;
+            for(j = 0; j < CESK_STORE_BLOCK_SIZE; i ++)
+                if(store->blocks[i]->slots[j] != NULL)
+                    cesk_value_decref(store->blocks[i]->slots[j]);
+            free(store->blocks[i]);
+        }
+    }
+    free(store);
 }
