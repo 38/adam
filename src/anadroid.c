@@ -11,7 +11,7 @@ void anadroid_finalize(void)
     dalvik_exception_finalize();
     dalvik_memberdict_finalize();
     cesk_finalize();
-    log_finalize();
     dalvik_finalize();
     stringpool_fianlize();
+    log_finalize();
 }

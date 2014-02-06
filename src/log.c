@@ -47,8 +47,9 @@ void log_init()
             _STR_TO_ID(WARNING);
             _STR_TO_ID(ERROR);
             _STR_TO_ID(FATAL);
-            else if(strcmp(type, "default"))
+            else if(strcmp(type, "default") == 0)
                 level = 7;
+            else continue;
 #undef      _STR_TO_ID
 
             FILE* outfile = NULL; 
@@ -89,7 +90,7 @@ void log_init()
     int i;
     for(i = 0; i < 7; i ++)
         if(_log_fp[i] == NULL)
-            _log_fp[i] = stderr;
+            _log_fp[i] = default_fp;
 }
 void log_finalize()
 {
