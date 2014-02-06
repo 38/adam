@@ -106,10 +106,13 @@ ERR:
 void dalvik_loader_summary()
 {
 
-    LOG_INFO("%d Classes Loaded", dalvik_class_count);
-    LOG_INFO("%d Method Loaded", dalvik_method_count);
-    LOG_INFO("%d Field Loaded", dalvik_field_count);
-    LOG_INFO("%d Label Loaded", dalvik_label_count);
-    LOG_INFO("%d Instructions Loaded", dalvik_instruction_count);
+    LOG_TRACE("%d classes, %d methods, %d fields, %d labels, %d instructions", 
+              dalvik_class_count,
+              dalvik_method_count,
+              dalvik_field_count,
+              dalvik_label_count,
+              dalvik_instruction_count);
 }
+#else
+#    define dalvik_loader_summary() /* do nothing */
 #endif

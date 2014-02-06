@@ -51,7 +51,11 @@ static inline dalvik_exception_handler_t* _dalvik_exception_handler_alloc(const 
 {
     dalvik_exception_handler_t* ret;
     ret = (dalvik_exception_handler_t*)malloc(sizeof(dalvik_exception_handler_t));
-    if(NULL == ret) return NULL;
+    if(NULL == ret) 
+    {
+        LOG_ERROR("can not allocate memory for exception");
+        return NULL;
+    }
     ret->exception = exception;
     ret->handler_label = handler;
     vector_pushback(_dalvik_exception_handler_vector, &ret);
@@ -69,7 +73,11 @@ dalvik_exception_handler_t* dalvik_exception_handler_from_sexp(sexpression_t* se
 {
     if(SEXP_NIL == sexp ||
        NULL     == from ||
-       NULL     == to) return NULL;
+       NULL     == to) 
+    {
+        LOG_ERROR("invalid argument");
+        return NULL;
+    }
     if(sexp_match(sexp,"(L=A", DALVIK_TOKEN_CATCH, &sexp))
     {
         const char *label1, *label2, *label3;
@@ -82,15 +90,35 @@ dalvik_exception_handler_t* dalvik_exception_handler_from_sexp(sexpression_t* se
                     DALVIK_TOKEN_TO,
                     &label2,
                     DALVIK_TOKEN_USING,
-                    &label3)) return NULL;
+                    &label3)) 
+        {
+            LOG_ERROR("can not parse exception handler");
+            LOG_DEBUG("the exception handler is %s", sexp_to_string(sexp,NULL));
+            return NULL;
+        }
         int lid1, lid2, lid3;
 
         lid1 = dalvik_label_get_label_id(label1);
-        if(lid1 < 0) return NULL;
+        if(lid1 < 0) 
+        {
+            LOG_ERROR("invalid label");
+            LOG_DEBUG("the exception handler is %s", sexp_to_string(sexp,NULL));
+            return NULL;
+        }
         lid2 = dalvik_label_get_label_id(label2);
-        if(lid2 < 0) return NULL;
+        if(lid2 < 0) 
+        {
+            LOG_ERROR("invalid label");
+            LOG_DEBUG("the exception handler is %s", sexp_to_string(sexp,NULL));
+            return NULL;
+        }
         lid3 = dalvik_label_get_label_id(label2);
-        if(lid3 < 0) return NULL;
+        if(lid3 < 0) 
+        {
+            LOG_ERROR("invalid label");
+            LOG_DEBUG("the exception handler is %s", sexp_to_string(sexp,NULL));
+            return NULL;
+        }
         (*from) = lid1;
         (*to) = lid2;
         dalvik_exception_handler_t* handler = _dalvik_exception_handler_alloc(classpath, lid3);
@@ -108,32 +136,58 @@ dalvik_exception_handler_t* dalvik_exception_handler_from_sexp(sexpression_t* se
                     DALVIK_TOKEN_TO,
                     &label2,
                     DALVIK_TOKEN_USING,
-                    &label3)) return NULL;
+                    &label3)) 
+        {
+            LOG_ERROR("can not parse exception handler");
+            LOG_DEBUG("the exception handler is %s", sexp_to_string(sexp,NULL));
+            return NULL;
+        }
         int lid1, lid2, lid3;
 
         lid1 = dalvik_label_get_label_id(label1);
-        if(lid1 < 0) return NULL;
+        if(lid1 < 0) 
+        {
+            return NULL;
+        }
         lid2 = dalvik_label_get_label_id(label2);
-        if(lid2 < 0) return NULL;
+        if(lid2 < 0) 
+        {
+            return NULL;
+        }
         lid3 = dalvik_label_get_label_id(label2);
-        if(lid3 < 0) return NULL;
+        if(lid3 < 0) 
+        {
+            LOG_ERROR("invalid label");
+            LOG_DEBUG("the exception handler is %s", sexp_to_string(sexp,NULL));
+            return NULL;
+        }
         (*from) = lid1;
         (*to) = lid2;
         dalvik_exception_handler_t* handler = _dalvik_exception_handler_alloc(NULL, lid3);
         return handler;
     }
+    LOG_ERROR("unreachable code");
     return NULL;
 }
 
 dalvik_exception_handler_set_t* dalvik_exception_new_handler_set(size_t count, dalvik_exception_handler_t** set)
 {
+    if(count == 0) return NULL;
     int i;
     dalvik_exception_handler_set_t* ret = NULL;
-    if(count <= 0) goto ERR;
+    if(count < 0) 
+    {
+        LOG_ERROR("number of handlers can not be negative");
+        goto ERR;
+    }
     for(i = count - 1; i >= 0; i --)
     {
         dalvik_exception_handler_set_t* this = _dalvik_exception_handler_set_alloc();
-        if(NULL == this) goto ERR;
+        if(NULL == this) 
+        {
+            LOG_ERROR("can not allocate memory");
+            goto ERR;
+        }
         this->next = ret;
         ret = this;
     }

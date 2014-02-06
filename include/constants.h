@@ -21,5 +21,9 @@
 #   define DALVIK_MEMBERDICT_SIZE 100007
 #endif
 
+#define CESK_STORE_BLOCK_SIZE
+#   define DALVIK_STORE_BLOCK_SIZE 4096
+#endif
+
 #define hashval_t uint32_t
 #endif

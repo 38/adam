@@ -26,12 +26,18 @@ dalvik_method_t* dalvik_method_from_sexp(sexpression_t* sexp, const char* class_
     sexpression_t *attrs, *arglist, *ret, *body;
     /* matches (method (attribute-list) method-name (arg-list) return-type body) */
     if(!sexp_match(sexp, "(L=C?L?C?_?A", DALVIK_TOKEN_METHOD, &attrs, &name, &arglist, &ret, &body))
+    {
+        LOG_ERROR("bad method defination"); 
         return NULL;
+    }
 
     /* get attributes */
     int attrnum;
     if((attrnum = dalvik_attrs_from_sexp(attrs)) < 0)
+    {
+        LOG_ERROR("can not parse attributes");
         return NULL;
+    }
 
     /* get number of arguments */
     int num_args;
@@ -103,6 +109,7 @@ dalvik_method_t* dalvik_method_from_sexp(sexpression_t* sexp, const char* class_
         {
             /* (limit registers ...) */
             /* simplely ignore */
+            LOG_DEBUG("ignored psuedo-instruction (limit registers)");
         }
         else if(sexp_match(this_smt, "(L=L?", DALVIK_TOKEN_LINE, &arg))
         {
@@ -141,9 +148,15 @@ dalvik_method_t* dalvik_method_from_sexp(sexpression_t* sexp, const char* class_
 <<<<<<< HEAD
 =======
         else if(sexp_match(this_smt, "(L=A", DALVIK_TOKEN_ANNOTATION, &arg))
-            /* Simplely ignore */;
+        {
+            /* Simplely ignore */
+            LOG_DEBUG("ignored psuedo-insturction (annotation)");
+        }
         else if(sexp_match(this_smt, "(L=L=A", DALVIK_TOKEN_DATA, DALVIK_TOKEN_ARRAY, &arg))
-            /* TODO: what is (data-array ....)statement currently ignored */;
+        {
+            /* TODO: what is (data-array ....)statement currently ignored */
+            LOG_INFO("fixme: (data-array) psuedo-insturction is to be implemented");
+        }
         else if(sexp_match(this_smt, "(L=A", DALVIK_TOKEN_CATCH, &arg) || 
                 sexp_match(this_smt, "(L=A", DALVIK_TOKEN_CATCHALL, &arg))
         {
@@ -157,18 +170,26 @@ dalvik_method_t* dalvik_method_from_sexp(sexpression_t* sexp, const char* class_
                 LOG_WARNING("invalid exception handler %s", sexp_to_string(this_smt, NULL));
                 continue;
             }
+            LOG_DEBUG("exception %s is handlered in label #%d", 
+                      excepthandler[number_of_exception_handler]->exception, 
+                      excepthandler[number_of_exception_handler]->handler_label);
             label_st[number_of_exception_handler] = 0;
             number_of_exception_handler ++;
         }
         else if(sexp_match(this_smt, "(L=A", DALVIK_TOKEN_FILL, &arg))
         {
             //TODO: fill-array-data psuedo-instruction
+            LOG_INFO("fixme: (fill-array-data) is to be implemented");
         }
 >>>>>>> fix memory leak
         else
         {
             dalvik_instruction_t* inst = dalvik_instruction_new();
-            if(NULL == inst) goto ERR;
+            if(NULL == inst) 
+            {
+                LOG_ERROR("can not create new instruction");
+                goto ERR;
+            }
             if(dalvik_instruction_from_sexp(this_smt, inst, current_line_number, file) < 0)
             {
                 LOG_ERROR("can not recognize instuction %s", sexp_to_string(this_smt, NULL));
@@ -183,6 +204,7 @@ dalvik_method_t* dalvik_method_from_sexp(sexpression_t* sexp, const char* class_
             inst->handler_set = current_ehset; 
             if(last_label >= 0)
             {
+                LOG_DEBUG("assigned instruction@%p to label #%d", inst, last_label);
                 dalvik_label_jump_table[last_label] = inst;
                 last_label = -1;
             }

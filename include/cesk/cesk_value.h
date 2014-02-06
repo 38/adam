@@ -11,19 +11,18 @@
 /* previous defination */
 struct   _cesk_value_t;
 typedef  struct _cesk_value_t cesk_value_t;
-struct   _cesk_value_set_t;
-typedef  struct _cesk_value_set_t cesk_value_set_t;
 
 #include <dalvik/dalvik_instruction.h>
 #include <cesk/cesk_object.h>
+#include <cesk/cesk_set.h>
 
 /* Abstract Value */
 enum{
     CESK_TYPE_NUMERIC,   /* we treat char as a numeric value */
-    CESK_TYPE_STRING,
     CESK_TYPE_BOOLEAN,
     CESK_TYPE_OBJECT,
-    CESK_TYPE_ARRAY
+    CESK_TYPE_ARRAY,
+    CESK_TYPE_SET
 };
 
 /* abstract numeric value */
@@ -31,10 +30,6 @@ enum{
 #define CESK_VALUE_NUMERIC_ZERO 0       /* if a numeric value is zero */
 #define CESK_VALUE_NUMERIC_NEGATIVE -1 /* if a numeric value is negative */
 typedef int8_t cesk_value_numeric_t;    /* a numberic value */
-
-/* abstract string value */
-/* Nothing to abstract, just the type itself */
-typedef int8_t cesk_string_value[0];
 
 /* abstract boolean */
 #define CESK_VALUE_BOOLEAN_TRUE  1
@@ -49,8 +44,11 @@ typedef int8_t cesk_value_string_t[0];
 
 /* abstract array */
 typedef struct {
-    cesk_value_set_t* values;
+    cesk_set_t* values;
 } cesk_value_array_t;
+
+/* set */
+#include <cesk/cesk_set.h>
 
 typedef struct _cesk_value_t {
     uint8_t     type;       /* type of this value */

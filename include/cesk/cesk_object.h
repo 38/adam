@@ -7,7 +7,7 @@
 typedef struct {
     const char*              classpath;   /* the class path of this object */
     size_t                   num_members; /* the number of members */
-    cesk_value_set_t*        valuelist[0];  /* the value of the member */
+    uint32_t                 valuelist[0];  /* the value of the member */
 } cesk_object_struct_t;  
 
 typedef struct {
@@ -20,11 +20,13 @@ typedef struct {
 cesk_object_t*   cesk_object_new(const char* classpath);
 /* Get address of a dynamic field in an object, 
  * this function is to return a reference to the cell contains the value*/
-cesk_value_set_t** cesk_object_get(cesk_object_t* object, const char* classpath, const char* field);
+uint32_t* cesk_object_get(cesk_object_t* object, const char* classpath, const char* field);
 
 /* free the object */
 void cesk_object_free(cesk_object_t* object);
 
+/* make a copy of the object */
+cesk_object_t* cesk_object_fork(cesk_object_t* object);
 #if 0
 /* Because the method we look for a value, it's not possible to compute
  * a hash function without konwing the frame 

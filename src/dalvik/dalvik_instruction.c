@@ -66,7 +66,11 @@ dalvik_instruction_t* dalvik_instruction_new( void )
 {
     if(_dalvik_instruction_pool_size >= _dalvik_instruction_pool_capacity)
     {
-        if(_dalvik_instruction_pool_resize() < 0) return NULL;
+        if(_dalvik_instruction_pool_resize() < 0) 
+        {
+            LOG_ERROR("can't resize the instruction pool, allocation failed");
+            return NULL;
+        }
     }
     return dalvik_instruction_pool + (_dalvik_instruction_pool_size ++);
 }
@@ -1042,6 +1046,10 @@ int dalvik_instruction_from_sexp(sexpression_t* sexp, dalvik_instruction_t* buf,
     {
         buf->line = line;
         buf->file = file;
+    }
+    if(rc == -1)
+    {
+        LOG_WARNING("failed to parse instruction");
     }
     return rc;
 }
