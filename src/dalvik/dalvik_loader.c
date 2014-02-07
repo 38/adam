@@ -21,14 +21,16 @@ int _dalvik_loader_filter(const struct dirent* ent)
 int dalvik_loader_from_directory(const char* path)
 {
     int num_dirent;
-    struct dirent **result;
+    struct dirent **result = NULL;
+    char *buf = NULL;
 
     num_dirent = scandir(path, &result, _dalvik_loader_filter, alphasort);
 
     LOG_DEBUG("Scanning file under %s", path);
 
     int i;
-    char *buf;
+
+    if(num_dirent < 0) goto ERR;
     
     size_t bufsize = 1024;
     buf = (char*)malloc(bufsize);
@@ -89,16 +91,16 @@ int dalvik_loader_from_directory(const char* path)
             }
         }
     }
-    free(buf);
+    if(buf) free(buf);
     for(i = 0; i < num_dirent; i ++)
         free(result[i]);
-    free(result);
+    if(result) free(result);
     return 0;
 ERR:
-    free(buf);
+    if(buf) free(buf);
     for(i = 0; i < num_dirent; i ++)
         free(result[i]);
-    free(result);
+    if(result) free(result);
     LOG_ERROR("dalvik loader is returninng a failure");
     return -1;
 }
