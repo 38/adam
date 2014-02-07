@@ -22,7 +22,7 @@
 #endif
 
 #ifndef CESK_STORE_BLOCK_SIZE
-#   define CESK_STORE_BLOCK_SIZE 4096
+#   define CESK_STORE_BLOCK_SIZE 0x4000
 #endif
 
 #ifndef CONFIG_PATH
