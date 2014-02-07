@@ -92,7 +92,25 @@ static void _cesk_value_free(cesk_value_t* val)
     if(val->prev) val->prev->next = val->next;
     if(val->next) val->next->prev = val->prev;
     if(_cesk_value_list == val) _cesk_value_list = val->next;
-    
+    switch(val->type)
+    {
+        case CESK_TYPE_NUMERIC:
+        case CESK_TYPE_BOOLEAN:
+            break;
+        case CESK_TYPE_OBJECT:
+            if(*(cesk_object_t**)val->data != NULL)
+                cesk_object_free(*(cesk_object_t**)val->data);
+            break;
+        case CESK_TYPE_ARRAY:
+            /* TODO: free the array */
+            LOG_INFO("fixme: array value not disposed");
+            break;
+        case CESK_TYPE_SET:
+            LOG_INFO("fixme: set value not disposed");
+            break;
+        default:
+            LOG_WARNING("unknown type %d, do not know how to free", val->type);
+    }
     free(val);
 }
 void cesk_value_finalize()
@@ -102,25 +120,6 @@ void cesk_value_finalize()
     {
         cesk_value_t* old = ptr;
         ptr = ptr->next;
-        switch(old->type)
-        {
-            case CESK_TYPE_NUMERIC:
-            case CESK_TYPE_BOOLEAN:
-                break;
-            case CESK_TYPE_OBJECT:
-                if(*(cesk_object_t**)old->data != NULL)
-                    cesk_object_free(*(cesk_object_t**)old->data);
-                break;
-            case CESK_TYPE_ARRAY:
-                /* TODO: free the array */
-                LOG_INFO("fixme: array value not disposed");
-                break;
-            case CESK_TYPE_SET:
-                LOG_INFO("fixme: set value not disposed");
-                break;
-            default:
-                LOG_WARNING("unknown type %d, do not know how to free", old->type);
-        }
         _cesk_value_free(old);
     }
 }

@@ -14,11 +14,15 @@
  * Gabage Collection easily.
  */
 typedef struct {
+    uint32_t        refcnt;
+    cesk_value_t*   value;
+} cesk_store_slot_t;
+typedef struct {
     uint32_t       refcnt;     /* for Copy-on-Write */
     uint32_t       num_ent;    /* number of entities */
-    cesk_value_t*  slots[0];
+    cesk_store_slot_t  slots[0];
 } cesk_store_block_t;
-#define CESK_STORE_BLOCK_NSLOTS ((CESK_STORE_BLOCK_SIZE - sizeof(cesk_store_block_t))/sizeof(cesk_value_t*))
+#define CESK_STORE_BLOCK_NSLOTS ((CESK_STORE_BLOCK_SIZE - sizeof(cesk_store_block_t))/sizeof(cesk_store_slot_t))
 typedef struct {
     uint32_t            nblocks;    /* number of blocks */
     uint32_t            num_ent;    /* number of entities */
@@ -47,4 +51,9 @@ int cesk_store_attach(cesk_store_t* store, uint32_t addr,cesk_value_t* value);
 
 /* deallocate the store, you should free memory manually */
 void cesk_store_free(cesk_store_t* store);
+
+/* increase the reference counter, return the new reference counter, negative means failure */
+int cesk_store_incref(cesk_store_t* store, uint32_t addr);
+/* decrease the reference counter, return the new reference counter, negative means failure */
+int cesk_store_decref(cesk_store_t* store, uint32_t addr);
 #endif

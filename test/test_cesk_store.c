@@ -22,6 +22,10 @@ int main()
 
     cesk_value_t* value_rw = cesk_store_get_rw(store3, addr);
 
+    cesk_store_free(store);
+    cesk_store_free(store2);
+    cesk_store_free(store3);
+
     anadroid_finalize();
     return 0;
 }
