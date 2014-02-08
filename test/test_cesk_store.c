@@ -12,9 +12,17 @@ int main()
 
     cesk_store_t* store2 = cesk_store_fork(store);
 
-    uint32_t    addr = cesk_store_allocate(&store2);
+    sexpression_t* sexp;
+    sexp_parse("(new-instance v1, antlr/ANTLRTokdefParser)", &sexp);
+    dalvik_instruction_t* ins = dalvik_instruction_new();
+    dalvik_instruction_from_sexp(sexp, ins, 0);
+    sexp_free(sexp);
+
+    uint32_t    addr = cesk_store_allocate(&store2, ins);
 
     cesk_store_attach(store2, addr, objval);
+    
+    addr = cesk_store_allocate(&store2, ins);
 
     cesk_store_t* store3 = cesk_store_fork(store2);
 

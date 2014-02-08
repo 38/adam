@@ -11,6 +11,7 @@
 
 #include <constants.h>
 
+#include <string.h>
 /* Define all opcodes for Dalvik Virtual Machine */
 enum {
     DVM_NOP,
@@ -116,11 +117,14 @@ typedef struct _dalvik_instruction_t{
     uint8_t            opcode:4;        /* Opcode of the instruction */
     uint8_t            num_operands:3;   /* How many operand ? */
     uint16_t           flags:9;        /* Additional flags for instruction, DVM_FLAG_OPTYPE_NAME */
-    dalvik_operand_t   operands[16];     /* Operand array */
-    const char*        file;            /* The file name assigned to this instruction */
     int                line;            /* Line number of this instruction */
     struct _dalvik_instruction_t* next; /* The next instruction pointer */
     dalvik_exception_handler_set_t* handler_set;   /* The handler set for exception */
+    dalvik_operand_t   annotation_begin[0];        /* we reuse operand space for additional infomation,
+                                                      the first address we can safely use is 
+                                                      (void*)(annotation_begin + num_operands) */
+    dalvik_operand_t   operands[16];        /* Operand array */
+    char               annotation_end[0];   /* the limit address of this insturction */
 } dalvik_instruction_t;
 
 enum {
@@ -202,8 +206,17 @@ int dalvik_instruction_finalize( void );
  * buf:  Store the result
  * return value: <0 error, 0 success
  */ 
-int dalvik_instruction_from_sexp(sexpression_t* sexp, dalvik_instruction_t* buf, int line, const char* file);
+int dalvik_instruction_from_sexp(sexpression_t* sexp, dalvik_instruction_t* buf, int line);
+
 void dalvik_instruction_free(dalvik_instruction_t* buf);
 
+/* read the annotation from the instruction */
+static inline void dalvik_instruction_read_annotation(const dalvik_instruction_t* ins, void* buf, size_t count)
+{
+    memcpy(buf, ins->annotation_begin + ins->num_operands, count);
+}
+
+/* for object creating insturction, the annotation is a unique integer, so that we can distinguish two instruction */
+typedef uint32_t dalvik_instruction_newidx_t;
 
 #endif /* __DALVIK_INSTRCTION_H__ */

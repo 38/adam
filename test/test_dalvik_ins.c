@@ -17,7 +17,7 @@ void test_move()
     sexp_free(sexp);
     
     assert(NULL != sexp_parse("(move-wide/from16 v12,v1234)", &sexp));
-    assert(0 == dalvik_instruction_from_sexp(sexp, &inst, 0, NULL));
+    assert(0 == dalvik_instruction_from_sexp(sexp, &inst, 0));
     assert(inst.opcode == DVM_MOVE);
     assert(inst.num_operands == 2);
     assert(inst.operands[0].payload.uint16 == 12);
@@ -27,7 +27,7 @@ void test_move()
     sexp_free(sexp);
     
     assert(NULL != sexp_parse("(move v12,v1234)", &sexp));
-    assert(0 == dalvik_instruction_from_sexp(sexp, &inst, 0, NULL));
+    assert(0 == dalvik_instruction_from_sexp(sexp, &inst, 0));
     assert(inst.opcode == DVM_MOVE);
     assert(inst.num_operands == 2);
     assert(inst.operands[0].payload.uint16 == 12);
@@ -37,7 +37,7 @@ void test_move()
     sexp_free(sexp);
 
     assert(NULL != sexp_parse("(move-result/wide v1234)", &sexp));
-    assert(0 == dalvik_instruction_from_sexp(sexp, &inst, 0, NULL));
+    assert(0 == dalvik_instruction_from_sexp(sexp, &inst, 0));
     assert(inst.opcode == DVM_MOVE);
     assert(inst.num_operands == 2);
     assert(inst.operands[0].payload.uint16 == 1234);
@@ -46,7 +46,7 @@ void test_move()
     sexp_free(sexp);
 
     assert(NULL != sexp_parse("(move-result-object v1234)", &sexp));
-    assert(0 == dalvik_instruction_from_sexp(sexp, &inst, 0, NULL));
+    assert(0 == dalvik_instruction_from_sexp(sexp, &inst, 0));
     assert(inst.opcode == DVM_MOVE);
     assert(inst.num_operands == 2);
     assert(inst.operands[0].payload.uint16 == 1234);
@@ -59,7 +59,7 @@ void test_move()
 void test_return()
 {
     assert(NULL != sexp_parse("(return-object v1234)", &sexp));
-    assert(0 == dalvik_instruction_from_sexp(sexp, &inst, 0, NULL));
+    assert(0 == dalvik_instruction_from_sexp(sexp, &inst, 0));
     assert(inst.opcode == DVM_RETURN);
     assert(inst.num_operands == 1);
     assert(inst.operands[0].payload.uint16 == 1234);
@@ -68,7 +68,7 @@ void test_return()
     sexp_free(sexp);
     
     assert(NULL != sexp_parse("(return-void)", &sexp));
-    assert(0 == dalvik_instruction_from_sexp(sexp, &inst, 0, NULL));
+    assert(0 == dalvik_instruction_from_sexp(sexp, &inst, 0));
     assert(inst.opcode == DVM_RETURN);
     assert(inst.num_operands == 1);
     assert(inst.operands[0].header.info.type = DVM_OPERAND_TYPE_VOID);
@@ -77,7 +77,7 @@ void test_return()
 void test_const()
 {
     assert(NULL != sexp_parse("(const/high16 v123,1)", &sexp));
-    assert(0 == dalvik_instruction_from_sexp(sexp, &inst, 0 , NULL));
+    assert(0 == dalvik_instruction_from_sexp(sexp, &inst, 0));
     assert(inst.opcode == DVM_CONST);
     assert(inst.num_operands == 2);
     assert(inst.operands[0].header.flags == 0);
@@ -89,7 +89,7 @@ void test_const()
 
 
     assert(NULL != sexp_parse("(const v123,1235)", &sexp));
-    assert(0 == dalvik_instruction_from_sexp(sexp, &inst, 0 , NULL));
+    assert(0 == dalvik_instruction_from_sexp(sexp, &inst, 0));
     assert(inst.opcode == DVM_CONST);
     assert(inst.num_operands == 2);
     assert(inst.operands[0].header.flags == 0);
@@ -100,7 +100,7 @@ void test_const()
     sexp_free(sexp);
     
     assert(NULL != sexp_parse("(const/4 v123,1235)", &sexp));
-    assert(0 == dalvik_instruction_from_sexp(sexp, &inst, 0 , NULL));
+    assert(0 == dalvik_instruction_from_sexp(sexp, &inst, 0));
     assert(inst.opcode == DVM_CONST);
     assert(inst.num_operands == 2);
     assert(inst.operands[0].header.flags == 0);
@@ -111,7 +111,7 @@ void test_const()
     sexp_free(sexp);
     
     assert(NULL != sexp_parse("(const/16 v123,1235)", &sexp));
-    assert(0 == dalvik_instruction_from_sexp(sexp, &inst, 0 , NULL));
+    assert(0 == dalvik_instruction_from_sexp(sexp, &inst, 0));
     assert(inst.opcode == DVM_CONST);
     assert(inst.num_operands == 2);
     assert(inst.operands[0].header.flags == 0);
@@ -122,7 +122,7 @@ void test_const()
     sexp_free(sexp);
     
     assert(NULL != sexp_parse("(const-wide v123,123456789)", &sexp));
-    assert(0 == dalvik_instruction_from_sexp(sexp, &inst, 0 , NULL));
+    assert(0 == dalvik_instruction_from_sexp(sexp, &inst, 0));
     assert(inst.opcode == DVM_CONST);
     assert(inst.num_operands == 2);
     assert(inst.operands[0].header.info.size == 1);
@@ -133,7 +133,7 @@ void test_const()
     sexp_free(sexp);
     
     assert(NULL != sexp_parse("(const-wide v123,123456789)", &sexp));
-    assert(0 == dalvik_instruction_from_sexp(sexp, &inst, 0 , NULL));
+    assert(0 == dalvik_instruction_from_sexp(sexp, &inst, 0));
     assert(inst.opcode == DVM_CONST);
     assert(inst.num_operands == 2);
     assert(inst.operands[0].header.info.size == 1);
@@ -144,7 +144,7 @@ void test_const()
     sexp_free(sexp);
     
     assert(NULL != sexp_parse("(const-wide/high16 v123,1)", &sexp));
-    assert(0 == dalvik_instruction_from_sexp(sexp, &inst, 0 , NULL));
+    assert(0 == dalvik_instruction_from_sexp(sexp, &inst, 0));
     assert(inst.opcode == DVM_CONST);
     assert(inst.num_operands == 2);
     assert(inst.operands[0].header.info.size == 1);
@@ -155,7 +155,7 @@ void test_const()
     sexp_free(sexp);
     
     assert(NULL != sexp_parse("(const-string v123,\"this is a test case for const-string\")", &sexp));
-    assert(0 == dalvik_instruction_from_sexp(sexp, &inst, 0 , NULL));
+    assert(0 == dalvik_instruction_from_sexp(sexp, &inst, 0));
     assert(inst.opcode == DVM_CONST);
     assert(inst.num_operands == 2);
     assert(inst.operands[1].header.info.type == DVM_OPERAND_TYPE_STRING);
@@ -164,7 +164,7 @@ void test_const()
     sexp_free(sexp);
     
     assert(NULL != sexp_parse("(const-class v123,this/is/a/test/class)", &sexp));
-    assert(0 == dalvik_instruction_from_sexp(sexp, &inst, 0 , NULL));
+    assert(0 == dalvik_instruction_from_sexp(sexp, &inst, 0));
     assert(inst.opcode == DVM_CONST);
     assert(inst.num_operands == 2);
     assert(inst.operands[1].header.info.type == DVM_OPERAND_TYPE_CLASS);
@@ -175,7 +175,7 @@ void test_const()
 void test_monitor()
 {
     assert(NULL != sexp_parse("(monitor-enter v123)", &sexp));
-    assert(0 == dalvik_instruction_from_sexp(sexp, &inst, 0 , NULL));
+    assert(0 == dalvik_instruction_from_sexp(sexp, &inst, 0));
     assert(inst.opcode == DVM_MONITOR);
     assert(inst.num_operands == 1);
     assert(inst.operands[0].header.info.type == 0);
@@ -185,7 +185,7 @@ void test_monitor()
     sexp_free(sexp);
     
     assert(NULL != sexp_parse("(monitor-exit v123)", &sexp));
-    assert(0 == dalvik_instruction_from_sexp(sexp, &inst, 0 , NULL));
+    assert(0 == dalvik_instruction_from_sexp(sexp, &inst, 0));
     assert(inst.opcode == DVM_MONITOR);
     assert(inst.num_operands == 1);
     assert(inst.operands[0].header.info.type == 0);
@@ -203,7 +203,7 @@ void test_packed()
            "  l458,     ;case458\n"
            "  ldefault  ;default\n"
            ")", &sexp));
-    assert(0 == dalvik_instruction_from_sexp(sexp, &inst, 0, NULL));
+    assert(0 == dalvik_instruction_from_sexp(sexp, &inst, 0));
     assert(DVM_SWITCH == inst.opcode);
     assert(3 == inst.num_operands);
     assert(123 == inst.operands[0].payload.uint16);
@@ -236,7 +236,7 @@ void test_sparse()
            "    (65535 sp4)\n"
            "    (default sp5))", 
            &sexp));
-    assert(0 == dalvik_instruction_from_sexp(sexp, &inst, 0, NULL));
+    assert(0 == dalvik_instruction_from_sexp(sexp, &inst, 0));
     assert(inst.opcode == DVM_SWITCH);
     assert(inst.flags == DVM_FLAG_SWITCH_SPARSE);
     assert(inst.num_operands == 2);
@@ -272,7 +272,7 @@ void test_sparse()
 void test_arrayops()
 {
     assert(NULL != sexp_parse("(aput v1 v2 v3)", &sexp));
-    assert(0 == dalvik_instruction_from_sexp(sexp, &inst, 0, NULL));
+    assert(0 == dalvik_instruction_from_sexp(sexp, &inst, 0));
     assert(inst.opcode == DVM_ARRAY);
     assert(inst.flags = DVM_FLAG_ARRAY_PUT);
     assert(inst.num_operands == 3);
@@ -286,7 +286,7 @@ void test_arrayops()
     dalvik_instruction_free(&inst);
 
     assert(NULL != sexp_parse("(aput-object v1 v2 v3)", &sexp));
-    assert(0 == dalvik_instruction_from_sexp(sexp, &inst, 0, NULL));
+    assert(0 == dalvik_instruction_from_sexp(sexp, &inst, 0));
     assert(inst.opcode == DVM_ARRAY);
     assert(inst.flags = DVM_FLAG_ARRAY_PUT);
     assert(inst.num_operands == 3);
@@ -300,7 +300,7 @@ void test_arrayops()
     dalvik_instruction_free(&inst);
     
     assert(NULL != sexp_parse("(aget-object v1 v2 v3)", &sexp));
-    assert(0 == dalvik_instruction_from_sexp(sexp, &inst, 0, NULL));
+    assert(0 == dalvik_instruction_from_sexp(sexp, &inst, 0));
     assert(inst.opcode == DVM_ARRAY);
     assert(inst.flags = DVM_FLAG_ARRAY_GET);
     assert(inst.num_operands == 3);
@@ -316,7 +316,7 @@ void test_arrayops()
 void test_instanceops()
 {
     assert(NULL != sexp_parse("(iput v1 v2 myclass.Property1 [array [object java.lang.String]])", &sexp));
-    assert(0 == dalvik_instruction_from_sexp(sexp, &inst, 0, NULL));
+    assert(0 == dalvik_instruction_from_sexp(sexp, &inst, 0));
     assert(inst.opcode == DVM_INSTANCE);
     assert(inst.flags = DVM_FLAG_INSTANCE_PUT);
     assert(inst.num_operands == 5);
@@ -326,7 +326,7 @@ void test_instanceops()
 void test_invoke()
 {
     assert(NULL != sexp_parse("(invoke-virtual {v1,v2,v3} this/is/a.test int int int)", &sexp));
-    assert(0 == dalvik_instruction_from_sexp(sexp,&inst, 0, NULL));
+    assert(0 == dalvik_instruction_from_sexp(sexp,&inst, 0));
     assert(inst.opcode == DVM_INVOKE);
     assert(inst.flags == DVM_FLAG_INVOKE_VIRTUAL);
     assert(inst.num_operands == 5);
