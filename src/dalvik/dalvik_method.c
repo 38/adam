@@ -190,7 +190,7 @@ dalvik_method_t* dalvik_method_from_sexp(sexpression_t* sexp, const char* class_
                 LOG_ERROR("can not create new instruction");
                 goto ERR;
             }
-            if(dalvik_instruction_from_sexp(this_smt, inst, current_line_number, file) < 0)
+            if(dalvik_instruction_from_sexp(this_smt, inst, current_line_number) < 0)
             {
                 LOG_ERROR("can not recognize instuction %s", sexp_to_string(this_smt, NULL));
                 goto ERR;

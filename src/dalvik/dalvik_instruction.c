@@ -81,8 +81,21 @@ static inline void _dalvik_instruction_operand_setup(dalvik_operand_t* operand, 
     operand->header.flags = flags;
     operand->payload.uint64 = payload;
 }
+static inline int _dalvik_instruction_write_annotation(dalvik_instruction_t* inst, const void* value, size_t size)
+{
+    char* mem_start = (char*)(inst->annotation_begin + inst->num_operands);
+    if(mem_start + size < inst->annotation_end)
+    {
+        memcpy(mem_start, value, size);
+        return 0;
+    }
+    else
+        LOG_WARNING("no space for annotation for instruction(opcode = 0x%x, flags = 0x%x)", inst->opcode, inst->flags);
+    return -1;
+}
 #define __DI_CONSTRUCTOR(kw) static inline int _dalvik_instruction_##kw(sexpression_t* next, dalvik_instruction_t* buf)
 #define __DI_SETUP_OPERAND(id, flag, value) do{_dalvik_instruction_operand_setup(buf->operands + (id), (flag), (uint64_t)(value));}while(0)
+#define __DI_WRITE_ANNOTATION(what, sz) do{_dalvik_instruction_write_annotation(buf, &(what), (sz));}while(0)
 #define __DI_REGNUM(buf) (atoi((buf)+1))
 #define __DI_INSNUM(buf) (atoi(buf))
 #define __DI_INSNUMLL(buf) (atoll(buf))
@@ -953,12 +966,30 @@ __DI_CONSTRUCTOR(NEW)
         if(!sexp_match(next, "L?A", &size, &next)) return -1;
         __DI_SETUP_OPERAND(1, 0, __DI_REGNUM(size));
     }
-    if(NULL == (path = sexp_get_object_path(next, NULL))) return -1;
-    __DI_SETUP_OPERAND(buf->opcode == DVM_ARRAY?2:1, 
-                       DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_CLASS) |
-                       DVM_OPERAND_FLAG_CONST,
-                       path);
-    
+    if(buf->opcode == DVM_INSTANCE)
+    {
+        if(NULL == (path = sexp_get_object_path(next, NULL))) return -1;
+        __DI_SETUP_OPERAND(1, 
+                           DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_CLASS) |
+                           DVM_OPERAND_FLAG_CONST,
+                           path);
+        buf->num_operands = 2; 
+    }
+    else
+    {
+        dalvik_type_t* type;
+        sexpression_t* type_sexp;
+        if(!sexp_match(next, "(_?", &type_sexp)) return -1;
+        if(NULL == (type = dalvik_type_from_sexp(type_sexp))) return -1;
+        __DI_SETUP_OPERAND(2, 
+                           DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_TYPEDESC) |
+                           DVM_OPERAND_FLAG_CONST,
+                           type);
+        buf->num_operands = 3; 
+    }
+    static dalvik_instruction_newidx_t idx = 0;
+    __DI_WRITE_ANNOTATION(idx, sizeof(idx));
+    idx ++;
     return 0;
 }
 __DI_CONSTRUCTOR(FILLED)
@@ -967,7 +998,7 @@ __DI_CONSTRUCTOR(FILLED)
     return 0;
 }
 #undef __DI_CONSTRUCTOR
-int dalvik_instruction_from_sexp(sexpression_t* sexp, dalvik_instruction_t* buf, int line, const char* file)
+int dalvik_instruction_from_sexp(sexpression_t* sexp, dalvik_instruction_t* buf, int line)
 {
 #ifdef PARSER_COUNT
     dalvik_instruction_count ++;
@@ -1047,7 +1078,7 @@ int dalvik_instruction_from_sexp(sexpression_t* sexp, dalvik_instruction_t* buf,
     if(rc == 0)
     {
         buf->line = line;
-        buf->file = file;
+        //buf->file = file;
     }
     if(rc == -1)
     {

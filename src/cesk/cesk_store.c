@@ -131,7 +131,98 @@ cesk_value_t* cesk_store_get_rw(cesk_store_t* store, uint32_t addr)
     }
     return val;
 }
-
+uint32_t cesk_store_allocate(cesk_store_t** p_store, dalvik_instruction_t* inst)
+{
+    cesk_store_t* store = *p_store;
+    dalvik_instruction_newidx_t idx;
+    dalvik_instruction_read_annotation(inst, &idx, sizeof(idx));
+    uint32_t  init_slot = (idx * 2654435761ul)  % CESK_STORE_BLOCK_NSLOTS;
+    uint32_t  slot = init_slot;
+    /* here we perform a quadratic probing inside each block
+     * But we do not jump more than 5 times in one block
+     * After tried 5 jumps, the allocator should allocate a 
+     * new store block anyway.
+     */
+    int empty_block = -1;
+    int empty_offset = -1;
+    int equal_block = -1;
+    int equal_offset = -1;
+    int attempt;
+    for(attempt = 0; attempt < 5; attempt ++)
+    {
+        int block;
+        LOG_DEBUG("attempt #%d @%d for instruction %d", attempt, slot, idx);
+        for(block = 0; block < store->nblocks; block ++)
+        {
+            if(store->blocks[block]->slots[slot].value == NULL && empty_offset == -1)
+            {
+                LOG_DEBUG("find a empty slot @ (block = %d, offset = %d)", block, slot);
+                empty_block = block;
+                empty_offset = slot;
+            }
+            if(store->blocks[block]->slots[slot].value && 
+               store->blocks[block]->slots[slot].idx == idx)
+            {
+                LOG_DEBUG("find the equal slot @ (block = %d, offset = %d)", block, slot);
+                equal_block = block;
+                equal_offset = slot;
+            }
+            if(equal_offset != -1) break;
+        }
+        if(equal_offset != -1) break;
+        slot = (slot * slot + 100007 * slot + 634567) % CESK_STORE_BLOCK_NSLOTS;
+    }
+    /* After look for empty slot / equal slot */
+    if(empty_offset == -1 && equal_offset == -1)
+    {
+        /* no empty slot, no equal slot, allocate a new page */
+        LOG_DEBUG("can not allocate a store entry for this object, allocate a new block. current_size = %d, num_ent = %d", 
+                   store->nblocks, store->num_ent);
+        store = realloc(store, sizeof(cesk_store_t) + sizeof(cesk_store_block_t*) * (store->nblocks + 1));
+        if(NULL == store)
+        {
+            LOG_ERROR("can not increase the size of store");
+            return CESK_STORE_ADDR_NULL;
+        }
+        (*p_store) = store;
+        store->blocks[store->nblocks] = (cesk_store_block_t*)malloc(CESK_STORE_BLOCK_SIZE);
+        if(NULL ==  store->blocks[store->nblocks])
+        {
+            LOG_ERROR("can not allocate a new page for the block");
+            return CESK_STORE_ADDR_NULL;
+        }
+        memset(store->blocks[store->nblocks], 0, CESK_STORE_BLOCK_SIZE);
+        store->blocks[store->nblocks]->refcnt ++;
+        empty_block = store->nblocks ++;
+        empty_offset = init_slot;   /* use the init_slot, so that we can locate it faster */
+    }
+    if(equal_offset == -1)
+    {
+        /* if there's no equal entry */
+        if(empty_offset != -1)
+        {
+            LOG_DEBUG("allocate %d (block=%d, offset = %d) for instruction %d", 
+                       empty_block * CESK_STORE_BLOCK_NSLOTS + empty_offset, empty_block, empty_offset);
+            store->blocks[empty_block]->slots[empty_offset].idx = idx;
+            return empty_block * CESK_STORE_BLOCK_NSLOTS + empty_offset;
+        }
+        else
+        {
+            LOG_ERROR("neither empty slot or equal entry has been found in the store, allocation failed");
+            return CESK_STORE_ADDR_NULL;
+        }
+    }
+    else
+    {
+        /* some equal entry */
+        LOG_DEBUG("reuse %d (block = %d, offset = %d for instruction %d",
+                   equal_block * CESK_STORE_BLOCK_NSLOTS + equal_offset, equal_block, equal_offset);
+        store->blocks[equal_block]->slots[equal_offset].reuse = 1;   
+        return equal_block * CESK_STORE_BLOCK_NSLOTS  + equal_offset;
+    }
+}
+#if 0
+/* this allocator use allocte a fresh address, so it's deprecated */
 uint32_t cesk_store_allocate(cesk_store_t** p_store)
 {
     cesk_store_t* store = *p_store;
@@ -182,7 +273,7 @@ uint32_t cesk_store_allocate(cesk_store_t** p_store)
 FOUND:
     return block * CESK_STORE_BLOCK_NSLOTS + offset;
 }
-
+#endif
 int cesk_store_attach(cesk_store_t* store, uint32_t addr,cesk_value_t* value)
 {
     if(NULL == store || CESK_STORE_ADDR_NULL == addr || NULL == value)

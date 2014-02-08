@@ -4,6 +4,7 @@
 #include <constants.h>
 
 #include <cesk/cesk_value.h>
+#include <dalvik/dalvik_instruction.h>
 
 #define CESK_STORE_ADDR_NULL 0xfffffffful
 
@@ -14,7 +15,9 @@
  * Gabage Collection easily.
  */
 typedef struct {
-    uint32_t        refcnt;
+    uint32_t        refcnt:31;        /* this refcnt is the counter inside this frame */
+    uint8_t         reuse:1;          /* if this address is reused, because same insturction should allocate same address */
+    dalvik_instruction_newidx_t idx;  /* instruction index created this object */
     cesk_value_t*   value;
 } cesk_store_slot_t;
 typedef struct {
@@ -44,8 +47,12 @@ const cesk_value_t* cesk_store_get_ro(cesk_store_t* store, uint32_t addr);
 /* allocate a fresh address for a new value, CESK_STORE_ADDR_NULL indicates an error 
  * If the store is resized, the address might be change,
  * So the parameter store might change after allocate function is called
+ * 
+ * Since the allocation function always returns the same addression for the same instruction
+ * so we should know which instruction required the store to allocate a fresh address
  */
-uint32_t cesk_store_allocate(cesk_store_t** p_store);
+uint32_t cesk_store_allocate(cesk_store_t** p_store, dalvik_instruction_t* inst);
+
 /* attach a value to an address, >0 means success, <0 error */
 int cesk_store_attach(cesk_store_t* store, uint32_t addr,cesk_value_t* value);
 
