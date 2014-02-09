@@ -1,6 +1,11 @@
 #ifndef __CONSTANTS_H__
 #define __CONSTANTS_H__
 
+/* initial size of a vector */
+#ifndef VECTOR_INIT_CAP
+#   define VECTOR_INIT_CAP 32
+#endif /* VECTOR_INIT_CAP */
+
 /* the size of label pool */
 #ifndef DAVLIK_LABEL_POOL_SIZE
 #   define DAVLIK_LABEL_POOL_SIZE 655217

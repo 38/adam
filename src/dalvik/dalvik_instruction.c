@@ -15,11 +15,11 @@ int dalvik_instruction_count = 0;
 
 dalvik_instruction_t* dalvik_instruction_pool = NULL;
 
-size_t _dalvik_instruction_pool_capacity = DALVIK_POOL_INIT_SIZE;
+static size_t _dalvik_instruction_pool_capacity = DALVIK_POOL_INIT_SIZE;
 
-size_t _dalvik_instruction_pool_size = 0;
+static size_t _dalvik_instruction_pool_size = 0;
 
-int _dalvik_instruction_pool_resize()
+static int _dalvik_instruction_pool_resize()
 {
     LOG_DEBUG("resize dalvik instruction pool from %d to %d", _dalvik_instruction_pool_size, 
                                                               _dalvik_instruction_pool_size *2);

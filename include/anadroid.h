@@ -1,4 +1,9 @@
 #ifndef __ANDADROID_H__
+/*
+ * anadroid.c: 
+ *  1. Global Initalization & Finalization 
+ *  2. Include all header files
+ */
 #include <stdint.h>
 
 #include <stringpool.h>

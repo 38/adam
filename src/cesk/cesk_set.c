@@ -248,7 +248,5 @@ uint32_t cesk_set_iter_next(cesk_set_iter_t* iter)
     return ret;
 }
 //TODO:
-/* join two set. dest := dest + sour */
 int cesk_set_join(cesk_set_t* dest, cesk_set_t* sour); 
-/* push a signle element to the set. dest := dest + {addr} */
 int cesk_set_push(cesk_set_t* dest, uint32_t addr);

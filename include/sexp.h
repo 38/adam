@@ -2,7 +2,30 @@
 #define __SEXP_H__
 #include <stdint.h>
 #include <stdlib.h>
-
+/*
+ * sexp.h: Utils for maintanance of S-Expression.
+ * This file provides functions to parse, process a S-Expression.
+ * Syntax of S-Expression:
+ *      sexp := atom | list
+ *      list := (sexp*)
+ *      atom := stirng|literal
+ * The parser parse a list to a cons:
+ *      "(1 2 3 4)" will be parseed as 
+ *      (cons 1 (cons 2 (cons 3 (cons 4 NIL))))
+ *
+ * function sexp_parse is used for parse a S-Expression:
+ *      sexp_parse("(invoke-direct java/lang/string.length,1)");
+ * Notice that all string include literal and string will be converted 
+ * to a pooled string after parsed. So we can compare the string
+ * by comparing the memory address.
+ *
+ * function sexp_match can perform a pattern match like want we do in
+ * functional programming languages:
+ *      sexp_match(sexp, "(L=L?C", TOKEN1, lit2, tail);
+ * This function returns 1 if the S-Expression matchs pattern
+ * TOKEN1 :: lit2 :: tail
+ *
+ */
 /* Types of S-Expression */ 
 enum{
     /* 
@@ -77,6 +100,7 @@ const char* sexp_get_object_path(sexpression_t* sexpr, sexpression_t** remaining
 /* sexp_length(s) <==> (length s) */
 int sexp_length(sexpression_t* sexp);
 
+/* convert sexpression to string */
 char* sexp_to_string(sexpression_t* sexp, char* buf);
 
 #define SEXP_NIL NULL

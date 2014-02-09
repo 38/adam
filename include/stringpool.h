@@ -1,16 +1,29 @@
 #ifndef __STRINGPOOL_H__
 #define __STRINGPOOL_H__
+/*
+ * stringpool.h: the string pool utils
+ * string pool manages a group of string. User can query the string pool,
+ * and get an address of the pooled string which is equal to the query string.
+ * For two euqal strings, the query function always returns the same address.
+ * In this way, we can use pointer comparasion to compare the equality of the string.
+ *
+ * In this project, only string read from file are not pooled. In this way, we always
+ * compare two string by comparing thier address
+ *
+ * SHOULD BE INITIALIZED BEFORE USE
+ */
 #include <constants.h>
 #include <stdint.h>
 #include <stdio.h>
+
 /* 
  * query a string in the pool, if the string is alread in the pool, return the memory in pool direcly , 
  * if not, the allocate a new item in the pool
  */
 const char* stringpool_query(const char* str);
 
+/* Initialization & Finalization */
 int stringpool_init(int poolsize);
-
 void stringpool_fianlize(void);
 
 /* 

@@ -1,10 +1,10 @@
 #ifndef __VECTOR_H__
 #define __VECTOR_H__
+/* A simple vector, which can dynamic resize at run time */
 #include <stdint.h>
 #include <stdlib.h>
-#ifndef VECTOR_INIT_CAP
-#   define VECTOR_INIT_CAP 32
-#endif /* VECTOR_INIT_CAP */
+#include <constants.h>
+
 typedef struct {
     size_t  capacity;       /* Current Capacity of the vector, used for resize */
     size_t  size;           /* Current used size of vector */
@@ -15,6 +15,8 @@ typedef struct {
 vector_t* vector_new(size_t elem_size);  /* Create a new vector */
 void      vector_free(vector_t* vec);      /* free the vector after use */
 int       vector_pushback(vector_t* vec, void* data);  /* push an element at the end of the vector */
+
+/* Get the element idx in the vector */
 static inline void* vector_get(vector_t* vec, int idx) 
 {
 #ifndef CHECK_EVERYTHING   /* For performance reason, we DO NOT check the validity of vector. */
