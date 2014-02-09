@@ -113,7 +113,7 @@ static inline void* _cesk_set_hash_find(uint32_t setidx, uint32_t addr)
 static inline uint32_t _cesk_set_idx_alloc(cesk_set_info_entry_t** p_entry)
 {
     static uint32_t next_idx = 0;
-    cesk_set_info_entry_t* entry = _cesk_set_hash_insert(next_idx, CESK_STORE_ADDR_NULL);
+    cesk_set_info_entry_t* entry = (cesk_set_info_entry_t*)_cesk_set_hash_insert(next_idx, CESK_STORE_ADDR_NULL);
     if(NULL == entry)
     {
         LOG_ERROR("can not insert the set info to hash table");
@@ -247,6 +247,138 @@ uint32_t cesk_set_iter_next(cesk_set_iter_t* iter)
     iter->next = iter->next->next;
     return ret;
 }
-//TODO:
-int cesk_set_join(cesk_set_t* dest, cesk_set_t* sour); 
-int cesk_set_push(cesk_set_t* dest, uint32_t addr);
+/* for performance reason, we also maintain reference counter here
+ * Because we assume the caller always returns a new set rather than 
+ * the old one, if this function is called
+ */
+static inline uint32_t _cesk_set_duplicate(cesk_set_info_entry_t* info, cesk_set_info_entry_t** new)
+{
+    //cesk_set_info_entry_t* info = (cesk_set_info_entry_t*)_cesk_set_hash_find(idx, CESK_STORE_ADDR_NULL);
+    uint32_t idx;
+    idx = ((cesk_set_node_t*)(((char*)info) - sizeof(cesk_set_node_t)))->set_idx;
+    
+    if(NULL == info)
+    {
+        LOG_ERROR("can not find the set (idx = %d)", idx);
+        return CESK_SET_INVALID;
+    }
+    cesk_set_info_entry_t* new_info;
+    uint32_t new_idx = _cesk_set_idx_alloc(&new_info);
+    if(NULL == new_info) 
+    {
+        LOG_ERROR("can not create a new set");
+        return CESK_SET_INVALID;
+    }
+    new_info->size = info->size;
+
+    new_info->refcnt = 1;
+    info->refcnt --;
+
+    new_info->first = NULL;
+
+    /* duplicate the elements */
+    cesk_set_node_t* ptr;
+    for(ptr = info->first; NULL != ptr; ptr = ptr->data_entry->next)
+    {
+        uint32_t addr = ptr->addr;
+        /* 
+         * we do not need to check if the element is in the set, because the set is 
+         * newly created and must be empty 
+         */
+        cesk_set_node_t* node = (cesk_set_node_t*)(((char*)_cesk_set_hash_insert(new_idx, addr)) - sizeof(cesk_set_node_t));
+        node->data_entry->next = new_info->first;
+        new_info->first = node;
+    }
+
+    if(NULL != new) (*new) = new_info;
+
+    return new_idx;
+}
+int cesk_set_push(cesk_set_t* dest, uint32_t addr)
+{
+    if(NULL == dest || CESK_STORE_ADDR_NULL == addr)
+        return -1;
+    if(CESK_SET_INVALID == dest->set_idx)
+        return -1;
+    cesk_set_info_entry_t *info;
+    info = (cesk_set_info_entry_t*)_cesk_set_hash_find(dest->set_idx, CESK_STORE_ADDR_NULL);
+    if(NULL == info)
+    {
+        LOG_ERROR("can not find set #%d", dest->set_idx);
+        return -1;
+    }
+    if(info->refcnt > 1)
+    {
+        LOG_DEBUG("set #%d is refered by %d set objects, duplicate before writing", 
+                   dest->set_idx,
+                   info->refcnt);
+        cesk_set_info_entry_t *new;
+        uint32_t idx = _cesk_set_duplicate(info, &new);
+        if(CESK_SET_INVALID == idx)
+        {
+            LOG_ERROR("error during duplicate the set");
+            return -1;
+        }
+        dest->set_idx = idx;
+        info = new;
+    }
+    /* here we need to check the duplicate element, because 
+     * the set is not empty and might contains the same element
+     * already
+     */
+    if(NULL == _cesk_set_hash_find(dest->set_idx, addr))
+    {
+        /* if this is not a duplicate */
+        cesk_set_node_t* node = (cesk_set_node_t*)(((char*)_cesk_set_hash_insert(dest->set_idx, addr)) - sizeof(cesk_set_node_t));
+        node->data_entry->next = info->first;
+        info->first = node; 
+    }
+    return 0;
+}
+int cesk_set_join(cesk_set_t* dest, cesk_set_t* sour)
+{
+    if(NULL == sour || NULL == dest) return -1;
+    if(CESK_SET_INVALID == dest->set_idx ||
+       CESK_SET_INVALID == sour->set_idx)
+        return -1;
+    cesk_set_info_entry_t *info_dst;
+    info_dst = (cesk_set_info_entry_t*)_cesk_set_hash_find(dest->set_idx, CESK_STORE_ADDR_NULL);
+    if(NULL == info_dst) 
+    {
+        LOG_ERROR("can not find set #%d", dest->set_idx);
+        return -1;
+    }
+    cesk_set_info_entry_t *info_src;
+    info_src = (cesk_set_info_entry_t*)_cesk_set_hash_find(sour->set_idx, CESK_STORE_ADDR_NULL);
+    if(NULL == info_src)
+    {
+        LOG_ERROR("can not find set #%d", sour->set_idx);
+        return -1;
+    }
+    if(info_dst->refcnt > 1)
+    {
+        LOG_DEBUG("set #%d is refered by %d set objects, duplicate it before merging", dest->set_idx, info_dst->refcnt);
+        cesk_set_info_entry_t *new;
+        uint32_t idx = _cesk_set_duplicate(info_dst, &new);
+        if(CESK_SET_INVALID == idx)
+        {
+            LOG_ERROR("error during duplicate the set");
+            return -1;
+        }
+        dest->set_idx = idx;
+        info_dst = new;
+    }
+    cesk_set_node_t* ptr;
+    for(ptr = info_src->first; NULL != ptr; ptr = ptr->data_entry->next)
+    {
+        uint32_t addr = ((cesk_set_node_t*)(((char*)ptr) - sizeof(cesk_set_node_t)))->addr;
+        if(NULL == _cesk_set_hash_find(dest->set_idx, addr))
+        {
+            /* if this is not a duplicate */
+            cesk_set_node_t* node = (cesk_set_node_t*)(((char*)_cesk_set_hash_insert(dest->set_idx, addr)) - sizeof(cesk_set_node_t));
+            node->data_entry->next = info_dst->first;
+            info_dst->first = node; 
+        }
+    }
+    return 0;
+}
