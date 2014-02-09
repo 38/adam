@@ -1,3 +1,7 @@
+<<<<<<< HEAD
+=======
+#include <adam.h>
+>>>>>>> rename to adam
 #include <dalvik/dalvik_class.h>
 const char input[] = 
 "(class (attrs ) antlr/TokenRangeElement\n"
@@ -153,11 +157,12 @@ const char input[] =
 #include <assert.h>
 int main()
 {
-    anadroid_init();
+    adam_init();
     sexpression_t* sexp;
     dalvik_class_t* class;
     assert(sexp_parse(input, &sexp));
     assert(NULL != (class = dalvik_class_from_sexp(sexp)));
-    anadroid_finalize();
+    sexp_free(sexp);
+    adam_finalize();
     return 0;
 }

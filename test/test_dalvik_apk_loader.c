@@ -1,4 +1,4 @@
-#include <anadroid.h>
+#include <adam.h>
 #include <dalvik/dalvik_loader.h>
 void load_apk_dir(const char* path)
 {
@@ -6,8 +6,8 @@ void load_apk_dir(const char* path)
 }
 int main(int argv, char** argc)
 {
-    anadroid_init();
+    adam_init();
     load_apk_dir(argc[1]);
-    anadroid_finalize();
+    adam_finalize();
     return 0;
 }

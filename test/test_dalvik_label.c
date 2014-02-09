@@ -1,9 +1,9 @@
-#include <anadroid.h>
+#include <adam.h>
 #include <assert.h>
 
 int main()
 {
-    anadroid_init();
+    adam_init();
     const char* pooled_str;
     int i;
     for(i = 0; i < 10000; i ++)
@@ -29,6 +29,6 @@ int main()
         assert(id == i);
     }
 
-    anadroid_finalize();
+    adam_finalize();
     return 0;
 }

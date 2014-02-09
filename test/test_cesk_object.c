@@ -1,9 +1,9 @@
-#include <anadroid.h>
+#include <adam.h>
 #include <cesk/cesk_object.h>
 #include <assert.h>
 int main()
 {
-    anadroid_init();
+    adam_init();
     dalvik_loader_from_directory("../testdata/AndroidAntlr");
     dalvik_loader_summary();
     cesk_object_t* object = cesk_object_new(stringpool_query("antlr/ANTLRTokdefParser"));
@@ -13,6 +13,6 @@ int main()
     assert(res2 != NULL);
     assert(*res2 == 0xfffffffful);
     cesk_object_free(object);
-    anadroid_finalize();
+    adam_finalize();
     return 0;
 }

@@ -1,13 +1,13 @@
 #include <dalvik/dalvik_method.h>
 #include <sexp.h>
 #include <assert.h>
-#include <anadroid.h>
+#include <adam.h>
 sexpression_t* sexp;
 dalvik_method_t* method;
 
 int main()
 {
-    anadroid_init();
+    adam_init();
     const char* method_code =
 "(method (attrs public ) visit([object antlr/collections/AST] )void\n"
 "  (limit registers 7)\n"
@@ -124,6 +124,12 @@ int main()
     assert(NULL != (method = dalvik_method_from_sexp(sexp, NULL, NULL)));
     sexp_free(sexp);
     dalvik_method_free(method);
-    anadroid_finalize();
+    char input2[] = "(method (attrs public abstract ) beginTree([object antlr/Token] )void (annotation systemVisibility [object dalvik/annotation/Throws] (value [array [object java/lang/String]] [object antlr/SemanticException]) ) )";
+    //TODO: TEST IT. ISSUE : should not be a failure
+    assert(NULL != sexp_parse(input2, &sexp));
+    assert(NULL != (method = dalvik_method_from_sexp(sexp, NULL, NULL)));
+    sexp_free(sexp);
+    dalvik_method_free(method);
+    adam_finalize();
     return 0;
 }

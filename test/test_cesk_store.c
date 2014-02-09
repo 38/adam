@@ -1,9 +1,9 @@
 #include <assert.h>
-#include <anadroid.h>
+#include <adam.h>
 #include <cesk/cesk_store.h>
 int main()
 {
-    anadroid_init();
+    adam_init();
     
     dalvik_loader_from_directory("../testdata/AndroidAntlr");
     dalvik_loader_summary();
@@ -36,6 +36,6 @@ int main()
     cesk_store_free(store2);
     cesk_store_free(store3);
 
-    anadroid_finalize();
+    adam_finalize();
     return 0;
 }
