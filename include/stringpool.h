@@ -1,30 +1,8 @@
 #ifndef __STRINGPOOL_H__
 #define __STRINGPOOL_H__
-
+#include <constants.h>
 #include <stdint.h>
 #include <stdio.h>
-
-#define STRINGPOOL_MURMUR_C1 0xcc9e2d51ul
-#define STRINGPOOL_MURMUR_C2 0x1b873593ul
-#define STRINGPOOL_MURMUR_N  0xe6546b64ul
-#define STRINGPOOL_MURMUR_R1 15
-#define STRINGPOOL_MURMUR_R2 13
-#define STRINGPOOL_MURMUR_M  5
-#define STRINGPOOL_MURMUR_SEED 0xf3f53423l
-
-#define STRINGPOOL_MULTIPLY_SEED 0x23f4537l
-#define STRINGPOOL_MULTIPLY_M    0xee6b27ebul
-
-#define STRINGPOOL_SUM_M  0xfffe7985ul
-#define STRINGPOOL_SUM_R1 17
-#define STRINGPOOL_SUM_R2 15
-
-#define STRINGPOOL_ELF_MSK 0xf0000000ul
-
-
-
-
-
 /* 
  * query a string in the pool, if the string is alread in the pool, return the memory in pool direcly , 
  * if not, the allocate a new item in the pool
