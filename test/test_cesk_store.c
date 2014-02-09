@@ -1,3 +1,4 @@
+#include <assert.h>
 #include <anadroid.h>
 #include <cesk/cesk_store.h>
 int main()
@@ -30,6 +31,7 @@ int main()
 
     cesk_value_t* value_rw = cesk_store_get_rw(store3, addr);
 
+    assert(value_ro != value_rw);
     cesk_store_free(store);
     cesk_store_free(store2);
     cesk_store_free(store3);

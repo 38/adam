@@ -7,4 +7,5 @@ int main()
     dalvik_loader_from_directory("../testdata");
     dalvik_loader_summary();
     anadroid_finalize();
+    return 0;
 }

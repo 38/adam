@@ -25,8 +25,9 @@
 #include <dalvik/dalvik_method.h>
 #include <dalvik/dalvik_exception.h>
 #include <dalvik/dalvik_attrs.h>
+#include <dalvik/dalvik_loader.h>
 
 void dalvik_init(void);
-void dalvik_fianlize(void);
+void dalvik_finalize(void);
 
 #endif

@@ -193,9 +193,11 @@ int stringpool_init(int poolsize)
 }
 void stringpool_fianlize(void)
 {
-    int maxlen = 0;
-    int len = 0;
     int i;
+#if LOG_LEVEL >= 6
+    int len;
+    int maxlen = 0;
+#endif
     for(i = 0; i < _stringpool_size; i ++)
     {
         stringpool_hashnode_t* ptr;
@@ -243,15 +245,15 @@ const char* stringpool_accumulator_query(stringpool_accumulator_t* acc)
 }
 
 /* only for testing purpose, finishing the computation, and return hashs */
-const int* stringpool_accumulator_hash(stringpool_accumulator_t* acc)
+const uint32_t* stringpool_accumulator_hash(stringpool_accumulator_t* acc)
 {
     _stringpool_accu_hash(acc);
     return acc->h;
 }
 /* for testing, compute hash function directly */
-const int* stringpool_hash(const char* str) 
+const uint32_t* stringpool_hash(const char* str) 
 {
-    static int h[4];
+    static uint32_t h[4];
     _stringpool_hash_func(str,h);
     return h;
 }

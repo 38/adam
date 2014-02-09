@@ -236,6 +236,7 @@ cesk_set_iter_t* cesk_set_iter(cesk_set_t* set, cesk_set_iter_t* buf)
         return NULL;
     }
     buf->next = info->first;
+    return buf;
 }
 
 uint32_t cesk_set_iter_next(cesk_set_iter_t* iter)

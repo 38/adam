@@ -179,7 +179,6 @@ static inline const char* _sexpr_parse_literal(const char* str, sexpression_t** 
 const char* sexp_parse(const char* str, sexpression_t** buf)
 {
     if(NULL == str) return NULL;
-    sexpression_t* this; 
     _sexp_parse_ws(&str);
     _sexp_parse_comment(&str);
     if(*str == 0)
@@ -310,7 +309,6 @@ int sexp_match(const sexpression_t* sexpr, const char* pattern, ...)
        if(*pattern == 0 && sexpr == SEXP_NIL && ret) ret = 1;
        else ret = 0;
    }
-DONE:
    va_end(va);
    return ret;
 }

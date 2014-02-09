@@ -7,8 +7,6 @@ static cesk_value_t*  _cesk_value_list = NULL;
 static cesk_value_t*  _cesk_value_numeric_values_storage[3] = {};
 static cesk_value_t** _cesk_value_numeric_values = NULL; 
 
-static cesk_value_t*  _cesk_value_string = NULL;
-
 static cesk_value_t* _cesk_value_boolean[2] = {};
 
 static inline cesk_value_t* _cesk_value_alloc(uint32_t type)
@@ -150,14 +148,12 @@ cesk_value_t* cesk_value_from_classpath(const char* classpath)
 
 cesk_value_t* cesk_value_from_operand(dalvik_operand_t* operand)
 {
-    cesk_value_t* ret = NULL;
     if(NULL == operand) return NULL;
     if(!operand->header.info.is_const)
     {
         LOG_ERROR("can not create a value from a non-constant operand");
         return NULL;
     }
-    int typecode = -1;
     int intval = 0;
     switch(operand->header.info.type)
     {
@@ -242,6 +238,8 @@ cesk_value_t* cesk_value_fork(cesk_value_t* value)
         LOG_ERROR("fixme: fork a set");
         return NULL;
     }
+    LOG_ERROR("unknown type");
+    return NULL;
 }
 #if 0
 // Knuth's multiptive hash function 

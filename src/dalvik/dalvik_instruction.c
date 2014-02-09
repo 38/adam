@@ -187,6 +187,7 @@ __DI_CONSTRUCTOR(RETURN)
     const char* curlit, *dest;
     int rc;
     rc = sexp_match(next, "(L?A", &curlit, &next);
+    if(0 == rc) return -1;
     if(curlit == DALVIK_TOKEN_VOID) /* return-void */
     {
         __DI_SETUP_OPERAND(0, DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_VOID), 0);
@@ -217,6 +218,7 @@ __DI_CONSTRUCTOR(CONST)
     int rc;
     next = sexp_strip(next, DALVIK_TOKEN_4, DALVIK_TOKEN_16, NULL);     /* We don't care the size of instance number */
     rc = sexp_match(next, "(L?A", &curlit, &next);
+    if(0 == rc) return -1;
     if(curlit == DALVIK_TOKEN_HIGH16) /* const/high16 */
     {
         if(sexp_match(next, "(L?L?", &dest, &sour))
@@ -280,6 +282,7 @@ __DI_CONSTRUCTOR(MONITOR)
     const char* curlit, *arg;
     int rc;
     rc = sexp_match(next, "(L?A", &curlit, &next);
+    if(0 == rc) return -1;
     if(curlit == DALVIK_TOKEN_ENTER)  /* monitor-enter */
     {
         buf->flags = DVM_FLAG_MONITOR_ENT;
@@ -307,6 +310,7 @@ __DI_CONSTRUCTOR(CHECK)
     const char* curlit, *sour;
     int rc;
     rc = sexp_match(next, "(L?A", &curlit, &next);
+    if(0 == rc) return -1;
     if(curlit == DALVIK_TOKEN_CAST)  /* check-cast */
     {
         if(sexp_match(next, "(L?A", &sour, &next))

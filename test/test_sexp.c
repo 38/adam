@@ -1,7 +1,8 @@
 #include <sexp.h>
 #include <dalvik/dalvik_tokens.h>
 #include <assert.h>
-
+#include <stringpool.h>
+#include <string.h>
 int main()
 {
     stringpool_init(1027);

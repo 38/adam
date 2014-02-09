@@ -16,6 +16,7 @@ void log_init()
         static char buf[1024];
         static char type[1024];
         static char path[1024];
+        static char mode[1024];
         for(;NULL != fgets(buf, sizeof(buf), fp);)
         {
             char* begin = NULL;
@@ -36,7 +37,13 @@ void log_init()
             if(NULL == begin) begin = buf;
             if(NULL == end)   end = p;
             *end = 0;
-            if(2 != sscanf(begin, "%s%s", type, path)) continue;
+            int rc = sscanf(begin, "%s%s%s", type, path, mode);
+            if(rc < 2) continue;
+            if(rc == 2) 
+            {
+                mode[0] = 'w';
+                mode[1] = '0';
+            }
             int level;
 #define     _STR_TO_ID(name) else if(strcmp(type, #name) == 0) level = name
             if(0);
@@ -67,7 +74,7 @@ void log_init()
                     }
                 if(NULL == outfile)
                 {
-                    outfile = fopen(path, "w");
+                    outfile = fopen(path, mode);
                 }
             }
             if(_log_fp[level] != NULL)

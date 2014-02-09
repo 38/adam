@@ -20,4 +20,5 @@ int main()
     sexp_free(sexp);
 
     anadroid_finalize();
+    return 0;
 }

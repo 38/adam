@@ -102,8 +102,10 @@ dalvik_method_t* dalvik_method_from_sexp(sexpression_t* sexp, const char* class_
         }
         /* First check if the statement is a psuedo-instruction */
         const char* arg;
+#if LOG_LEVEL >= 6
         char buf[40906];
         static int counter = 0;
+#endif
         LOG_DEBUG("#%d current instruction : %s",(++counter) ,sexp_to_string(this_smt, buf) );
         if(sexp_match(this_smt, "(L=L=L?", DALVIK_TOKEN_LIMIT, DALVIK_TOKEN_REGISTERS, &arg))
         {
@@ -143,7 +145,7 @@ dalvik_method_t* dalvik_method_from_sexp(sexpression_t* sexp, const char* class_
                 if(label_st[i] == 1)
                     exceptionset[enbaled_count++] = excepthandler[i];
             }
-            current_ehset = dalvik_exception_new_handler_set(enbaled_count, excepthandler);
+            current_ehset = dalvik_exception_new_handler_set(enbaled_count, exceptionset);
         }
 <<<<<<< HEAD
 =======

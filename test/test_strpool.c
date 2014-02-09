@@ -2,6 +2,7 @@
 #include <stringpool.h>
 #include <string.h>
 #include <assert.h>
+#include <stdlib.h>
 
 const int* stringpool_accumulator_hash(stringpool_accumulator_t* acc);
 const int* stringpool_hash(const char* str);
