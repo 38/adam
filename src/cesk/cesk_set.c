@@ -210,15 +210,27 @@ void cesk_set_free(cesk_set_t* set)
             else 
             {
                 /* first element of the slot */
-                uint32_t h = _cesk_set_idx_hashcode(data_node->set_idx, data_node->addr);
+                uint32_t h = _cesk_set_idx_hashcode(data_node->set_idx, data_node->addr) % CESK_SET_HASH_SIZE;
                 _cesk_set_hash[h] = data_node->next;
             }
             if(NULL != data_node->next) 
                 data_node->next->prev = data_node->prev;
-            free(data_node);
+            cesk_set_node_t* tmp = data_node;
+            data_node = data_node->next;
+            free(tmp);
         }
+        if(NULL != info_node->prev)
+            info_node->prev->next = info_node->next;
+        else
+        {
+            uint32_t h = _cesk_set_idx_hashcode(info_node->set_idx, CESK_STORE_ADDR_NULL) % CESK_SET_HASH_SIZE;
+            _cesk_set_hash[h] = info_node->next;
+        }
+        if(NULL != info_node->next)
+            info_node->next->prev = info_node->prev;
         free(info_node);
     }
+    free(set);
     return;
 }
 
@@ -331,7 +343,8 @@ int cesk_set_push(cesk_set_t* dest, uint32_t addr)
         /* if this is not a duplicate */
         cesk_set_node_t* node = (cesk_set_node_t*)(((char*)_cesk_set_hash_insert(dest->set_idx, addr)) - sizeof(cesk_set_node_t));
         node->data_entry->next = info->first;
-        info->first = node; 
+        info->first = node;
+        info->size ++;
     }
     return 0;
 }
@@ -371,13 +384,14 @@ int cesk_set_join(cesk_set_t* dest, cesk_set_t* sour)
     cesk_set_node_t* ptr;
     for(ptr = info_src->first; NULL != ptr; ptr = ptr->data_entry->next)
     {
-        uint32_t addr = ((cesk_set_node_t*)(((char*)ptr) - sizeof(cesk_set_node_t)))->addr;
+        uint32_t addr = ptr->addr;
         if(NULL == _cesk_set_hash_find(dest->set_idx, addr))
         {
             /* if this is not a duplicate */
             cesk_set_node_t* node = (cesk_set_node_t*)(((char*)_cesk_set_hash_insert(dest->set_idx, addr)) - sizeof(cesk_set_node_t));
             node->data_entry->next = info_dst->first;
-            info_dst->first = node; 
+            info_dst->first = node;
+            info_dst->size ++;
         }
     }
     return 0;

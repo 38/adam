@@ -3,6 +3,7 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
 static char _log_path[8][128] = {};
 static FILE* _log_fp[8] = {};
 void log_init()
