@@ -33,6 +33,7 @@ cesk_store_t* cesk_store_empty_store()
    }
    ret->nblocks = 0;
    ret->num_ent = 0;
+   return ret;
 }
 
 cesk_store_t* cesk_store_fork(cesk_store_t* store)

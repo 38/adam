@@ -30,4 +30,5 @@ int main()
     }
 
     anadroid_finalize();
+    return 0;
 }
