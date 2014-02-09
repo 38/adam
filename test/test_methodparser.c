@@ -1,8 +1,8 @@
 #include <dalvik/dalvik_method.h>
-#include <anadroid.h>
+#include <adam.h>
 int main(int argc, char** argv)
 {
-    anadroid_init();
+    adam_init();
 
     FILE* fp = fopen(argv[1], "r");
     fseek(fp, 0, SEEK_END);
@@ -36,6 +36,6 @@ int main(int argc, char** argv)
         sexp_free(sexp);
     }
     free(buf);
-    anadroid_finalize();
+    adam_finalize();
     return 0;
 }

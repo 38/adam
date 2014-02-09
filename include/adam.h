@@ -1,5 +1,6 @@
-#ifndef __ANDADROID_H__
+#ifndef __ADAM_H__
 /*
+ * ADAM: Another Dalvik Abstract Machine
  * anadroid.c: 
  *  1. Global Initalization & Finalization 
  *  2. Include all header files
@@ -15,6 +16,6 @@
 /* following two function is used for system inintialization and
  * finalization 
  */
-void anadroid_init(void);
-void anadroid_finalize(void);
+void adam_init(void);
+void adam_finalize(void);
 #endif

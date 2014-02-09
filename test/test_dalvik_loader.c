@@ -1,11 +1,11 @@
-#include <anadroid.h>
+#include <adam.h>
 #include <dalvik/dalvik_loader.h>
 
 int main()
 {
-    anadroid_init();
+    adam_init();
     dalvik_loader_from_directory("../testdata");
     dalvik_loader_summary();
-    anadroid_finalize();
+    adam_finalize();
     return 0;
 }

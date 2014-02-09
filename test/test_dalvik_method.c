@@ -1,13 +1,13 @@
 #include <dalvik/dalvik_method.h>
 #include <sexp.h>
 #include <assert.h>
-#include <anadroid.h>
+#include <adam.h>
 sexpression_t* sexp;
 dalvik_method_t* method;
 
 int main()
 {
-    anadroid_init();
+    adam_init();
     const char* method_code =
 "(method (attrs public ) visit([object antlr/collections/AST] )void\n"
 "  (limit registers 7)\n"
@@ -130,6 +130,6 @@ int main()
     assert(NULL != (method = dalvik_method_from_sexp(sexp, NULL, NULL)));
     sexp_free(sexp);
     dalvik_method_free(method);
-    anadroid_finalize();
+    adam_finalize();
     return 0;
 }

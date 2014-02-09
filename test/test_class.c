@@ -1,4 +1,4 @@
-#include <anadroid.h>
+#include <adam.h>
 #include <dalvik/dalvik_class.h>
 #include <dalvik/dalvik_memberdict.h>
 const char input[] = 
@@ -155,12 +155,12 @@ const char input[] =
 #include <assert.h>
 int main()
 {
-    anadroid_init();
+    adam_init();
     sexpression_t* sexp;
     dalvik_class_t* class;
     assert(sexp_parse(input, &sexp));
     assert(NULL != (class = dalvik_class_from_sexp(sexp)));
     sexp_free(sexp);
-    anadroid_finalize();
+    adam_finalize();
     return 0;
 }
