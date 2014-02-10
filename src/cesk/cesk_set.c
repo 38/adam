@@ -396,3 +396,9 @@ int cesk_set_join(cesk_set_t* dest, cesk_set_t* sour)
     }
     return 0;
 }
+int cesk_set_contain(cesk_set_t* set, uint32_t addr)
+{
+    if(NULL == set) return 0;
+    if(addr == CESK_STORE_ADDR_NULL) return 0;
+    return (NULL != _cesk_set_hash_find(set->set_idx, addr));
+}
