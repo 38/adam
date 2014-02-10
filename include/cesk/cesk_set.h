@@ -37,8 +37,12 @@ cesk_set_t* cesk_set_fork(cesk_set_t* sour);
 /* despose a set */
 void cesk_set_free(cesk_set_t* set);
 
+/* check if the set contains some element */
+int cesk_set_contain(cesk_set_t* set, uint32_t addr);
+
 /* init & finalize */
 void cesk_set_init();
 void cesk_set_finalize();
+
 
 #endif /* __CESK_SET_H__ */
