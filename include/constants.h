@@ -31,6 +31,12 @@
 #   define DALVIK_MEMBERDICT_SIZE 100007
 #endif
 
+/* the size of dalvik block cache */
+#ifndef DALVIK_BLOCK_CACHE_SIZE
+#   define DALVIK_BLOCK_CACHE_SIZE 100007
+#endif
+
+
 /* the size of one block in cesk store */
 #ifndef CESK_STORE_BLOCK_SIZE
 #   define CESK_STORE_BLOCK_SIZE 0x4000   /* 16k for each block */
