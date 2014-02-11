@@ -1,0 +1,5 @@
+#ifndef __CONFIG_H__
+#define __CONFIG_H__
+#include <stdint.h>
+typedef @PTR_T@ uintptr_t;
+#endif
