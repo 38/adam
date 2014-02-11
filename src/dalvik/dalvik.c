@@ -7,9 +7,11 @@ void dalvik_init(void)
     dalvik_type_init();
     dalvik_memberdict_init();
     dalvik_exception_init();
+    dalvik_block_init();
 }
 void dalvik_finalize(void)
 {
+    dalvik_block_finalize();
     dalvik_exception_finalize();
     dalvik_memberdict_finalize();
     dalvik_instruction_finalize();

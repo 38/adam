@@ -19,7 +19,7 @@ int       vector_pushback(vector_t* vec, void* data);  /* push an element at the
 /* Get the element idx in the vector */
 static inline void* vector_get(vector_t* vec, int idx) 
 {
-#ifndef CHECK_EVERYTHING   /* For performance reason, we DO NOT check the validity of vector. */
+#ifdef CHECK_EVERYTHING   /* For performance reason, we DO NOT check the validity of vector. */
     if(NULL == vec) return NULL; 
     if(idx >= vec->size) return NULL;
 #endif

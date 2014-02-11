@@ -1,5 +1,8 @@
 #ifndef __DALVIK_TYPE_H__
 #define __DALVIK_TYPE_H__
+
+#include <constants.h>
+
 #include <sexp.h>
 struct _dalvik_type_t;
 typedef struct {
@@ -47,6 +50,12 @@ dalvik_type_t* dalvik_type_from_sexp(sexpression_t* sexp);
 
 /* free the memory */
 void dalvik_type_free(dalvik_type_t* sexp);
+
+/* compare if two types are equal */
+int dalvik_type_equal(const dalvik_type_t* left, dalvik_type_t* right); //TODO
+
+/* compute a hash code for this type */
+hashval_t dalvik_type_hashcode(const dalvik_type_t* type);  //TODO
 
 #define DALVIK_TYPE_ATOM(what)  dalvik_type_atom[DALVIK_TYPECODE_##what]
 

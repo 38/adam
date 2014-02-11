@@ -83,7 +83,8 @@ static inline int _dalvik_memberdict_register_object(const char* class_path, con
     {
         if(ptr->class_path == class_path && ptr->member_name == object_name && ptr->type == type)
         {
-            /* Insert it to a existing list */
+            /* Insert it to a existing lisä¹t */
+            LOG_INFO("find function overloading for %s.%s", class_path, object_name);
             payload->next = ptr->list;
             ptr->list = payload;
             return 0;
