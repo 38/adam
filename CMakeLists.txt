@@ -1,5 +1,15 @@
 cmake_minimum_required(VERSION 2.6)
-project(anadroid)
+include(CheckTypeSize)
+project(adam)
+
+
+check_type_size("void*" SIZE_OF_PTR)
+
+if(SIZE_OF_PTR EQUAL 8)
+    set(PTR_T uint64_t)
+elseif(SIZE_OF_PTR EQUAL 4)
+    set(PTR_T uint32_t)
+endif(SIZE_OF_PTR EQUAL 8)
 
 set(CMAKE_USE_RELATIVE_PATHS ON)
 
@@ -15,6 +25,8 @@ set(LDFLAGS \ )
 
 
 include_directories("include" ".")
+
+configure_file("config.h.in" "config.h")
 
 aux_source_directory(src/ adam_FILES)
 aux_source_directory(src/dalvik adam_FILES)

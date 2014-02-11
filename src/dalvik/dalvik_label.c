@@ -40,7 +40,7 @@ void dalvik_label_finalize(void)
 }
 int dalvik_label_get_label_id(const char* label)
 {
-    int idx = ((uint64_t)label)%DAVLIK_LABEL_POOL_SIZE;
+    int idx = ((uintptr_t)label)%DAVLIK_LABEL_POOL_SIZE;
     dalvik_label_map_t* ptr;
     for(ptr = _dalvik_label_map_table[idx]; ptr; ptr = ptr->next)
         if(ptr->label == label) 

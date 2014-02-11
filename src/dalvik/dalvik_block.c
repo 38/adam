@@ -65,10 +65,10 @@ static inline void _dalvik_block_graph_free(dalvik_block_t* entry)
 static inline hashval_t _dalvik_block_hash(const char* class, const char* method)
 {
     return 
-            (((uint64_t)class & 0xffffffffull) * MH_MULTIPLY) ^ 
-            (((uint64_t)method & 0xffff) * MH_MULTIPLY) ^ 
-            ((uint64_t)method >> 16) ^ 
-            ~((uint64_t)class>>32);
+            (((uintptr_t)class & 0xffffffffull) * MH_MULTIPLY) ^ 
+            (((uintptr_t)method & 0xffff) * MH_MULTIPLY) ^ 
+            ((uintptr_t)method >> 16) ^ 
+            ~((uintptr_t)class>>((sizeof(uintptr_t)/2)));
 }
 void dalvik_block_init()
 {
