@@ -58,6 +58,7 @@ enum {
     DVM_OPERAND_TYPE_LABELVECTOR,
     DVM_OPERAND_TYPE_SPARSE,
     DVM_OPERAND_TYPE_TYPEDESC,
+    DVM_OPERAND_TYPE_TYPELIST,
     DVM_OPERAND_TYPE_FIELD,
     DVM_OPERAND_TYPE_EXCEPTION     /* If a operand is this type, that means the operand won't use the payload */
 };
@@ -108,15 +109,18 @@ typedef struct {
         int32_t            labelid;             /* label id in label pool */
         vector_t*          branches;            /* a group of branch */
         vector_t*          sparse;              /* a sparse-switch oprand */
-        dalvik_type_t*     type;
+        dalvik_type_t*     type;                /* this operand is a type, if the type code is DVM_OPERAND_TYPE_TYPEDESC */
+        dalvik_type_t**    typelist;            /* if the type code is DVM_OPERAND_TYPE_TYPELIST, the pointer points an array of 
+                                                 * points, which ends with a null pointer
+                                                 */
         const char*        field;               /* The field we what to operate */
     } payload;
 } dalvik_operand_t;
 
 typedef struct _dalvik_instruction_t{
     uint8_t            opcode:4;        /* Opcode of the instruction */
-    uint8_t            num_operands:3;   /* How many operand ? */
-    uint16_t           flags:9;        /* Additional flags for instruction, DVM_FLAG_OPTYPE_NAME */
+    uint8_t            num_operands:4;   /* How many operand ? */
+    uint16_t           flags:8;        /* Additional flags for instruction, DVM_FLAG_OPTYPE_NAME */
     int                line;            /* Line number of this instruction */
     struct _dalvik_instruction_t* next; /* The next instruction pointer */
     dalvik_exception_handler_set_t* handler_set;   /* The handler set for exception */

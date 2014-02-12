@@ -358,6 +358,44 @@ const char* sexp_get_object_path(sexpression_t* sexpr, sexpression_t** remaining
     buf[--len] = 0;
     return stringpool_query(buf);
 }
+int sexp_get_method_address(sexpression_t* sexpr, sexpression_t** remaining, const char** path, const char** name)
+{
+    int len = 0;
+    char buf[4096];
+    char* last = NULL;
+    if(sexpr == SEXP_NIL) return -1;
+    for(; sexpr != SEXP_NIL;)  
+    {
+        /* this loop will execute at least once, so last must not be a null value */
+        /* Because the property of parser, we are excepting a cons here */
+        if(sexpr->type != SEXP_TYPE_CONS) 
+            return -1;   
+        sexp_cons_t *cons = (sexp_cons_t*)sexpr->data;
+         /* first should not be a non-literial */
+        if(SEXP_NIL == cons->first || cons->first->type != SEXP_TYPE_LIT) 
+            return -1;   
+        const char *p;
+        last = buf + len - 1;
+        for(p = *(const char**)cons->first->data;
+            *p;
+             p++) buf[len++] = *p;
+        buf[len ++] = '/';
+        sexpr = cons->second;
+        if(cons->seperator != '/')
+            break;
+    }
+    if(NULL != remaining) (*remaining) = sexpr;
+    buf[--len] = 0;
+    (*name) = stringpool_query(last + 1);
+    if(last >= buf)
+    {
+        (*last) = 0;
+        (*path) = stringpool_query(buf);
+    }
+    else
+        (*path) = stringpool_query("");
+    return 0;
+}
 int sexp_length(sexpression_t* sexp)
 {
     if(SEXP_NIL == sexp) return 0;

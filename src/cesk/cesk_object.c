@@ -17,8 +17,8 @@ cesk_object_t* cesk_object_new(const char* classpath)
     for(;;)
     {
         LOG_NOTICE("try to find class %s", classpath);
-        dalvik_class_t* target_class;  /* because class path is unique, so we are just excepting one result */
-        if(NULL == dalvik_memberdict_get_classes(classpath, &target_class, 1))
+        dalvik_class_t* target_class = dalvik_memberdict_get_class(classpath);
+        if(NULL == target_class)
         {
             /* TODO: handle the built-in classes */
             LOG_WARNING("we can not find class %s", classpath);
@@ -48,8 +48,8 @@ cesk_object_t* cesk_object_new(const char* classpath)
         int j;
         for(j = 0; classes[i]->members[j]; j ++)
         {
-            dalvik_field_t* field = NULL;   /* because only function can overload */
-            if(NULL == dalvik_memberdict_get_fields(classes[i]->path, classes[i]->members[j], &field, 1))
+            dalvik_field_t* field = dalvik_memberdict_get_field(classes[i]->path, classes[i]->members[j]);   /* because only function can overload */
+            if(NULL == field)
             {
                 LOG_ERROR("We can not find field %s/%s", classes[i]->path, classes[i]->members[j]);
                 continue;
@@ -92,8 +92,8 @@ uint32_t* cesk_object_get(cesk_object_t* object, const char* classpath, const ch
         return NULL;
     }
     
-    dalvik_field_t* field;   /* because we don't allow define a same field twice */
-    if(NULL == dalvik_memberdict_get_fields(classpath, field_name, &field, 1))
+    dalvik_field_t* field = dalvik_memberdict_get_field(classpath, field_name);
+    if(NULL == field)
     {
         LOG_WARNING("No field named %s/%s", classpath, field_name);
         return NULL;

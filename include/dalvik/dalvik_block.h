@@ -37,6 +37,6 @@ void dalvik_block_init();
 void dalvik_block_finalize();
 
 /* construct a block graph from a function */
-dalvik_block_t* dalvik_block_from_method(const char* classpath, const char* methodname); 
+dalvik_block_t* dalvik_block_from_method(const char* classpath, const char* methodname, dalvik_type_t * const * args); 
 
 #endif

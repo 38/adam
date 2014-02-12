@@ -10,17 +10,13 @@
 #define _TYPE_METHOD 0
 #define _TYPE_FIELD 1
 #define _TYPE_CLASS 2
-typedef struct _dalvik_memberdict_node_list_t {
-    void*       object;
-    struct _dalvik_memberdict_node_list_t* next;
-} dalvik_memberdict_node_list_t;
 typedef struct _dalvik_memberdict_node_t {
-    const char* class_path;
-    const char* member_name;
-    int         type;
-    //void*       object;
-    dalvik_memberdict_node_list_t*   list;
-    struct _dalvik_memberdict_node_t* next;
+    const char* class_path;             /* the class path */
+    const char* member_name;            /* the name of the member */
+    dalvik_type_t* const * args;        /* the type list (only valid for method, otherwise set to NULL */
+    int         type;                   /* type of the object method, field or class */
+    void*       object;                 /* the storage of the object */
+    struct _dalvik_memberdict_node_t* next; 
 } dalvik_memberdict_node_t;
 
 dalvik_memberdict_node_t* _dalvik_memberdict_hash_table[DALVIK_MEMBERDICT_SIZE];
@@ -42,84 +38,72 @@ void dalvik_memberdict_finalize()
         {
             dalvik_memberdict_node_t* old = ptr;
             ptr = ptr->next;
-            dalvik_memberdict_node_list_t* lptr;
-            for(lptr = old->list; lptr;)
+            switch(old->type)
             {
-                dalvik_memberdict_node_list_t* lold;
-                lold = lptr;
-                lptr = lptr->next;
-                if(old->type == _TYPE_METHOD)
-                    dalvik_method_free((dalvik_method_t*)lold->object);
-                else if(old->type == _TYPE_FIELD)
-                    dalvik_field_free((dalvik_field_t*)lold->object);
-                else free(lold->object);
-                free(lold);
+                case _TYPE_METHOD:
+                    dalvik_method_free((dalvik_method_t*)old->object);
+                    break;
+                case _TYPE_FIELD:
+                    dalvik_field_free((dalvik_field_t*)old->object);
+                    break;
+                case _TYPE_CLASS:
+                    /* class type is just a simple list */
+                    free(old->object); 
+                    break;
+                default:
+                    LOG_ERROR("unknown node type in member dict, do not know how to free it");
             }
-            free(old);
         }
     }
 }
 
-static inline uint32_t _dalvik_memberdict_hash(const char* class_path, const char* member_name, int type)
+static inline hashval_t _dalvik_memberdict_hash(const char* class_path, const char* member_name, dalvik_type_t* const * args, int type)
 {
     /* it's fine when running on a 32 bit machine */
-    static const uint32_t typeid[] = {0xe3defu, 0x12fcdeu, 0x2323feu};
-    uint32_t a = ((uintptr_t)class_path) & 0xffffffff;
-    uint32_t b = ((uintptr_t)member_name) & 0xffffffff;
-    return (a * 100003 + b)^typeid[type];
+    static const uint32_t typeid[] = {0xe3deful, 0x12fcdeul, 0x2323feul};
+    hashval_t a = ((uintptr_t)class_path) & 0xffffffff;
+    hashval_t b = ((uintptr_t)member_name) & 0xffffffff;
+    hashval_t c = dalvik_type_list_hashcode(args);
+    return (a * a * 100003 + b * MH_MULTIPLY + c)^typeid[type];
 }
 
-static inline int _dalvik_memberdict_register_object(const char* class_path, const char* object_name, int type, void* obj)
+static inline int _dalvik_memberdict_register_object(const char* class_path, const char* object_name, dalvik_type_t * const * args ,int type, void* obj)
 {
-    int idx = _dalvik_memberdict_hash(class_path, object_name, type)%DALVIK_MEMBERDICT_SIZE;
+    uint32_t idx = _dalvik_memberdict_hash(class_path, object_name, args,type)%DALVIK_MEMBERDICT_SIZE;
     dalvik_memberdict_node_t* ptr;
-    dalvik_memberdict_node_list_t* payload = (dalvik_memberdict_node_list_t*)malloc(sizeof(dalvik_memberdict_node_list_t));
-    if(NULL == payload) return -1;
-    payload->next = NULL;
-    payload->object = obj;
-    for(ptr = _dalvik_memberdict_hash_table[idx];
-        NULL != ptr;
-        ptr = ptr->next)
+    for(ptr = _dalvik_memberdict_hash_table[idx]; NULL != ptr; ptr = ptr->next)
     {
-        if(ptr->class_path == class_path && ptr->member_name == object_name && ptr->type == type)
+        if(ptr->class_path == class_path && 
+           ptr->member_name == object_name && 
+           dalvik_type_list_equal(args, ptr->args))
         {
-            /* Insert it to a existing lisä¹t */
-            LOG_INFO("find function overloading for %s.%s", class_path, object_name);
-            payload->next = ptr->list;
-            ptr->list = payload;
-            return 0;
+            LOG_ERROR("can not register object %s.%s twice", class_path, object_name);
+            return -1;
         }
     }
     ptr = (dalvik_memberdict_node_t*)malloc(sizeof(dalvik_memberdict_node_t));
-    if(NULL == ptr)
-    {
-        free(payload);
-        return -1;
-    }
     ptr->class_path = class_path;
     ptr->member_name = object_name;
+    ptr->args = args;
+    ptr->object = obj;
     ptr->type = type;
-    ptr->list = payload;
     ptr->next = _dalvik_memberdict_hash_table[idx];
     _dalvik_memberdict_hash_table[idx] = ptr;
+    LOG_DEBUG("class member %s.%s is registered", ptr->class_path, ptr->member_name);
     return 0;
 }
 
-int dalvik_memberdict_register_method(
-        const char* class_path, 
-        dalvik_method_t* method)
+int dalvik_memberdict_register_method(const char* class_path, dalvik_method_t* method)
 {
     if(NULL == method) return -1;
-    return _dalvik_memberdict_register_object(class_path, method->name, _TYPE_METHOD, method);
+    return _dalvik_memberdict_register_object(class_path, method->name, method->args_type ,_TYPE_METHOD, method);
 }
 
 
-int dalvik_memberdict_register_field(
-        const char*     class_path,
-        dalvik_field_t* field)
+int dalvik_memberdict_register_field(const char* class_path, dalvik_field_t* field)
 {
     if(NULL == field) return -1;
-    return _dalvik_memberdict_register_object(class_path, field->name, _TYPE_FIELD, field);
+    return _dalvik_memberdict_register_object(class_path, field->name, NULL,_TYPE_FIELD, field);
 }
 
 int dalvik_memberdict_register_class(
@@ -127,52 +111,37 @@ int dalvik_memberdict_register_class(
         dalvik_class_t* class)
 {
     if(NULL == class) return -1;
-    return _dalvik_memberdict_register_object(class_path, NULL, _TYPE_CLASS, class);
+    return _dalvik_memberdict_register_object(class_path, NULL, NULL,_TYPE_CLASS, class);
 }
 
-static inline void* _dalvik_memberdict_find_object(const char* path, const char* name, int type, void** buf, size_t bufsize)
+static inline void* _dalvik_memberdict_find_object(const char* path, const char* name, dalvik_type_t * const * args, int type)
 {
-    int idx = _dalvik_memberdict_hash(path, name, type)%DALVIK_MEMBERDICT_SIZE;
+    uint32_t idx = _dalvik_memberdict_hash(path, name, args ,type)%DALVIK_MEMBERDICT_SIZE;
     dalvik_memberdict_node_t* ptr;
     for(ptr = _dalvik_memberdict_hash_table[idx];
         NULL != ptr;
         ptr = ptr->next)
     {
-        if(ptr->class_path == path && ptr->member_name == name && ptr->type == type)  
+        if(ptr->class_path == path && ptr->member_name == name && dalvik_type_list_equal(ptr->args, args))  
         {
-            dalvik_memberdict_node_list_t* lptr;
-            for(lptr = ptr->list; lptr != NULL && bufsize > 0; bufsize --, buf ++)
-                (*buf) = lptr->object;
-            return buf;
+            return ptr->object;
         }
     }
     return NULL;
 }
 
 
-dalvik_method_t** dalvik_memberdict_get_methods(
-        const char*     class_path,
-        const char*     name,
-        dalvik_method_t** buf,
-        size_t bufsize)
+dalvik_method_t* dalvik_memberdict_get_method(const char* class_path, const char* name, dalvik_type_t * const * args)
 {
-    return (dalvik_method_t**)_dalvik_memberdict_find_object(class_path, name, _TYPE_METHOD, (void**)buf, bufsize);
+    return (dalvik_method_t*)_dalvik_memberdict_find_object(class_path, name, args,_TYPE_METHOD);
 }
 
-dalvik_field_t** dalvik_memberdict_get_fields(
-        const char*     class_path,
-        const char*     name,
-        dalvik_field_t** buf,
-        size_t bufsize)
+dalvik_field_t* dalvik_memberdict_get_field(const char* class_path, const char* name)
 {
-    return (dalvik_field_t**)_dalvik_memberdict_find_object(class_path, name, _TYPE_FIELD, (void**)buf, bufsize);
+    return (dalvik_field_t*)_dalvik_memberdict_find_object(class_path, name, NULL, _TYPE_FIELD);
 }
 
-
-dalvik_class_t** dalvik_memberdict_get_classes(
-        const char*     class_path,
-        dalvik_class_t** buf,
-        size_t bufsize)
+dalvik_class_t* dalvik_memberdict_get_class(const char* class_path)
 {
-    return (dalvik_class_t**)_dalvik_memberdict_find_object(class_path, NULL, _TYPE_CLASS, (void**)buf, bufsize);
+    return (dalvik_class_t*)_dalvik_memberdict_find_object(class_path, NULL, NULL, _TYPE_CLASS);
 }
