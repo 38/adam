@@ -14,22 +14,27 @@ typedef struct _dalvik_block_t dalvik_block_t;
  * determine wether or not the control flow will goes into
  * the branch */
 typedef struct {
+    uintptr_t     block_id[0];   /* this is the address of member block, when the block remains unlinked, the pointer is resued as block id */
+    /* DO NOT ADD ANYTHING HERE */
     dalvik_block_t*     block;   /* the code block of this branch */
     dalvik_operand_t*   left;    /* the left operand */
     dalvik_operand_t*   right;   /* the right operand */
 
     /* flags */
     uint8_t             flags[0];
-    uint8_t             eq:1;    /* enter this branch if left == right */
-    uint8_t             lt:1;    /* enter this branch if left < right */
-    uint8_t             gt:1;    /* enter this branch if left > right */
+    uint8_t             conditional;/* if this branch a conditional branch */
+    uint8_t             eq:1;       /* enter this branch if left == right */
+    uint8_t             lt:1;       /* enter this branch if left < right */
+    uint8_t             gt:1;       /* enter this branch if left > right */
+    uint8_t             linked:1;   /* this bit indicates if the link parse is finished, useless for other function */ 
+    uint8_t             disabled:1; /* if this bit is set, the branch is disabled */
 } dalvik_block_branch_t;
 struct _dalvik_block_t{ 
     uint32_t              index;    /* the index of the block with the method */
-    dalvik_instruction_t* first;    /* the first instruction of this block */
-    dalvik_instruction_t*   last;   /* the last instruction of this block */
-    size_t  fanout;                 /* how many possible executing path after this block is done */
-    dalvik_block_branch_t* branch[0]; /* all possible executing path */
+    uint32_t   begin;    /* the first instruction of this block */
+    uint32_t   end;      /* the last instruction of this block  + 1. The range of the block is [begin,end) */
+    size_t     nbranches;                 /* how many possible executing path after this block is done */
+    dalvik_block_branch_t branches[0]; /* all possible executing path */
 };
 
 /* initialize and finalize block cache (function path -> block graph) */

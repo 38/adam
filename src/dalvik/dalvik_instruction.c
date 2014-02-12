@@ -308,7 +308,7 @@ __DI_CONSTRUCTOR(MONITOR)
 __DI_CONSTRUCTOR(CHECK)
 {
     buf->opcode = DVM_MONITOR;
-    buf->num_operands = 3;
+    buf->num_operands = 2;
     const char* curlit, *sour;
     int rc;
     rc = sexp_match(next, "(L?A", &curlit, &next);
