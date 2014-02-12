@@ -6,6 +6,8 @@
 
 #include <vector.h>
 
+#include <assert.h>
+
 typedef struct _dalvik_block_cache_node_t{
     const char*     methodname;
     const char*     classpath;
@@ -121,18 +123,106 @@ dalvik_block_t* dalvik_block_from_method(const char* classpath, const char* meth
     }
     LOG_DEBUG("find method %s/%s, entry point@%x", classpath, methodname, method->entry);
 
-#if 0
-    uint32_t inst;
-    uint32_t begin;
-    dalvik_instruction_t * current_inst = NULL;
-    
-    size_t nbranches = 0;
+    uint32_t key[1024];    /* magic number: how many blocks can a method have */
 
-    for(begin = inst = method->entry; DALVIK_INSTRUCTION_INVALID != inst; inst = current_inst->next)
+    uint32_t kcnt = 1;
+
+    uint32_t inst;
+    dalvik_instruction_t * current_inst = NULL;
+
+    key[0] = method->entry;
+    
+    for(inst = method->entry; DALVIK_INSTRUCTION_INVALID != inst; inst = current_inst->next)
     {
         current_inst = dalvik_instruction_get(inst);
-        //TODO: parse it
+        switch(current_inst->opcode)
+        {
+            case DVM_GOTO:
+                LOG_DEBUG("key instruction: #%d: opcode=GOTO flag=%x num_operands=%d", 
+                           inst, 
+                           current_inst->flags, 
+                           current_inst->num_operands);
+                /* append the instruction to the key list */
+                key[kcnt ++] = inst;
+                key[kcnt ++] = dalvik_label_jump_table[current_inst->operands[0].payload.labelid];
+                LOG_DEBUG("new branch %d", key[kcnt - 1]);
+                LOG_DEBUG("new branch %d", key[kcnt - 2]);
+                break;
+            case DVM_IF:
+                LOG_DEBUG("key instruction: #%d: opcode=IF flag=%x num_operands=%d",
+                          inst,
+                          current_inst->flags,
+                          current_inst->num_operands);
+                key[kcnt ++] = inst;
+                LOG_DEBUG("new branch %d", key[kcnt-1]);
+                /* if it's not the last instruction, this is one possible routine */
+                if(current_inst->next != DALVIK_INSTRUCTION_INVALID)
+                {
+                    key[kcnt ++] = current_inst->next; 
+                    LOG_DEBUG("new branch %d", key[kcnt-1]);
+                }
+                key[kcnt ++] = dalvik_label_jump_table[current_inst->operands[2].payload.labelid];
+                LOG_DEBUG("new branch %d", key[kcnt-1]);
+                break;
+            case DVM_SWITCH:
+                LOG_DEBUG("key instruction: #%d: opcode=SWITCH flag=%x num_operands=%d",
+                          inst,
+                          current_inst->flags,
+                          current_inst->num_operands);
+                key[kcnt ++] = inst;
+                LOG_DEBUG("new branch %d", key[kcnt-1]);
+                if(DVM_FLAG_SWITCH_PACKED == current_inst->flags)
+                {
+                    /* packed switch, use a label vector */
+                    vector_t* lv = current_inst->operands[2].payload.branches;
+                    if(NULL == lv)
+                    {
+                        LOG_ERROR("invalid operand");
+                        return NULL;
+                    }
+                    size_t size = vector_size(lv);
+                    int i;
+                    for(i = 0; i < size; i ++)
+                    {
+                        key[kcnt ++] = dalvik_label_jump_table[*(int*)vector_get(lv, i)];
+                        LOG_DEBUG("new branch %d", key[kcnt-1]);
+                    }
+                }
+                else if(DVM_FLAG_SWITCH_SPARSE == current_inst->flags)
+                {
+                    /* sparse swith */
+                    vector_t* lv = current_inst->operands[2].payload.sparse;
+                    if(NULL == lv)
+                    {
+                        LOG_ERROR("invalid operand");
+                        return NULL;
+                    }
+                    size_t size = vector_size(lv);
+                    int i;
+                    for(i = 0; i < size; i ++)
+                    {
+                       dalvik_sparse_switch_branch_t* branch;
+                       branch = (dalvik_sparse_switch_branch_t*) vector_get(lv, i);
+                       key[kcnt ++] = dalvik_label_jump_table[branch->labelid];
+                       LOG_DEBUG("new branch %d", key[kcnt - 1]);
+                    }
+                }
+                else
+                    LOG_ERROR("invalid instruction switch(flags = %d)", current_inst->flags);
+                break;
+            case DVM_INVOKE:
+                /* TODO: invoke is also a key */
+                LOG_DEBUG("key instruction: #%d: opcode=INVOKE, flags=%x, noperands=%d", 
+                          inst,
+                          current_inst->flags,
+                          current_inst->num_operands);
+                break;
+            default:
+                LOG_DEBUG("not a key instruction opcode=%d, flags=%d, noperands=%d",
+                          current_inst->opcode,
+                          current_inst->flags,
+                          current_inst->num_operands);
+        }
     }
-#endif
     return NULL;
 }
