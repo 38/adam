@@ -395,7 +395,9 @@ dalvik_block_t* dalvik_block_from_method(const char* classpath, const char* meth
                 }
                 else
                 {
-                    /* TODO parsed */
+                    /* sparse switch instruction */
+                    vector_t* brancehs = inst->operands[1].payload.sparse;
+                    //TODO
                 }
                 break;
             case DVM_INVOKE:
