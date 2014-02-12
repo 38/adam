@@ -114,3 +114,69 @@ void dalvik_type_free(dalvik_type_t* type)
             free(type);
     }
 }
+
+int dalvik_type_equal(const dalvik_type_t* left, const dalvik_type_t* right)
+{
+    if(NULL == left || NULL == right) 
+        return left == right;   /* if left and right are nulls, we just return true */
+    if(DALVIK_TYPE_IS_ATOM(left->typecode))
+    {
+        /* atomic type is singleton */
+        return left == right;
+    }
+    /* if two type are not same */
+    if(left->typecode != right->typecode) return 0;
+    switch(left->typecode)
+    {
+        case DALVIK_TYPECODE_ARRAY:
+            return dalvik_type_equal(left->data.array.elem_type, 
+                                     right->data.array.elem_type);
+        case DALVIK_TYPECODE_OBJECT:
+            return left->data.object.path == right->data.object.path;
+        default:
+            LOG_ERROR("unknown type");
+            return -1;
+    }
+}
+hashval_t dalvik_type_hashcode(const dalvik_type_t* type)
+{
+    if(NULL == type) return 0xe7c54276ul;   /* if there's no type, just return a magic number */
+    if(DALVIK_TYPE_IS_ATOM(type->typecode))
+    {
+        /* for a signleton, the hashcode is based on the memory address */
+        return (((uintptr_t)type)&0xfffffffful) * MH_MULTIPLY;
+    }
+    switch(type->typecode)
+    {
+        case DALVIK_TYPECODE_ARRAY:
+            return (dalvik_type_hashcode(type->data.array.elem_type) * MH_MULTIPLY) ^ 0x375cf68cul;
+        case DALVIK_TYPECODE_OBJECT:
+            return ((uintptr_t)type->data.object.path ^ 0x5fc7f961ul) * MH_MULTIPLY;
+        default:
+            LOG_ERROR("unknown type");
+            return 0;
+    }
+}
+hashval_t dalvik_type_list_hashcode(dalvik_type_t * const * typelist)
+{
+    int i;
+    hashval_t h = 0;
+    if(NULL == typelist) return 0x7c5b32f7ul;   /* just a magic number */
+    for(i = 0; typelist[i] != NULL; i ++)
+    {
+        h ^= dalvik_type_hashcode(typelist[i]);
+        h *= MH_MULTIPLY;
+    }
+    return h;
+}
+int dalvik_type_list_equal(dalvik_type_t * const * left, dalvik_type_t * const * right)
+{
+    if(NULL == left || NULL == right)
+        return left == right;
+    int i;
+    for(i = 0; left[i] != NULL && right[i] != NULL; i ++)
+        if(dalvik_type_equal(left[i], right[i]) == 0)
+            return 0;
+    /* Because the only possiblity of left[i] == right[i] here is both variable is NULL */
+    return left[i] == right[i];
+}

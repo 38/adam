@@ -92,7 +92,7 @@ void dalvik_block_finalize()
     }
 }
 
-dalvik_block_t* dalvik_block_from_method(const char* classpath, const char* methodname)
+dalvik_block_t* dalvik_block_from_method(const char* classpath, const char* methodname, dalvik_type_t * const * typelist)
 {
     if(NULL == classpath || NULL == methodname)
     {
@@ -112,9 +112,8 @@ dalvik_block_t* dalvik_block_from_method(const char* classpath, const char* meth
             return p->block;
         }
     }
-    goto ERROR;
     /* there's no graph for this method in the cache, genterate one */
-    //dalvik_method_t* method = dalvik_memberdict_get_methods(
+    goto ERROR;
 ERROR:
     return NULL;
 }

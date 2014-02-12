@@ -44,8 +44,13 @@ dalvik_method_t* dalvik_method_from_sexp(sexpression_t* sexp, const char* class_
     num_args = sexp_length(arglist);
 
     /* Now we know the size we have to allocate for this method */
-    method = (dalvik_method_t*)malloc(sizeof(dalvik_method_t) + sizeof(dalvik_type_t*) * num_args);
-    if(NULL == method) return NULL;
+    method = (dalvik_method_t*)malloc(sizeof(dalvik_method_t) + sizeof(dalvik_type_t*) * (num_args + 1));
+    if(NULL == method) 
+    {
+        LOG_ERROR("can not allocate memory for method argument list");
+        return NULL;
+    }
+    memset(method->args_type, 0, sizeof(dalvik_type_t*) * (num_args + 1));
 
     method->num_args = num_args;
     method->path = class_path;
@@ -54,7 +59,7 @@ dalvik_method_t* dalvik_method_from_sexp(sexpression_t* sexp, const char* class_
 
     /* Setup the type of argument list */
     int i;
-    for(i = 0;arglist != SEXP_NIL; i ++)
+    for(i = 0;arglist != SEXP_NIL && i < num_args; i ++)
     {
         sexpression_t *this_arg;
         if(!sexp_match(arglist, "(_?A", &this_arg, &arglist))
@@ -67,7 +72,6 @@ dalvik_method_t* dalvik_method_from_sexp(sexpression_t* sexp, const char* class_
             LOG_ERROR("invalid argument type @ #%d", i);
             goto ERR;
         }
-
     }
 
     /* Setup the return type */

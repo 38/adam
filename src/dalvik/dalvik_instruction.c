@@ -675,14 +675,16 @@ __DI_CONSTRUCTOR(INVOKE)
         int reg_from, reg_to;
 
         buf->flags |= DVM_FLAG_INVOKE_RANGE;
-        buf->num_operands = 4;
+        buf->num_operands = 5;
         if(sexp_match(next, "(C?A", &args, &next))
         {
-            path = sexp_get_object_path(next, NULL); 
-            if(NULL == path) return -1;
-            if(!sexp_match(next, "(L?A", &field, &next))
+            if(sexp_get_method_address(next, &next, &path, &field) < 0)
+            {
+                LOG_ERROR("can not parse the method path");
                 return -1;
-            /* We don't care the type, because we can infer from the method definition */
+            }
+            
+            /* TODO: We actually care about the type, because the function may be overloaded */
             __DI_SETUP_OPERAND(0, DVM_OPERAND_FLAG_CONST |
                                   DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_CLASS),
                                   path);
@@ -700,8 +702,36 @@ __DI_CONSTRUCTOR(INVOKE)
             }
             else return -1;
             /* We use a constant indicates the range */
-            __DI_SETUP_OPERAND(2, DVM_OPERAND_FLAG_CONST, reg_from);
-            __DI_SETUP_OPERAND(3, DVM_OPERAND_FLAG_CONST, reg_to);
+            __DI_SETUP_OPERAND(3, DVM_OPERAND_FLAG_CONST, reg_from);
+            __DI_SETUP_OPERAND(4, DVM_OPERAND_FLAG_CONST, reg_to);
+            /* here we parse the type */
+            size_t nparam = sexp_length(next) + 1; /* because we need a NULL pointer in the end */
+            dalvik_type_t** array = (dalvik_type_t**) malloc(sizeof(dalvik_type_t*) * nparam);
+
+            if(NULL == array) 
+            {
+                LOG_ERROR("can not allocate memory for type array");
+                return -1;
+            }
+
+            memset(array, 0, sizeof(dalvik_type_t*) * nparam);
+            int i;
+            sexpression_t *type_sexp;
+            for(i = 0; sexp_match(next, "(_?A", &type_sexp, &next) && i < nparam - 1; i ++)
+            {
+                array[i] = dalvik_type_from_sexp(type_sexp);
+                if(NULL == array[i])
+                {
+                    LOG_ERROR("can not parse type %s", sexp_to_string(type_sexp, NULL));
+                    int j;
+                    for(i = 0; j < i; j ++)
+                        dalvik_type_free(array[j]);
+                    free(array);
+                    return -1;
+                }
+            }
+
+            __DI_SETUP_OPERAND(2, DVM_OPERAND_FLAG_CONST | DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_TYPELIST), array);
         }
         else return -1;
     }
@@ -709,26 +739,61 @@ __DI_CONSTRUCTOR(INVOKE)
     {
         if(sexp_match(next, "(C?A", &args, &next))
         {
-            path = sexp_get_object_path(next, NULL); 
-            if(NULL == path) return -1;
-            if(!sexp_match(next, "(L?A", &field, &next)) 
-                    return -1;
-            /* We don't care the type, because we can infer from the method definition */
+            if(sexp_get_method_address(next, &next, &path, &field) < 0)
+            {
+                LOG_ERROR("can not parse the method path");
+                return -1;
+            }
+
+            /* TODO: We actually care about the type, because the function may be overloaded */
             __DI_SETUP_OPERAND(0, DVM_OPERAND_FLAG_CONST |
                                   DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_CLASS),
                                   path);
             __DI_SETUP_OPERAND(1, DVM_OPERAND_FLAG_CONST |
                                   DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_FIELD),
                                   field);
-            buf->num_operands = 2;
+
+            /* now we parse the parameters */
+            buf->num_operands = 3;
             for(;args != SEXP_NIL;)
             {
                 if(sexp_match(args, "(L?A", &reg1, &args))
                 {
                     __DI_SETUP_OPERAND(buf->num_operands ++, 0, __DI_REGNUM(reg1));
+                    if(buf->num_operands == 0) 
+                    {
+                        LOG_WARNING("num_operands overflow");
+                    }
                 }
                 else return -1;
             }
+            
+            /* here we parse the type */
+            size_t nparam = sexp_length(next) + 1; /* because we need a NULL pointer in the end */
+            dalvik_type_t** array = (dalvik_type_t**) malloc(sizeof(dalvik_type_t*) * nparam);
+
+            if(NULL == array) 
+            {
+                LOG_ERROR("can not allocate memory for type array");
+                return -1;
+            }
+            memset(array, 0, sizeof(dalvik_type_t*) * nparam);
+            int i;
+            sexpression_t *type_sexp;
+            for(i = 0; sexp_match(next, "(_?A", &type_sexp, &next) && i < nparam - 1; i ++)
+            {
+                array[i] = dalvik_type_from_sexp(type_sexp);
+                if(NULL == array[i])
+                {
+                    LOG_ERROR("can not parse type %s", sexp_to_string(type_sexp, NULL));
+                    int j;
+                    for(i = 0; j < i; j ++)
+                        dalvik_type_free(array[j]);
+                    free(array);
+                    return -1;
+                }
+            }
+            __DI_SETUP_OPERAND(2, DVM_OPERAND_FLAG_CONST | DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_TYPELIST), array);
         }
     }
     return 0;
@@ -1072,9 +1137,6 @@ int dalvik_instruction_from_sexp(sexpression_t* sexp, dalvik_instruction_t* buf,
 
         __DI_CASE(FILLED)
 
-        /* 
-         * test cmp, if, invoke, operators
-         */
 
     __DI_END
 #undef __DI_END
@@ -1107,5 +1169,13 @@ void dalvik_instruction_free(dalvik_instruction_t* buf)
         else if(buf->operands[i].header.info.is_const &&
                 buf->operands[i].header.info.type == DVM_OPERAND_TYPE_TYPEDESC)
             dalvik_type_free(buf->operands[i].payload.type);
+        else if(buf->operands[i].header.info.is_const &&
+                buf->operands[i].header.info.type == DVM_OPERAND_TYPE_TYPELIST)
+        {
+            int j;
+            for(j = 0; buf->operands[i].payload.typelist[j] != NULL; j ++)
+                dalvik_type_free(buf->operands[i].payload.typelist[j]);
+            free(buf->operands[i].payload.typelist);
+        }
     }
 }

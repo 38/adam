@@ -97,6 +97,9 @@ sexpression_t* sexp_strip(sexpression_t* sexpr, ...);
 /* Get object path (a/b/c d) ==> 'a/b/c' && (d) */
 const char* sexp_get_object_path(sexpression_t* sexpr, sexpression_t** remaining);
 
+/* Get objet path (a/b/c d) ==> 'a/b' 'c' && (d) */
+int sexp_get_method_address(sexpression_t* sexp, sexpression_t** remaining, const char** path, const char** name);
+
 /* sexp_length(s) <==> (length s) */
 int sexp_length(sexpression_t* sexp);
 

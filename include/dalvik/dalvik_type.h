@@ -52,10 +52,16 @@ dalvik_type_t* dalvik_type_from_sexp(sexpression_t* sexp);
 void dalvik_type_free(dalvik_type_t* sexp);
 
 /* compare if two types are equal */
-int dalvik_type_equal(const dalvik_type_t* left, dalvik_type_t* right); //TODO
+int dalvik_type_equal(const dalvik_type_t* left, const dalvik_type_t* right);
 
 /* compute a hash code for this type */
-hashval_t dalvik_type_hashcode(const dalvik_type_t* type);  //TODO
+hashval_t dalvik_type_hashcode(const dalvik_type_t* type);
+
+/* compute a hash code for a type list */
+hashval_t dalvik_type_list_hashcode(dalvik_type_t * const * typelist);
+
+/* return a bool indicate if type list left and right are equal */
+int dalvik_type_list_equal(dalvik_type_t * const * left, dalvik_type_t * const * right);
 
 #define DALVIK_TYPE_ATOM(what)  dalvik_type_atom[DALVIK_TYPECODE_##what]
 
