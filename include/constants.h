@@ -36,6 +36,11 @@
 #   define DALVIK_BLOCK_CACHE_SIZE 100007
 #endif
 
+/* the maximum size of a key instruction list */
+#ifndef DALVIK_BLOCK_MAX_KEYS
+#   define DALVIK_BLOCK_MAX_KEYS 1024
+#endif
+
 
 /* the size of one block in cesk store */
 #ifndef CESK_STORE_BLOCK_SIZE
