@@ -16,7 +16,7 @@ typedef struct {
     uint32_t             flags;    /* Flags */
     dalvik_type_t*       return_type;
     uint32_t             num_args;
-    dalvik_instruction_t* entry;
+    uint32_t             entry;     /* the offset of first instruction */
     dalvik_type_t*       args_type[0];   /* the type list contains a null tail */
     /* DO NOT ADD DEFINITION AFTER args_type */
 } dalvik_method_t;
