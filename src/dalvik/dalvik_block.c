@@ -347,18 +347,61 @@ dalvik_block_t* dalvik_block_from_method(const char* classpath, const char* meth
                 block->branches[0].block_id[0] = _dalvik_block_find_blockid_by_instruction(target, key, kcnt);
                 block->branches[0].left = inst->operands + 0;
                 block->branches[0].right = inst->operands + 1;
+                
+                if(inst->flags == DVM_FLAG_IF_EQ || 
+                   inst->flags == DVM_FLAG_IF_LE ||
+                   inst->flags == DVM_FLAG_IF_GE)
+                    block->branches[0].eq = 1;
+                if(inst->flags == DVM_FLAG_IF_LE ||
+                   inst->flags == DVM_FLAG_IF_LT)
+                    block->branches[0].lt = 1;
+                if(inst->flags == DVM_FLAG_IF_GE ||
+                   inst->flags == DVM_FLAG_IF_GT)
+                    block->branches[0].gt = 1;
+
                 LOG_DEBUG("possible path block %d --> block %d",  i, block->branches[0].block_id[0]);
                 break;
             case DVM_SWITCH:
                 if(DVM_FLAG_SWITCH_PACKED == inst->flags)
                 {
                     /* packed switch instruction */
-                    
-                    size_t nb = 
+                    vector_t* branches = inst->operands[1].payload.branches;
+                    size_t nb = vector_size(branches);
+                    block_end = key[i];  /* also, all infomation is carried by block parameters */
+                    block = _dalvik_block_new(nb);
+                    if(NULL == block)
+                    {
+                        LOG_ERROR("can not allocate memory for a packed swith block");
+                        goto ERROR;
+                    }
+                    block->index = i;
+                    int32_t value_begin = inst->operands[1].payload.int32;
+                    int j;
+                    /* set up branches */
+                    for(j = 0; j < nb; j ++)
+                    {
+                        uint32_t target = *(uint32_t*)vector_get(branches, j);
+
+                        block->branches[j].conditional = 1;
+                        block->branches[j].linked      = 0;
+                        block->branches[j].block_id[0] = _dalvik_block_find_blockid_by_instruction(target, key, kcnt);
+                        block->branches[j].left_inst = 1;   /* use the instant field */
+                        block->branches[j].ileft[0] = j + value_begin;
+                        block->branches[j].right = inst->operands + 0;
+                        block->branches[j].eq = 1;
+                        LOG_DEBUG("possible path block %d --> %d", i, block->branches[j].block_id[0]);
+                    }
+                    block->branches[nb-1].conditional = 0;
                 }
+                else
+                {
+                    /* TODO parsed */
+                }
+                break;
             case DVM_INVOKE:
                 /* TODO invoke */
             default:
+                LOG_DEBUG("label here");
                 /* TODO default */
         }
         /* set up the range of the code block */

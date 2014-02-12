@@ -307,7 +307,7 @@ __DI_CONSTRUCTOR(MONITOR)
 }
 __DI_CONSTRUCTOR(CHECK)
 {
-    buf->opcode = DVM_MONITOR;
+    buf->opcode = DVM_CHECK_CAST;
     buf->num_operands = 2;
     const char* curlit, *sour;
     int rc;

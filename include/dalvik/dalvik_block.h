@@ -16,9 +16,10 @@ typedef struct _dalvik_block_t dalvik_block_t;
 typedef struct {
     uintptr_t     block_id[0];   /* this is the address of member block, when the block remains unlinked, the pointer is resued as block id */
     /* DO NOT ADD ANYTHING HERE */
-    dalvik_block_t*     block;   /* the code block of this branch */
-    dalvik_operand_t*   left;    /* the left operand */
-    dalvik_operand_t*   right;   /* the right operand */
+    dalvik_block_t*     block;     /* the code block of this branch */
+    int32_t             ileft[0];  /* if left_inst is set, value is stored in ileft[0] */
+    dalvik_operand_t*   left;      /* the left operand */
+    dalvik_operand_t*   right;     /* the right operand */
 
     /* flags */
     uint8_t             flags[0];
@@ -28,6 +29,7 @@ typedef struct {
     uint8_t             gt:1;       /* enter this branch if left > right */
     uint8_t             linked:1;   /* this bit indicates if the link parse is finished, useless for other function */ 
     uint8_t             disabled:1; /* if this bit is set, the branch is disabled */
+    uint8_t            left_inst:1; /* use ileft field ? */ 
 } dalvik_block_branch_t;
 struct _dalvik_block_t{ 
     uint32_t              index;    /* the index of the block with the method */
