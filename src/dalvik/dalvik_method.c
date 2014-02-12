@@ -211,7 +211,7 @@ dalvik_method_t* dalvik_method_from_sexp(sexpression_t* sexp, const char* class_
             if(last_label >= 0)
             {
                 LOG_DEBUG("assigned instruction@%p to label #%d", inst, last_label);
-                dalvik_label_jump_table[last_label] = inst;
+                dalvik_label_jump_table[last_label] = dalvik_instruction_get_index(inst);
                 last_label = -1;
             }
         }

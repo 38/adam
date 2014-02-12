@@ -7,7 +7,7 @@
 int dalvik_label_count = 0;
 #endif
 
-dalvik_instruction_t* dalvik_label_jump_table[DAVLIK_LABEL_POOL_SIZE];
+uint32_t dalvik_label_jump_table[DAVLIK_LABEL_POOL_SIZE];
 
 typedef struct _dalvik_label_map_t {
     const char* label;
