@@ -119,10 +119,10 @@ typedef struct {
 
 typedef struct _dalvik_instruction_t{
     uint8_t            opcode:4;        /* Opcode of the instruction */
-    uint8_t            num_operands:4;   /* How many operand ? */
-    uint16_t           flags:8;        /* Additional flags for instruction, DVM_FLAG_OPTYPE_NAME */
+    uint8_t            num_operands:4;  /* How many operand ? */
+    uint16_t           flags:8;         /* Additional flags for instruction, DVM_FLAG_OPTYPE_NAME */
     int                line;            /* Line number of this instruction */
-    struct _dalvik_instruction_t* next; /* The next instruction pointer */
+    uint32_t next;                      /* The next instruction offset in the pool */
     dalvik_exception_handler_set_t* handler_set;   /* The handler set for exception */
     dalvik_operand_t   annotation_begin[0];        /* we reuse operand space for additional infomation,
                                                       the first address we can safely use is 
@@ -223,4 +223,16 @@ static inline void dalvik_instruction_read_annotation(const dalvik_instruction_t
 /* for object creating insturction, the annotation is a unique integer, so that we can distinguish two instruction */
 typedef uint32_t dalvik_instruction_newidx_t;
 
+static inline uint32_t dalvik_instruction_get_index(dalvik_instruction_t* inst)
+{
+    extern dalvik_instruction_t* dalvik_instruction_pool;
+    return inst - dalvik_instruction_pool;
+}
+static inline dalvik_instruction_t* dalvik_instruction_get(uint32_t offset)
+{
+    extern dalvik_instruction_t* dalvik_instruction_pool;
+    return dalvik_instruction_pool + offset;
+}
+
+#define DALVIK_INSTRUCTION_INVALID 0xfffffffful
 #endif /* __DALVIK_INSTRCTION_H__ */

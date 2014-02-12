@@ -74,6 +74,7 @@ dalvik_instruction_t* dalvik_instruction_new( void )
     }
     dalvik_instruction_t* val = dalvik_instruction_pool + (_dalvik_instruction_pool_size ++);
     memset(val, 0, sizeof(dalvik_instruction_t));
+    val->next = DALVIK_INSTRUCTION_INVALID;
     return val;
 }
 static inline void _dalvik_instruction_operand_setup(dalvik_operand_t* operand, uint8_t flags, uint64_t payload)

@@ -103,7 +103,7 @@ dalvik_block_t* dalvik_block_from_method(const char* classpath, const char* meth
     hashval_t h = _dalvik_block_hash(classpath, methodname) % DALVIK_BLOCK_CACHE_SIZE;
     /* try to find the block graph in the cache */
     dalvik_block_cache_node_t* p;
-    for(p = _dalvik_block_cache[h]; NULL == p; p = p->next)
+    for(p = _dalvik_block_cache[h]; NULL != p; p = p->next)
     {
         if(p->methodname == methodname &&
            p->classpath  == classpath)
@@ -113,7 +113,26 @@ dalvik_block_t* dalvik_block_from_method(const char* classpath, const char* meth
         }
     }
     /* there's no graph for this method in the cache, genterate one */
-    goto ERROR;
-ERROR:
+    dalvik_method_t* method = dalvik_memberdict_get_method(classpath, methodname, typelist);
+    if(NULL == method) 
+    {
+        LOG_ERROR("can not find method %s/%s", classpath, methodname);
+        return NULL;
+    }
+    LOG_DEBUG("find method %s/%s, entry point@%x", classpath, methodname, method->entry);
+
+#if 0
+    uint32_t inst;
+    uint32_t begin;
+    dalvik_instruction_t * current_inst = NULL;
+    
+    size_t nbranches = 0;
+
+    for(begin = inst = method->entry; DALVIK_INSTRUCTION_INVALID != inst; inst = current_inst->next)
+    {
+        current_inst = dalvik_instruction_get(inst);
+        //TODO: parse it
+    }
+#endif
     return NULL;
 }

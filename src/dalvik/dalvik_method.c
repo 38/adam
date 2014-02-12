@@ -85,7 +85,7 @@ dalvik_method_t* dalvik_method_from_sexp(sexpression_t* sexp, const char* class_
     
     //TODO: process other parts of a method
     int current_line_number;    /* Current Line Number */
-    dalvik_instruction_t *last = NULL;
+    uint32_t last = DALVIK_INSTRUCTION_INVALID;
     int last_label = -1;
     int from_label[DALVIK_MAX_CATCH_BLOCK];    /* NOTICE: the maximum number of catch block is limited to this constant */
     int to_label  [DALVIK_MAX_CATCH_BLOCK];
@@ -188,6 +188,7 @@ dalvik_method_t* dalvik_method_from_sexp(sexpression_t* sexp, const char* class_
         else
         {
             dalvik_instruction_t* inst = dalvik_instruction_new();
+            LOG_FATAL("%d\n", dalvik_instruction_get_index(inst));
             if(NULL == inst) 
             {
                 LOG_ERROR("can not create new instruction");
@@ -198,12 +199,11 @@ dalvik_method_t* dalvik_method_from_sexp(sexpression_t* sexp, const char* class_
                 LOG_ERROR("can not recognize instuction %s", sexp_to_string(this_smt, NULL));
                 goto ERR;
             }
-            if(NULL == last) method->entry = inst;
+            if(DALVIK_INSTRUCTION_INVALID == last) 
+                method->entry = dalvik_instruction_get_index(inst);
             else
-            {
-                last->next = inst;
-                last = inst;
-            }
+                dalvik_instruction_get(last)->next = dalvik_instruction_get_index(inst);
+            last = dalvik_instruction_get_index(inst);
             inst->handler_set = current_ehset; 
             if(last_label >= 0)
             {
