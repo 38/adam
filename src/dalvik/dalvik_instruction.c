@@ -1180,3 +1180,14 @@ void dalvik_instruction_free(dalvik_instruction_t* buf)
         }
     }
 }
+void dalvik_instruction_print(dalvik_instruction_t* inst)
+{
+    char buf[1024];
+    char *p = buf;
+    switch(inst->opcode)
+    {
+        case DVM_MOVE:
+            buf += snprintf(s, buf + sizeof(buf) - p, "move");
+            break;
+    }
+}
