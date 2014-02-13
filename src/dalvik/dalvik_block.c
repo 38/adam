@@ -190,6 +190,7 @@ static inline int _dalvik_block_get_key_instruction_list(uint32_t entry_point, u
                            inst,
                            current_inst->flags,
                            current_inst->num_operands);
+                 __PUSH(inst);
                  if(current_inst->next != DALVIK_INSTRUCTION_INVALID)
                      __PUSH(current_inst->next);
                  break;
@@ -198,6 +199,7 @@ static inline int _dalvik_block_get_key_instruction_list(uint32_t entry_point, u
                             inst,
                             current_inst->flags,
                             current_inst->num_operands);
+                 __PUSH(inst);
                  /* there's no next instruction actually */
                  break;
              default:
@@ -252,8 +254,223 @@ static inline int32_t _dalvik_block_find_blockid_by_instruction(uint32_t inst, c
 {
     int i;
     for(i = 0; i < kcnt; i ++)
-        if(kcnt == key[i])
+        if(inst > key[i])  /* find the end point of the block */
             return i;
+    return -1;
+}
+static inline dalvik_block_t* _dalvik_block_setup_keyinst_goto(dalvik_instruction_t* inst, const uint32_t* key, size_t kcnt, uint32_t index)
+{
+    dalvik_block_t* block = _dalvik_block_new(1);
+    if(NULL == block)
+    {
+        LOG_ERROR("can not allocate memory for a goto blongck");
+        return NULL;
+    }
+    uint32_t target = dalvik_label_jump_table[inst->operands[0].payload.labelid];
+    block->index = index;
+    block->branches[0].linked = 0;
+    block->branches[0].conditional = 0;
+    block->branches[0].block_id[0] = _dalvik_block_find_blockid_by_instruction(target, key, kcnt);
+    LOG_DEBUG("possible path block %d --> block %d",  index, block->branches[0].block_id[0]);
+    return block;
+}
+static inline dalvik_block_t* _dalvik_block_setup_keyinst_if(dalvik_instruction_t* inst, const uint32_t* key, size_t kcnt, uint32_t index)
+{
+    dalvik_block_t* block = _dalvik_block_new(2);
+    if(NULL == block)
+    {
+        LOG_ERROR("can not allocate memory for a if block");
+        return NULL;
+    }
+    block->index = index;
+    /* setup the false branch */
+    block->branches[1].conditional = 0;
+    block->branches[1].linked = 0;
+    if(inst->next == DALVIK_INSTRUCTION_INVALID)
+    {
+        block->branches[1].disabled = 1;
+        LOG_WARNING("unexcepted goto instruction at the end of the method, disable the default branch");
+    }
+    else
+    {
+        block->branches[1].block_id[0] = _dalvik_block_find_blockid_by_instruction(inst->next, key, kcnt);
+        LOG_DEBUG("possible path block %d --> block %d", index, block->branches[1].block_id[0]);
+    }
+    /* setup the true branch */
+    uint32_t target = dalvik_label_jump_table[inst->operands[2].payload.labelid];
+    block->branches[0].conditional = 1;
+    block->branches[0].linked = 0;
+    block->branches[0].block_id[0] = _dalvik_block_find_blockid_by_instruction(target, key, kcnt);
+    block->branches[0].left = inst->operands + 0;
+    block->branches[0].right = inst->operands + 1;
+    
+    /* set up the comparasion flags */
+    if(inst->flags == DVM_FLAG_IF_EQ || 
+       inst->flags == DVM_FLAG_IF_LE ||
+       inst->flags == DVM_FLAG_IF_GE)
+        block->branches[0].eq = 1;
+    if(inst->flags == DVM_FLAG_IF_LE ||
+       inst->flags == DVM_FLAG_IF_LT)
+        block->branches[0].lt = 1;
+    if(inst->flags == DVM_FLAG_IF_GE ||
+       inst->flags == DVM_FLAG_IF_GT)
+        block->branches[0].gt = 1;
+    
+    LOG_DEBUG("possible path block %d --> block %d",  index, block->branches[0].block_id[0]);
+    return block;
+}
+static inline dalvik_block_t* _dalvik_block_setup_keyinst_switch(dalvik_instruction_t* inst, const uint32_t *key, size_t kcnt, uint32_t index)
+{
+    dalvik_block_t* block = NULL;
+
+    if(DVM_FLAG_SWITCH_PACKED == inst->flags)
+    {
+        /* packed switch instruction */
+        vector_t* branches = inst->operands[1].payload.branches;
+        size_t nb = vector_size(branches);
+        block = _dalvik_block_new(nb);
+        if(NULL == block)
+        {
+            LOG_ERROR("can not allocate memory for a packed swith block");
+            return NULL;
+        }
+        block->index = index;
+        int32_t value_begin = inst->operands[1].payload.int32;
+        int j;
+        /* set up branches */
+        for(j = 0; j < nb; j ++)
+        {
+            uint32_t target = *(uint32_t*)vector_get(branches, j);
+
+            block->branches[j].conditional = 1;
+            block->branches[j].linked      = 0;
+            block->branches[j].block_id[0] = _dalvik_block_find_blockid_by_instruction(target, key, kcnt);
+            block->branches[j].left_inst = 1;   /* use the instant field */
+            block->branches[j].ileft[0] = j + value_begin;
+            block->branches[j].right = inst->operands + 0;
+            block->branches[j].eq = 1;
+            LOG_DEBUG("possible path block %d --> %d", index, block->branches[j].block_id[0]);
+        }
+        block->branches[nb-1].conditional = 0;
+    }
+    else if(DVM_FLAG_SWITCH_SPARSE == inst->flags)
+    {
+        /* sparse switch instruction */
+        vector_t* branches = inst->operands[1].payload.sparse;
+        size_t nb = vector_size(branches);
+        block = _dalvik_block_new(nb);
+        if(NULL == block)
+        {
+            LOG_ERROR("can not allocate memory for sparse switch instruction");
+            return 0;
+        }
+        block->index = index;
+        int j;
+        for(j = 0; j < nb; j ++)
+        {
+            dalvik_sparse_switch_branch_t* branch;
+            branch = (dalvik_sparse_switch_branch_t*)vector_get(branches, j);
+            block->branches[j].conditional = 1;
+            block->branches[j].linked      = 0;
+            block->branches[j].block_id[0] = _dalvik_block_find_blockid_by_instruction(branch->labelid, key, kcnt);
+            if(branch->is_default)
+            {
+                /* this is default branch */
+                block->branches[j].conditional = 0;
+                block->branches[j].linked = 0;
+            }
+            else
+            {
+                /* conditionlal branch */
+                block->branches[j].left_inst = 1;
+                block->branches[j].ileft[0] = branch->cond;
+                block->branches[j].right    = inst->operands + 1;
+                block->branches[j].eq       = 1;
+            }
+        }
+    }
+    else 
+    {
+        LOG_ERROR("unknown flags %x for switch instruction", inst->flags);
+        return NULL;
+    }
+    return block;
+}
+static inline dalvik_block_t* _dalvik_block_setup_keyinst(dalvik_instruction_t* inst, const uint32_t *key, size_t kcnt, uint32_t index)
+{
+    dalvik_block_t* block = _dalvik_block_new(1);  /* only 1 path is possible */
+    if(NULL == block)
+    {
+        LOG_ERROR("can not allocate memory for the instruction");
+        return NULL;
+    }
+    block->index = index;
+    block->branches[0].conditional = 0;
+    if(inst->next != DALVIK_INSTRUCTION_INVALID)
+        block->branches[0].block_id[0] = _dalvik_block_find_blockid_by_instruction(inst->next, key, kcnt);
+    else
+    {
+        LOG_ERROR("unexcepted instruction at the end of the method, branches disabled");
+        block->branches[0].disabled = 1;
+    }
+    return block;
+}
+static inline int _dalvik_block_build_graph(uint32_t entry, dalvik_block_t** blocks, size_t sz, const uint32_t* key, size_t kcnt)
+{
+    uint32_t block_begin = entry;
+
+    uint32_t i;
+    for(i = 0; i < kcnt; i ++)
+    {
+        dalvik_instruction_t* inst = dalvik_instruction_get(key[i]);  /*get the key instruction */
+        dalvik_block_t* block = NULL;
+        uint32_t block_end;
+        switch(inst->opcode)
+        {
+            case DVM_GOTO:
+                block_end = key[i];   /* do not include the goto instruction */
+                block = _dalvik_block_setup_keyinst_goto(inst, key, kcnt, i);
+                break;
+            case DVM_IF:
+                /* if statement have two possible executing pathes */
+                block_end = key[i];  /* the instruction also do not be counted as a instruction in te block */
+                block = _dalvik_block_setup_keyinst_if(inst, key, kcnt, i);
+                break;
+            case DVM_SWITCH:
+                block_end = key[i]; 
+                block = _dalvik_block_setup_keyinst_switch(inst, key, kcnt, i);
+                break;
+            case DVM_INVOKE:  /* acutally invoke instruction is not a jump instruction */
+            default:
+                block_end = inst->next;  /* also incuding current instruction, cuz it does more than a jump instruction */
+                block = _dalvik_block_setup_keyinst(inst, key, kcnt, i);
+        }
+        if(NULL == block)
+        {
+            LOG_ERROR("can not create block for instruction from %d to %d", block_begin, block_end);
+            goto ERROR;
+        }
+        
+        /* set up the range of the code block */
+        
+        block->begin = block_begin;
+        block->end   = block_end;
+        blocks[i] = block;
+
+        /* prepare for next block */
+        block_begin = inst->next;
+
+        /* the first key >= block_begin is actually the begnining of next block.
+         * So after this loop, i ++, so that key[i] will be the end of next block
+         */
+        for(; block_begin < key[i]; i ++);
+    }
+    return 0;
+    //TODO: link all graph
+ERROR:
+    for(i = 0; i < kcnt; i ++)
+        if(blocks[i] == NULL)
+            free(blocks[i]);
     return -1;
 }
 dalvik_block_t* dalvik_block_from_method(const char* classpath, const char* methodname, dalvik_type_t * const * typelist)
@@ -288,140 +505,14 @@ dalvik_block_t* dalvik_block_from_method(const char* classpath, const char* meth
     uint32_t key[DALVIK_BLOCK_MAX_KEYS];     /* the maximum key instruction we are expecting */
     dalvik_block_t* blocks[DALVIK_BLOCK_MAX_KEYS] = {}; /* block list */ 
     
+    /* Get a list of key instructions */
     uint32_t kcnt = _dalvik_block_get_key_instruction_list(method->entry, key, sizeof(key)/sizeof(*key));
 
-    uint32_t block_begin = method->entry;
-
-    int i;
-    for(i = 0; i < kcnt; i ++)
+    if(_dalvik_block_build_graph(method->entry, blocks, DALVIK_BLOCK_MAX_KEYS, key, kcnt) < 0)
     {
-        dalvik_instruction_t* inst = dalvik_instruction_get(key[i]);  /*get the key instruction */
-        dalvik_block_t* block = NULL;
-        uint32_t block_end;
-        uint32_t target;
-        switch(inst->opcode)
-        {
-            case DVM_GOTO:
-                /* this is an goto branch */
-                block_end = key[i];   /* we do not treat this instruction as a part of the block */
-                block = _dalvik_block_new(1);
-                if(NULL == block)
-                {
-                    LOG_ERROR("can not allocate memory for a goto blongck");
-                    goto ERROR;
-                }
-                block->index = i;
-                target = dalvik_label_jump_table[inst->operands[0].payload.labelid];   
-                block->branches[0].linked = 0;
-                block->branches[0].conditional = 0;
-                block->branches[0].block_id[0] = _dalvik_block_find_blockid_by_instruction(target, key, kcnt);
-                LOG_DEBUG("possible path block %d --> block %d",  i, block->branches[0].block_id[0]);
-                break;
-            case DVM_IF:
-                /* if statement have two possible executing pathes */
-                block_end = key[i];  /* the instruction also do not be counted as a instruction in te block */
-                block = _dalvik_block_new(2);
-                if(NULL == block)
-                {
-                    LOG_ERROR("can not allocate memory for a if block");
-                    goto ERROR;
-                }
-                block->index = i;
-                /* setup the false branch */
-                block->branches[1].conditional = 0;
-                block->branches[1].linked = 0;
-                if(inst->next == DALVIK_INSTRUCTION_INVALID)
-                {
-                    block->branches[1].disabled = 1;
-                    LOG_WARNING("unexcepted goto instruction at the end of the method, disable the default branch");
-                }
-                else
-                {
-                    block->branches[1].block_id[0] = _dalvik_block_find_blockid_by_instruction(inst->next, key, kcnt);
-                    LOG_DEBUG("possible path block %d --> block %d", i, block->branches[1].block_id[0]);
-                }
-                /* setup the true branch */
-                target = dalvik_label_jump_table[inst->operands[2].payload.labelid];
-                block->branches[0].conditional = 1;
-                block->branches[0].linked = 0;
-                block->branches[0].block_id[0] = _dalvik_block_find_blockid_by_instruction(target, key, kcnt);
-                block->branches[0].left = inst->operands + 0;
-                block->branches[0].right = inst->operands + 1;
-                
-                if(inst->flags == DVM_FLAG_IF_EQ || 
-                   inst->flags == DVM_FLAG_IF_LE ||
-                   inst->flags == DVM_FLAG_IF_GE)
-                    block->branches[0].eq = 1;
-                if(inst->flags == DVM_FLAG_IF_LE ||
-                   inst->flags == DVM_FLAG_IF_LT)
-                    block->branches[0].lt = 1;
-                if(inst->flags == DVM_FLAG_IF_GE ||
-                   inst->flags == DVM_FLAG_IF_GT)
-                    block->branches[0].gt = 1;
-
-                LOG_DEBUG("possible path block %d --> block %d",  i, block->branches[0].block_id[0]);
-                break;
-            case DVM_SWITCH:
-                if(DVM_FLAG_SWITCH_PACKED == inst->flags)
-                {
-                    /* packed switch instruction */
-                    vector_t* branches = inst->operands[1].payload.branches;
-                    size_t nb = vector_size(branches);
-                    block_end = key[i];  /* also, all infomation is carried by block parameters */
-                    block = _dalvik_block_new(nb);
-                    if(NULL == block)
-                    {
-                        LOG_ERROR("can not allocate memory for a packed swith block");
-                        goto ERROR;
-                    }
-                    block->index = i;
-                    int32_t value_begin = inst->operands[1].payload.int32;
-                    int j;
-                    /* set up branches */
-                    for(j = 0; j < nb; j ++)
-                    {
-                        uint32_t target = *(uint32_t*)vector_get(branches, j);
-
-                        block->branches[j].conditional = 1;
-                        block->branches[j].linked      = 0;
-                        block->branches[j].block_id[0] = _dalvik_block_find_blockid_by_instruction(target, key, kcnt);
-                        block->branches[j].left_inst = 1;   /* use the instant field */
-                        block->branches[j].ileft[0] = j + value_begin;
-                        block->branches[j].right = inst->operands + 0;
-                        block->branches[j].eq = 1;
-                        LOG_DEBUG("possible path block %d --> %d", i, block->branches[j].block_id[0]);
-                    }
-                    block->branches[nb-1].conditional = 0;
-                }
-                else
-                {
-                    /* sparse switch instruction */
-                    vector_t* brancehs = inst->operands[1].payload.sparse;
-                    //TODO
-                }
-                break;
-            case DVM_INVOKE:
-                /* TODO invoke */
-            default:
-                LOG_DEBUG("label here");
-                /* TODO default */
-        }
-        /* set up the range of the code block */
-        block->begin = block_begin;
-        block->end   = block_end;
-        if(NULL == block)
-        {
-            LOG_ERROR("can not allocate memory for code block");
-            goto ERROR;
-        }
-        
+        LOG_ERROR("can not build block graph for method %s/%s", classpath, methodname);
+        return NULL;
     }
-    //TODO: link all graph
     return blocks[0];
-ERROR:
-    for(i = 0; i < kcnt; i ++)
-        if(blocks[i] == NULL)
-            free(blocks[i]);
-    return NULL;
 }
 
