@@ -1,6 +1,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
+#include <stdio.h>
+#include <inttypes.h>
 
 #include <log.h>
 #include <dalvik/dalvik_instruction.h>
@@ -226,7 +228,7 @@ __DI_CONSTRUCTOR(CONST)
         if(sexp_match(next, "(L?L?", &dest, &sour))
         {
             __DI_SETUP_OPERAND(0, 0, __DI_REGNUM(dest));
-            __DI_SETUP_OPERAND(1, DVM_OPERAND_FLAG_CONST, __DI_INSNUM(sour) << 16);
+            __DI_SETUP_OPERAND(1, DVM_OPERAND_FLAG_CONST | DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_INT), __DI_INSNUM(sour) << 16);
         }
         else return -1;
     }
@@ -236,13 +238,17 @@ __DI_CONSTRUCTOR(CONST)
         if(sexp_match(next, "(L=L?L?", DALVIK_TOKEN_HIGH16, &dest, &sour))  /* const-wide/high16 */
         {
            __DI_SETUP_OPERAND(0, DVM_OPERAND_FLAG_WIDE, __DI_REGNUM(dest));
-           __DI_SETUP_OPERAND(1, DVM_OPERAND_FLAG_WIDE | DVM_OPERAND_FLAG_CONST, ((uint64_t)__DI_INSNUM(sour)) << 48);
+           __DI_SETUP_OPERAND(1, DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_INT) | 
+                                 DVM_OPERAND_FLAG_WIDE | 
+                                 DVM_OPERAND_FLAG_CONST, ((uint64_t)__DI_INSNUM(sour)) << 48);
         }
         else if(sexp_match(next, "(L?L?", &dest, &sour))
         {
             /* const-wide */
             __DI_SETUP_OPERAND(0, DVM_OPERAND_FLAG_WIDE, __DI_REGNUM(dest));
-            __DI_SETUP_OPERAND(1, DVM_OPERAND_FLAG_CONST | DVM_OPERAND_FLAG_WIDE, __DI_INSNUMLL(sour));
+            __DI_SETUP_OPERAND(1,DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_INT) |
+                                 DVM_OPERAND_FLAG_CONST | 
+                                 DVM_OPERAND_FLAG_WIDE, __DI_INSNUMLL(sour));
         }
         else return -1;
     }
@@ -271,7 +277,7 @@ __DI_CONSTRUCTOR(CONST)
         if(sexp_match(next, "(L?", &sour))
         {
             __DI_SETUP_OPERAND(0, 0, __DI_REGNUM(dest));
-            __DI_SETUP_OPERAND(1, DVM_OPERAND_FLAG_CONST, __DI_INSNUM(sour));
+            __DI_SETUP_OPERAND(1, DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_INT) | DVM_OPERAND_FLAG_CONST, __DI_INSNUM(sour));
         }
         else return -1;
     }
@@ -484,7 +490,7 @@ __DI_CONSTRUCTOR(IF)
        DALVIK_TOKEN_GEZ == how ||
        DALVIK_TOKEN_LEZ == how ||
        DALVIK_TOKEN_NEZ == how)
-        __DI_SETUP_OPERAND(1, DVM_OPERAND_FLAG_CONST, 0);   /* use 0 as the second operand */
+        __DI_SETUP_OPERAND(1, DVM_OPERAND_FLAG_CONST | DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_INT), 0);   /* use 0 as the second operand */
     else
     {
         /* read the second operand */
@@ -703,8 +709,8 @@ __DI_CONSTRUCTOR(INVOKE)
             }
             else return -1;
             /* We use a constant indicates the range */
-            __DI_SETUP_OPERAND(3, DVM_OPERAND_FLAG_CONST, reg_from);
-            __DI_SETUP_OPERAND(4, DVM_OPERAND_FLAG_CONST, reg_to);
+            __DI_SETUP_OPERAND(3, DVM_OPERAND_FLAG_CONST | DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_INT), reg_from);
+            __DI_SETUP_OPERAND(4, DVM_OPERAND_FLAG_CONST | DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_INT), reg_to);
             /* here we parse the type */
             size_t nparam = sexp_length(next) + 1; /* because we need a NULL pointer in the end */
             dalvik_type_t** array = (dalvik_type_t**) malloc(sizeof(dalvik_type_t*) * nparam);
@@ -1180,14 +1186,130 @@ void dalvik_instruction_free(dalvik_instruction_t* buf)
         }
     }
 }
-void dalvik_instruction_print(dalvik_instruction_t* inst)
+#define __PR(fmt, args...) do{\
+            p += snprintf(p, buf + sz - p, fmt, ##args);\
+}while(0)
+static inline int _dalvik_instruction_operand_const_to_string(dalvik_operand_t* op, char* buf, size_t sz)
 {
-    char buf[1024];
     char *p = buf;
+    vector_t* vec;
+    int i;
+    switch(op->header.info.type)
+    {
+        case DVM_OPERAND_TYPE_CLASS:
+            __PR("class@%s", op->payload.string);
+            break;
+        case DVM_OPERAND_TYPE_STRING:
+            __PR("\"%s\"", op->payload.string);
+            break;
+        case DVM_OPERAND_TYPE_INT:
+            __PR("%"PRId64"/%s\"", op->payload.int64, op->header.info.size?"64":"32");
+            break;
+        case DVM_OPERAND_TYPE_ANY:
+            __PR("Any:%"PRId64, op->payload.int64);
+            break;
+        case DVM_OPERAND_TYPE_TYPEDESC:
+            __PR("type");
+            break;
+        case DVM_OPERAND_TYPE_FIELD:
+            __PR("%s", op->payload.field);
+            break;
+        case DVM_OPERAND_TYPE_TYPELIST:
+            __PR("type-list");
+            break;
+        case DVM_OPERAND_TYPE_LABEL:
+            __PR("L%u", op->payload.labelid);
+            break;
+        case DVM_OPERAND_TYPE_LABELVECTOR:
+            vec = op->payload.branches;
+            __PR("label-list(");
+            for(i = 0; i < vector_size(vec); i ++)
+                __PR("L%d ", *(int*)vector_get(vec,i));
+            __PR(")");
+            break;
+        case DVM_OPERAND_TYPE_SPARSE:
+            vec = op->payload.sparse;
+            __PR("sparse-swithc(");
+            for(i = 0; i < vector_size(vec); i ++)
+            {
+                dalvik_sparse_switch_branch_t* branch = (dalvik_sparse_switch_branch_t*) vector_get(vec, i);
+                __PR("[%d L%d] ",branch->cond, branch->labelid);
+            }
+            __PR(")");
+        default:
+            __PR("invalid-constant");
+    }
+    return p - buf;
+}
+static inline int _dalvik_instruction_operand_to_string(dalvik_operand_t* opr, char* buf, size_t sz)
+{
+    char *p = buf;
+    if(opr->header.info.is_const)
+        return _dalvik_instruction_operand_const_to_string(opr, buf, sz);
+    else if(opr->header.info.type == DVM_OPERAND_TYPE_VOID)
+        __PR("void");
+    else if(opr->header.info.is_result)
+        __PR("reg-result");
+    else if(opr->header.info.type == DVM_OPERAND_TYPE_EXCEPTION)
+        __PR("reg-exception");
+    else
+        __PR("reg%u", opr->payload.uint32);
+    return p - buf;
+}
+#define __PO(id) do{p += _dalvik_instruction_operand_const_to_string(inst->operands + id, p, buf + sz - p);} while(0)
+#define __CI(_name) name = #_name; break
+const char* dalvik_instruction_to_string(dalvik_instruction_t* inst, char* buf, size_t sz)
+{
+    static char default_buf[1024];
+    if(NULL == buf)
+    {
+        buf = default_buf;
+        sz = sizeof(default_buf);
+    }
+    char *p = buf;
+    const char* name = "nop";
     switch(inst->opcode)
     {
         case DVM_MOVE:
-            buf += snprintf(s, buf + sizeof(buf) - p, "move");
-            break;
+            __CI(move);
+        case DVM_NOP:
+            __CI(nop);
+        case DVM_RETURN:
+            __CI(return);
+        case DVM_CONST:
+            __CI(const);
+        case DVM_MONITOR:
+            __CI(monitor);
+        case DVM_CHECK_CAST:
+            __CI(check-cast);
+        case DVM_INSTANCE:
+            __CI(instance);
+        case DVM_ARRAY:
+            __CI(array);
+        case DVM_THROW:
+            __CI(throw);
+        case DVM_GOTO:
+            __CI(goto);
+        case DVM_SWITCH:
+            __CI(switch);
+        case DVM_CMP:
+            __CI(cmp);
+        case DVM_IF:
+            __CI(if);
+        case DVM_INVOKE:
+            __CI(invoke);
+        case DVM_UNOP:
+            __CI(unop);
+        case DVM_BINOP:
+            __CI(binop);
     }
+    __PR("%s", name);
+    int i;
+    for(i = 0; i < inst->num_operands; i ++)
+    {
+        __PR(" ");
+        __PO(i);
+    }
+    return buf;
 }
+#undef __PR
