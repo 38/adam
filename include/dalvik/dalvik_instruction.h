@@ -234,5 +234,7 @@ static inline dalvik_instruction_t* dalvik_instruction_get(uint32_t offset)
     return dalvik_instruction_pool + offset;
 }
 
+const char* dalvik_instruction_to_string(dalvik_instruction_t* inst, char* buf, size_t sz);
+
 #define DALVIK_INSTRUCTION_INVALID 0xfffffffful
 #endif /* __DALVIK_INSTRCTION_H__ */

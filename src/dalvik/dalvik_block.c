@@ -123,6 +123,8 @@ static inline int _dalvik_block_get_key_instruction_list(uint32_t entry_point, u
          current_inst = dalvik_instruction_get(inst);
          switch(current_inst->opcode)
          {
+             static char buf[1024];
+             LOG_DEBUG("current instruction: %s", dalvik_instruction_to_string(current_inst, buf, sizeof(buf)));
              case DVM_GOTO:
                  LOG_DEBUG("key instruction: #%d: opcode=GOTO flag=%x num_operands=%d", 
                             inst, 
@@ -243,7 +245,7 @@ static inline int _dalvik_block_get_key_instruction_list(uint32_t entry_point, u
 /* allocate a new code block with nbranches */
 static inline dalvik_block_t* _dalvik_block_new(size_t nbranches)
 {
-    size_t size = sizeof(dalvik_block_t) + sizeof(dalvik_sparse_switch_branch_t) * nbranches;
+    size_t size = sizeof(dalvik_block_t) + sizeof(dalvik_block_branch_t) * nbranches;
     dalvik_block_t* ret = (dalvik_block_t*)malloc(size);
     if(NULL == ret) return NULL;
     memset(ret, 0, size);
@@ -254,7 +256,7 @@ static inline int32_t _dalvik_block_find_blockid_by_instruction(uint32_t inst, c
 {
     int i;
     for(i = 0; i < kcnt; i ++)
-        if(inst > key[i])  /* find the end point of the block */
+        if(inst < key[i])  /* find the end point of the block */
             return i;
     return -1;
 }
@@ -513,6 +515,19 @@ dalvik_block_t* dalvik_block_from_method(const char* classpath, const char* meth
         LOG_ERROR("can not build block graph for method %s/%s", classpath, methodname);
         return NULL;
     }
+
+    /* Ok, link the program */
+    int i;
+    for(i = 0; i < kcnt; i ++)
+    {
+        if(blocks[i] != NULL)
+        {
+            int j;
+            for(j = 0; j < blocks[i]->nbranches; j ++)
+                blocks[i]->branches[j].block = blocks[blocks[i]->branches[j].block_id[0]];
+        }
+    }
+
     return blocks[0];
 }
 
