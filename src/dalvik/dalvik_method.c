@@ -86,13 +86,16 @@ dalvik_method_t* dalvik_method_from_sexp(sexpression_t* sexp, const char* class_
     //TODO: process other parts of a method
     int current_line_number;    /* Current Line Number */
     uint32_t last = DALVIK_INSTRUCTION_INVALID;
-    int last_label = -1;
+    //int last_label = -1;
+    int label_stack[DALVIK_METHOD_LABEL_STACK_SIZE];  /* how many label can one isntruction assign to */
+    int label_sp;
     int from_label[DALVIK_MAX_CATCH_BLOCK];    /* NOTICE: the maximum number of catch block is limited to this constant */
     int to_label  [DALVIK_MAX_CATCH_BLOCK];
     int label_st  [DALVIK_MAX_CATCH_BLOCK];    /* 0: haven't seen any label related to the label. 
                                                 * 1: seen from label before
                                                 * 2: seen from and to label
                                                 */
+    label_sp  = 0;
     dalvik_exception_handler_t* excepthandler[DALVIK_MAX_CATCH_BLOCK] = {};
     dalvik_exception_handler_set_t* current_ehset = NULL;
     int number_of_exception_handler = 0;
@@ -132,7 +135,11 @@ dalvik_method_t* dalvik_method_from_sexp(sexpression_t* sexp, const char* class_
                 LOG_ERROR("can not create label for %s", arg);
                 goto ERR;
             }
-            last_label = lid;
+            //last_label = lid;
+            if(label_sp < DALVIK_METHOD_LABEL_STACK_SIZE)
+                label_stack[label_sp++] = lid;
+            else
+                LOG_WARNING("label stack overflow, might loss some label here");
             int enbaled_count = 0;
             dalvik_exception_handler_t* exceptionset[DALVIK_MAX_CATCH_BLOCK];
             for(i = 0; i < number_of_exception_handler; i ++)
@@ -188,7 +195,6 @@ dalvik_method_t* dalvik_method_from_sexp(sexpression_t* sexp, const char* class_
         else
         {
             dalvik_instruction_t* inst = dalvik_instruction_new();
-            LOG_FATAL("%d\n", dalvik_instruction_get_index(inst));
             if(NULL == inst) 
             {
                 LOG_ERROR("can not create new instruction");
@@ -205,11 +211,15 @@ dalvik_method_t* dalvik_method_from_sexp(sexpression_t* sexp, const char* class_
                 dalvik_instruction_get(last)->next = dalvik_instruction_get_index(inst);
             last = dalvik_instruction_get_index(inst);
             inst->handler_set = current_ehset; 
-            if(last_label >= 0)
+            if(label_sp > 0)
             {
-                LOG_DEBUG("assigned instruction@%p to label #%d", inst, last_label);
-                dalvik_label_jump_table[last_label] = dalvik_instruction_get_index(inst);
-                last_label = -1;
+                int i;
+                for(i = 0; i < label_sp; i++)
+                {
+                    LOG_DEBUG("assigned instruction@%p to label #%d", inst, label_stack[i]);
+                    dalvik_label_jump_table[label_stack[i]] = dalvik_instruction_get_index(inst);
+                }
+                label_sp = 0;
             }
         }
     }

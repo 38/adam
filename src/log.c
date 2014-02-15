@@ -126,4 +126,5 @@ void log_write(int level, const char* file, const char* function, int line, cons
     vfprintf(fp, fmt, ap);
     va_end(ap);
     fprintf(fp, "\n");
+    fflush(fp);
 }

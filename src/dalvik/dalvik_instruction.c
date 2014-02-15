@@ -1203,19 +1203,19 @@ static inline int _dalvik_instruction_operand_const_to_string(dalvik_operand_t* 
             __PR("\"%s\"", op->payload.string);
             break;
         case DVM_OPERAND_TYPE_INT:
-            __PR("%"PRId64"/%s\"", op->payload.int64, op->header.info.size?"64":"32");
+            __PR("%"PRId64"%s", op->payload.int64, op->header.info.size?"I":"L");
             break;
         case DVM_OPERAND_TYPE_ANY:
             __PR("Any:%"PRId64, op->payload.int64);
             break;
         case DVM_OPERAND_TYPE_TYPEDESC:
-            __PR("type");
+            __PR("%s", dalvik_type_to_string(op->payload.type, NULL, 0));
             break;
         case DVM_OPERAND_TYPE_FIELD:
             __PR("%s", op->payload.field);
             break;
         case DVM_OPERAND_TYPE_TYPELIST:
-            __PR("type-list");
+            __PR("%s", dalvik_type_list_to_string((dalvik_type_t * const *)op->payload.typelist, NULL, 0));
             break;
         case DVM_OPERAND_TYPE_LABEL:
             __PR("L%u", op->payload.labelid);
@@ -1229,15 +1229,16 @@ static inline int _dalvik_instruction_operand_const_to_string(dalvik_operand_t* 
             break;
         case DVM_OPERAND_TYPE_SPARSE:
             vec = op->payload.sparse;
-            __PR("sparse-swithc(");
+            __PR("sparse-switch(");
             for(i = 0; i < vector_size(vec); i ++)
             {
                 dalvik_sparse_switch_branch_t* branch = (dalvik_sparse_switch_branch_t*) vector_get(vec, i);
                 __PR("[%d L%d] ",branch->cond, branch->labelid);
             }
             __PR(")");
+            break;
         default:
-            __PR("invalid-constant");
+            __PR("invalid-constant %d", op->header.info.type);
     }
     return p - buf;
 }
@@ -1256,7 +1257,7 @@ static inline int _dalvik_instruction_operand_to_string(dalvik_operand_t* opr, c
         __PR("reg%u", opr->payload.uint32);
     return p - buf;
 }
-#define __PO(id) do{p += _dalvik_instruction_operand_const_to_string(inst->operands + id, p, buf + sz - p);} while(0)
+#define __PO(id) do{p += _dalvik_instruction_operand_to_string(inst->operands + id, p, buf + sz - p);} while(0)
 #define __CI(_name) name = #_name; break
 const char* dalvik_instruction_to_string(dalvik_instruction_t* inst, char* buf, size_t sz)
 {

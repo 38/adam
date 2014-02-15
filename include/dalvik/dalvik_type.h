@@ -28,6 +28,8 @@ enum {
     DALVIK_TYPECODE_OBJECT= 0x80,
     DALVIK_TYPECODE_ARRAY = 0x81
 };
+
+extern const char* dalvik_type_atom_name[];
 #define DALVIK_TYPE_IS_ATOM(typenum) ((~typenum)&0x80)
 typedef struct _dalvik_type_t{
     uint32_t typecode;
@@ -48,8 +50,17 @@ void dalvik_type_finalize(void);
 /* get a dalvik type from a sexpression */
 dalvik_type_t* dalvik_type_from_sexp(sexpression_t* sexp);
 
+/* clone a dalvik type from an existing one */
+dalvik_type_t* dalvik_type_clone(const dalvik_type_t* type);
+
+/* clone a dalvik type list from an exisiting one */
+dalvik_type_t**  dalvik_type_list_clone(dalvik_type_t * const * type);
+
 /* free the memory */
-void dalvik_type_free(dalvik_type_t* sexp);
+void dalvik_type_free(dalvik_type_t* type);
+
+/* free a NULL-terminating type list */
+void dalvik_type_list_free(dalvik_type_t **list);
 
 /* compare if two types are equal */
 int dalvik_type_equal(const dalvik_type_t* left, const dalvik_type_t* right);
@@ -62,6 +73,12 @@ hashval_t dalvik_type_list_hashcode(dalvik_type_t * const * typelist);
 
 /* return a bool indicate if type list left and right are equal */
 int dalvik_type_list_equal(dalvik_type_t * const * left, dalvik_type_t * const * right);
+
+/* convert a type to human readable string */
+const char* dalvik_type_to_string(const dalvik_type_t* type, char* buf, size_t sz);
+
+/* convert a type list to human readable string */
+const char* dalvik_type_list_to_string(dalvik_type_t * const * list, char* buf, size_t sz);
 
 #define DALVIK_TYPE_ATOM(what)  dalvik_type_atom[DALVIK_TYPECODE_##what]
 
