@@ -573,6 +573,8 @@ dalvik_block_t* dalvik_block_from_method(const char* classpath, const char* meth
             LOG_DEBUG("delete unreachable block %d", blocks[i]->index);
             free(blocks[i]);
         }
+        else
+            blocks[i]->nregs = method->num_regs;
     }
 
     /* insert the block graph to the cache */

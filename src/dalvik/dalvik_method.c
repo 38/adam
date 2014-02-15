@@ -118,7 +118,9 @@ dalvik_method_t* dalvik_method_from_sexp(sexpression_t* sexp, const char* class_
         {
             /* (limit registers ...) */
             /* simplely ignore */
-            LOG_DEBUG("ignored psuedo-instruction (limit registers)");
+            //LOG_DEBUG("ignored psuedo-instruction (limit registers)");
+            method->num_regs = atoi(arg);
+            LOG_DEBUG("uses %d registers", method->num_regs);
         }
         else if(sexp_match(this_smt, "(L=L?", DALVIK_TOKEN_LINE, &arg))
         {

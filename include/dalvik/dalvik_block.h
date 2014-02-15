@@ -36,6 +36,7 @@ struct _dalvik_block_t{
     uint16_t   begin;    /* the first instruction of this block */
     uint16_t   end;      /* the last instruction of this block  + 1. The range of the block is [begin,end) */
     size_t     nbranches;                 /* how many possible executing path after this block is done */
+    uint16_t   nregs;     /* number of registers the block can use */
     dalvik_block_branch_t branches[0]; /* all possible executing path */
 };
 
@@ -44,6 +45,6 @@ void dalvik_block_init();
 void dalvik_block_finalize();
 
 /* construct a block graph from a function */
-dalvik_block_t* dalvik_block_from_method(const char* classpath, const char* methodname, dalvik_type_t * const * args); 
+dalvik_block_t* dalvik_block_from_method(const char* classpath, const char* methodname, dalvik_type_t * const * args);
 
 #endif
