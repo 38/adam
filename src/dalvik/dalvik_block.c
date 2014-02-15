@@ -9,6 +9,7 @@
 typedef struct _dalvik_block_cache_node_t{
     const char*     methodname;
     const char*     classpath;
+    dalvik_type_t * const * typelist;
     dalvik_block_t* block;
     struct _dalvik_block_cache_node_t * next;
 } dalvik_block_cache_node_t;
@@ -16,7 +17,11 @@ typedef struct _dalvik_block_cache_node_t{
 static dalvik_block_cache_node_t* _dalvik_block_cache[DALVIK_BLOCK_CACHE_SIZE];
 
 /* allocate a node refer to the block */
-static inline dalvik_block_cache_node_t* _dalvik_block_cache_node_alloc(const char* class, const char* method, dalvik_block_t* block)
+static inline dalvik_block_cache_node_t* _dalvik_block_cache_node_alloc(
+        const char* class, 
+        const char* method, 
+        dalvik_type_t * const * typelist,
+        dalvik_block_t* block)
 {
     if(NULL == block ||
        NULL == class ||
@@ -31,8 +36,19 @@ static inline dalvik_block_cache_node_t* _dalvik_block_cache_node_alloc(const ch
         return NULL;
     }
     ret->block = block;
+    ret->typelist = dalvik_type_list_clone(typelist);
     ret->next = NULL;
     return ret;
+}
+/* release the memory for a block cache node */
+static inline void _dalvik_block_cache_node_free(dalvik_block_cache_node_t* block)
+{
+    if(NULL == block) return;
+    if(block->typelist != NULL)
+    {
+        dalvik_type_list_free((dalvik_type_t**)block->typelist); 
+    }
+    free(block);
 }
 /* tranverse the graph */
 static inline void _dalvik_block_tranverse_graph(dalvik_block_t* node, vector_t* result)
@@ -56,20 +72,19 @@ static inline void _dalvik_block_graph_free(dalvik_block_t* entry)
     int i;
     for(i = 0; i < vector_size(vec); i ++)
     {
-        dalvik_block_cache_node_t* node = *(dalvik_block_cache_node_t**)vector_get(vec, i);
-        //TODO: free node->block
-        LOG_INFO("fixme: free node->block");
-        free(node);
+        dalvik_block_t* node = *(dalvik_block_t**)vector_get(vec, i);
+        free(node); 
     }
     vector_free(vec);
 }
-static inline hashval_t _dalvik_block_hash(const char* class, const char* method)
+static inline hashval_t _dalvik_block_hash(const char* class, const char* method, dalvik_type_t * const * typelist)
 {
     return 
             (((uintptr_t)class & 0xffffffffull) * MH_MULTIPLY) ^ 
             (((uintptr_t)method & 0xffff) * MH_MULTIPLY) ^ 
             ((uintptr_t)method >> 16) ^ 
-            ~((uintptr_t)class>>((sizeof(uintptr_t)/2)));
+            ~((uintptr_t)class>>((sizeof(uintptr_t)/2))) ^
+            dalvik_type_list_hashcode(typelist);
 }
 void dalvik_block_init()
 {
@@ -88,7 +103,7 @@ void dalvik_block_finalize()
             p = p->next;
             graph_entry = tmp->block;
             _dalvik_block_graph_free(graph_entry);
-            free(tmp);
+            _dalvik_block_cache_node_free(tmp);
         }
     }
 }
@@ -109,47 +124,44 @@ static inline int _dalvik_block_get_key_instruction_list(uint32_t entry_point, u
     uint32_t inst;
     dalvik_instruction_t * current_inst = NULL;
 #define __PUSH(value) do{\
-    if(kcnt >= size)\
+    uint32_t tmp = (value);\
+    if(tmp < entry_point)\
     {\
-        LOG_ERROR("excepting %d key instructions, got more than that. Try to adjust constant DALVIK_BLOCK_MAX_KEYS");\
-        return 0;\
+        LOG_DEBUG("instruction address out of boundary, ignored");\
     }\
-    key[kcnt ++] = (value);\
-    LOG_DEBUG("new branch %d --> %d", inst, key[kcnt - 1]);\
+    else\
+    {\
+        if(kcnt >= size)\
+        {\
+            LOG_ERROR("excepting %d key instructions, got more than that. Try to adjust constant DALVIK_BLOCK_MAX_KEYS", size);\
+            return 0;\
+        }\
+        key[kcnt ++] = (value);\
+        LOG_TRACE("add a new key instruction #%d", key[kcnt-1]);\
+    }\
 }while(0)
-#define __PUSH_LABEL(label) __PUSH(dalvik_label_jump_table[(label)])
+#define __PUSH_LABEL(label) __PUSH(dalvik_label_jump_table[(label)]-1)   /* The prevoius instruction is a key instruction */
+    uint32_t last_instruction = DALVIK_INSTRUCTION_INVALID;
     for(inst = entry_point; DALVIK_INSTRUCTION_INVALID != inst; inst = current_inst->next)
     {
+         last_instruction = inst;
          current_inst = dalvik_instruction_get(inst);
+         LOG_DEBUG("%04d %s",inst ,dalvik_instruction_to_string(current_inst, NULL, 0));
          switch(current_inst->opcode)
          {
-             static char buf[1024];
-             LOG_DEBUG("current instruction: %s", dalvik_instruction_to_string(current_inst, buf, sizeof(buf)));
              case DVM_GOTO:
-                 LOG_DEBUG("key instruction: #%d: opcode=GOTO flag=%x num_operands=%d", 
-                            inst, 
-                            current_inst->flags, 
-                            current_inst->num_operands);
                  /* append the instruction to the key list */
                  __PUSH(inst);
                  __PUSH_LABEL(current_inst->operands[0].payload.labelid);
                  break;
              case DVM_IF:
-                 LOG_DEBUG("key instruction: #%d: opcode=IF flag=%x num_operands=%d",
-                           inst,
-                           current_inst->flags,
-                           current_inst->num_operands);
                  __PUSH(inst);
                  /* if it's not the last instruction, this is one possible routine */
-                 if(current_inst->next != DALVIK_INSTRUCTION_INVALID)
-                     __PUSH(current_inst->next);
-                 __PUSH(current_inst->operands[2].payload.labelid);
+                 /*if(current_inst->next != DALVIK_INSTRUCTION_INVALID)
+                     __PUSH(current_inst->next);*/
+                 __PUSH_LABEL(current_inst->operands[2].payload.labelid);
                  break;
              case DVM_SWITCH:
-                 LOG_DEBUG("key instruction: #%d: opcode=SWITCH flag=%x num_operands=%d",
-                           inst,
-                           current_inst->flags,
-                           current_inst->num_operands);
                  __PUSH(inst);
                  if(DVM_FLAG_SWITCH_PACKED == current_inst->flags)
                  {
@@ -161,26 +173,27 @@ static inline int _dalvik_block_get_key_instruction_list(uint32_t entry_point, u
                          LOG_ERROR("invalid operand");
                          return -1;
                      }
-                     size_t size = vector_size(lv);
+                     size_t vec_size = vector_size(lv);
                      
-                     for(i = 0; i < size; i ++)
+                     for(i = 0; i < vec_size; i ++)
                          __PUSH_LABEL(*(int*)vector_get(lv,i));
                  }
                  else if(DVM_FLAG_SWITCH_SPARSE == current_inst->flags)
                  {
                      /* sparse swith */
                      int i;
-                     vector_t* lv = current_inst->operands[2].payload.sparse;
+                     vector_t* lv = current_inst->operands[1].payload.sparse;
                      if(NULL == lv)
                      {
                          LOG_ERROR("invalid operand");
                          return -1;
                      }
-                     size_t size = vector_size(lv);
-                     for(i = 0; i < size; i ++)
+                     size_t vec_size = vector_size(lv);
+                     for(i = 0; i < vec_size; i ++)
                      {
                         dalvik_sparse_switch_branch_t* branch;
                         branch = (dalvik_sparse_switch_branch_t*) vector_get(lv, i);
+                        //key[kcnt ++] = branch->labelid; 
                         __PUSH_LABEL(branch->labelid);
                      }
                  }
@@ -188,28 +201,20 @@ static inline int _dalvik_block_get_key_instruction_list(uint32_t entry_point, u
                      LOG_ERROR("invalid instruction switch(flags = %d)", current_inst->flags);
                  break;
              case DVM_INVOKE:
-                 LOG_DEBUG("key instruction: #%d: opcode=INVOKE, flags=%x, noperands=%d", 
-                           inst,
-                           current_inst->flags,
-                           current_inst->num_operands);
+                 __PUSH(inst-1);   /* because invoke itself forms a block, so it's previous instruction is also a key instruction */
                  __PUSH(inst);
-                 if(current_inst->next != DALVIK_INSTRUCTION_INVALID)
-                     __PUSH(current_inst->next);
                  break;
+             /* TODO: exception jumpping support */
              case DVM_RETURN:
-                 LOG_DEBUG("key instruction #%d: opcode = RETURN, flags = %d, noperands = %d",
-                            inst,
-                            current_inst->flags,
-                            current_inst->num_operands);
                  __PUSH(inst);
-                 /* there's no next instruction actually */
                  break;
-             default:
-                 LOG_DEBUG("not a key instruction opcode=%d, flags=%d, noperands=%d",
-                           current_inst->opcode,
-                           current_inst->flags,
-                           current_inst->num_operands);
          }
+
+    }
+    /* the last instruction of the method is also a key instruction */
+    if(last_instruction != DALVIK_INSTRUCTION_INVALID)
+    {
+        __PUSH(last_instruction);
     }
 
 #undef __PUSH
@@ -234,11 +239,6 @@ static inline int _dalvik_block_get_key_instruction_list(uint32_t entry_point, u
     kcnt = next_pos;
 #if LOG_LEVEL >= 6
     LOG_DEBUG("%d key instructions in this function: ", kcnt);
-    int i;
-    for(i = 0; i < kcnt; i ++)
-    {
-        LOG_DEBUG("%d", key[i]);
-    }
 #endif  /* debuge infomation */
     return kcnt;
 }
@@ -256,7 +256,7 @@ static inline int32_t _dalvik_block_find_blockid_by_instruction(uint32_t inst, c
 {
     int i;
     for(i = 0; i < kcnt; i ++)
-        if(inst < key[i])  /* find the end point of the block */
+        if(inst <= key[i])  /* find the end point of the block */
             return i;
     return -1;
 }
@@ -273,7 +273,7 @@ static inline dalvik_block_t* _dalvik_block_setup_keyinst_goto(dalvik_instructio
     block->branches[0].linked = 0;
     block->branches[0].conditional = 0;
     block->branches[0].block_id[0] = _dalvik_block_find_blockid_by_instruction(target, key, kcnt);
-    LOG_DEBUG("possible path block %d --> block %d",  index, block->branches[0].block_id[0]);
+    LOG_DEBUG("possible path block %d --> %d",  index, block->branches[0].block_id[0]);
     return block;
 }
 static inline dalvik_block_t* _dalvik_block_setup_keyinst_if(dalvik_instruction_t* inst, const uint32_t* key, size_t kcnt, uint32_t index)
@@ -296,7 +296,7 @@ static inline dalvik_block_t* _dalvik_block_setup_keyinst_if(dalvik_instruction_
     else
     {
         block->branches[1].block_id[0] = _dalvik_block_find_blockid_by_instruction(inst->next, key, kcnt);
-        LOG_DEBUG("possible path block %d --> block %d", index, block->branches[1].block_id[0]);
+        LOG_DEBUG("possible path block %d --> %d", index, block->branches[1].block_id[0]);
     }
     /* setup the true branch */
     uint32_t target = dalvik_label_jump_table[inst->operands[2].payload.labelid];
@@ -318,7 +318,7 @@ static inline dalvik_block_t* _dalvik_block_setup_keyinst_if(dalvik_instruction_
        inst->flags == DVM_FLAG_IF_GT)
         block->branches[0].gt = 1;
     
-    LOG_DEBUG("possible path block %d --> block %d",  index, block->branches[0].block_id[0]);
+    LOG_DEBUG("possible path block %d --> %d",  index, block->branches[0].block_id[0]);
     return block;
 }
 static inline dalvik_block_t* _dalvik_block_setup_keyinst_switch(dalvik_instruction_t* inst, const uint32_t *key, size_t kcnt, uint32_t index)
@@ -333,7 +333,7 @@ static inline dalvik_block_t* _dalvik_block_setup_keyinst_switch(dalvik_instruct
         block = _dalvik_block_new(nb);
         if(NULL == block)
         {
-            LOG_ERROR("can not allocate memory for a packed swith block");
+            LOG_ERROR("can not allocate memory for a packed switch block");
             return NULL;
         }
         block->index = index;
@@ -346,7 +346,7 @@ static inline dalvik_block_t* _dalvik_block_setup_keyinst_switch(dalvik_instruct
 
             block->branches[j].conditional = 1;
             block->branches[j].linked      = 0;
-            block->branches[j].block_id[0] = _dalvik_block_find_blockid_by_instruction(target, key, kcnt);
+            block->branches[j].block_id[0] = _dalvik_block_find_blockid_by_instruction(dalvik_label_jump_table[target], key, kcnt);
             block->branches[j].left_inst = 1;   /* use the instant field */
             block->branches[j].ileft[0] = j + value_begin;
             block->branches[j].right = inst->operands + 0;
@@ -374,7 +374,7 @@ static inline dalvik_block_t* _dalvik_block_setup_keyinst_switch(dalvik_instruct
             branch = (dalvik_sparse_switch_branch_t*)vector_get(branches, j);
             block->branches[j].conditional = 1;
             block->branches[j].linked      = 0;
-            block->branches[j].block_id[0] = _dalvik_block_find_blockid_by_instruction(branch->labelid, key, kcnt);
+            block->branches[j].block_id[0] = _dalvik_block_find_blockid_by_instruction(dalvik_label_jump_table[branch->labelid], key, kcnt);
             if(branch->is_default)
             {
                 /* this is default branch */
@@ -389,6 +389,7 @@ static inline dalvik_block_t* _dalvik_block_setup_keyinst_switch(dalvik_instruct
                 block->branches[j].right    = inst->operands + 1;
                 block->branches[j].eq       = 1;
             }
+            LOG_DEBUG("possible path block %d --> %d", index, block->branches[j].block_id[0]);
         }
     }
     else 
@@ -415,6 +416,13 @@ static inline dalvik_block_t* _dalvik_block_setup_keyinst(dalvik_instruction_t* 
         LOG_ERROR("unexcepted instruction at the end of the method, branches disabled");
         block->branches[0].disabled = 1;
     }
+    LOG_DEBUG("possible path block %d --> %d", index, block->branches[0].block_id[0]);
+    return block;
+}
+static inline dalvik_block_t* _dalvik_block_setup_return(dalvik_instruction_t* inst, const uint32_t *key, size_t kcnt, uint32_t index)
+{
+    dalvik_block_t* block = _dalvik_block_new(1);  /* only 1 path is possible */
+    block->index = index;
     return block;
 }
 static inline int _dalvik_block_build_graph(uint32_t entry, dalvik_block_t** blocks, size_t sz, const uint32_t* key, size_t kcnt)
@@ -427,6 +435,7 @@ static inline int _dalvik_block_build_graph(uint32_t entry, dalvik_block_t** blo
         dalvik_instruction_t* inst = dalvik_instruction_get(key[i]);  /*get the key instruction */
         dalvik_block_t* block = NULL;
         uint32_t block_end;
+        LOG_DEBUG("key instruction: %s", dalvik_instruction_to_string(inst, NULL, 0));
         switch(inst->opcode)
         {
             case DVM_GOTO:
@@ -441,6 +450,10 @@ static inline int _dalvik_block_build_graph(uint32_t entry, dalvik_block_t** blo
             case DVM_SWITCH:
                 block_end = key[i]; 
                 block = _dalvik_block_setup_keyinst_switch(inst, key, kcnt, i);
+                break;
+            case DVM_RETURN:
+                block_end = key[i];   /* do not include the instruction */
+                block = _dalvik_block_setup_return(inst, key, kcnt, i);
                 break;
             case DVM_INVOKE:  /* acutally invoke instruction is not a jump instruction */
             default:
@@ -462,18 +475,27 @@ static inline int _dalvik_block_build_graph(uint32_t entry, dalvik_block_t** blo
         /* prepare for next block */
         block_begin = inst->next;
 
-        /* the first key >= block_begin is actually the begnining of next block.
+        /* the first key[i] >= block_begin is actually the begnining of next block.
          * So after this loop, i ++, so that key[i] will be the end of next block
          */
-        for(; block_begin < key[i]; i ++);
+        //for(; i < kcnt && block_begin > key[i]; i ++);
     }
     return 0;
-    //TODO: link all graph
 ERROR:
     for(i = 0; i < kcnt; i ++)
         if(blocks[i] == NULL)
             free(blocks[i]);
     return -1;
+}
+static void inline _dalvik_block_graph_dfs(const dalvik_block_t * block, uint32_t* visit_status)
+{
+    if(NULL == block) return;
+    if(visit_status[block->index] == 1) return;  /*visited*/
+    visit_status[block->index] = 1;
+    int i;
+    for(i = 0; i < block->nbranches; i ++)
+        if(!block->branches[i].disabled)
+            _dalvik_block_graph_dfs(block->branches[i].block, visit_status);  
 }
 dalvik_block_t* dalvik_block_from_method(const char* classpath, const char* methodname, dalvik_type_t * const * typelist)
 {
@@ -483,13 +505,14 @@ dalvik_block_t* dalvik_block_from_method(const char* classpath, const char* meth
         return NULL;
     }
     LOG_DEBUG("get block graph of method %s/%s", classpath, methodname);
-    hashval_t h = _dalvik_block_hash(classpath, methodname) % DALVIK_BLOCK_CACHE_SIZE;
+    hashval_t h = _dalvik_block_hash(classpath, methodname, typelist) % DALVIK_BLOCK_CACHE_SIZE;
     /* try to find the block graph in the cache */
     dalvik_block_cache_node_t* p;
     for(p = _dalvik_block_cache[h]; NULL != p; p = p->next)
     {
         if(p->methodname == methodname &&
-           p->classpath  == classpath)
+           p->classpath  == classpath &&
+           dalvik_type_list_equal(typelist, p->typelist))
         {
             LOG_DEBUG("found the block graph in cache!");
             return p->block;
@@ -508,7 +531,12 @@ dalvik_block_t* dalvik_block_from_method(const char* classpath, const char* meth
     dalvik_block_t* blocks[DALVIK_BLOCK_MAX_KEYS] = {}; /* block list */ 
     
     /* Get a list of key instructions */
-    uint32_t kcnt = _dalvik_block_get_key_instruction_list(method->entry, key, sizeof(key)/sizeof(*key));
+    int32_t kcnt = _dalvik_block_get_key_instruction_list(method->entry, key, sizeof(key)/sizeof(*key));
+    if(kcnt < 0) 
+    {
+        LOG_ERROR("can not generate the key instruction list");
+        return NULL;
+    }
 
     if(_dalvik_block_build_graph(method->entry, blocks, DALVIK_BLOCK_MAX_KEYS, key, kcnt) < 0)
     {
@@ -524,10 +552,44 @@ dalvik_block_t* dalvik_block_from_method(const char* classpath, const char* meth
         {
             int j;
             for(j = 0; j < blocks[i]->nbranches; j ++)
+            {
+                if(blocks[i]->branches[j].disabled) continue;
                 blocks[i]->branches[j].block = blocks[blocks[i]->branches[j].block_id[0]];
+                blocks[i]->branches[j].linked = 1;
+            }
         }
     }
 
+    /* then, we delete all unreachable blocks */
+    uint32_t* visit_flags = key;          /* here we reuse the memory for key to store the visit flags */
+    memset(key, 0, sizeof(key));
+    /* ok, DFS the graph */
+    _dalvik_block_graph_dfs(blocks[0], visit_flags);
+    /* then, delete all block that never visited */
+    for(i = 0; i < kcnt; i ++)
+    {
+        if(blocks[i] != NULL && visit_flags[blocks[i]->index] == 0)
+        {
+            LOG_DEBUG("delete unreachable block %d", blocks[i]->index);
+            free(blocks[i]);
+        }
+    }
+
+    /* insert the block graph to the cache */
+    dalvik_block_cache_node_t* node = _dalvik_block_cache_node_alloc(classpath, methodname, typelist ,blocks[0]);
+    if(NULL == node) 
+    {
+        LOG_ERROR("can not allocte memory for cache node, the block is to be freed");
+        _dalvik_block_graph_free(blocks[0]);
+        return NULL;
+    }
+    node->next = _dalvik_block_cache[h];
+    _dalvik_block_cache[h] = node;
+
+    LOG_DEBUG("block graph for function %s/%s with type [%s] has been cached", 
+               classpath,
+               methodname,
+               dalvik_type_list_to_string(typelist,NULL, 0));
     return blocks[0];
 }
 

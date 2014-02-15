@@ -32,9 +32,9 @@ typedef struct {
     uint8_t            left_inst:1; /* use ileft field ? */ 
 } dalvik_block_branch_t;
 struct _dalvik_block_t{ 
-    uint32_t              index;    /* the index of the block with the method */
-    uint32_t   begin;    /* the first instruction of this block */
-    uint32_t   end;      /* the last instruction of this block  + 1. The range of the block is [begin,end) */
+    uint32_t   index;    /* the index of the block with the method, we do assume that a function is not large*/
+    uint16_t   begin;    /* the first instruction of this block */
+    uint16_t   end;      /* the last instruction of this block  + 1. The range of the block is [begin,end) */
     size_t     nbranches;                 /* how many possible executing path after this block is done */
     dalvik_block_branch_t branches[0]; /* all possible executing path */
 };

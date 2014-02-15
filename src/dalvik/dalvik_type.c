@@ -1,9 +1,24 @@
-#include <dalvik/dalvik_type.h>
 #include <stdlib.h>
-#include <log.h>
 #include <string.h>
+#include <stdio.h>
+
+#include <dalvik/dalvik_type.h>
+#include <log.h>
 #include <dalvik/dalvik_tokens.h>
 #include <debug.h>
+const char* dalvik_type_atom_name[DALVIK_TYPECODE_NUM_ATOM] = {
+    [DALVIK_TYPECODE_VOID]  "void"  ,
+    [DALVIK_TYPECODE_INT]   "int"   ,
+    [DALVIK_TYPECODE_LONG]  "long"  ,
+    [DALVIK_TYPECODE_SHORT] "short" ,
+    [DALVIK_TYPECODE_WIDE]  "wide"  ,
+    [DALVIK_TYPECODE_FLOAT] "float" ,
+    [DALVIK_TYPECODE_DOUBLE]"double",
+    [DALVIK_TYPECODE_CHAR]  "char",
+    [DALVIK_TYPECODE_BYTE]  "byte",
+    [DALVIK_TYPECODE_BOOLEAN]"boolean"
+};
+
 
 dalvik_type_t* dalvik_type_atom[DALVIK_TYPECODE_NUM_ATOM];
 static inline dalvik_type_t* _dalvik_type_alloc(int typecode)
@@ -179,4 +194,136 @@ int dalvik_type_list_equal(dalvik_type_t * const * left, dalvik_type_t * const *
             return 0;
     /* Because the only possiblity of left[i] == right[i] here is both variable is NULL */
     return left[i] == right[i];
+}
+static inline int _dalvik_type_to_string_imp(const dalvik_type_t* type, char* buf, size_t sz)
+{
+    if(NULL == type)
+        return snprintf(buf, sz, "(null-type)");
+    if(DALVIK_TYPE_IS_ATOM(type->typecode))
+        return snprintf(buf, sz, "(atom %s)", dalvik_type_atom_name[type->typecode]);
+    else
+    {
+        char* p;
+        switch(type->typecode)
+        {
+            case DALVIK_TYPECODE_OBJECT:
+                return snprintf(buf, sz, "(object %s)", type->data.object.path);
+            case DALVIK_TYPECODE_ARRAY:
+                p = buf;
+                p += snprintf(p, sz, "(array ");
+                p += _dalvik_type_to_string_imp(type->data.array.elem_type, p, buf + sz - p);
+                p[0] = ')';
+                p[1] = 0;
+                p ++;
+                return p - buf;
+            default:
+                return snprintf(buf, sz, "(unknown-type)");
+        }
+    }
+}
+const char* dalvik_type_to_string(const dalvik_type_t* type, char* buf, size_t sz)
+{
+    static char _buf[1024];
+    if(NULL == buf)
+    {
+        buf = _buf;
+        sz = sizeof(_buf);
+    }
+    _dalvik_type_to_string_imp(type, buf, sz);
+    return buf;
+}
+const char* dalvik_type_list_to_string(dalvik_type_t * const * list, char* buf, size_t sz)
+{
+    static char _buf[1024];
+    if(NULL == buf)
+    {
+        buf = _buf;
+        sz = sizeof(_buf);
+    }
+    char* p = buf;
+    p += snprintf(p, buf + sz - p, "(type-list");
+    int i;
+    for(i = 0; NULL != list[i]; i ++)
+    {
+        p += _dalvik_type_to_string_imp(list[i], p, buf + sz - p);
+        if(NULL != list[i+1])
+            p += snprintf(p, buf + sz - p, ",");   /* not the last one, add seperator */
+    }
+    p += snprintf(p, buf + sz - p, ")");
+    return buf;
+}
+dalvik_type_t* dalvik_type_clone(const dalvik_type_t* type)
+{
+    if(NULL == type) return NULL;
+    if(DALVIK_TYPE_IS_ATOM(type->typecode))  
+        return (dalvik_type_t*) type;   /* reuse all atmoic type, we need to modify some value */
+    dalvik_type_t *ret = NULL;
+    switch(type->typecode)
+    {
+        case DALVIK_TYPECODE_OBJECT:
+            ret = _dalvik_type_alloc(DALVIK_TYPECODE_OBJECT);
+            if(NULL == ret)
+            {
+                LOG_ERROR("can not allocate memory for the new copy of type %s", dalvik_type_to_string(type, NULL, 0));
+                return NULL;
+            }
+            ret->data.object.path = type->data.object.path;
+            return ret;
+        case DALVIK_TYPECODE_ARRAY:
+            ret = _dalvik_type_alloc(DALVIK_TYPECODE_ARRAY);
+            if(NULL == ret)
+            {
+                LOG_ERROR("can not allocate memory for the new copy of type %s", dalvik_type_to_string(type, NULL, 0));
+                return NULL;
+            }
+            ret->data.array.elem_type = dalvik_type_clone(type->data.array.elem_type);
+            return ret;
+        default:
+            LOG_ERROR("unknown type, do not clone");
+            return NULL;
+    }
+}
+
+dalvik_type_t**  dalvik_type_list_clone(dalvik_type_t * const * type)
+{
+    if(NULL == type) return NULL;
+    int i;
+    for(i = 0; type[i] != NULL; i ++);
+    size_t sz = sizeof(dalvik_type_t*) * (i + 1);
+    dalvik_type_t** ret = (dalvik_type_t**)malloc(sizeof(dalvik_type_t*) * (i+1));
+    memset(ret, 0, sz);
+    if(NULL == ret) 
+    {
+        LOG_ERROR("can not allocate memory for type array");
+        goto ERROR;
+    }
+    ret[i] = NULL;
+    for(i --; i >=0; i --)
+    {
+        ret[i] = dalvik_type_clone(type[i]);
+        if(NULL == ret[i]) 
+        {
+            LOG_ERROR("can not clone type %s", dalvik_type_to_string(type[i], NULL, 0));
+            goto ERROR;
+        }
+    }
+    return ret;
+ERROR:
+    LOG_ERROR("can not clone the type list %s", dalvik_type_list_to_string(type, NULL, 0));
+    if(NULL != ret)
+    {
+        for(i = 0; NULL != type[i]; i ++)
+            if(ret[i] != NULL)
+                dalvik_type_free(ret[i]);
+        free(ret);
+    }
+    return NULL;
+}
+
+void dalvik_type_list_free(dalvik_type_t **list)
+{
+    int i;
+    for(i = 0; NULL != list[i]; i ++)
+        dalvik_type_free(list[i]);
+    free(list);
 }

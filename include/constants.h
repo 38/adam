@@ -52,6 +52,11 @@
 #   define CONFIG_PATH "."
 #endif
 
+/* Max number of label a instruction can assign with */
+#ifndef DALVIK_METHOD_LABEL_STACK_SIZE
+#   define DALVIK_METHOD_LABEL_STACK_SIZE 32
+#endif
+
 /* the number of slots that used for implementation of set */
 #ifndef CESK_SET_HASH_SIZE
 #   define CESK_SET_HASH_SIZE 100007
