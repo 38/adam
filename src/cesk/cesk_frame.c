@@ -67,3 +67,25 @@ cesk_frame_t* cesk_frame_fork(cesk_frame_t* frame)
     ret->store = cesk_store_fork(frame->store);
     return ret;
 }
+
+void cesk_frame_free(cesk_frame_t* frame)
+{
+    if(NULL == frame) return;
+    int i;
+    for(i = 0; i < frame->size; i ++)
+    {
+        cesk_set_free(frame->regs[i]);
+    }
+    cesk_store_free(frame->store);
+}
+
+int cesk_frame_equal(cesk_frame_t* first, cesk_frame_t* second)
+{
+    if(NULL == first || NULL == second) return first == second;
+
+}
+
+int cesk_frame_gc(cesk_frame_t* frame)
+{
+    //TODO
+}

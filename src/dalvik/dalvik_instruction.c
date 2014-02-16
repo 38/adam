@@ -1064,7 +1064,7 @@ __DI_CONSTRUCTOR(NEW)
                            type);
         buf->num_operands = 3; 
     }
-    static dalvik_instruction_newidx_t idx = 0;
+    static uint32_t idx = 0;
     __DI_WRITE_ANNOTATION(idx, sizeof(idx));
     idx ++;
     return 0;

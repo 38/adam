@@ -51,7 +51,7 @@ cesk_object_t* cesk_object_new(const char* classpath)
             dalvik_field_t* field = dalvik_memberdict_get_field(classes[i]->path, classes[i]->members[j]);   /* because only function can overload */
             if(NULL == field)
             {
-                LOG_ERROR("We can not find field %s/%s", classes[i]->path, classes[i]->members[j]);
+                LOG_WARNING("Can not find field %s/%s, skip", classes[i]->path, classes[i]->members[j]);
                 continue;
             }
             base->valuelist[field->offset] = 0xfffffffful;  /* an invalid virtual address in frame store : TODO*/

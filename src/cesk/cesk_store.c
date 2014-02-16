@@ -135,7 +135,7 @@ cesk_value_t* cesk_store_get_rw(cesk_store_t* store, uint32_t addr)
 uint32_t cesk_store_allocate(cesk_store_t** p_store, dalvik_instruction_t* inst)
 {
     cesk_store_t* store = *p_store;
-    dalvik_instruction_newidx_t idx;
+    uint32_t idx;
     dalvik_instruction_read_annotation(inst, &idx, sizeof(idx));
     uint32_t  init_slot = (idx * 2654435761ul)  % CESK_STORE_BLOCK_NSLOTS;
     uint32_t  slot = init_slot;
