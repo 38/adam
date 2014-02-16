@@ -17,7 +17,7 @@
 typedef struct {
     uint32_t        refcnt:31;        /* this refcnt is the counter inside this frame */
     uint8_t         reuse:1;          /* if this address is reused, because same insturction should allocate same address */
-    dalvik_instruction_newidx_t idx;  /* instruction index created this object */
+    uint32_t        idx;              /* instruction index created this object */
     cesk_value_t*   value;
 } cesk_store_slot_t;
 typedef struct {
@@ -61,6 +61,7 @@ void cesk_store_free(cesk_store_t* store);
 
 /* increase the reference counter, return the new reference counter, negative means failure */
 int cesk_store_incref(cesk_store_t* store, uint32_t addr);
+
 /* decrease the reference counter, return the new reference counter, negative means failure */
 int cesk_store_decref(cesk_store_t* store, uint32_t addr);
 #endif

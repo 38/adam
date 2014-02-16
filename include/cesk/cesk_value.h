@@ -53,9 +53,10 @@ typedef struct {
 typedef struct _cesk_value_t {
     uint8_t     type;       /* type of this value */
     uint32_t    refcnt;     /* the reference counter */
+    hashval_t   hashcode;   /* the hashcode */
     struct _cesk_value_t 
                 *prev, *next; /* the previous and next pointer used by value list */
-    char        data[0];    /* actuall data payload */
+    char        data[0];    /* actual data payload */
 } cesk_value_t; 
 
 
@@ -81,5 +82,13 @@ cesk_value_t* cesk_value_fork(cesk_value_t* value);
 void cesk_value_incref(cesk_value_t* value);
 /* decrease the reference counter */
 void cesk_value_decref(cesk_value_t* value);
+
+/* The address based hashcode. Obviously, if every cell in a same are equal to the conresponding cell in
+ * Another store, the frame is equal acutally. However, there are some cases, e.g. allocate the same value
+ * by different instruction ( this leading a different address ), the comparse function returns false, but
+ * the store is actually the same.
+ * But because the number of address is finite, the function will terminate using this method.
+ */
+hashval_t cesk_value_hashcode(cesk_value_t* value);
 
 #endif /* __CESK_VALUE_T__ */

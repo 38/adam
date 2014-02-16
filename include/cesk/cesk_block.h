@@ -14,15 +14,15 @@
 #include <cesk/cesk_frame.h>
 
 typedef struct {
-    const dalvik_block_t* block;      /* the code block */
+    const dalvik_block_t* code_block;      /* the code block */
     cesk_frame_t*   input;      /* input frame */
-    cesk_frame_t*   output[0];  /* output frames, contains block->nbranches possible branch */
+    cesk_frame_t*   fanout[0];  /* output frames, contains block->nbranches possible branch */
 } cesk_block_t;     /* a node for a block in analysis */
 
 /* build a new analyzer block graph coresponding to the code block graph */
 cesk_block_t* cesk_block_graph_new(const dalvik_block_t* entry);
 
 /* analysis one block, 1 means the output changed, 0 means unchangede, -1 indicates errors */
-int cesk_block_analysis(cesk_block_t* block);
+int cesk_block_analyze(cesk_block_t* block);
 
 #endif
