@@ -44,6 +44,15 @@ int main()
     LOG_ERROR("%08x", cesk_set_hashcode(set1));
     LOG_ERROR("%08x", cesk_set_hashcode(set2));
     LOG_ERROR("%08x", cesk_set_hashcode(set3));
+
+    cesk_set_t* set4 = cesk_set_empty_set();
+    assert(0 == cesk_set_push(set4, 123));    /* S4 = {123} */
+    assert(1 == cesk_set_equal(set3, set4));  
+    assert(0 == cesk_set_equal(set3, set1));
+    assert(0 == cesk_set_push(set4, 789));     /* S4 = {123, 789} */
+    assert(1 == cesk_set_equal(set4, set2));
+    assert(0 == cesk_set_push(set4, 456));
+    assert(1 == cesk_set_equal(set4,set1));
     
     cesk_set_free(set1);
     cesk_set_free(set2);

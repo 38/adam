@@ -9,9 +9,9 @@ int main()
     dalvik_loader_summary();
     cesk_value_t* objval = cesk_value_from_classpath(stringpool_query("antlr/ANTLRTokdefParser"));
 
-    cesk_store_t* store = cesk_store_empty_store();
+    cesk_store_t* store = cesk_store_empty_store();    /* empty store */
 
-    cesk_store_t* store2 = cesk_store_fork(store);
+    cesk_store_t* store2 = cesk_store_fork(store);     /* empty store */
 
     sexpression_t* sexp;
     sexp_parse("(new-instance v1, antlr/ANTLRTokdefParser)", &sexp);
@@ -21,21 +21,45 @@ int main()
 
     uint32_t    addr = cesk_store_allocate(&store2, ins);
 
-    cesk_store_attach(store2, addr, objval);
+    cesk_store_attach(store2, addr, objval);  //object val 
     
-    addr = cesk_store_allocate(&store2, ins);
-
     cesk_store_t* store3 = cesk_store_fork(store2);
+
+    LOG_ERROR("hash code of store1 : %x", cesk_store_hash(store));
+    LOG_ERROR("hash code of store2 : %x", cesk_store_hash(store2));
+    LOG_ERROR("hash code of store3 : %x", cesk_store_hash(store3));
 
     const cesk_value_t* value_ro = cesk_store_get_ro(store3, addr);
 
     cesk_value_t* value_rw = cesk_store_get_rw(store3, addr);
 
     assert(value_ro != value_rw);
+
+    //*value_rw = cesk_value_from_classpath(stringpool_query("antlr/ANTLRLexer"));
+    cesk_object_t* object = (*(cesk_object_t**)value_rw->data);
+    LOG_DEBUG("object dump: %s", cesk_object_to_string(object, NULL, 0));
+    LOG_DEBUG("value hash: %x", cesk_value_hashcode(value_rw));
+    LOG_DEBUG("object hash: %x", cesk_object_hashcode(object));
+    assert(1 == cesk_store_equal(store2, store3));
+    *cesk_object_get(object, stringpool_query("antlr/ANTLRTokdefParser"), stringpool_query("antlrTool")) = 0;
+    LOG_DEBUG("object dump: %s", cesk_object_to_string(object, NULL, 0));
+    LOG_DEBUG("value hash: %x", cesk_value_hashcode(value_rw));
+    LOG_DEBUG("object hash: %x", cesk_object_hashcode(object));
+
+    assert(0 == cesk_store_equal(store2, store3));
+    assert(0 == cesk_store_equal(store, store2));
+
+    cesk_store_release_rw(store3, addr);
+
+    LOG_ERROR("hash code of store1 : %x", cesk_store_hash(store));
+    LOG_ERROR("hash code of store2 : %x", cesk_store_hash(store2));
+    LOG_ERROR("hash code of store3 : %x", cesk_store_hash(store3));
+    LOG_ERROR("object dump origin: %s", cesk_object_to_string(*(cesk_object_t**)value_ro->data, NULL, 0));
+
     cesk_store_free(store);
     cesk_store_free(store2);
     cesk_store_free(store3);
 
     adam_finalize();
     return 0;
-}
+} 
