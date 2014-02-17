@@ -40,6 +40,10 @@ int main()
     assert(0 == cesk_set_contain(set3, 456));
     assert(0 == cesk_set_contain(set3, 789));
     assert(0 == cesk_set_contain(set3, 321));
+
+    LOG_ERROR("%08x", cesk_set_hashcode(set1));
+    LOG_ERROR("%08x", cesk_set_hashcode(set2));
+    LOG_ERROR("%08x", cesk_set_hashcode(set3));
     
     cesk_set_free(set1);
     cesk_set_free(set2);

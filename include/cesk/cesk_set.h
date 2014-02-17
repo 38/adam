@@ -44,5 +44,11 @@ int cesk_set_contain(cesk_set_t* set, uint32_t addr);
 void cesk_set_init();
 void cesk_set_finalize();
 
+/* hash code of two set */
+hashval_t cesk_set_hashcode(cesk_set_t* set);
+
+/* compare two set */
+int cesk_set_equal(cesk_set_t* first, cesk_set_t* second);
+
 
 #endif /* __CESK_SET_H__ */

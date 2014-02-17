@@ -16,10 +16,11 @@ typedef struct _cesk_set_node_t cesk_set_node_t;
 /* data that the some set holds */
 typedef struct {
     cesk_set_node_t *next;
-} cesk_set_data_entry_t;;
+} cesk_set_data_entry_t;
 typedef struct {
     uint32_t size;          /* how many element in the set */
     uint32_t refcnt;        /* the reference count of this, indicates how many cesk_set_t for this set are returned */
+    hashval_t hashcode;     /* the hash code of the set */
     cesk_set_node_t* first; /* first element of the set */
 } cesk_set_info_entry_t;
 struct _cesk_set_node_t {
@@ -122,6 +123,7 @@ static inline uint32_t _cesk_set_idx_alloc(cesk_set_info_entry_t** p_entry)
     entry->size = 0;
     entry->refcnt = 0;
     entry->first = NULL;
+    entry->hashcode = 0x9c7cba63ul;  /* any magic number */
     *(p_entry) = entry;
     return next_idx ++;
 }
@@ -160,7 +162,6 @@ void cesk_set_finalize()
     }
     free(_cesk_empty_set);
 }
-void cesk_set_finalize();
 /* fork a set */
 cesk_set_t* cesk_set_fork(cesk_set_t* sour)
 {
@@ -282,6 +283,7 @@ static inline uint32_t _cesk_set_duplicate(cesk_set_info_entry_t* info, cesk_set
         return CESK_SET_INVALID;
     }
     new_info->size = info->size;
+    new_info->hashcode = info->hashcode;
 
     new_info->refcnt = 1;
     info->refcnt --;
@@ -344,6 +346,7 @@ int cesk_set_push(cesk_set_t* dest, uint32_t addr)
         cesk_set_node_t* node = (cesk_set_node_t*)(((char*)_cesk_set_hash_insert(dest->set_idx, addr)) - sizeof(cesk_set_node_t));
         node->data_entry->next = info->first;
         info->first = node;
+        info->hashcode ^= addr * MH_MULTIPLY;   /* update the hash code */
         info->size ++;
     }
     return 0;
@@ -391,6 +394,7 @@ int cesk_set_join(cesk_set_t* dest, cesk_set_t* sour)
             cesk_set_node_t* node = (cesk_set_node_t*)(((char*)_cesk_set_hash_insert(dest->set_idx, addr)) - sizeof(cesk_set_node_t));
             node->data_entry->next = info_dst->first;
             info_dst->first = node;
+            info_dst->hashcode ^= addr * MH_MULTIPLY;
             info_dst->size ++;
         }
     }
@@ -401,4 +405,25 @@ int cesk_set_contain(cesk_set_t* set, uint32_t addr)
     if(NULL == set) return 0;
     if(addr == CESK_STORE_ADDR_NULL) return 0;
     return (NULL != _cesk_set_hash_find(set->set_idx, addr));
+}
+int cesk_set_equal(cesk_set_t* first, cesk_set_t* second)
+{
+    if(NULL == first || NULL == second) return first == second;
+    if(cesk_set_hashcode(first) != cesk_set_hashcode(second)) return 0;
+    if(cesk_set_size(first) != cesk_set_size(second)) return 0;
+    cesk_set_iter_t iter_buf;
+    cesk_set_iter_t *iter;
+    uint32_t addr;
+    for(iter = cesk_set_iter(first, &iter_buf); 
+        iter != NULL &&
+        CESK_STORE_ADDR_NULL != (addr = cesk_set_iter_next(iter));)
+        if(cesk_set_contain(second, addr) == 0) return 0;
+    return 1;
+}
+hashval_t cesk_set_hashcode(cesk_set_t* set)
+{
+    cesk_set_info_entry_t* info = (cesk_set_info_entry_t*)_cesk_set_hash_find(set->set_idx, CESK_STORE_ADDR_NULL);
+    if(NULL == info) 
+        return 0;
+    return info->hashcode;
 }
