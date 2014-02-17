@@ -53,7 +53,6 @@ cesk_store_t* cesk_store_fork(cesk_store_t* store)
     LOG_DEBUG("a store of %d entities is being forked, %d bytes copied", ret->num_ent, size);
     return ret;
 }
-
 const cesk_value_t* cesk_store_get_ro(cesk_store_t* store, uint32_t addr)
 {
     uint32_t block_idx = addr / CESK_STORE_BLOCK_NSLOTS;
@@ -130,14 +129,45 @@ cesk_value_t* cesk_store_get_rw(cesk_store_t* store, uint32_t addr)
 
         val = newval;
     }
+    /* when a rw pointer is auquired, the hashcode is ready to update.
+     * After finish updating, you should call the function release the 
+     * value and update the hashcode 
+     */
+    store->hashcode ^= (addr * MH_MULTIPLY + cesk_value_hashcode(val));
+    val->write_status = 1;
     return val;
+}
+void cesk_store_release_rw(cesk_store_t* store, uint32_t addr)
+{
+    uint32_t block_idx = addr / CESK_STORE_BLOCK_NSLOTS;
+    uint32_t offset    = addr % CESK_STORE_BLOCK_NSLOTS;
+    if(block_idx >= store->nblocks) 
+    {
+        LOG_ERROR("invalid address out of space");
+        return;
+    }
+    cesk_store_block_t* block = store->blocks[block_idx];
+    if(NULL == block)
+    {
+        LOG_ERROR("opps, it should not happen");
+        return;
+    }
+    cesk_value_t* val = block->slots[offset].value;
+    if(val->write_status == 0)
+    {
+        LOG_WARNING("there's no writable pointer accociated to this status");
+        return;
+    }
+    val->write_status = 0;
+    /* update the hashcode */
+    store->hashcode ^= (addr * MH_MULTIPLY + cesk_value_hashcode(val));
 }
 uint32_t cesk_store_allocate(cesk_store_t** p_store, dalvik_instruction_t* inst)
 {
     cesk_store_t* store = *p_store;
     uint32_t idx;
     dalvik_instruction_read_annotation(inst, &idx, sizeof(idx));
-    uint32_t  init_slot = (idx * 2654435761ul)  % CESK_STORE_BLOCK_NSLOTS;
+    uint32_t  init_slot = (idx * MH_MULTIPLY)  % CESK_STORE_BLOCK_NSLOTS;
     uint32_t  slot = init_slot;
     /* here we perform a quadratic probing inside each block
      * But we do not jump more than 5 times in one block
@@ -434,4 +464,19 @@ int cesk_store_decref(cesk_store_t* store, uint32_t addr)
     return block->slots[ofs].refcnt;
 }
 
-//TODO: cycle reference detection & collection
+
+int cesk_store_equal(cesk_store_t* first, cesk_store_t* second)
+{
+    if(NULL == first || NULL == second) return first != second;
+    if(first->nblocks != second->nblocks) return 0;   /* because there must be an occupied address that another store does not have */
+    int i;
+    for(i = 0; i < first->nblocks; i ++)
+    {
+        int j;
+        for(j = 0; j < CESK_STORE_BLOCK_NSLOTS; j ++)
+            if(cesk_value_equal(first->blocks[i]->slots[j].value,
+                                second->blocks[i]->slots[j].value) == 0)
+                return 0;
+    }
+    return 1;
+}

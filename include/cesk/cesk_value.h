@@ -51,7 +51,8 @@ typedef struct {
 #include <cesk/cesk_set.h>
 
 typedef struct _cesk_value_t {
-    uint8_t     type;       /* type of this value */
+    uint8_t     type:7;       /* type of this value */
+    uint8_t     write_status:1; /* this bit check if the value is associated with a writable pointer */
     uint32_t    refcnt;     /* the reference counter */
     hashval_t   hashcode;   /* the hashcode */
     struct _cesk_value_t 
@@ -90,5 +91,8 @@ void cesk_value_decref(cesk_value_t* value);
  * But because the number of address is finite, the function will terminate using this method.
  */
 hashval_t cesk_value_hashcode(cesk_value_t* value);
+
+/* compare, the compare fuction is also based on the addr compare */
+int cesk_value_equal(cesk_value_t* first, cesk_value_t* second);
 
 #endif /* __CESK_VALUE_T__ */

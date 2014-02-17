@@ -154,3 +154,28 @@ hashval_t cesk_object_hashcode(cesk_object_t* object)
     hash ^= (hash >> 16);
     return hash;
 }
+int cesk_object_equal(cesk_object_t* first, cesk_object_t* second)
+{
+    if(NULL == first || NULL == second) return first == second;
+    if(first->members[0].classpath != second->members[0].classpath) return 0;
+    cesk_object_struct_t* this = first->members;
+    cesk_object_struct_t* that = second->members;
+
+    /* if the class path is the same, we assume that 
+     * two object has the same depth 
+     */
+    int i;
+    for(i = 0; i < first->depth; i ++)
+    {
+        int j;
+        for(j = 0; j < this->num_members; j ++)
+        {
+            uint32_t addr1 = this->valuelist[j];
+            uint32_t addr2 = this->valuelist[j];
+            if(addr1 != addr2) return 0;
+        }
+        this = (cesk_object_struct_t*)(this->valuelist + this->num_members);
+        that = (cesk_object_struct_t*)(that->valuelist + this->num_members);
+    }
+    return 1;
+}

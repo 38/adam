@@ -82,11 +82,25 @@ void cesk_frame_free(cesk_frame_t* frame)
 int cesk_frame_equal(cesk_frame_t* first, cesk_frame_t* second)
 {
     if(NULL == first || NULL == second) return first == second;
-
+    if(cesk_frame_hashcode(first) != cesk_frame_hashcode(second)) return 0;
+    
     return 0; 
 }
 
 int cesk_frame_gc(cesk_frame_t* frame)
 {
     return 0;
+}
+hashval_t cesk_frame_hashcode(cesk_frame_t* frame)
+{
+    hashval_t ret = 0xa3efab97ul;
+    hashval_t mul = MH_MULTIPLY;
+    int i;
+    for(i = 0; i < frame->size; i ++)
+    {
+        ret ^= mul * cesk_set_hashcode(frame->regs[i]);
+        mul *= MH_MULTIPLY;
+    }
+    ret ^= cesk_store_hash(frame->store);
+    return ret;
 }

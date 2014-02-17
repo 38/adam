@@ -29,6 +29,7 @@ typedef struct {
 typedef struct {
     uint32_t            nblocks;    /* number of blocks */
     uint32_t            num_ent;    /* number of entities */
+    hashval_t           hashcode;   /* hashcode of content of this store */
     cesk_store_block_t* blocks[0];  /* block array */
 } cesk_store_t;
 
@@ -56,6 +57,9 @@ uint32_t cesk_store_allocate(cesk_store_t** p_store, dalvik_instruction_t* inst)
 /* attach a value to an address, >0 means success, <0 error */
 int cesk_store_attach(cesk_store_t* store, uint32_t addr,cesk_value_t* value);
 
+/* release an attached address */
+void cesk_store_release_rw(cesk_store_t* store, uint32_t addr);
+
 /* deallocate the store, you should free memory manually */
 void cesk_store_free(cesk_store_t* store);
 
@@ -65,5 +69,10 @@ int cesk_store_incref(cesk_store_t* store, uint32_t addr);
 /* decrease the reference counter, return the new reference counter, negative means failure */
 int cesk_store_decref(cesk_store_t* store, uint32_t addr);
 
-/* TODO: store hash */
+static inline hashval_t cesk_store_hash(cesk_store_t* store)
+{
+    return store->hashcode;
+}
+
+int cesk_store_equal(cesk_store_t* fisrt, cesk_store_t* second);
 #endif

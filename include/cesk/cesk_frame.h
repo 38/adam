@@ -3,7 +3,7 @@
 #include <cesk/cesk_set.h>
 
 typedef struct {
-    uint16_t       size;     /* the number of registers in this frame */
+    uint32_t       size;     /* the number of registers in this frame */
     cesk_store_t*  store;    /* the store for this frame */
     cesk_set_t*    regs[0];  /* register values */
 } cesk_frame_t;
@@ -26,4 +26,6 @@ int cesk_frame_equal(cesk_frame_t* first, cesk_frame_t* second);
 /* garbage collect on a frame */
 int cesk_frame_gc(cesk_frame_t* frame);
 
+/* the hash fucntion of this frame */
+hashval_t cesk_frame_hashcode(cesk_frame_t* frame);
 #endif /* __CESK_FRAME_H__ */
