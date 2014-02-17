@@ -29,4 +29,7 @@ void cesk_object_free(cesk_object_t* object);
 cesk_object_t* cesk_object_fork(cesk_object_t* object);
 /* get the hash code of an object */
 hashval_t cesk_object_hashcode(cesk_object_t* object); 
+
+/* compare two object */
+int cesk_object_equal(cesk_object_t* first, cesk_object_t* second);
 #endif

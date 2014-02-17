@@ -254,10 +254,33 @@ hashval_t cesk_value_hashcode(cesk_value_t* value)
         case CESK_TYPE_OBJECT:
             /* object */
             return cesk_object_hashcode(*(cesk_object_t**)value->data);
+        case CESK_TYPE_SET:
+            return cesk_set_hashcode(*(cesk_set_t**)value->data);
         case CESK_TYPE_ARRAY:
             /* array */
-            return cesk_set_hashcode((*(cesk_value_array_t**)value->data)->values);
+            LOG_INFO("fixme: array type support");
+            //return cesk_set_hashcode((*(cesk_value_array_t**)value->data)->values);
         default:
             return 0;
+    }
+}
+int cesk_value_equal(cesk_value_t* first, cesk_value_t* second)
+{
+    if(NULL == first || NULL == second) return first == second;
+    if(first->type != second->type) return 0;
+    switch(first->type)
+    {
+        case CESK_TYPE_NUMERIC:
+        case CESK_TYPE_BOOLEAN:
+            return first == second;
+        case CESK_TYPE_OBJECT:
+            return cesk_object_equal(*(cesk_object_t**)first->data, *(cesk_object_t**)second->data);
+        case CESK_TYPE_SET:
+            return cesk_set_equal(*(cesk_set_t**)first->data, *(cesk_set_t**)second->data);
+        case CESK_TYPE_ARRAY:
+            LOG_INFO("fixme : array type support");
+        default:
+            LOG_WARNING("can not compare value type %d", first->type);
+            return 1;
     }
 }
