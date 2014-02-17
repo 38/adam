@@ -54,7 +54,7 @@ cesk_object_t* cesk_object_new(const char* classpath)
                 LOG_WARNING("Can not find field %s/%s, skip", classes[i]->path, classes[i]->members[j]);
                 continue;
             }
-            base->valuelist[field->offset] = 0xfffffffful;  /* an invalid virtual address in frame store : TODO*/
+            base->valuelist[field->offset] = CESK_STORE_ADDR_NULL;  
             LOG_INFO("Create new filed %s/%s for class %s at offset %d", classes[i]->path, 
                                                                          classes[i]->members[j], 
                                                                          classes[0]->path, 
@@ -121,11 +121,10 @@ cesk_object_t* cesk_object_fork(cesk_object_t* object)
     memcpy(newobj, object, objsize);
     return newobj;
 }
-#if 0
 /* use a Murmur Hash Function */
 hashval_t cesk_object_hashcode(cesk_object_t* object)
 {
-    hashval_t  hash = ((uint64_t)object) & ~(hashval_t)0;    /* We also consider the type of the object */
+    hashval_t  hash = ((uintptr_t)object->members[0].classpath) & ~(hashval_t)0;    /* We also consider the type of the object */
     
     int i;
     int len = 0;
@@ -136,7 +135,7 @@ hashval_t cesk_object_hashcode(cesk_object_t* object)
         int j;
         for(j = 0; j < this->num_members; j ++)
         {
-            hashval_t k = /*TODO cesk_value_set_hashcode(this->valuelist[j])*/;
+            hashval_t k = this->valuelist[j];
             k *= STRINGPOOL_MURMUR_C1;
             k = (k << STRINGPOOL_MURMUR_R1) | (k >> (32 - STRINGPOOL_MURMUR_R1));
             k *= STRINGPOOL_MURMUR_C2;
@@ -155,4 +154,3 @@ hashval_t cesk_object_hashcode(cesk_object_t* object)
     hash ^= (hash >> 16);
     return hash;
 }
-#endif

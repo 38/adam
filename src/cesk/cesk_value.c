@@ -241,7 +241,6 @@ cesk_value_t* cesk_value_fork(cesk_value_t* value)
     LOG_ERROR("unknown type");
     return NULL;
 }
-#if 0
 // Knuth's multiptive hash function 
 hashval_t cesk_value_hashcode(cesk_value_t* value)
 {
@@ -250,17 +249,15 @@ hashval_t cesk_value_hashcode(cesk_value_t* value)
     {
         case CESK_TYPE_NUMERIC:
         case CESK_TYPE_BOOLEAN:
-        case CESK_TYPE_STRING:
             /* atomic value */
-            return 2654435761ul * ((uint64_t)value&0xfffffffful);
+            return MH_MULTIPLY * ((uintptr_t)value&0xfffffffful);
         case CESK_TYPE_OBJECT:
             /* object */
             return cesk_object_hashcode(*(cesk_object_t**)value->data);
         case CESK_TYPE_ARRAY:
             /* array */
-            return cesk_value_set_hashcode((*(cesk_value_array_t**)value->data)->values);
+            return cesk_set_hashcode((*(cesk_value_array_t**)value->data)->values);
         default:
             return 0;
     }
 }
-#endif
