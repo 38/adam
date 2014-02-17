@@ -27,11 +27,6 @@ void cesk_object_free(cesk_object_t* object);
 
 /* make a copy of the object */
 cesk_object_t* cesk_object_fork(cesk_object_t* object);
-#if 0
-/* Because the method we look for a value, it's not possible to compute
- * a hash function without konwing the frame 
- */
-/* get the hash code of a object */
+/* get the hash code of an object */
 hashval_t cesk_object_hashcode(cesk_object_t* object); 
-#endif
 #endif

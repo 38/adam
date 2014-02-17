@@ -64,4 +64,6 @@ int cesk_store_incref(cesk_store_t* store, uint32_t addr);
 
 /* decrease the reference counter, return the new reference counter, negative means failure */
 int cesk_store_decref(cesk_store_t* store, uint32_t addr);
+
+/* TODO: store hash */
 #endif
