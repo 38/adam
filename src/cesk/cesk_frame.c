@@ -83,9 +83,10 @@ int cesk_frame_equal(cesk_frame_t* first, cesk_frame_t* second)
 {
     if(NULL == first || NULL == second) return first == second;
 
+    return 0; 
 }
 
 int cesk_frame_gc(cesk_frame_t* frame)
 {
-    //TODO
+    return 0;
 }
