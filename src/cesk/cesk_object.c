@@ -121,6 +121,30 @@ cesk_object_t* cesk_object_fork(cesk_object_t* object)
     memcpy(newobj, object, objsize);
     return newobj;
 }
+
+hashval_t cesk_object_hashcode(cesk_object_t* object)
+{
+    hashval_t  hash = ((uintptr_t)object->members[0].classpath) & ~(hashval_t)0;    /* We also consider the type of the object */
+    
+    int i;
+    cesk_object_struct_t* this = object->members;
+    uint32_t mul = MH_MULTIPLY;
+    for(i = 0; i < object->depth; i ++)
+    {
+        int j;
+        mul ^= (uintptr_t)this->classpath;
+        for(j = 0; j < this->num_members; j ++)
+        {
+            hashval_t k = this->valuelist[j] * mul;
+            mul *= MH_MULTIPLY;
+            hash ^= k;
+            hash = (hash << 16) | (hash >> 16);
+        }
+        this = (cesk_object_struct_t*)(this->valuelist + this->num_members);
+    }
+    return hash;
+}
+#if 0
 /* use a Murmur Hash Function */
 hashval_t cesk_object_hashcode(cesk_object_t* object)
 {
@@ -135,7 +159,7 @@ hashval_t cesk_object_hashcode(cesk_object_t* object)
         int j;
         for(j = 0; j < this->num_members; j ++)
         {
-            hashval_t k = this->valuelist[j];
+            hashval_t k = this->valuelist[j] * MH_MULTIPLY;
             k *= STRINGPOOL_MURMUR_C1;
             k = (k << STRINGPOOL_MURMUR_R1) | (k >> (32 - STRINGPOOL_MURMUR_R1));
             k *= STRINGPOOL_MURMUR_C2;
@@ -154,6 +178,7 @@ hashval_t cesk_object_hashcode(cesk_object_t* object)
     hash ^= (hash >> 16);
     return hash;
 }
+#endif
 int cesk_object_equal(cesk_object_t* first, cesk_object_t* second)
 {
     if(NULL == first || NULL == second) return first == second;
@@ -165,17 +190,57 @@ int cesk_object_equal(cesk_object_t* first, cesk_object_t* second)
      * two object has the same depth 
      */
     int i;
+    if(first->depth != second->depth)
+    {
+        LOG_WARNING("two object build from the same class %s has defferent inherent depth", cesk_object_classpath(first));
+        return 0;
+    }
     for(i = 0; i < first->depth; i ++)
     {
         int j;
+        if(this->num_members != that->num_members)
+        {
+            LOG_WARNING("two object build from the same class %s has different memory structure", cesk_object_classpath(first));
+            LOG_WARNING("first class has %d fields for class %d, but the second one has %d", 
+                        this->num_members, 
+                        cesk_object_classpath(first),
+                        that->num_members);
+            return 0;
+        }
         for(j = 0; j < this->num_members; j ++)
         {
             uint32_t addr1 = this->valuelist[j];
-            uint32_t addr2 = this->valuelist[j];
+            uint32_t addr2 = that->valuelist[j];
             if(addr1 != addr2) return 0;
         }
         this = (cesk_object_struct_t*)(this->valuelist + this->num_members);
-        that = (cesk_object_struct_t*)(that->valuelist + this->num_members);
+        that = (cesk_object_struct_t*)(that->valuelist + that->num_members);
     }
     return 1;
+}
+const char* cesk_object_to_string(cesk_object_t* object, char* buf, size_t sz)
+{
+    static char _buf[1024];
+    if(NULL == buf)
+    {
+        buf = _buf;
+        sz = sizeof(_buf);
+    }
+    char* p = _buf;
+#define __PR(fmt, args...) do{p += snprintf(p, buf + sz - p, fmt, ##args);}while(0)
+    cesk_object_struct_t* this = object->members;
+    int i;
+    for(i = 0; i < object->depth; i ++)
+    {
+        __PR("[class %s (", this->classpath);
+        int j;
+        for(j = 0; j < this->num_members; j ++)
+        {
+            __PR("%d ", this->valuelist[j]);
+        }
+        __PR(")]");
+        this = (cesk_object_struct_t*)(this->valuelist + this->num_members);
+    }
+#undef __PR
+    return buf;
 }

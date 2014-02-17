@@ -83,7 +83,7 @@ int cesk_frame_equal(cesk_frame_t* first, cesk_frame_t* second)
 {
     if(NULL == first || NULL == second) return first == second;
     if(cesk_frame_hashcode(first) != cesk_frame_hashcode(second)) return 0;
-    
+    //TODO
     return 0; 
 }
 

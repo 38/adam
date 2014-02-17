@@ -187,11 +187,11 @@ uint32_t cesk_store_allocate(cesk_store_t** p_store, dalvik_instruction_t* inst)
         {
             if(store->blocks[block]->slots[slot].value == NULL && empty_offset == -1)
             {
-                LOG_DEBUG("find a empty slot @ (block = %d, offset = %d)", block, slot);
+                LOG_DEBUG("find an empty slot @ (block = %d, offset = %d)", block, slot);
                 empty_block = block;
                 empty_offset = slot;
             }
-            if(store->blocks[block]->slots[slot].value && 
+            if(store->blocks[block]->slots[slot].value != NULL && 
                store->blocks[block]->slots[slot].idx == idx)
             {
                 LOG_DEBUG("find the equal slot @ (block = %d, offset = %d)", block, slot);
@@ -358,6 +358,7 @@ int cesk_store_attach(cesk_store_t* store, uint32_t addr,cesk_value_t* value)
         cesk_value_incref(value);
     }
     store->blocks[block]->slots[offset].value = value;
+    store->hashcode ^= (addr * MH_MULTIPLY + cesk_value_hashcode(value));
     return 0;
 }
 
