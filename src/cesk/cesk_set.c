@@ -12,7 +12,6 @@
 struct _cesk_set_t {
     uint32_t set_idx;    /* the set index */
 };
-typedef struct _cesk_set_node_t cesk_set_node_t;
 /* data that the some set holds */
 typedef struct {
     cesk_set_node_t *next;
@@ -35,9 +34,6 @@ struct _cesk_set_node_t {
     cesk_set_info_entry_t info_entry[0];   /* this is valid for an info entry node */
 };
 
-struct _cesk_set_iter_t{
-    cesk_set_node_t *next;
-};
 static cesk_set_node_t* _cesk_set_hash[CESK_SET_HASH_SIZE];
 
 #define DATA_ENTRY 0
