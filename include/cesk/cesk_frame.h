@@ -2,10 +2,17 @@
 #define __CESK_FRAME_H__
 #include <cesk/cesk_set.h>
 
+#define CESK_FRAME_RESULT_REG 0
+#define CESK_FRAME_EXCEPTION_REG 1
+#define CESK_FRAME_GENERAL_REG(id) (id + 2)
+
 typedef struct {
     uint32_t       size;     /* the number of registers in this frame */
-    cesk_store_t*  store;    /* the store for this frame */
-    cesk_set_t*    regs[0];  /* register values */
+    cesk_store_t*  store;    /* the store for this frame */ 
+	cesk_set_t*    regs[0];  /* array of all registers, include result and exception */
+	cesk_set_t*    reg_result;
+	cesk_set_t*    reg_exception; 
+    cesk_set_t*    general_regs[0];
 } cesk_frame_t;
 
 /* duplicate the frame */
@@ -28,4 +35,21 @@ int cesk_frame_gc(cesk_frame_t* frame);
 
 /* the hash fucntion of this frame */
 hashval_t cesk_frame_hashcode(cesk_frame_t* frame);
+
+/* operation on frames */
+int cesk_frame_register_move(cesk_frame_t* frame, uint32_t dst_reg, uint32_t src_reg);
+
+int cesk_frame_register_load(cesk_frame_t* frame, uint32_t dst_reg, uint32_t addr); 
+
+int cesk_frame_register_clear(cesk_frame_t* frame, uint32_t reg);
+
+int cesk_frame_store_object_get(cesk_frame_t* frame, uint32_t dst_reg, uint32_t src_addr, const char* classpath, const char* field);
+
+int cesk_frame_store_object_put(cesk_frame_t* frame, uint32_t dst_addr, const char* classpath, const char* field, uint32_t src_reg);
+
+int cesk_frame_store_array_get(cesk_frame_t* frame, uint32_t dst_addr, uint32_t index, uint32_t src_reg);
+
+/* allocate a 'fresh' address in this frame, and create a new object. The value is the address of the object */
+uint32_t cesk_freame_store_new(cesk_frame_t* frame, const dalvik_instruction_t* instruction, const char* classpath);
+
 #endif /* __CESK_FRAME_H__ */

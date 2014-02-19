@@ -296,6 +296,8 @@ int cesk_store_attach(cesk_store_t* store, uint32_t addr,cesk_value_t* value)
     }
     if(NULL != store->blocks[block]->slots[offset].value)
     {
+		/* update the hashcode */ 
+		store->hashcode ^= addr * MH_MULTIPLY + cesk_value_hashcode(store->blocks[block]->slots[offset].value);
         /* dereference to previous object */
         cesk_value_decref(store->blocks[block]->slots[offset].value);
     }
@@ -303,9 +305,9 @@ int cesk_store_attach(cesk_store_t* store, uint32_t addr,cesk_value_t* value)
     {
         /* reference to new value */
         cesk_value_incref(value);
+		store->blocks[block]->slots[offset].value = value;
+		store->hashcode ^= (addr * MH_MULTIPLY + cesk_value_hashcode(value));
     }
-    store->blocks[block]->slots[offset].value = value;
-    store->hashcode ^= (addr * MH_MULTIPLY + cesk_value_hashcode(value));
     return 0;
 }
 
