@@ -102,10 +102,13 @@ static inline void _cesk_frame_store_dfs(uint32_t addr,cesk_store_t* store, uint
     /* set the flag */
     f[addr/8] |= (1<<(addr%8));
     const cesk_value_t* val = cesk_store_get_ro(store, addr);
+    if(NULL == val) return;
     cesk_set_iter_t iter_buf;
     cesk_set_iter_t* iter;
     uint32_t next_addr;
-    
+    cesk_object_struct_t* this;
+    cesk_object_t* obj;
+    int i;
     switch(val->type)
     {
         case CESK_TYPE_NUMERIC:
@@ -118,16 +121,48 @@ static inline void _cesk_frame_store_dfs(uint32_t addr,cesk_store_t* store, uint
                 _cesk_frame_store_dfs(next_addr, store, f);
             break;
         case CESK_TYPE_OBJECT:
-            //TODO
+            obj = *(cesk_object_t**)val->data;
+            this = obj->members;
+            for(i = 0; i < obj->depth; i ++)
+            {
+                int j;
+                for(j = 0; j < this->num_members; j ++)
+                {
+                    next_addr = this->valuelist[j];
+                    _cesk_frame_store_dfs(next_addr, store, f);
+                }
+                this = (cesk_object_struct_t *)(this->valuelist + this->num_members);
+            }
+            break;
+        case CESK_TYPE_ARRAY:
+            LOG_INFO("fixme : array support");
     }
 }
 int cesk_frame_gc(cesk_frame_t* frame)
 {
     cesk_store_t* store = frame->store;
     size_t nslot = store->nblocks * CESK_STORE_BLOCK_NSLOTS;
-    uint8_t *fb = (uint8_t)malloc(nslot / 8 + 1);     /* the flag bits */
+    uint8_t *fb = (uint8_t*)malloc(nslot / 8 + 1);     /* the flag bits */
     memset(fb, 0, nslot / 8 + 1);
-
+    int i;
+    for(i = 0; i < frame->size; i ++)
+    {
+        cesk_set_iter_t iter;
+        if(NULL == cesk_set_iter(frame->regs[i], &iter))
+        {
+            LOG_WARNING("can not aquire iterator for a register %d", i);
+            continue;
+        }
+        uint32_t addr;
+        while(CESK_STORE_ADDR_NULL != (addr = cesk_set_iter_next(&iter)))
+            _cesk_frame_store_dfs(addr, store, fb);
+    }
+    uint32_t addr;
+    for(addr = 0; addr < nslot; addr ++)
+    {
+        if(BITAT(fb,addr) == 0) 
+            cesk_store_attach(store,addr,NULL);
+    }
     return 0;
 }
 hashval_t cesk_frame_hashcode(cesk_frame_t* frame)
