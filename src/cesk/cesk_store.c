@@ -268,7 +268,7 @@ int cesk_store_attach(cesk_store_t* store, uint32_t addr,cesk_value_t* value)
     }
     if(value == store->blocks[block]->slots[offset].value)
     {
-        LOG_TRACE("value is already attached to this addr, replace the old value");
+        LOG_TRACE("value is already attached to this address");
         return 0;
     }
     if(store->blocks[block]->refcnt > 1)
