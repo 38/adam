@@ -7,6 +7,7 @@ cesk_frame_t* cesk_frame_new(uint16_t size)
     {
         return NULL;
     }
+	size += 2;   /* because we need a result register and an expcetion register */
     LOG_DEBUG("create a frame with %d registers", size);
     cesk_frame_t* ret = (cesk_frame_t*)malloc(sizeof(cesk_frame_t) + size * sizeof(cesk_set_t*));
     if(NULL == ret)
@@ -100,6 +101,7 @@ static inline void _cesk_frame_store_dfs(uint32_t addr,cesk_store_t* store, uint
 {
     if(1 == BITAT(f, addr)) return;
     /* set the flag */
+	if(CESK_STORE_ADDR_NULL == addr) return;
     f[addr/8] |= (1<<(addr%8));
     const cesk_value_t* val = cesk_store_get_ro(store, addr);
     if(NULL == val) return;
@@ -177,4 +179,81 @@ hashval_t cesk_frame_hashcode(cesk_frame_t* frame)
     }
     ret ^= cesk_store_hashcode(frame->store);
     return ret;
+}
+int cesk_frame_register_move(cesk_frame_t* frame, uint32_t dst_reg, uint32_t src_reg)
+{
+	if(NULL == frame || dst_reg >= frame->size || src_reg >= frame->size) 
+	{
+		LOG_WARNING("invalid instruction, invalid register reference");
+		return -1;
+	}
+	/* as once we write one register, the previous infomation store in the register is lost */
+	cesk_set_free(frame->regs[dst_reg]);
+	/* and then we just fork the vlaue of source */
+	frame->regs[dst_reg] = cesk_set_fork(frame->regs[src_reg]);
+	return 0;
+}
+int cesk_frame_register_load(cesk_frame_t* frame, uint32_t dst_reg, uint32_t addr)
+{
+	if(NULL == frame || dst_reg >= frame->size )
+	{
+		LOG_WARNING("bad instruction, invalid register reference");
+		return -1;
+	}
+	
+	cesk_set_free(frame->regs[dst_reg]);
+
+	frame->regs[dst_reg] = cesk_set_empty_set();
+
+	cesk_set_push(frame->regs[dst_reg], addr);
+
+	return 0;
+}
+int cesk_frame_register_clear(cesk_frame_t* frame, uint32_t reg)
+{
+	if(NULL == frame || reg >= frame->size)
+	{
+		LOG_WARNING("bad instruction, invalid register reference");
+		return -1;
+	}
+	cesk_set_free(frame->regs[reg]);
+
+	frame->regs[reg] = cesk_set_empty_set();
+	
+	return 0;
+}
+int cesk_frame_store_object_get(cesk_frame_t* frame, uint32_t dst_reg, uint32_t src_addr, const char* classpath, const char* field)
+{
+	if(NULL == frame || NULL == classpath || NULL == field || dst_reg >= frame->size || src_addr == CESK_STORE_ADDR_NULL)
+	{
+		LOG_ERROR("invalid arguments");
+		return -1;
+	}
+	const cesk_value_t* value = cesk_store_get_ro(frame->store, src_addr);
+	if(NULL == value)
+	{
+		LOG_ERROR("can not find object @%x", src_addr);
+		return -1;
+	}
+	if(value->type != CESK_TYPE_OBJECT)
+	{
+		LOG_ERROR("try to get a member from a non-object address %x", src_addr);
+		return -1;
+	}
+
+	cesk_object_t* object = *(cesk_object_t **)(value->data);
+
+	uint32_t* paddr = cesk_object_get(object, classpath, field);
+	if(NULL == paddr)
+	{
+		LOG_ERROR("can not find the field %s/%s", classpath, field);
+		return -1;
+	}
+	/* load the value */
+	return cesk_frame_register_load(frame, dst_reg, *paddr);
+}
+int cesk_frame_store_array_get(cesk_frame_t* frame, uint32_t dst_addr, uint32_t index, uint32_t src_reg)
+{
+	LOG_TRACE("fixme : array support");
+	return 0;
 }
