@@ -59,9 +59,31 @@ cesk_block_t* cesk_block_graph_new(const dalvik_block_t* entry)
         }
     return _cesk_block_buf[entry->index];
 }
+#define __CB_HANDLER(name) static inline int _cesk_block_interpreter_handler_##name(dalvik_instruction_t* inst, cesk_frame_t* output)
+__CB_HANDLER(MOVE)
+{
+    return 0;
+}
 static inline int _cesk_block_interpret(cesk_block_t* blk)
 {
-    //cesk_frame_t* frame = cesk_frame_fork(blk->input);   /* fork a frame for output */
+    cesk_frame_t* frame = cesk_frame_fork(blk->input);   /* fork a frame for output */
+    const dalvik_block_t* code_block = blk->code_block;
+    int i;
+#define __CB_INST(name) case DVM_##name: rc = _cesk_block_interpreter_handler_##name(inst, frame); break
+    for(i = code_block->begin; i < code_block->end; i ++)
+    {
+        dalvik_instruction_t* inst = dalvik_instruction_get(i);
+        LOG_DEBUG("current instruction: %s", dalvik_instruction_to_string(inst, NULL, 0));
+        int rc;
+        switch(inst->opcode)
+        {
+               __CB_INST(MOVE);
+        }
+        if(rc < 0)
+        {
+            LOG_ERROR("error during interpert this instruction");
+        }
+    }
     return 0;
 }
 int cesk_block_analyze(cesk_block_t* block)
