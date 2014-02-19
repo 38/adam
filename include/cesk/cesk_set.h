@@ -4,11 +4,16 @@
 #include <log.h>
 
 /* this file need previous definations */
+typedef struct _cesk_set_node_t cesk_set_node_t;
 typedef struct _cesk_set_t cesk_set_t;
 typedef struct _cesk_set_iter_t cesk_set_iter_t;
 
 #include <cesk/cesk_set.h>
 #include <cesk/cesk_store.h>
+
+struct _cesk_set_iter_t{
+    cesk_set_node_t *next;
+};
 
 /* TODO: how to compare two object ? */
 

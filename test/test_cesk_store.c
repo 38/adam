@@ -25,9 +25,9 @@ int main()
     
     cesk_store_t* store3 = cesk_store_fork(store2);
 
-    LOG_ERROR("hash code of store1 : %x", cesk_store_hash(store));
-    LOG_ERROR("hash code of store2 : %x", cesk_store_hash(store2));
-    LOG_ERROR("hash code of store3 : %x", cesk_store_hash(store3));
+    LOG_ERROR("hash code of store1 : %x", cesk_store_hashcode(store));
+    LOG_ERROR("hash code of store2 : %x", cesk_store_hashcode(store2));
+    LOG_ERROR("hash code of store3 : %x", cesk_store_hashcode(store3));
 
     const cesk_value_t* value_ro = cesk_store_get_ro(store3, addr);
 
@@ -51,9 +51,9 @@ int main()
 
     cesk_store_release_rw(store3, addr);
 
-    LOG_ERROR("hash code of store1 : %x", cesk_store_hash(store));
-    LOG_ERROR("hash code of store2 : %x", cesk_store_hash(store2));
-    LOG_ERROR("hash code of store3 : %x", cesk_store_hash(store3));
+    LOG_ERROR("hash code of store1 : %x", cesk_store_hashcode(store));
+    LOG_ERROR("hash code of store2 : %x", cesk_store_hashcode(store2));
+    LOG_ERROR("hash code of store3 : %x", cesk_store_hashcode(store3));
     LOG_ERROR("object dump origin: %s", cesk_object_to_string(*(cesk_object_t**)value_ro->data, NULL, 0));
 
     cesk_store_free(store);

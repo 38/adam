@@ -252,62 +252,9 @@ uint32_t cesk_store_allocate(cesk_store_t** p_store, dalvik_instruction_t* inst)
         return equal_block * CESK_STORE_BLOCK_NSLOTS  + equal_offset;
     }
 }
-#if 0
-/* this allocator use allocte a fresh address, so it's deprecated */
-uint32_t cesk_store_allocate(cesk_store_t** p_store)
-{
-    cesk_store_t* store = *p_store;
-    size_t capacity = store->nblocks * CESK_STORE_BLOCK_NSLOTS;
-    uint32_t block = 0;
-    uint32_t offset = 0;
-    if(capacity <= store->num_ent)
-    {
-        LOG_DEBUG("store is full, allocate a new block for it");
-        store = realloc(store, sizeof(cesk_store_t) + sizeof(cesk_store_block_t*) * (store->nblocks + 1));
-        if(NULL == store)
-        {
-            LOG_ERROR("can not increase the size of store");
-            return CESK_STORE_ADDR_NULL;
-        }
-        *p_store = store;
-        store->blocks[store->nblocks] = (cesk_store_block_t*)malloc(CESK_STORE_BLOCK_SIZE);
-        if(NULL == store->blocks[store->nblocks]) 
-        {
-            LOG_ERROR("can not allocate memory for new store block");
-            return CESK_STORE_ADDR_NULL;
-        }
-        memset(store->blocks[store->nblocks], 0, CESK_STORE_BLOCK_SIZE);
-        store->blocks[store->nblocks]->refcnt ++;
-        block = store->nblocks ++;
-        offset = 0;
-    }
-    else
-    {
-        /* store is not full, find a empty slot */
-        for(block = 0; block < store->nblocks; block ++)
-        {
-            if(store->blocks[block]->num_ent < CESK_STORE_BLOCK_NSLOTS)
-            {
-                /* find a block that has unused slots */
-                for(offset = 0; offset < CESK_STORE_BLOCK_NSLOTS; offset ++)
-                {
-                    if(NULL == store->blocks[block]->slots[offset].value) 
-                    {
-                        goto FOUND;
-                    }
-                }
-            }
-        }
-        LOG_ERROR("unreachable code");
-        return CESK_STORE_ADDR_NULL;
-    }
-FOUND:
-    return block * CESK_STORE_BLOCK_NSLOTS + offset;
-}
-#endif
 int cesk_store_attach(cesk_store_t* store, uint32_t addr,cesk_value_t* value)
 {
-    if(NULL == store || CESK_STORE_ADDR_NULL == addr || NULL == value)
+    if(NULL == store || CESK_STORE_ADDR_NULL == addr)
     {
         LOG_ERROR("invalid arguments");
         return -1;
@@ -321,7 +268,7 @@ int cesk_store_attach(cesk_store_t* store, uint32_t addr,cesk_value_t* value)
     }
     if(value == store->blocks[block]->slots[offset].value)
     {
-        LOG_TRACE("value is already attached to this addr");
+        LOG_TRACE("value is already attached to this addr, replace the old value");
         return 0;
     }
     if(store->blocks[block]->refcnt > 1)
@@ -470,6 +417,7 @@ int cesk_store_equal(cesk_store_t* first, cesk_store_t* second)
 {
     if(NULL == first || NULL == second) return first != second;
     if(first->nblocks != second->nblocks) return 0;   /* because there must be an occupied address that another store does not have */
+    if(cesk_store_hashcode(first) != cesk_store_hashcode(second)) return 0;
     int i;
     for(i = 0; i < first->nblocks; i ++)
     {

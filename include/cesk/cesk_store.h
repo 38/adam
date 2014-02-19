@@ -54,7 +54,9 @@ const cesk_value_t* cesk_store_get_ro(cesk_store_t* store, uint32_t addr);
  */
 uint32_t cesk_store_allocate(cesk_store_t** p_store, dalvik_instruction_t* inst);
 
-/* attach a value to an address, >0 means success, <0 error */
+/* attach a value to an address, >0 means success, <0 error. If the value is NULL, means
+ * dettach the address
+ */
 int cesk_store_attach(cesk_store_t* store, uint32_t addr,cesk_value_t* value);
 
 /* release an attached address */
@@ -69,7 +71,7 @@ int cesk_store_incref(cesk_store_t* store, uint32_t addr);
 /* decrease the reference counter, return the new reference counter, negative means failure */
 int cesk_store_decref(cesk_store_t* store, uint32_t addr);
 
-static inline hashval_t cesk_store_hash(cesk_store_t* store)
+static inline hashval_t cesk_store_hashcode(cesk_store_t* store)
 {
     return store->hashcode;
 }

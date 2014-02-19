@@ -144,41 +144,6 @@ hashval_t cesk_object_hashcode(cesk_object_t* object)
     }
     return hash;
 }
-#if 0
-/* use a Murmur Hash Function */
-hashval_t cesk_object_hashcode(cesk_object_t* object)
-{
-    hashval_t  hash = ((uintptr_t)object->members[0].classpath) & ~(hashval_t)0;    /* We also consider the type of the object */
-    
-    int i;
-    int len = 0;
-
-    cesk_object_struct_t* this = object->members;
-    for(i = 0; i < object->depth; i ++)
-    {
-        int j;
-        for(j = 0; j < this->num_members; j ++)
-        {
-            hashval_t k = this->valuelist[j] * MH_MULTIPLY;
-            k *= STRINGPOOL_MURMUR_C1;
-            k = (k << STRINGPOOL_MURMUR_R1) | (k >> (32 - STRINGPOOL_MURMUR_R1));
-            k *= STRINGPOOL_MURMUR_C2;
-            hash ^= k;
-            hash = (hash << STRINGPOOL_MURMUR_R2) | (k >> (32 - STRINGPOOL_MURMUR_R2));
-            hash = hash * STRINGPOOL_MURMUR_M + STRINGPOOL_MURMUR_N;
-            len ++;
-        }
-        this = (cesk_object_struct_t*)(this->valuelist + this->num_members);
-    }
-    hash ^= len;
-    hash = hash ^ ( hash > 16);
-    hash *= 0x85ebca6b;
-    hash ^= (hash >> 13);
-    hash *= 0xc2b2ae35;
-    hash ^= (hash >> 16);
-    return hash;
-}
-#endif
 int cesk_object_equal(cesk_object_t* first, cesk_object_t* second)
 {
     if(NULL == first || NULL == second) return first == second;
