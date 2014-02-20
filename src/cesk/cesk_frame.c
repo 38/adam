@@ -180,7 +180,7 @@ hashval_t cesk_frame_hashcode(cesk_frame_t* frame)
     ret ^= cesk_store_hashcode(frame->store);
     return ret;
 }
-int cesk_frame_register_move(cesk_frame_t* frame, uint32_t dst_reg, uint32_t src_reg)
+int cesk_frame_register_move(cesk_frame_t* frame, dalvik_instruction_t* inst, uint32_t dst_reg, uint32_t src_reg)
 {
 	if(NULL == frame || dst_reg >= frame->size || src_reg >= frame->size) 
 	{
@@ -193,9 +193,9 @@ int cesk_frame_register_move(cesk_frame_t* frame, uint32_t dst_reg, uint32_t src
 	frame->regs[dst_reg] = cesk_set_fork(frame->regs[src_reg]);
 	return 0;
 }
-int cesk_frame_register_load(cesk_frame_t* frame, uint32_t dst_reg, uint32_t addr)
+int cesk_frame_register_load(cesk_frame_t* frame, dalvik_instruction_t* inst ,uint32_t dst_reg, uint32_t addr)
 {
-	if(NULL == frame || dst_reg >= frame->size )
+	if(NULL == frame || dst_reg >= frame->size || NULL == inst)
 	{
 		LOG_WARNING("bad instruction, invalid register reference");
 		return -1;
@@ -209,7 +209,7 @@ int cesk_frame_register_load(cesk_frame_t* frame, uint32_t dst_reg, uint32_t add
 
 	return 0;
 }
-int cesk_frame_register_clear(cesk_frame_t* frame, uint32_t reg)
+int cesk_frame_register_clear(cesk_frame_t* frame, dalvik_instruction_t* inst, uint32_t reg)
 {
 	if(NULL == frame || reg >= frame->size)
 	{
@@ -222,7 +222,7 @@ int cesk_frame_register_clear(cesk_frame_t* frame, uint32_t reg)
 	
 	return 0;
 }
-int cesk_frame_store_object_get(cesk_frame_t* frame, uint32_t dst_reg, uint32_t src_addr, const char* classpath, const char* field)
+int cesk_frame_store_object_get(cesk_frame_t* frame,dalvik_instruction_t* inst,  uint32_t dst_reg, uint32_t src_addr, const char* classpath, const char* field)
 {
 	if(NULL == frame || NULL == classpath || NULL == field || dst_reg >= frame->size || src_addr == CESK_STORE_ADDR_NULL)
 	{
@@ -250,10 +250,74 @@ int cesk_frame_store_object_get(cesk_frame_t* frame, uint32_t dst_reg, uint32_t 
 		return -1;
 	}
 	/* load the value */
-	return cesk_frame_register_load(frame, dst_reg, *paddr);
+	return cesk_frame_register_load(frame, inst ,dst_reg, *paddr);
 }
-int cesk_frame_store_array_get(cesk_frame_t* frame, uint32_t dst_addr, uint32_t index, uint32_t src_reg)
+int cesk_frame_store_array_get(cesk_frame_t* frame, dalvik_instruction_t* inst, uint32_t dst_addr, uint32_t index, uint32_t src_reg)
 {
 	LOG_TRACE("fixme : array support");
+	return 0;
+}
+int cesk_frame_store_array_put(cesk_frame_t* frame, dalvik_instruction_t* inst, uint32_t index, uint32_t dst_reg, uint32_t src_reg)
+{
+	LOG_TRACE("fixme : array support");
+	return 0;
+}
+int cesk_frame_store_object_put(cesk_frame_t* frame, dalvik_instruction_t* inst, uint32_t dst_addr, const char* classpath, const char* field, uint32_t src_reg)
+{
+	if(NULL == frame || NULL == classpath || NULL == field || src_reg >= frame->size || dst_addr == CESK_STORE_ADDR_NULL)
+	{
+		LOG_ERROR("invalid arguments");
+		return -1;
+	}
+	
+	cesk_value_t* value = cesk_store_get_rw(frame->store, dst_addr);
+	
+	if(NULL == value)
+	{
+		LOG_ERROR("can not find object @%x", dst_addr);
+		return -1;
+	}
+
+	if(value->type != CESK_TYPE_OBJECT)
+	{
+		LOG_ERROR("try to get a member from a non-object address %x", dst_addr);
+		return -1;
+	}
+	
+	cesk_object_t* object = *(cesk_object_t **)(value->data);
+
+	uint32_t* paddr = cesk_object_get(object, classpath, field);
+
+	if(NULL == paddr)
+	{
+		LOG_ERROR("can not get field %s/%s", classpath, field);
+		return -1;
+	}
+
+	cesk_value_t* value_set = NULL;
+
+	if(*paddr == CESK_STORE_ADDR_NULL)
+	{
+		/* if no set associated with the field */
+		*paddr = cesk_store_allocate(&frame->store, inst, dst_addr, field);
+		if(*paddr == CESK_STORE_ADDR_NULL)
+		{
+			LOG_ERROR("can not allocate new store address for the value set");
+			return -1;
+		}
+		value_set = cesk_value_empty_set();
+		if(NULL == value_set)
+		{
+			LOG_ERROR("can not create an empty set for field %s/%s", classpath, field);
+			return -1;
+		}
+		cesk_store_attach(frame->store, *paddr, value_set); 
+	}
+	else
+	{
+		/* if there's a set */
+		//TODO
+	}
+	cesk_store_release_rw(frame->store, dst_addr);
 	return 0;
 }

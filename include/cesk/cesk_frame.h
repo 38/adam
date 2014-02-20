@@ -37,19 +37,20 @@ int cesk_frame_gc(cesk_frame_t* frame);
 hashval_t cesk_frame_hashcode(cesk_frame_t* frame);
 
 /* operation on frames */
-int cesk_frame_register_move(cesk_frame_t* frame, uint32_t dst_reg, uint32_t src_reg);
+int cesk_frame_register_move(cesk_frame_t* frame, dalvik_instruction_t* inst, uint32_t dst_reg, uint32_t src_reg);
 
-int cesk_frame_register_load(cesk_frame_t* frame, uint32_t dst_reg, uint32_t addr); 
+int cesk_frame_register_load(cesk_frame_t* frame, dalvik_instruction_t* inst, uint32_t dst_reg, uint32_t addr); 
 
-int cesk_frame_register_clear(cesk_frame_t* frame, uint32_t reg);
+int cesk_frame_register_clear(cesk_frame_t* frame, dalvik_instruction_t* inst, uint32_t reg);
 
-int cesk_frame_store_object_get(cesk_frame_t* frame, uint32_t dst_reg, uint32_t src_addr, const char* classpath, const char* field);
+int cesk_frame_store_object_get(cesk_frame_t* frame, dalvik_instruction_t* inst , uint32_t dst_reg, uint32_t src_addr, const char* classpath, const char* field);
 
-int cesk_frame_store_object_put(cesk_frame_t* frame, uint32_t dst_addr, const char* classpath, const char* field, uint32_t src_reg);
+int cesk_frame_store_object_put(cesk_frame_t* frame, dalvik_instruction_t* inst, uint32_t dst_addr, const char* classpath, const char* field, uint32_t src_reg);
 
-int cesk_frame_store_array_get(cesk_frame_t* frame, uint32_t dst_addr, uint32_t index, uint32_t src_reg);
+int cesk_frame_store_array_get(cesk_frame_t* frame, dalvik_instruction_t* inst, uint32_t dst_addr, uint32_t index, uint32_t src_reg);
+int cesk_frame_store_array_put(cesk_frame_t* frame, dalvik_instruction_t* inst, uint32_t index, uint32_t dst_reg, uint32_t src_reg);
 
 /* allocate a 'fresh' address in this frame, and create a new object. The value is the address of the object */
-uint32_t cesk_freame_store_new(cesk_frame_t* frame, const dalvik_instruction_t* instruction, const char* classpath);
+uint32_t cesk_freame_store_new(cesk_frame_t* frame, const dalvik_instruction_t* inst, const char* classpath);
 
 #endif /* __CESK_FRAME_H__ */
