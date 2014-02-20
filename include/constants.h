@@ -62,6 +62,11 @@
 #   define CESK_SET_HASH_SIZE 100007
 #endif
 
+/* the number of attempts before cesk_store allocate a new block */
+#ifndef CESK_STORE_ALLOC_ATTEMPT
+#	define CESK_STORE_ALLOC_ATTEMPT 5
+#endif
+
 /* the magic number used for Knuth Multiplicative Hash */
 #define MH_MULTIPLY (2654435761ul)
 

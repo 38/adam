@@ -162,12 +162,28 @@ void cesk_store_release_rw(cesk_store_t* store, uint32_t addr)
     /* update the hashcode */
     store->hashcode ^= (addr * MH_MULTIPLY + cesk_value_hashcode(val));
 }
-uint32_t cesk_store_allocate(cesk_store_t** p_store, dalvik_instruction_t* inst)
+static inline hashval_t _cesk_store_address_hashcode(dalvik_instruction_t* inst, uint32_t parent, const char* field)
+{
+    uint32_t idx;
+	
+	if(NULL == inst)
+	{
+		LOG_ERROR("invalid instruction address");
+		return 0;
+	}
+	
+	/* read the instruction annotation for index */
+	dalvik_instruction_read_annotation(inst, &idx, sizeof(idx));
+
+	return (idx * idx * MH_MULTIPLY + parent * 100007 * MH_MULTIPLY + ((uintptr_t)field&(hashval_t)~0));
+
+}
+uint32_t cesk_store_allocate(cesk_store_t** p_store, dalvik_instruction_t* inst, uint32_t parent, const char* field)
 {
     cesk_store_t* store = *p_store;
     uint32_t idx;
     dalvik_instruction_read_annotation(inst, &idx, sizeof(idx));
-    uint32_t  init_slot = (idx * MH_MULTIPLY)  % CESK_STORE_BLOCK_NSLOTS;
+    uint32_t  init_slot = _cesk_store_address_hashcode(inst, parent, field)  % CESK_STORE_BLOCK_NSLOTS;
     uint32_t  slot = init_slot;
     /* here we perform a quadratic probing inside each block
      * But we do not jump more than 5 times in one block
@@ -179,7 +195,7 @@ uint32_t cesk_store_allocate(cesk_store_t** p_store, dalvik_instruction_t* inst)
     int equal_block = -1;
     int equal_offset = -1;
     int attempt;
-    for(attempt = 0; attempt < 5; attempt ++)
+    for(attempt = 0; attempt < CESK_STORE_ALLOC_ATTEMPT; attempt ++)
     {
         int block;
         LOG_DEBUG("attempt #%d @%d for instruction %d", attempt, slot, idx);
@@ -192,7 +208,9 @@ uint32_t cesk_store_allocate(cesk_store_t** p_store, dalvik_instruction_t* inst)
                 empty_offset = slot;
             }
             if(store->blocks[block]->slots[slot].value != NULL && 
-               store->blocks[block]->slots[slot].idx == idx)
+               store->blocks[block]->slots[slot].idx == idx && 
+			   store->blocks[block]->slots[slot].parent == parent &&
+			   store->blocks[block]->slots[slot].field == field)
             {
                 LOG_DEBUG("find the equal slot @ (block = %d, offset = %d)", block, slot);
                 equal_block = block;
@@ -235,6 +253,8 @@ uint32_t cesk_store_allocate(cesk_store_t** p_store, dalvik_instruction_t* inst)
             LOG_DEBUG("allocate %d (block=%d, offset = %d) for instruction %d", 
                        empty_block * CESK_STORE_BLOCK_NSLOTS + empty_offset, empty_block, empty_offset);
             store->blocks[empty_block]->slots[empty_offset].idx = idx;
+			store->blocks[empty_block]->slots[empty_offset].parent = parent;
+			store->blocks[empty_block]->slots[empty_offset].field = field;
             return empty_block * CESK_STORE_BLOCK_NSLOTS + empty_offset;
         }
         else

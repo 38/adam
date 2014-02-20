@@ -77,6 +77,8 @@ hashval_t cesk_value_hashcode(cesk_value_t* value);
 cesk_value_t* cesk_value_from_classpath(const char* classpath);
 /* create a new value from a constant operand */
 cesk_value_t* cesk_value_from_operand(dalvik_operand_t* operand);
+/* create an empty-set value */
+cesk_value_t* cesk_value_empty_set();
 /* fork the value, inorder to modify */
 cesk_value_t* cesk_value_fork(cesk_value_t* value);
 /* increase the reference counter */

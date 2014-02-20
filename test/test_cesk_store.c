@@ -19,7 +19,7 @@ int main()
     dalvik_instruction_from_sexp(sexp, ins, 0);
     sexp_free(sexp);
 
-    uint32_t    addr = cesk_store_allocate(&store2, ins);
+    uint32_t    addr = cesk_store_allocate(&store2, ins, 0, NULL);
 
     cesk_store_attach(store2, addr, objval);  //object val 
     

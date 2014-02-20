@@ -18,6 +18,8 @@ typedef struct {
     uint32_t        refcnt:31;        /* this refcnt is the counter inside this frame */
     uint8_t         reuse:1;          /* if this address is reused, because same insturction should allocate same address */
     uint32_t        idx;              /* instruction index created this object */
+	uint32_t		parent;			  /* the parent address of this slot */
+	const char*		field;		      /* filed name of the member */
     cesk_value_t*   value;
 } cesk_store_slot_t;
 typedef struct {
@@ -51,8 +53,10 @@ const cesk_value_t* cesk_store_get_ro(cesk_store_t* store, uint32_t addr);
  * 
  * Since the allocation function always returns the same addression for the same instruction
  * so we should know which instruction required the store to allocate a fresh address
+ * If the address is for a member of an object. The address is based on the parent address and field name
+ * If it's not a object member, parent = CESK_STORE_ADDR_NULL and field = NULL
  */
-uint32_t cesk_store_allocate(cesk_store_t** p_store, dalvik_instruction_t* inst);
+uint32_t cesk_store_allocate(cesk_store_t** p_store, dalvik_instruction_t* inst, uint32_t parent, const char* field);
 
 /* attach a value to an address, >0 means success, <0 error. If the value is NULL, means
  * dettach the address
@@ -63,7 +67,7 @@ int cesk_store_attach(cesk_store_t* store, uint32_t addr,cesk_value_t* value);
 void cesk_store_release_rw(cesk_store_t* store, uint32_t addr);
 
 /* deallocate the store, you should free memory manually */
-void cesk_store_free(cesk_store_t* store);
+void cesk_store_free(cesk_store_t* store); 
 
 /* increase the reference counter, return the new reference counter, negative means failure */
 int cesk_store_incref(cesk_store_t* store, uint32_t addr);

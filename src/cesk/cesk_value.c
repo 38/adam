@@ -145,7 +145,21 @@ cesk_value_t* cesk_value_from_classpath(const char* classpath)
     *(cesk_object_t**)ret->data = class;
     return ret;
 }
+cesk_value_t* cesk_value_empty_set()
+{
+	cesk_value_t* ret = _cesk_value_alloc(CESK_TYPE_SET);
+	
+	cesk_set_t* empty_set = cesk_set_empty_set();
 
+	if(NULL == empty_set)
+	{
+		LOG_ERROR("failed to create an empty set for new value");
+		*(void**)ret->data = NULL;
+		return NULL;
+	}
+	*(cesk_set_t**)ret->data = empty_set;
+	return ret;
+}
 cesk_value_t* cesk_value_from_operand(dalvik_operand_t* operand)
 {
     if(NULL == operand) return NULL;
