@@ -298,6 +298,7 @@ int cesk_frame_store_object_put(cesk_frame_t* frame, dalvik_instruction_t* inst,
 
 	if(*paddr == CESK_STORE_ADDR_NULL)
 	{
+		LOG_DEBUG("this is a new field, create an empty set for it");
 		/* if no set associated with the field */
 		*paddr = cesk_store_allocate(&frame->store, inst, dst_addr, field);
 		if(*paddr == CESK_STORE_ADDR_NULL)
@@ -313,11 +314,39 @@ int cesk_frame_store_object_put(cesk_frame_t* frame, dalvik_instruction_t* inst,
 		}
 		cesk_store_attach(frame->store, *paddr, value_set); 
 	}
+	else if(cesk_store_is_mutiple(frame->store, dst_addr) == 1)
+	{
+		/* this address is used by mutliple objects, so we can not dicard old value */
+		/* get the address of the value set */
+		LOG_DEBUG("this is a reused object, just keep the old value");
+		value_set = cesk_store_get_rw(frame->store, *paddr);
+		if(NULL == value_set)
+		{
+			LOG_ERROR("can not find the value set for field %s/%s", classpath, field);
+			return -1;
+		}
+	}
 	else
 	{
-		/* if there's a set */
-		//TODO
+		/* this address is used by single object, so we will lose the old value after we write the field */
+		LOG_DEBUG("this address is used by signle object, drop the old value");
+		value_set = cesk_value_empty_set();
+		if(NULL == value_set)
+		{
+			LOG_ERROR("can not create an empty set for field %s/%s", classpath, field);
+			return -1;
+		}
+		cesk_store_attach(frame->store, *paddr, value_set);   /* we just cover the old set with an empty set */
 	}
+	if(NULL == value_set)
+	{
+		LOG_ERROR("unknown error, but value_set should not be NULL");
+		return -1;
+	}
+	cesk_set_t* set = *(cesk_set_t**)value_set->data;
+	/* okay, append the value of registers to the set */
+	cesk_set_join(set, frame->regs[src_reg]);
+	/* release the write pointer */
 	cesk_store_release_rw(frame->store, dst_addr);
 	return 0;
 }

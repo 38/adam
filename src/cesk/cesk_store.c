@@ -70,6 +70,23 @@ const cesk_value_t* cesk_store_get_ro(cesk_store_t* store, uint32_t addr)
     }
     return block->slots[offset].value;
 }
+int cesk_store_is_mutiple(cesk_store_t* store, uint32_t addr)
+{
+	uint32_t block_idx = addr / CESK_STORE_BLOCK_NSLOTS;
+	uint32_t offset    = addr % CESK_STORE_BLOCK_NSLOTS;
+	if(block_idx >= store->nblocks)
+	{
+		LOG_ERROR("out of memory");
+		return -1;
+	}
+	cesk_store_block_t* block = store->blocks[block_idx];
+	if(NULL == block)
+	{
+		LOG_ERROR("ooops, this should not happen");
+		return -1;
+	}
+	return block->slots[offset].reuse;
+}
 cesk_value_t* cesk_store_get_rw(cesk_store_t* store, uint32_t addr)
 {
     uint32_t block_idx = addr / CESK_STORE_BLOCK_NSLOTS;
@@ -326,11 +343,13 @@ int cesk_store_attach(cesk_store_t* store, uint32_t addr,cesk_value_t* value)
         /* reference to new value */
         cesk_value_incref(value);
 		store->blocks[block]->slots[offset].value = value;
-		store->hashcode ^= (addr * MH_MULTIPLY + cesk_value_hashcode(value));
+		/*store->hashcode ^= (addr * MH_MULTIPLY + cesk_value_hashcode(value));*/
+		/* we do not update new hash code here, that means we should use cesk_store_release_rw function
+		 * After we finish modifiying the store */
     }
     return 0;
 }
-
+/* TODO: Question, once an adress is set to reusing, is there any time for the address to clear this bit ? */
 void cesk_store_free(cesk_store_t* store)
 {
     int i;
