@@ -45,6 +45,8 @@ cesk_store_t* cesk_store_fork(cesk_store_t* store);
 cesk_value_t* cesk_store_get_rw(cesk_store_t* store, uint32_t addr);
 /* get a read-only pointer */
 const cesk_value_t* cesk_store_get_ro(cesk_store_t* store, uint32_t addr);
+/* check if the value is reused by multiple object */
+int cesk_store_is_mutiple(cesk_store_t* store, uint32_t addr);
 
 
 /* allocate a fresh address for a new value, CESK_STORE_ADDR_NULL indicates an error 
