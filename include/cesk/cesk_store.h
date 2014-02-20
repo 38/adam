@@ -46,7 +46,9 @@ cesk_value_t* cesk_store_get_rw(cesk_store_t* store, uint32_t addr);
 /* get a read-only pointer */
 const cesk_value_t* cesk_store_get_ro(cesk_store_t* store, uint32_t addr);
 /* check if the value is reused by multiple object */
-int cesk_store_is_mutiple(cesk_store_t* store, uint32_t addr);
+int cesk_store_is_reuse(cesk_store_t* store, uint32_t addr);
+/* set the reuse flag */
+void cesk_store_set_reuse(cesk_store_t* store, uint32_t addr);
 
 
 /* allocate a fresh address for a new value, CESK_STORE_ADDR_NULL indicates an error 
@@ -58,7 +60,7 @@ int cesk_store_is_mutiple(cesk_store_t* store, uint32_t addr);
  * If the address is for a member of an object. The address is based on the parent address and field name
  * If it's not a object member, parent = CESK_STORE_ADDR_NULL and field = NULL
  */
-uint32_t cesk_store_allocate(cesk_store_t** p_store, dalvik_instruction_t* inst, uint32_t parent, const char* field);
+uint32_t cesk_store_allocate(cesk_store_t** p_store, const dalvik_instruction_t* inst, uint32_t parent, const char* field);
 
 /* attach a value to an address, >0 means success, <0 error. If the value is NULL, means
  * dettach the address
