@@ -51,6 +51,9 @@ int cesk_frame_store_array_get(cesk_frame_t* frame, dalvik_instruction_t* inst, 
 int cesk_frame_store_array_put(cesk_frame_t* frame, dalvik_instruction_t* inst, uint32_t index, uint32_t dst_reg, uint32_t src_reg);
 
 /* allocate a 'fresh' address in this frame, and create a new object. The value is the address of the object */
-uint32_t cesk_freame_store_new(cesk_frame_t* frame, const dalvik_instruction_t* inst, const char* classpath);
+uint32_t cesk_frame_store_new_object(cesk_frame_t* frame, const dalvik_instruction_t* inst, const char* classpath);
+
+/* TODO: allocate a fresh address for an array object */
+uint32_t cesk_frame_store_new_array(cesk_frame_t* frame, const dalvik_instruction_t* inst);
 
 #endif /* __CESK_FRAME_H__ */

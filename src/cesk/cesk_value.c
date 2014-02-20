@@ -104,7 +104,7 @@ static void _cesk_value_free(cesk_value_t* val)
             LOG_INFO("fixme: array value not disposed");
             break;
         case CESK_TYPE_SET:
-            LOG_INFO("fixme: set value not disposed");
+			cesk_set_free(*(cesk_set_t**)val->data);
             break;
         default:
             LOG_WARNING("unknown type %d, do not know how to free", val->type);

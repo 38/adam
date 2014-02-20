@@ -70,7 +70,7 @@ const cesk_value_t* cesk_store_get_ro(cesk_store_t* store, uint32_t addr)
     }
     return block->slots[offset].value;
 }
-int cesk_store_is_mutiple(cesk_store_t* store, uint32_t addr)
+int cesk_store_is_reuse(cesk_store_t* store, uint32_t addr)
 {
 	uint32_t block_idx = addr / CESK_STORE_BLOCK_NSLOTS;
 	uint32_t offset    = addr % CESK_STORE_BLOCK_NSLOTS;
@@ -86,6 +86,23 @@ int cesk_store_is_mutiple(cesk_store_t* store, uint32_t addr)
 		return -1;
 	}
 	return block->slots[offset].reuse;
+}
+void cesk_store_set_reuse(cesk_store_t* store, uint32_t addr)
+{
+	uint32_t block_idx = addr / CESK_STORE_BLOCK_NSLOTS;
+	uint32_t offset = addr / CESK_STORE_BLOCK_NSLOTS;
+	if(block_idx >= store->nblocks)
+	{
+		LOG_ERROR("out of memory");
+		return;
+	}
+	cesk_store_block_t* block = store->blocks[block_idx];
+	if(NULL == block)
+	{
+		LOG_ERROR("what's wrong?");
+		return;
+	}
+	block->slots[offset].reuse = 1;
 }
 cesk_value_t* cesk_store_get_rw(cesk_store_t* store, uint32_t addr)
 {
@@ -179,7 +196,7 @@ void cesk_store_release_rw(cesk_store_t* store, uint32_t addr)
     /* update the hashcode */
     store->hashcode ^= (addr * MH_MULTIPLY + cesk_value_hashcode(val));
 }
-static inline hashval_t _cesk_store_address_hashcode(dalvik_instruction_t* inst, uint32_t parent, const char* field)
+static inline hashval_t _cesk_store_address_hashcode(const dalvik_instruction_t* inst, uint32_t parent, const char* field)
 {
     uint32_t idx;
 	
@@ -195,7 +212,7 @@ static inline hashval_t _cesk_store_address_hashcode(dalvik_instruction_t* inst,
 	return (idx * idx * MH_MULTIPLY + parent * 100007 * MH_MULTIPLY + ((uintptr_t)field&(hashval_t)~0));
 
 }
-uint32_t cesk_store_allocate(cesk_store_t** p_store, dalvik_instruction_t* inst, uint32_t parent, const char* field)
+uint32_t cesk_store_allocate(cesk_store_t** p_store, const dalvik_instruction_t* inst, uint32_t parent, const char* field)
 {
     cesk_store_t* store = *p_store;
     uint32_t idx;
@@ -342,11 +359,12 @@ int cesk_store_attach(cesk_store_t* store, uint32_t addr,cesk_value_t* value)
     {
         /* reference to new value */
         cesk_value_incref(value);
-		store->blocks[block]->slots[offset].value = value;
 		/*store->hashcode ^= (addr * MH_MULTIPLY + cesk_value_hashcode(value));*/
 		/* we do not update new hash code here, that means we should use cesk_store_release_rw function
 		 * After we finish modifiying the store */
     }
+	store->blocks[block]->slots[offset].value = value;
+	store->blocks[block]->slots[offset].reuse = 0;  /* attach to a object, all previous object is lost */
     return 0;
 }
 /* TODO: Question, once an adress is set to reusing, is there any time for the address to clear this bit ? */

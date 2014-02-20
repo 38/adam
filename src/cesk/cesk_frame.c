@@ -314,7 +314,7 @@ int cesk_frame_store_object_put(cesk_frame_t* frame, dalvik_instruction_t* inst,
 		}
 		cesk_store_attach(frame->store, *paddr, value_set); 
 	}
-	else if(cesk_store_is_mutiple(frame->store, dst_addr) == 1)
+	else if(cesk_store_is_reuse(frame->store, dst_addr) == 1)
 	{
 		/* this address is used by mutliple objects, so we can not dicard old value */
 		/* get the address of the value set */
@@ -349,4 +349,71 @@ int cesk_frame_store_object_put(cesk_frame_t* frame, dalvik_instruction_t* inst,
 	/* release the write pointer */
 	cesk_store_release_rw(frame->store, dst_addr);
 	return 0;
+}
+uint32_t cesk_frame_store_new_array(cesk_frame_t* frame, const dalvik_instruction_t* inst)
+{
+	LOG_TRACE("fixme : array support");
+	return CESK_STORE_ADDR_NULL;
+}
+uint32_t cesk_frame_store_new_object(cesk_frame_t* frame, const dalvik_instruction_t* inst, const char* classpath)
+{
+	if(NULL == frame || NULL == inst || NULL == classpath)
+	{
+		LOG_ERROR("invalid arguments");
+		return CESK_STORE_ADDR_NULL;
+	}
+	LOG_DEBUG("creat new object from class %s", classpath);
+	/* allocate address */
+	uint32_t addr = cesk_store_allocate(&frame->store, inst, CESK_STORE_ADDR_NULL, NULL); 
+
+	if(CESK_STORE_ADDR_NULL == addr)
+	{
+		LOG_ERROR("can not allocate store address for object");
+		return CESK_STORE_ADDR_NULL;
+	}
+	
+	const cesk_value_t* value;
+
+	if((value = cesk_store_get_ro(frame->store, addr)) != NULL)
+	{
+		/* check validity of the address */
+		if(value->type != CESK_TYPE_OBJECT)
+		{
+			LOG_ERROR("can not attach an object to a non-object address");
+			return CESK_STORE_ADDR_NULL;
+		}
+		cesk_object_t* object = *(cesk_object_t**)value->data;
+		if(NULL == object)
+		{
+			LOG_ERROR("invalid value");
+			return CESK_STORE_ADDR_NULL; 
+		}
+		if(cesk_object_classpath(object) != classpath)
+		{
+			LOG_ERROR("address %x is for class %s but the new object is a instance of %s", 
+					  addr, 
+					  cesk_object_classpath(object), 
+					  classpath);
+			return CESK_STORE_ADDR_NULL;
+		}
+		/* reuse */
+		if(NULL == value)
+		{
+			LOG_ERROR("can not get writable pointer at addr %x", addr);
+			return CESK_STORE_ADDR_NULL;
+		}
+		cesk_store_set_reuse(frame->store, addr);
+	}
+	else
+	{
+		/* a fresh address, use it */
+		cesk_value_t* new_val = cesk_value_from_classpath(classpath);
+		if(NULL == new_val)
+		{
+			LOG_ERROR("can not create new object from class %s", classpath);
+			return CESK_STORE_ADDR_NULL;
+		}
+		cesk_store_attach(frame->store, addr, new_val);
+	}
+	return addr;
 }
