@@ -75,7 +75,13 @@ __CB_HANDLER(NOP)
 __CB_HANDLER(CONST)
 {
 	uint32_t dest = inst->operands[0].payload.uint32;
-	
+	if(inst->operands[1].header.info.type == DVM_OPERAND_TYPE_STRING)
+	{
+		LOG_TRACE("fixme : string constant requires implementation of java/lang/String");
+		return 0;
+	}
+	return cesk_frame_register_load(output, inst, dest, 
+		        	                cesk_store_const_addr_from_operand(inst->operands + 1)); 
 }
 static inline int _cesk_block_interpret(cesk_block_t* blk)
 {
@@ -93,6 +99,7 @@ static inline int _cesk_block_interpret(cesk_block_t* blk)
                __CB_INST(MOVE);
 			   __CB_INST(NOP);
 			   __CB_INST(CONST);
+			   /* TODO: other instructions */
         }
         if(rc < 0)
         {
