@@ -207,7 +207,8 @@ static inline hashval_t _cesk_store_address_hashcode(const dalvik_instruction_t*
 	}
 	
 	/* read the instruction annotation for index */
-	dalvik_instruction_read_annotation(inst, &idx, sizeof(idx));
+	//dalvik_instruction_read_annotation(inst, &idx, sizeof(idx));
+	idx = dalvik_instruction_get_index(inst);
 
 	return (idx * idx * MH_MULTIPLY + parent * 100007 * MH_MULTIPLY + ((uintptr_t)field&(hashval_t)~0));
 
@@ -216,7 +217,7 @@ uint32_t cesk_store_allocate(cesk_store_t** p_store, const dalvik_instruction_t*
 {
     cesk_store_t* store = *p_store;
     uint32_t idx;
-    dalvik_instruction_read_annotation(inst, &idx, sizeof(idx));
+	idx = dalvik_instruction_get_index(inst);
     uint32_t  init_slot = _cesk_store_address_hashcode(inst, parent, field)  % CESK_STORE_BLOCK_NSLOTS;
     uint32_t  slot = init_slot;
     /* here we perform a quadratic probing inside each block
@@ -301,7 +302,7 @@ uint32_t cesk_store_allocate(cesk_store_t** p_store, const dalvik_instruction_t*
     {
         /* some equal entry */
         LOG_DEBUG("reuse %d (block = %d, offset = %d for instruction %d",
-                   equal_block * CESK_STORE_BLOCK_NSLOTS + equal_offset, equal_block, equal_offset);
+                   equal_block * CESK_STORE_BLOCK_NSLOTS + equal_offset, equal_block, equal_offset, idx);
         store->blocks[equal_block]->slots[equal_offset].reuse = 1;   
         return equal_block * CESK_STORE_BLOCK_NSLOTS  + equal_offset;
     }
@@ -487,4 +488,64 @@ int cesk_store_equal(cesk_store_t* first, cesk_store_t* second)
                 return 0;
     }
     return 1;
+}
+uint32_t cesk_store_const_addr_from_operand(dalvik_operand_t* operand)
+{
+    if(NULL == operand) return NULL;
+    if(!operand->header.info.is_const)
+    {
+        LOG_ERROR("can not create a value from a non-constant operand");
+        return NULL;
+    }
+    int intval = 0;
+    switch(operand->header.info.type)
+    {
+        case DVM_OPERAND_TYPE_LONG:
+            intval = operand->payload.int64;
+            goto num;
+        case DVM_OPERAND_TYPE_SHORT:
+            intval = operand->payload.int16;
+            goto num;
+        case DVM_OPERAND_TYPE_INT:
+            intval = operand->payload.int32;
+            goto num;
+        case DVM_OPERAND_TYPE_BYTE:
+            intval = operand->payload.int8;
+            goto num;
+        case DVM_OPERAND_TYPE_DOUBLE:
+            if(operand->payload.real64 < -1e-20)
+                intval = -1;
+            else if(operand->payload.real64 > 1e-20)
+                intval = 1;
+            else 
+                intval = 0;
+            goto num;
+        case DVM_OPERAND_TYPE_FLOAT:
+            if(operand->payload.real32 < -1e-20)
+                intval = -1;
+            else if(operand->payload.real32 > 1e-20)
+                intval = 1;
+            else 
+                intval = 0;
+            goto num;
+        case DVM_OPERAND_TYPE_CHAR:
+            intval = operand->payload.int8;
+num:
+            if(intval > 0)
+                return CESK_STORE_ADDR_POS;
+            else if(intval < 0)
+                return CESK_STORE_ADDR_NEG;
+            else 
+                return CESK_STORE_ADDR_ZERO;
+        case DALVIK_TYPECODE_BOOLEAN:
+            if(operand->payload.uint8)
+                return CESK_STORE_ADDR_TRUE;
+            else
+                return CESK_STORE_ADDR_FALSE;
+            break;
+        default:
+            LOG_ERROR("can not create value for the type");
+			return CESK_STORE_ADDR_NULL;
+    }
+	return CESK_STORE_ADDR_NULL;
 }

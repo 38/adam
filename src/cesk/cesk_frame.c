@@ -99,9 +99,11 @@ int cesk_frame_equal(cesk_frame_t* first, cesk_frame_t* second)
 #define BITAT(f,n) (((f)[n/8]&(1<<(n%8))) > 0)
 static inline void _cesk_frame_store_dfs(uint32_t addr,cesk_store_t* store, uint8_t* f)
 {
+	if(CESK_STORE_ADDR_NULL == addr) return;
+	/* constants do not need to collect */
+	if(CESK_STORE_ADDR_IS_CONST(addr)) return;
     if(1 == BITAT(f, addr)) return;
     /* set the flag */
-	if(CESK_STORE_ADDR_NULL == addr) return;
     f[addr/8] |= (1<<(addr%8));
     const cesk_value_t* val = cesk_store_get_ro(store, addr);
     if(NULL == val) return;
@@ -113,10 +115,12 @@ static inline void _cesk_frame_store_dfs(uint32_t addr,cesk_store_t* store, uint
     int i;
     switch(val->type)
     {
+#if 0
         case CESK_TYPE_NUMERIC:
         case CESK_TYPE_BOOLEAN:
             /* atmoic types, no reference */
             break;
+#endif
         case CESK_TYPE_SET:
             for(iter = cesk_set_iter(*(cesk_set_t**)val->data, &iter_buf);
                 CESK_STORE_ADDR_NULL != (next_addr = cesk_set_iter_next(iter));)

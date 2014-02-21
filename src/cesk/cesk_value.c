@@ -4,22 +4,26 @@
 
 static cesk_value_t*  _cesk_value_list = NULL;
 
+#if 0
 static cesk_value_t*  _cesk_value_numeric_values_storage[3] = {};
 static cesk_value_t** _cesk_value_numeric_values = NULL; 
 
 static cesk_value_t* _cesk_value_boolean[2] = {};
+#endif
 
 static inline cesk_value_t* _cesk_value_alloc(uint32_t type)
 {
     size_t size = sizeof(cesk_value_t);
     switch(type)
     {
+#if 0
         case CESK_TYPE_NUMERIC:
             size += sizeof(cesk_value_numeric_t);
             break;
         case CESK_TYPE_BOOLEAN:
             size += sizeof(cesk_value_boolean_t);
             break;
+#endif
         case CESK_TYPE_OBJECT:
             size += sizeof(cesk_object_t*);
             break;
@@ -47,6 +51,7 @@ static inline cesk_value_t* _cesk_value_alloc(uint32_t type)
 void cesk_value_init()
 {
     _cesk_value_list = NULL;
+#if 0
     _cesk_value_numeric_values = _cesk_value_numeric_values_storage + 1;
     if(NULL == (_cesk_value_numeric_values[CESK_VALUE_NUMERIC_NEGATIVE] = _cesk_value_alloc(CESK_TYPE_NUMERIC)))
 
@@ -83,7 +88,7 @@ void cesk_value_init()
     }
     else
         *(cesk_value_boolean_t*)(_cesk_value_boolean[CESK_VALUE_BOOLEAN_TRUE]->data) = CESK_VALUE_BOOLEAN_FALSE;
-
+#endif
 }
 static void _cesk_value_free(cesk_value_t* val)
 {
@@ -92,9 +97,11 @@ static void _cesk_value_free(cesk_value_t* val)
     if(_cesk_value_list == val) _cesk_value_list = val->next;
     switch(val->type)
     {
+#if 0
         case CESK_TYPE_NUMERIC:
         case CESK_TYPE_BOOLEAN:
             break;
+#endif
         case CESK_TYPE_OBJECT:
             if(*(cesk_object_t**)val->data != NULL)
                 cesk_object_free(*(cesk_object_t**)val->data);
@@ -160,6 +167,7 @@ cesk_value_t* cesk_value_empty_set()
 	*(cesk_set_t**)ret->data = empty_set;
 	return ret;
 }
+#if 0
 cesk_value_t* cesk_value_from_operand(dalvik_operand_t* operand)
 {
     if(NULL == operand) return NULL;
@@ -220,12 +228,15 @@ num:
     }
     return NULL;
 }
+#endif
 cesk_value_t* cesk_value_fork(cesk_value_t* value)
 {
+#if 0
     if(value->type != CESK_TYPE_OBJECT && value->type != CESK_TYPE_ARRAY)
     {
         LOG_ERROR("Can not fork a basic type");
     }
+#endif
     cesk_value_t* newval = _cesk_value_alloc(value->type);
     if(NULL == newval) return NULL;
     if(value->type == CESK_TYPE_OBJECT)
@@ -261,10 +272,12 @@ hashval_t cesk_value_hashcode(cesk_value_t* value)
     if(NULL == value) return (hashval_t)0x3c4fab47;
     switch(value->type)
     {
+#if 0
         case CESK_TYPE_NUMERIC:
         case CESK_TYPE_BOOLEAN:
             /* atomic value */
             return MH_MULTIPLY * ((uintptr_t)value&0xfffffffful);
+#endif 
         case CESK_TYPE_OBJECT:
             /* object */
             return cesk_object_hashcode(*(cesk_object_t**)value->data);
@@ -284,9 +297,11 @@ int cesk_value_equal(cesk_value_t* first, cesk_value_t* second)
     if(first->type != second->type) return 0;
     switch(first->type)
     {
+#if 0
         case CESK_TYPE_NUMERIC:
         case CESK_TYPE_BOOLEAN:
             return first == second;
+#endif
         case CESK_TYPE_OBJECT:
             return cesk_object_equal(*(cesk_object_t**)first->data, *(cesk_object_t**)second->data);
         case CESK_TYPE_SET:

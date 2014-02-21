@@ -67,6 +67,11 @@
 #	define CESK_STORE_ALLOC_ATTEMPT 5
 #endif
 
+/* the address prefix for constant address */
+#ifndef CESK_STORE_ADDR_CONST_PREFIX
+#	define CESK_STORE_ADDR_CONST_PREFIX 0xffffff00ul
+#endif
+
 /* the magic number used for Knuth Multiplicative Hash */
 #define MH_MULTIPLY (2654435761ul)
 
