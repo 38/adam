@@ -21,9 +21,11 @@
 #define CESK_STORE_ADDR_FALSE CESK_STORE_ADDR_CONST_PREFIX | 0x10ul
 
 #define CESK_STORE_ADDR_IS_CONST(addr) (((addr)&CESK_STORE_ADDR_CONST_PREFIX) == CESK_STORE_ADDR_CONST_PREFIX)
+/* check the address, if it's true, compute the expression, otherwise return false */
+#define CESK_STORE_ADDR_CHECK_COMP(addr, exp) (CESK_STORE_ADDR_IS_CONST(addr) && (exp))
 #define CESK_STORE_ADDR_CONST_SUFFIX(addr) ((addr)&(~CESK_STORE_ADDR_CONST_PREFIX))
-#define CESK_STORE_ADDR_CONST_CONTAIN(addr, elem) ((addr) & CESK_STORE_ADDR_CONST_SUFFIX(CESK_STORE_ADDR_CONST_##elem))
-#define CESK_STORE_ADDR_CONST_SET(addr, elem) ((addr) | CESK_STORE_ADDR_CONST_SUFFIX(CESK_STORE_ADDR_CONST_##elem))
+#define CESK_STORE_ADDR_CONST_CONTAIN(addr, elem) CESK_STORE_ADDR_CHECK_COMP(addr, ((addr) & CESK_STORE_ADDR_CONST_SUFFIX(CESK_STORE_ADDR_##elem)))
+#define CESK_STORE_ADDR_CONST_SET(addr, elem) ((addr) | CESK_STORE_ADDR_CONST_SUFFIX(CESK_STORE_ADDR_##elem))
 
 /* This file contains declarations for Frame Store
  * The Frame Store unlike the nomally store, the 

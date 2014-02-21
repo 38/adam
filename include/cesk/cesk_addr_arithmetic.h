@@ -122,7 +122,7 @@ static inline uint32_t cesk_addr_arithmetic_mul(uint32_t a, uint32_t b)
 	}
 	return ret;
 }
-static inline cesk_addr_arithmetic_div(uint32_t a, uint32_t b)
+static inline uint32_t cesk_addr_arithmetic_div(uint32_t a, uint32_t b)
 {
 	/* we do not want 0 in the set */
 	b &= (CESK_STORE_ADDR_CONST_PREFIX | 
@@ -134,18 +134,18 @@ static inline cesk_addr_arithmetic_div(uint32_t a, uint32_t b)
 	}
 	return cesk_addr_arithmetic_mul(a,b);
 }
-static inline cesk_addr_arithmetic_not(uint32_t a, uint32_t b)
+static inline uint32_t cesk_addr_arithmetic_not(uint32_t a)
 {
-	ret = CESK_STORE_ADDR_CONST_PREFIX;
+	uint32_t ret = CESK_STORE_ADDR_CONST_PREFIX;
 	if(CESK_STORE_ADDR_CONST_CONTAIN(a, TRUE)) 
 		ret = CESK_STORE_ADDR_CONST_SET(ret, FALSE);
 	if(CESK_STORE_ADDR_CONST_CONTAIN(a, FALSE)) 
 		ret = CESK_STORE_ADDR_CONST_SET(ret, TRUE);
 	return ret;
 }
-static inline cesk_addr_arithmetic_and(uint32_t a, uint32_t b)
+static inline uint32_t cesk_addr_arithmetic_and(uint32_t a, uint32_t b)
 {
-	ret = CESK_STORE_ADDR_CONST_PREFIX;
+	uint32_t ret = CESK_STORE_ADDR_CONST_PREFIX;
 	if(CESK_STORE_ADDR_CONST_CONTAIN(a, TRUE) &&
 	   CESK_STORE_ADDR_CONST_CONTAIN(b, TRUE))
 		ret = CESK_STORE_ADDR_CONST_SET(ret, TRUE);
@@ -164,9 +164,9 @@ static inline cesk_addr_arithmetic_and(uint32_t a, uint32_t b)
 	}
 	return ret;
 }
-static inline cesk_addr_arithmetic_or(uint32_t a, uint32_t b)
+static inline uint32_t cesk_addr_arithmetic_or(uint32_t a, uint32_t b)
 {
-	ret = CESK_STORE_ADDR_CONST_PREFIX;
+	uint32_t ret = CESK_STORE_ADDR_CONST_PREFIX;
 	if(CESK_STORE_ADDR_CONST_CONTAIN(a, TRUE) &&
 	   CESK_STORE_ADDR_CONST_CONTAIN(b, TRUE))
 		ret = CESK_STORE_ADDR_CONST_SET(ret, TRUE);
@@ -185,9 +185,10 @@ static inline cesk_addr_arithmetic_or(uint32_t a, uint32_t b)
 	}
 	return ret;
 }
-static inline cesk_addr_arithmetic_xor(uint32_t a, uint32_t b)
+/* a xor b */
+static inline uint32_t cesk_addr_arithmetic_xor(uint32_t a, uint32_t b)
 {
-	ret = CESK_STORE_ADDR_CONST_PREFIX;
+	uint32_t ret = CESK_STORE_ADDR_CONST_PREFIX;
 	if(CESK_STORE_ADDR_CONST_CONTAIN(a, TRUE) &&
 	   CESK_STORE_ADDR_CONST_CONTAIN(b, TRUE))
 		ret = CESK_STORE_ADDR_CONST_SET(ret, FALSE);
@@ -205,5 +206,59 @@ static inline cesk_addr_arithmetic_xor(uint32_t a, uint32_t b)
 		LOG_WARNING("empty set, type might be mismatch");
 	}
 	return ret;
+}
+/* a > b */
+static inline uint32_t cesk_addr_arithmetic_gt(uint32_t a, uint32_t b)
+{
+	int ret = CESK_STORE_ADDR_CONST_PREFIX;
+	uint32_t tmp = cesk_addr_arithmetic_sub(a,b);
+	if(CESK_STORE_ADDR_CONST_SET(tmp, NEG))
+		ret = CESK_STORE_ADDR_CONST_SET(ret, FALSE);
+	if(CESK_STORE_ADDR_CONST_SET(tmp, ZERO))
+		ret = CESK_STORE_ADDR_CONST_CONTAIN(ret, FALSE);
+	if(CESK_STORE_ADDR_CONST_CONTAIN(tmp, POS))
+		ret = CESK_STORE_ADDR_CONST_SET(ret, TRUE);
+	if(CESK_STORE_ADDR_CONST_PREFIX == ret)
+	{
+		LOG_WARNING("can not compare two value");
+	}
+	return ret;
+}
+/* a = b */
+static inline uint32_t cesk_addr_arithmetic_eq(uint32_t a, uint32_t b)
+{
+	int ret = CESK_STORE_ADDR_CONST_PREFIX;
+	uint32_t tmp = cesk_addr_arithmetic_sub(a,b);
+	if(CESK_STORE_ADDR_CONST_SET(tmp, NEG))
+		ret = CESK_STORE_ADDR_CONST_SET(ret, FALSE);
+	if(CESK_STORE_ADDR_CONST_SET(tmp, ZERO))
+		ret = CESK_STORE_ADDR_CONST_CONTAIN(ret, TRUE);
+	if(CESK_STORE_ADDR_CONST_CONTAIN(tmp, POS))
+		ret = CESK_STORE_ADDR_CONST_SET(ret, FALSE);
+	if(CESK_STORE_ADDR_CONST_PREFIX == ret)
+	{
+		LOG_WARNING("can not compare two value");
+	}
+	return ret;
+}
+/* a >= b */
+static inline uint32_t cesk_addr_arithmetic_ge(uint32_t a, uint32_t b)
+{
+	return cesk_addr_arithmetic_ge(a,b) | cesk_addr_arithmetic_eq(a,b);
+}
+/* a < b */
+static inline uint32_t cesk_addr_arithmetic_lt(uint32_t a, uint32_t b)
+{
+	return cesk_addr_arithmetic_ge(b,a);
+}
+/* a <= b */
+static inline uint32_t cesk_addr_arithmetic_le(uint32_t a, uint32_t b)
+{
+	return cesk_addr_arithmetic_ge(b,a);
+}
+/* a != b */
+static inline uint32_t cesk_addr_arithmetic_neq(uint32_t a, uint32_t b)
+{
+	return cesk_addr_arithmetic_not(cesk_addr_arithmetic_eq(a,b));
 }
 #endif

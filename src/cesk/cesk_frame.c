@@ -184,6 +184,29 @@ hashval_t cesk_frame_hashcode(cesk_frame_t* frame)
     ret ^= cesk_store_hashcode(frame->store);
     return ret;
 }
+/* this function is used for other function to do following things:
+ * 		1. derefer all address this function refered 
+ * 		2. free the set 
+ */
+static inline int _cesk_frame_free_reg(cesk_frame_t* frame, uint32_t reg)
+{
+	cesk_set_iter_t iter;
+	
+	if(NULL == cesk_set_iter(frame->regs[reg], &iter))
+	{
+		LOG_ERROR("can not aquire iterator for destination register %d", reg);
+		return -1;
+	}
+	
+	uint32_t set_addr;
+	
+	while(CESK_STORE_ADDR_NULL != (set_addr = cesk_set_iter_next(&iter)))
+		cesk_store_decref(frame->store, set_addr);
+	
+	cesk_set_free(frame->regs[reg]);
+
+	return 0;
+}
 int cesk_frame_register_move(cesk_frame_t* frame, dalvik_instruction_t* inst, uint32_t dst_reg, uint32_t src_reg)
 {
 	if(NULL == frame || dst_reg >= frame->size || src_reg >= frame->size) 
@@ -192,7 +215,11 @@ int cesk_frame_register_move(cesk_frame_t* frame, dalvik_instruction_t* inst, ui
 		return -1;
 	}
 	/* as once we write one register, the previous infomation store in the register is lost */
-	cesk_set_free(frame->regs[dst_reg]);
+	if(_cesk_frame_free_reg(frame, dst_reg) < 0)
+	{
+		LOG_ERROR("can not free the old value of register %d", dst_reg);
+		return -1;
+	}
 	/* and then we just fork the vlaue of source */
 	frame->regs[dst_reg] = cesk_set_fork(frame->regs[src_reg]);
 	return 0;
@@ -204,12 +231,17 @@ int cesk_frame_register_load(cesk_frame_t* frame, dalvik_instruction_t* inst ,ui
 		LOG_WARNING("bad instruction, invalid register reference");
 		return -1;
 	}
-	
-	cesk_set_free(frame->regs[dst_reg]);
 
-	frame->regs[dst_reg] = cesk_set_empty_set();
+	/* clear the register first */
+	if(cesk_frame_register_clear(frame, inst, dst_reg) < 0)
+	{
+		LOG_ERROR("can not clear the value in register %d", dst_reg);
+		return -1;
+	}
 
 	cesk_set_push(frame->regs[dst_reg], addr);
+
+	cesk_store_incref(frame->store, addr);
 
 	return 0;
 }
@@ -220,7 +252,12 @@ int cesk_frame_register_clear(cesk_frame_t* frame, dalvik_instruction_t* inst, u
 		LOG_WARNING("bad instruction, invalid register reference");
 		return -1;
 	}
-	cesk_set_free(frame->regs[reg]);
+
+	if(_cesk_frame_free_reg(frame,reg) < 0)
+	{
+		LOG_ERROR("can not free the old value of register %d", reg);
+		return -1;
+	}
 
 	frame->regs[reg] = cesk_set_empty_set();
 	
@@ -255,16 +292,6 @@ int cesk_frame_store_object_get(cesk_frame_t* frame,dalvik_instruction_t* inst, 
 	}
 	/* load the value */
 	return cesk_frame_register_load(frame, inst ,dst_reg, *paddr);
-}
-int cesk_frame_store_array_get(cesk_frame_t* frame, dalvik_instruction_t* inst, uint32_t dst_addr, uint32_t index, uint32_t src_reg)
-{
-	LOG_TRACE("fixme : array support");
-	return 0;
-}
-int cesk_frame_store_array_put(cesk_frame_t* frame, dalvik_instruction_t* inst, uint32_t index, uint32_t dst_reg, uint32_t src_reg)
-{
-	LOG_TRACE("fixme : array support");
-	return 0;
 }
 int cesk_frame_store_object_put(cesk_frame_t* frame, dalvik_instruction_t* inst, uint32_t dst_addr, const char* classpath, const char* field, uint32_t src_reg)
 {
@@ -354,11 +381,6 @@ int cesk_frame_store_object_put(cesk_frame_t* frame, dalvik_instruction_t* inst,
 	cesk_store_release_rw(frame->store, dst_addr);
 	return 0;
 }
-uint32_t cesk_frame_store_new_array(cesk_frame_t* frame, const dalvik_instruction_t* inst)
-{
-	LOG_TRACE("fixme : array support");
-	return CESK_STORE_ADDR_NULL;
-}
 uint32_t cesk_frame_store_new_object(cesk_frame_t* frame, const dalvik_instruction_t* inst, const char* classpath)
 {
 	if(NULL == frame || NULL == inst || NULL == classpath)
@@ -420,4 +442,19 @@ uint32_t cesk_frame_store_new_object(cesk_frame_t* frame, const dalvik_instructi
 		cesk_store_attach(frame->store, addr, new_val);
 	}
 	return addr;
+}
+int cesk_frame_store_array_get(cesk_frame_t* frame, dalvik_instruction_t* inst, uint32_t dst_addr, uint32_t index, uint32_t src_reg)
+{
+	LOG_TRACE("fixme : array support, get an element from the array");
+	return 0;
+}
+int cesk_frame_store_array_put(cesk_frame_t* frame, dalvik_instruction_t* inst, uint32_t index, uint32_t dst_reg, uint32_t src_reg)
+{
+	LOG_TRACE("fixme : array support, put an emement to the array");
+	return 0;
+}
+uint32_t cesk_frame_store_new_array(cesk_frame_t* frame, const dalvik_instruction_t* inst)
+{
+	LOG_TRACE("fixme : array support");
+	return CESK_STORE_ADDR_NULL;
 }
