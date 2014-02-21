@@ -491,11 +491,11 @@ int cesk_store_equal(cesk_store_t* first, cesk_store_t* second)
 }
 uint32_t cesk_store_const_addr_from_operand(dalvik_operand_t* operand)
 {
-    if(NULL == operand) return NULL;
+    if(NULL == operand) return CESK_STORE_ADDR_NULL;
     if(!operand->header.info.is_const)
     {
         LOG_ERROR("can not create a value from a non-constant operand");
-        return NULL;
+        return CESK_STORE_ADDR_NULL;
     }
     int intval = 0;
     switch(operand->header.info.type)
