@@ -202,6 +202,7 @@ Description
     DVM_FLAG_ARRAY_PUT == DVM_FLAG_INSTANCE_PUT : Put a member
     DVM_FLAG_INSTANCE_SGET : Get a static member
     DVM_FLAG_INSTANCE_SPUT : Put a static member
+    DVM_FLAG_INSTANCE_OF   : Check if the object is the instance of ...
     
 Format
     
@@ -209,6 +210,7 @@ Format
     1   array dest, object, index 
     2   instance dest, path, type
     3   instance dest, object, path, type
+    4   dest , object,  type(classpath/typedesc)
     
 Arguments:
 
