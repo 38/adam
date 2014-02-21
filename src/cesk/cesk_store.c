@@ -3,6 +3,7 @@
 #include <log.h>
 
 #include <cesk/cesk_store.h>
+#define HASH_INC(addr,val) (addr * MH_MULTIPLY + cesk_value_hashcode(val))
 /* make a copy of a store block */
 static inline cesk_store_block_t* _cesk_store_block_fork(cesk_store_block_t* block)
 {
@@ -167,7 +168,7 @@ cesk_value_t* cesk_store_get_rw(cesk_store_t* store, uint32_t addr)
      * After finish updating, you should call the function release the 
      * value and update the hashcode 
      */
-    store->hashcode ^= (addr * MH_MULTIPLY + cesk_value_hashcode(val));
+    store->hashcode ^= HASH_INC(addr, val);
     val->write_status = 1;
     return val;
 }
@@ -194,7 +195,7 @@ void cesk_store_release_rw(cesk_store_t* store, uint32_t addr)
     }
     val->write_status = 0;
     /* update the hashcode */
-    store->hashcode ^= (addr * MH_MULTIPLY + cesk_value_hashcode(val));
+    store->hashcode ^= HASH_INC(addr, val);
 }
 static inline hashval_t _cesk_store_address_hashcode(const dalvik_instruction_t* inst, uint32_t parent, const char* field)
 {
@@ -352,9 +353,16 @@ int cesk_store_attach(cesk_store_t* store, uint32_t addr,cesk_value_t* value)
     if(NULL != store->blocks[block]->slots[offset].value)
     {
 		/* update the hashcode */ 
-		store->hashcode ^= addr * MH_MULTIPLY + cesk_value_hashcode(store->blocks[block]->slots[offset].value);
-        /* dereference to previous object */
-        cesk_value_decref(store->blocks[block]->slots[offset].value);
+		//store->hashcode ^= addr * MH_MULTIPLY + cesk_value_hashcode(store->blocks[block]->slots[offset].value);
+        store->hashcode ^= HASH_INC(addr, store->blocks[block]->slots[offset].value);
+		
+		/* clean the old object */
+		store->blocks[block]->slots[offset].refcnt = 1;
+		cesk_store_decref(store, addr);   /* dirty hack, using this way to trigger the clean procedure */
+
+		/* dereference to previous object */
+		cesk_value_decref(store->blocks[block]->slots[offset].value);
+
     }
     if(value)
     {
@@ -422,6 +430,11 @@ static inline cesk_store_block_t* _cesk_store_getblock_rw(cesk_store_t* store, u
 
 int cesk_store_incref(cesk_store_t* store, uint32_t addr)
 {
+	if(CESK_STORE_ADDR_IS_CONST(addr))
+	{
+		LOG_DEBUG("the address %x is a constant address, no need to incref");
+		return 0;
+	}
     uint32_t b_ofs = addr % CESK_STORE_BLOCK_NSLOTS;
     cesk_store_block_t* block = _cesk_store_getblock_rw(store, addr);
     if(NULL == block)
@@ -436,9 +449,55 @@ int cesk_store_incref(cesk_store_t* store, uint32_t addr)
         return -1;
     }
 }
-
+static inline int _cesk_store_free_set(cesk_store_t* store, cesk_set_t* set)
+{
+	cesk_set_iter_t iter;
+	if(NULL == cesk_set_iter(set, &iter))
+	{
+		LOG_ERROR("can not aquire iterator for the set");
+		return -1;
+	}
+	uint32_t addr;
+	while(CESK_STORE_ADDR_NULL != (addr = cesk_set_iter_next(&iter)))
+	{
+		/* decref for all its references */
+		if(cesk_store_decref(store, addr) < 0)
+		{
+			LOG_WARNING("can not decref at address %x", addr);
+		}
+	}
+	return 0;
+}
+static inline int _cesk_store_free_object(cesk_store_t* store, cesk_object_t* object)
+{
+	if(NULL == object)
+	{
+		LOG_ERROR("can not dispose a NULL object");
+		return -1;
+	}
+	cesk_object_struct_t* this = object->members;
+	int i;
+	for(i = 0; i < object->depth; i ++)
+	{
+		int j;
+		for(j = 0; j < this->num_members; i ++)
+		{
+			if(cesk_store_decref(store, this->valuelist[j]) < 0)
+			{
+				LOG_WARNING("can not decref at address %x", this->valuelist[j]);
+			}
+		}
+		this = (cesk_object_struct_t*)(this->valuelist + this->num_members);
+	}
+	return 0;
+}
 int cesk_store_decref(cesk_store_t* store, uint32_t addr)
 {
+	if(CESK_STORE_ADDR_IS_CONST(addr))
+	{
+		LOG_DEBUG("the address %x is a constant address, no need to decref");
+		return 0;
+	}
     uint32_t idx = addr / CESK_STORE_BLOCK_NSLOTS;
     uint32_t ofs = addr % CESK_STORE_BLOCK_NSLOTS;
     if(idx >= store->nblocks)
@@ -458,10 +517,33 @@ int cesk_store_decref(cesk_store_t* store, uint32_t addr)
     /* decrease the counter */
     if(block->slots[ofs].refcnt > 0) 
         block->slots[ofs].refcnt --;
+	else
+		LOG_WARNING("found an living object with 0 refcnt at address %x", addr);
 
     if(0 == block->slots[ofs].refcnt)
     {
         LOG_TRACE("value %xS is dead, swipe it out", addr);
+
+		cesk_value_t* value = block->slots[ofs].value;
+		/* update the hashcode */
+		store->hashcode ^= HASH_INC(addr, value);
+		/* decref of it's refernces */
+		int rc = -1;
+		switch(value->type)
+		{
+			case CESK_TYPE_OBJECT:
+				rc = _cesk_store_free_object(store, *(cesk_object_t**)value->data);
+				break;
+			case CESK_TYPE_SET:
+				rc = _cesk_store_free_set(store, *(cesk_set_t**) value->data);
+				break;
+			case CESK_TYPE_ARRAY:
+				LOG_TRACE("fixme: array support: decref of its reference here");
+		}
+		if(rc < 0)
+		{
+			LOG_WARNING("can not dispose the object");
+		}
         /* unreference from this frame */
         cesk_value_decref(block->slots[ofs].value);
         /* release the address */
