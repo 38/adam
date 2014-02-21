@@ -62,7 +62,20 @@ cesk_block_t* cesk_block_graph_new(const dalvik_block_t* entry)
 #define __CB_HANDLER(name) static inline int _cesk_block_interpreter_handler_##name(dalvik_instruction_t* inst, cesk_frame_t* output)
 __CB_HANDLER(MOVE)
 {
-    return 0;
+	uint32_t dest = inst->operands[0].payload.uint32;
+	uint32_t sour = inst->operands[1].payload.uint32;
+	cesk_frame_register_move(output, inst, dest, sour);  
+	return 0;
+}
+__CB_HANDLER(NOP)
+{
+	/* no operation */
+	return 0;
+}
+__CB_HANDLER(CONST)
+{
+	uint32_t dest = inst->operands[0].payload.uint32;
+	
 }
 static inline int _cesk_block_interpret(cesk_block_t* blk)
 {
@@ -78,6 +91,8 @@ static inline int _cesk_block_interpret(cesk_block_t* blk)
         switch(inst->opcode)
         {
                __CB_INST(MOVE);
+			   __CB_INST(NOP);
+			   __CB_INST(CONST);
         }
         if(rc < 0)
         {
@@ -86,6 +101,8 @@ static inline int _cesk_block_interpret(cesk_block_t* blk)
     }
     return 0;
 }
+#undef __CB_HANDLER
+#undef __CB_INST
 int cesk_block_analyze(cesk_block_t* block)
 {
     if(NULL == block)

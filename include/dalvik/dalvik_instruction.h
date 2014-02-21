@@ -220,7 +220,7 @@ static inline void dalvik_instruction_read_annotation(const dalvik_instruction_t
     memcpy(buf, ins->annotation_begin + ins->num_operands, count);
 }
 
-static inline uint32_t dalvik_instruction_get_index(dalvik_instruction_t* inst)
+static inline uint32_t dalvik_instruction_get_index(const dalvik_instruction_t* inst)
 {
     extern dalvik_instruction_t* dalvik_instruction_pool;
     return inst - dalvik_instruction_pool;

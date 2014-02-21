@@ -8,6 +8,23 @@
 
 #define CESK_STORE_ADDR_NULL 0xfffffffful
 
+/* special address that used for constants */
+/* this special address is stands for some constants value,
+ * for example negative, zero, positive. true/false. and a string
+ * This address does not actually exists, the address it self 
+ * constains information about the value 
+ */
+#define CESK_STORE_ADDR_NEG   CESK_STORE_ADDR_CONST_PREFIX | 0x01ul
+#define CESK_STORE_ADDR_ZERO  CESK_STORE_ADDR_CONST_PREFIX | 0x02ul
+#define CESK_STORE_ADDR_POS   CESK_STORE_ADDR_CONST_PREFIX | 0x04ul
+#define CESK_STORE_ADDR_TRUE  CESK_STORE_ADDR_CONST_PREFIX | 0x08ul
+#define CESK_STORE_ADDR_FALSE CESK_STORE_ADDR_CONST_PREFIX | 0x10ul
+
+#define CESK_STORE_ADDR_IS_CONST(addr) (((addr)&CESK_STORE_ADDR_CONST_PREFIX) == CESK_STORE_ADDR_CONST_PREFIX)
+#define CESK_STORE_ADDR_CONST_SUFFIX(addr) ((addr)&(~CESK_STORE_ADDR_CONST_PREFIX))
+#define CESK_STORE_ADDR_CONST_CONTAIN(addr, elem) ((addr) & CESK_STORE_ADDR_CONST_SUFFIX(CESK_STORE_ADDR_CONST_##elem))
+#define CESK_STORE_ADDR_CONST_SET(addr, elem) ((addr) | CESK_STORE_ADDR_CONST_SUFFIX(CESK_STORE_ADDR_CONST_##elem))
+
 /* This file contains declarations for Frame Store
  * The Frame Store unlike the nomally store, the 
  * store is owned by a signle frame, and have virtual address
@@ -85,4 +102,8 @@ static inline hashval_t cesk_store_hashcode(cesk_store_t* store)
 }
 
 int cesk_store_equal(cesk_store_t* fisrt, cesk_store_t* second);
+
+/* this function returns constants address from a constant operand */
+uint32_t cesk_store_const_addr_from_operand(dalvik_operand_t* operand);
+
 #endif

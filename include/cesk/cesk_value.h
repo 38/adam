@@ -18,8 +18,10 @@ typedef  struct _cesk_value_t cesk_value_t;
 
 /* Abstract Value */
 enum{
+#if 0
     CESK_TYPE_NUMERIC,   /* we treat char as a numeric value */
     CESK_TYPE_BOOLEAN,
+#endif
     CESK_TYPE_OBJECT,
     CESK_TYPE_ARRAY,
     CESK_TYPE_SET
@@ -75,8 +77,14 @@ hashval_t cesk_value_hashcode(cesk_value_t* value);
 #endif 
 /* create a new value using the class */
 cesk_value_t* cesk_value_from_classpath(const char* classpath);
+#if 0
+/* because we use special store address to represent the 
+ * values, so, we don't need the singleton for atom values
+ * any more 
+ */
 /* create a new value from a constant operand */
 cesk_value_t* cesk_value_from_operand(dalvik_operand_t* operand);
+#endif
 /* create an empty-set value */
 cesk_value_t* cesk_value_empty_set();
 /* fork the value, inorder to modify */
