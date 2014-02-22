@@ -15,6 +15,7 @@ int main()
 	uint32_t addr3 = cesk_frame_store_new_object(frame, dalvik_instruction_get(123), stringpool_query("antlr/ANTLRLexer"));
 	assert(addr2 == addr3);
 	cesk_frame_free(frame);
+
 	adam_finalize();
 	return 0;
 }

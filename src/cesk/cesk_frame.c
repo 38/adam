@@ -245,6 +245,106 @@ int cesk_frame_register_load(cesk_frame_t* frame, dalvik_instruction_t* inst ,ui
 
 	return 0;
 }
+int cesk_frame_register_load_from_store(cesk_frame_t* frame, dalvik_instruction_t* inst, uint32_t dest, uint32_t src_addr)
+{
+	if(NULL == frame || dest >= frame->size || NULL == inst || CESK_STORE_ADDR_NULL == src_addr)
+	{
+		LOG_WARNING("bad load_from_store command");
+		return -1;
+	}
+
+	const cesk_value_t* value = cesk_store_get_ro(frame->store, src_addr);
+	if(NULL == value)
+	{
+		LOG_ERROR("can not aquire the value @ %x", src_addr);
+		return -1;
+	}
+	if(CESK_TYPE_SET != value->type)
+	{
+		LOG_ERROR("can not load a non-set value to a register");
+		return -1;
+	}
+	/* get the set object */
+	cesk_set_t* set = *(cesk_set_t**)value->data;
+
+	/* delete the old value first */
+	if(_cesk_frame_free_reg(frame, dest) < 0)
+	{
+		LOG_ERROR("can not free the old value of register %d", dest);
+		return -1;
+	}
+
+	/* copy the content of the set to the register */
+	frame->regs[dest] = cesk_set_fork(set);
+
+	if(NULL == frame->regs[dest])
+	{
+		LOG_ERROR("can not load the value @ %x to register %d", src_addr, dest);
+		return -1;
+	}
+
+	/* inc ref to all the values */
+	cesk_set_iter_t iter;
+	if(NULL == cesk_set_iter(frame->regs[dest], &iter))
+	{
+		LOG_ERROR("can not aquire iterator for register %d", dest);
+		return -1;
+	}
+	uint32_t p;
+	while(CESK_STORE_ADDR_NULL != (p = cesk_set_iter_next(&iter)))
+	{
+		if(cesk_store_incref(frame->store, p) < 0)
+		{
+			LOG_ERROR("can not increase refcount for object @ %x", p);
+			return -1;
+		}
+	}
+
+	return 0;
+}
+int cesk_frame_register_append_from_store(cesk_frame_t* frame, dalvik_instruction_t* inst, uint32_t dest, uint32_t src_addr)
+{
+	if(NULL == frame ||
+	   NULL == inst ||
+	   CESK_STORE_ADDR_NULL == dest ||
+	   CESK_STORE_ADDR_NULL == src_addr)
+	{
+		LOG_ERROR("invalid arguments for append_from_store");
+		return -1;
+	}
+	const cesk_value_t* value = cesk_store_get_ro(frame->store, src_addr);
+	
+	if(NULL == value)
+	{
+		LOG_ERROR("can not aquire the value @ %x", src_addr);
+		return -1;
+	}
+	if(CESK_TYPE_SET != value->type)
+	{
+		LOG_ERROR("can not load a non-set value to a register");
+		return -1;
+	}
+	/* get the set object */
+	cesk_set_t* set = *(cesk_set_t**)value->data;
+
+	cesk_set_iter_t iter;
+
+	if(NULL == cesk_set_iter(set, &iter))
+	{
+		LOG_ERROR("can not aquire iterator for set @ %x", src_addr);
+		return -1;
+	}
+
+	uint32_t addr;
+	while(CESK_STORE_ADDR_NULL != (addr = cesk_set_iter_next(&iter)))
+	{
+		if(cesk_frame_register_push(frame, inst, dest, addr) < 0)
+		{
+			LOG_WARNING("can not push value %x to register %d", addr, dest);
+		}
+	}
+	return 0;
+}
 int cesk_frame_register_clear(cesk_frame_t* frame, dalvik_instruction_t* inst, uint32_t reg)
 {
 	if(NULL == frame || reg >= frame->size)
@@ -260,7 +360,35 @@ int cesk_frame_register_clear(cesk_frame_t* frame, dalvik_instruction_t* inst, u
 	}
 
 	frame->regs[reg] = cesk_set_empty_set();
+	if(frame->regs[reg] == NULL)
+	{
+		LOG_ERROR("can not create an empty set for register %d", reg);
+		return -1;
+	}
 	
+	return 0;
+}
+int cesk_frame_register_push(cesk_frame_t* frame, dalvik_instruction_t* inst, uint32_t reg, uint32_t addr)
+{
+	if(NULL == frame || reg >= frame->size)
+	{
+		LOG_WARNING("bad instruction, invalid register number");
+		return -1;
+	}
+	
+	if(cesk_set_contain(frame->regs[reg], addr) == 0)
+	{
+		cesk_store_incref(frame->store, addr);
+		return 0;
+	}
+
+	if(cesk_set_push(frame->regs[reg], addr) < 0)
+	{
+		LOG_ERROR("can not push value @ %x to register %d", addr, reg);
+		return -1;
+	}
+
+
 	return 0;
 }
 int cesk_frame_store_object_get(cesk_frame_t* frame,dalvik_instruction_t* inst,  uint32_t dst_reg, uint32_t src_addr, const char* classpath, const char* field)
@@ -291,7 +419,9 @@ int cesk_frame_store_object_get(cesk_frame_t* frame,dalvik_instruction_t* inst, 
 		return -1;
 	}
 	/* load the value */
-	return cesk_frame_register_load(frame, inst ,dst_reg, *paddr);
+
+	//return cesk_frame_register_load(frame, inst ,dst_reg, *paddr);
+	return cesk_frame_register_load_from_store(frame, inst, dst_reg, *paddr);
 }
 int cesk_frame_store_object_put(cesk_frame_t* frame, dalvik_instruction_t* inst, uint32_t dst_addr, const char* classpath, const char* field, uint32_t src_reg)
 {

@@ -56,4 +56,12 @@ uint32_t cesk_frame_store_new_object(cesk_frame_t* frame, const dalvik_instructi
 /* TODO: allocate a fresh address for an array object */
 uint32_t cesk_frame_store_new_array(cesk_frame_t* frame, const dalvik_instruction_t* inst);
 
+/* push a new value to this register (keep the old value) */
+int cesk_frame_register_push(cesk_frame_t* frame, dalvik_instruction_t* inst, uint32_t reg, uint32_t addr);
+
+/* load a value from the store to register */
+int cesk_frame_register_load_from_store(cesk_frame_t* frame, dalvik_instruction_t* inst, uint32_t dest, uint32_t src_addr);
+
+/* append a value from the store to register */
+int cesk_frame_register_append_from_store(cesk_frame_t* frame, dalvik_instruction_t* inst, uint32_t dest, uint32_t src_addr);
 #endif /* __CESK_FRAME_H__ */

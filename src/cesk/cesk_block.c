@@ -173,7 +173,7 @@ static inline int _cesk_block_handler_instance_of(dalvik_instruction_t* inst, ce
 		const char* classpath = inst->operands[2].payload.methpath;
 		/* try to find the class path */
 		uint32_t addr;
-		while(CESK_STORE_ADDR_NULL == (addr = cesk_set_iter_next(&iter)))
+		while(CESK_STORE_ADDR_NULL != (addr = cesk_set_iter_next(&iter)))
 		{
 			const cesk_value_t* value = cesk_store_get_ro(frame->store, addr);
 			if(NULL == value)
@@ -201,23 +201,67 @@ static inline int _cesk_block_handler_instance_of(dalvik_instruction_t* inst, ce
 				ret = CESK_STORE_ADDR_CONST_SET(ret, FALSE);
 			}
 		}
+		if(CESK_STORE_ADDR_CONST_PREFIX == ret) 
+		{
+			LOG_WARNING("the result is empty set");
+		}
 		cesk_frame_register_load(frame, inst, dst, ret);
 		return 0;
 	}
 	else if(inst->operands[2].header.info.type == DVM_OPERAND_TYPE_TYPEDESC)
 	{
-		//TODO: check a type descriptior
 		LOG_TRACE("fixme: instance-of for a type desc like [object java/lang/String] is still unimplemented");
 		return 0;
 	}
 	LOG_ERROR("invalid operand");
 	return -1;
 }
+static inline int _cesk_block_handler_instance_get(dalvik_instruction_t* inst, cesk_frame_t* frame)
+{
+	uint32_t dest = inst->operands[0].payload.uint32;
+	uint32_t sour = inst->operands[1].payload.uint32;
+	const char* classpath = inst->operands[2].payload.methpath;
+	const char* fieldname = inst->operands[3].payload.methpath;
+	dalvik_type_t* type   = inst->operands[4].payload.type;
+	if(CESK_STORE_ADDR_NULL == dest ||
+	   dest >= frame->size ||
+	   CESK_STORE_ADDR_NULL == sour ||
+	   sour >= frame->size ||
+	   NULL == classpath ||
+	   NULL == fieldname ||
+	   NULL == type)
+	{
+		LOG_ERROR("invalid instruction instance-get");
+		return -1;
+	}
+	cesk_set_t* sour_set = frame->regs[dest];
+	cesk_set_iter_t iter;
+	if(NULL == cesk_set_iter(sour_set, &iter))
+	{
+		LOG_ERROR("can not aquire iterator for register %d", sour);
+		return -1;
+	}
+	uint32_t addr;
+	if(cesk_frame_register_clear(frame, inst, dest) < 0)
+	{
+		LOG_ERROR("can not clear the old value of register %d", dest);
+		return -1;
+	}
+	while(CESK_STORE_ADDR_NULL != (addr = cesk_set_iter_next(&iter)))
+	{
+		cesk_frame_register_append_from_store(frame, inst, dest, addr);
+	}
+	return 0;
+}
 __CB_HANDLER(INSTANCE)
 {
 	if(inst->flags == DVM_FLAG_INSTANCE_OF)
 	{
 		return _cesk_block_handler_instance_of(inst, output);
+	}
+	else if(inst->flags == DVM_FLAG_INSTANCE_GET)
+	{
+		return _cesk_block_handler_instance_get(inst, output);
 	}
 	//TODO: other operations
 	LOG_ERROR("unknown instruction flags 0x%x for opcode = INSTANCE", inst->flags);
