@@ -28,6 +28,11 @@ cesk_object_t* cesk_object_new(const char* classpath)
         for(i = 0; target_class->members[i]; i ++)
             field_count ++;
         classes[class_count ++] = target_class;
+		if(class_count >= 1024)
+		{
+			LOG_ERROR("a class with inherent from more than 1024 classes? are you kidding me?");
+			return NULL;
+		}
         LOG_INFO("found class %s at %p", classpath, target_class);
         classpath = target_class->super;
     }
@@ -60,7 +65,7 @@ cesk_object_t* cesk_object_new(const char* classpath)
                                                                          classes[0]->path, 
                                                                          field->offset);
         }
-        base->classpath = classes[i]->path;
+        base->class = classes[i];
         base->num_members = j;
         base = (cesk_object_struct_t*)(base->valuelist + j);
     }
@@ -77,7 +82,7 @@ uint32_t* cesk_object_get(cesk_object_t* object, const char* classpath, const ch
     cesk_object_struct_t* this = object->members;
     for(i = 0; i < object->depth; i ++)
     {
-        if(this->classpath == classpath) 
+        if(this->class->path == classpath) 
         {
             break;
         }
@@ -88,7 +93,7 @@ uint32_t* cesk_object_get(cesk_object_t* object, const char* classpath, const ch
         LOG_WARNING("I can't find field named %s/%s in instance object of %s", 
                     classpath, 
                     field_name, 
-                    object->members[0].classpath);
+                    cesk_object_classpath(object));
         return NULL;
     }
     
@@ -109,7 +114,7 @@ cesk_object_t* cesk_object_fork(cesk_object_t* object)
 {
     cesk_object_struct_t* base = object->members;
     size_t objsize = sizeof(cesk_object_t);
-    LOG_TRACE("copy object %s@%p", base->classpath, object);
+    LOG_TRACE("copy object %s@%p", base->class->path, object);
     int i;
     for(i = 0; i < object->depth; i ++)
     {
@@ -124,7 +129,7 @@ cesk_object_t* cesk_object_fork(cesk_object_t* object)
 
 hashval_t cesk_object_hashcode(cesk_object_t* object)
 {
-    hashval_t  hash = ((uintptr_t)object->members[0].classpath) & ~(hashval_t)0;    /* We also consider the type of the object */
+    hashval_t  hash = ((uintptr_t)object->members[0].class->path) & ~(hashval_t)0;    /* We also consider the type of the object */
     
     int i;
     cesk_object_struct_t* this = object->members;
@@ -132,7 +137,7 @@ hashval_t cesk_object_hashcode(cesk_object_t* object)
     for(i = 0; i < object->depth; i ++)
     {
         int j;
-        mul ^= (uintptr_t)this->classpath;
+        mul ^= (uintptr_t)this->class->path;
         for(j = 0; j < this->num_members; j ++)
         {
             hashval_t k = this->valuelist[j] * mul;
@@ -147,7 +152,7 @@ hashval_t cesk_object_hashcode(cesk_object_t* object)
 int cesk_object_equal(cesk_object_t* first, cesk_object_t* second)
 {
     if(NULL == first || NULL == second) return first == second;
-    if(first->members[0].classpath != second->members[0].classpath) return 0;
+    if(first->members[0].class->path != second->members[0].class->path) return 0;
     cesk_object_struct_t* this = first->members;
     cesk_object_struct_t* that = second->members;
 
@@ -197,7 +202,7 @@ const char* cesk_object_to_string(cesk_object_t* object, char* buf, size_t sz)
     int i;
     for(i = 0; i < object->depth; i ++)
     {
-        __PR("[class %s (", this->classpath);
+        __PR("[class %s (", this->class->path);
         int j;
         for(j = 0; j < this->num_members; j ++)
         {
@@ -208,4 +213,19 @@ const char* cesk_object_to_string(cesk_object_t* object, char* buf, size_t sz)
     }
 #undef __PR
     return buf;
+}
+int cesk_object_instance_of(cesk_object_t* object, const char* classpath)
+{
+	cesk_object_struct_t* this = object->members;
+	int i;
+	for(i = 0; i < object->depth; i ++)
+	{
+		int j;
+		if(this->class->path == classpath) return 1;
+		for(j = 0; this->class->implements[j] != NULL; j ++)
+		{
+			if(classpath == this->class->implements[i]) return 1;
+		}
+	}
+	return 0;
 }

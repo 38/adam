@@ -79,6 +79,8 @@ dalvik_class_t* dalvik_class_from_sexp(sexpression_t* sexp)
     memset(class->members, 0, sizeof(const char*) * length);
 
     const char* source = "(undefined)";
+	class->implements[0] = NULL;
+	int num_implements = 0;
     /* Ok, let's go */
     for(;sexp != SEXP_NIL;)
     {
@@ -103,11 +105,20 @@ dalvik_class_t* dalvik_class_from_sexp(sexpression_t* sexp)
         }
         else if(sexp_match(this_def, "(L=A", DALVIK_TOKEN_IMPLEMENTS, &tail))
         {
-            if(NULL == (class->implements = sexp_get_object_path(tail, NULL)))
+			if(num_implements >= 128)
+			{
+				LOG_WARNING("class %s implements more than 128 interfaces, is this a mistake?", class_path);
+				continue;
+			}
+            if(NULL == (class->implements[num_implements] = sexp_get_object_path(tail, NULL)))
             {
                 LOG_ERROR("can not get the classpath for the interface the class implements");
                 goto ERR;
             }
+			else
+			{
+				class->implements[++num_implements] = NULL;
+			}
         }
         else if(sexp_match(this_def, "(L=A", DALVIK_TOKEN_ANNOTATION, &tail))
         {
