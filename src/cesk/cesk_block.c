@@ -155,6 +155,74 @@ __CB_HANDLER(CMP)
 	cesk_frame_register_load(output, inst, dest, res);
 	return 0;
 }
+static inline int _cesk_block_handler_instance_of(dalvik_instruction_t* inst, cesk_frame_t* frame)
+{
+	/* (instance-of result, object, type) */
+	uint32_t dst = inst->operands[0].payload.uint32;
+	uint32_t src = inst->operands[1].payload.uint32;
+	cesk_set_iter_t iter;
+	if(NULL == cesk_set_iter(frame->regs[src],&iter))
+	{
+		LOG_ERROR("can not aquire iterator for register %d", src);
+		return -1;
+	}
+	uint32_t ret = CESK_STORE_ADDR_CONST_PREFIX;
+	if(inst->operands[2].header.info.type == DVM_OPERAND_TYPE_CLASS)
+	{
+		/* use class path */
+		const char* classpath = inst->operands[2].payload.methpath;
+		/* try to find the class path */
+		uint32_t addr;
+		while(CESK_STORE_ADDR_NULL == (addr = cesk_set_iter_next(&iter)))
+		{
+			const cesk_value_t* value = cesk_store_get_ro(frame->store, addr);
+			if(NULL == value)
+			{
+				LOG_WARNING("can not get value @ address %x", addr);
+				continue;
+			}
+			if(value->type != CESK_TYPE_OBJECT)
+			{
+				LOG_WARNING("the element in same store is not homogeneric, it's likely a bug");
+				continue;
+			}
+			cesk_object_t* object = *(cesk_object_t**)value->data;
+			if(NULL == object)
+			{
+				LOG_WARNING("can not aquire the object from cell %x", addr);
+				continue;
+			}
+			if(cesk_object_instance_of(object, classpath))
+			{
+				ret = CESK_STORE_ADDR_CONST_SET(ret, TRUE);
+			}
+			else
+			{
+				ret = CESK_STORE_ADDR_CONST_SET(ret, FALSE);
+			}
+		}
+		cesk_frame_register_load(frame, inst, dst, ret);
+		return 0;
+	}
+	else if(inst->operands[2].header.info.type == DVM_OPERAND_TYPE_TYPEDESC)
+	{
+		//TODO: check a type descriptior
+		LOG_TRACE("fixme: instance-of for a type desc like [object java/lang/String] is still unimplemented");
+		return 0;
+	}
+	LOG_ERROR("invalid operand");
+	return -1;
+}
+__CB_HANDLER(INSTANCE)
+{
+	if(inst->flags == DVM_FLAG_INSTANCE_OF)
+	{
+		return _cesk_block_handler_instance_of(inst, output);
+	}
+	//TODO: other operations
+	LOG_ERROR("unknown instruction flags 0x%x for opcode = INSTANCE", inst->flags);
+	return -1;
+}
 static inline int _cesk_block_interpret(cesk_block_t* blk)
 {
     cesk_frame_t* frame = cesk_frame_fork(blk->input);   /* fork a frame for output */
@@ -175,6 +243,7 @@ static inline int _cesk_block_interpret(cesk_block_t* blk)
 			   __CB_INST(CHECK_CAST);
 			   __CB_INST(THROW);
 			   __CB_INST(CMP);
+			   __CB_INST(INSTANCE);
 			   /* TODO: other instructions */
         }
         if(rc < 0)

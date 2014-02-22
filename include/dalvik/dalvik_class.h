@@ -3,12 +3,11 @@
 #include <sexp.h>
 #include <dalvik/dalvik_attrs.h>
 
-#define DALVIK_CLASS_ATTRS_INTERFACE 0x10000
 
 typedef struct{
     const char* path;
     const char* super;              /* The class path of super class */
-    const char* implements;         /* The interface path that the class implements */
+    const char* implements[128];         /* The interface path that the class implements */
     int         attrs;
     int         is_interface;
     const char* members[0];    /* We use variant length structure to represents a class */
