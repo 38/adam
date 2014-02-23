@@ -210,7 +210,7 @@ hashval_t cesk_store_compute_hashcode(cesk_store_t* store)
 	{
 		for(j = 0; j < CESK_STORE_BLOCK_NSLOTS; j ++)
 		{
-			if(NULL != store->blocks[i]->slots[j].value)
+			if(NULL != store->blocks[i]->slots[j].value && store->blocks[i]->slots[j].value->write_status == 0)
 			{
 				uint32_t addr = i * CESK_STORE_BLOCK_NSLOTS + j;
 				ret ^= HASH_CMP(addr, store->blocks[i]->slots[j].value);
@@ -376,14 +376,15 @@ int cesk_store_attach(cesk_store_t* store, uint32_t addr,cesk_value_t* value)
     {
 		/* update the hashcode */ 
 		//store->hashcode ^= addr * MH_MULTIPLY + cesk_value_hashcode(store->blocks[block]->slots[offset].value);
-        store->hashcode ^= HASH_INC(addr, store->blocks[block]->slots[offset].value);
-		
+        //store->hashcode ^= HASH_INC(addr, store->blocks[block]->slots[offset].value);
+		/* Because cesk_store_decref also update the value, so we do not update the value here */
 		/* clean the old object */
 		store->blocks[block]->slots[offset].refcnt = 1;
 		cesk_store_decref(store, addr);   /* dirty hack, using this way to trigger the clean procedure */
 
 		/* dereference to previous object */
-		cesk_value_decref(store->blocks[block]->slots[offset].value);
+		/* it seems that the cesk_store_decref will call cesk_value_decref */
+		/* cesk_value_decref(store->blocks[block]->slots[offset].value);*/
 
     }
     if(value)
@@ -396,6 +397,7 @@ int cesk_store_attach(cesk_store_t* store, uint32_t addr,cesk_value_t* value)
     }
 	store->blocks[block]->slots[offset].value = value;
 	store->blocks[block]->slots[offset].reuse = 0;  /* attach to a object, all previous object is lost */
+	value->write_status = 1;
     return 0;
 }
 /* TODO: Question, once an adress is set to reusing, is there any time for the address to clear this bit ? */
@@ -421,7 +423,7 @@ void cesk_store_free(cesk_store_t* store)
 /* get a block in a store and prepare to write */
 static inline cesk_store_block_t* _cesk_store_getblock_rw(cesk_store_t* store, uint32_t addr)
 {
-    if(NULL == store || CESK_STORE_ADDR_NULL) 
+    if(NULL == store || CESK_STORE_ADDR_NULL == addr) 
     {
         LOG_ERROR("invailid argument");
         return NULL;
@@ -652,4 +654,10 @@ num:
 			return CESK_STORE_ADDR_NULL;
     }
 	return CESK_STORE_ADDR_NULL;
+}
+uint32_t cesk_store_get_refcnt(cesk_store_t* store, uint32_t addr)
+{
+    uint32_t idx = addr / CESK_STORE_BLOCK_NSLOTS;
+    uint32_t ofs = addr % CESK_STORE_BLOCK_NSLOTS;
+	return store->blocks[idx]->slots[ofs].refcnt;
 }

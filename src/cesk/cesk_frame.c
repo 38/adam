@@ -257,9 +257,17 @@ int cesk_frame_register_load(cesk_frame_t* frame, dalvik_instruction_t* inst ,ui
 		return -1;
 	}
 
-	cesk_set_push(frame->regs[dst_reg], addr);
+	if(cesk_set_push(frame->regs[dst_reg], addr) < 0)
+	{
+		LOG_ERROR("can not push address @%x to register %d", addr, dst_reg);
+		return -1;
+	}
 
-	cesk_store_incref(frame->store, addr);
+	if(cesk_store_incref(frame->store, addr) < 0)
+	{
+		LOG_ERROR("can not decref for the cell @%x", addr);
+		return -1;
+	}
 
 	return 0;
 }
@@ -540,6 +548,23 @@ int cesk_frame_store_object_put(cesk_frame_t* frame, dalvik_instruction_t* inst,
 		return -1;
 	}
 	cesk_set_t* set = *(cesk_set_t**)value_set->data;
+
+	/* of course, the refcount should be increased */
+	cesk_set_iter_t iter;
+	if(NULL == cesk_set_iter(frame->regs[src_reg], &iter))
+	{
+		LOG_ERROR("can not aquire iterator for register %d", src_reg);
+		return -1;
+	}
+	uint32_t tmp_addr;
+	while(CESK_STORE_ADDR_NULL != (tmp_addr = cesk_set_iter_next(&iter)))
+	{
+		if(cesk_store_incref(frame->store, tmp_addr) < 0)
+		{
+			LOG_WARNING("can not incref at address @%x", tmp_addr);
+		}
+	}
+
 	/* okay, append the value of registers to the set */
 	if(cesk_set_join(set, frame->regs[src_reg]) < 0)
 	{
