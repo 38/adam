@@ -36,3 +36,6 @@ glimpse-config
 
 #config header
 config.h
+
+#doxegen files
+doc/doxygen/
