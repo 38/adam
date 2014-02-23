@@ -37,7 +37,7 @@ static inline int _vector_resize(vector_t* vec)  /* double the capacity of a vec
 {
     if(NULL == vec) return -1;
     if(NULL == vec->data) return -1;
-    LOG_DEBUG("resize vector @0x%x from size %d to %d", vec, vec->capacity, vec->capacity * 2);
+    LOG_DEBUG("resize vector @%p from size %zu to %zu", vec, vec->capacity, vec->capacity * 2);
     size_t new_capacity = vec->capacity * 2;
     void* data = realloc(vec->data, new_capacity * vec->elem_size);
     if(NULL == data) return -1;
@@ -54,7 +54,7 @@ int vector_pushback(vector_t* vec, void* data)
         int rc = _vector_resize(vec);
         if(rc < 0) 
         {
-            LOG_ERROR("can not resize vector @0x%x", vec);
+            LOG_ERROR("can not resize vector @%p", vec);
             return rc;
         }
     }

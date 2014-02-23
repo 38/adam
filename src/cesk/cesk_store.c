@@ -54,7 +54,7 @@ cesk_store_t* cesk_store_fork(cesk_store_t* store)
     /* increase refrence counter of all blocks */
     for(i = 0; i < ret->nblocks; i ++)
         ret->blocks[i]->refcnt++;
-    LOG_DEBUG("a store of %d entities is being forked, %d bytes copied", ret->num_ent, size);
+    LOG_DEBUG("a store of %d entities is being forked, %zu bytes copied", ret->num_ent, size);
     return ret;
 }
 const cesk_value_t* cesk_store_get_ro(cesk_store_t* store, uint32_t addr)
@@ -308,8 +308,8 @@ uint32_t cesk_store_allocate(cesk_store_t** p_store, const dalvik_instruction_t*
         /* if there's no equal entry */
         if(empty_offset != -1)
         {
-            LOG_DEBUG("allocate %d (block=%d, offset = %d) for instruction %d", 
-                       empty_block * CESK_STORE_BLOCK_NSLOTS + empty_offset, empty_block, empty_offset);
+            LOG_DEBUG("allocate %lu (block=%d, offset = %d) for instruction %d", 
+                       empty_block * CESK_STORE_BLOCK_NSLOTS + empty_offset, empty_block, empty_offset, idx);
             store->blocks[empty_block]->slots[empty_offset].idx = idx;
 			store->blocks[empty_block]->slots[empty_offset].parent = parent;
 			store->blocks[empty_block]->slots[empty_offset].field = field;
@@ -324,7 +324,7 @@ uint32_t cesk_store_allocate(cesk_store_t** p_store, const dalvik_instruction_t*
     else
     {
         /* some equal entry */
-        LOG_DEBUG("reuse %d (block = %d, offset = %d for instruction %d",
+        LOG_DEBUG("reuse %lu (block = %d, offset = %d for instruction %d",
                    equal_block * CESK_STORE_BLOCK_NSLOTS + equal_offset, equal_block, equal_offset, idx);
         store->blocks[equal_block]->slots[equal_offset].reuse = 1;   
         return equal_block * CESK_STORE_BLOCK_NSLOTS  + equal_offset;
@@ -454,7 +454,7 @@ int cesk_store_incref(cesk_store_t* store, uint32_t addr)
 {
 	if(CESK_STORE_ADDR_IS_CONST(addr))
 	{
-		LOG_DEBUG("the address %x is a constant address, no need to incref");
+		LOG_DEBUG("the address %x is a constant address, no need to incref", addr);
 		return 0;
 	}
     uint32_t b_ofs = addr % CESK_STORE_BLOCK_NSLOTS;
@@ -517,7 +517,7 @@ int cesk_store_decref(cesk_store_t* store, uint32_t addr)
 {
 	if(CESK_STORE_ADDR_IS_CONST(addr))
 	{
-		LOG_DEBUG("the address %x is a constant address, no need to decref");
+		LOG_DEBUG("the address %x is a constant address, no need to decref", addr);
 		return 0;
 	}
     uint32_t idx = addr / CESK_STORE_BLOCK_NSLOTS;

@@ -177,7 +177,7 @@ int cesk_object_equal(cesk_object_t* first, cesk_object_t* second)
         if(this->num_members != that->num_members)
         {
             LOG_WARNING("two object build from the same class %s has different memory structure", cesk_object_classpath(first));
-            LOG_WARNING("first class has %d fields for class %d, but the second one has %d", 
+            LOG_WARNING("first class has %zu fields for class %s, but the second one has %zu", 
                         this->num_members, 
                         cesk_object_classpath(first),
                         that->num_members);

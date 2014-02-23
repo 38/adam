@@ -265,10 +265,15 @@ int cesk_frame_register_load(cesk_frame_t* frame, dalvik_instruction_t* inst ,ui
 }
 int cesk_frame_register_load_from_store(cesk_frame_t* frame, dalvik_instruction_t* inst, uint32_t dest, uint32_t src_addr)
 {
-	if(NULL == frame || dest >= frame->size || NULL == inst || CESK_STORE_ADDR_NULL == src_addr)
+	if(NULL == frame || dest >= frame->size || NULL == inst)
 	{
 		LOG_WARNING("bad load_from_store command");
 		return -1;
+	}
+	if(CESK_STORE_ADDR_NULL == src_addr)
+	{
+		LOG_DEBUG("from NULL store address, return empty set");
+		return cesk_frame_register_clear(frame, inst, dest);
 	}
 
 	const cesk_value_t* value = cesk_store_get_ro(frame->store, src_addr);
