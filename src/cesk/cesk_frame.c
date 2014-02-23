@@ -164,12 +164,16 @@ int cesk_frame_gc(cesk_frame_t* frame)
         while(CESK_STORE_ADDR_NULL != (addr = cesk_set_iter_next(&iter)))
             _cesk_frame_store_dfs(addr, store, fb);
     }
-    uint32_t addr;
+	uint32_t addr = 0;
     for(addr = 0; addr < nslot; addr ++)
     {
-        if(BITAT(fb,addr) == 0) 
+        if(BITAT(fb,addr) == 0 && cesk_store_get_ro(store, addr) != NULL)
+		{
             cesk_store_attach(store,addr,NULL);
+			cesk_store_clear_refcnt(store, addr);
+		}
     }
+	free(fb);
     return 0;
 }
 hashval_t cesk_frame_hashcode(cesk_frame_t* frame)
@@ -380,7 +384,11 @@ int cesk_frame_register_clear(cesk_frame_t* frame, dalvik_instruction_t* inst, u
 		LOG_WARNING("bad instruction, invalid register reference");
 		return -1;
 	}
-
+	if(cesk_set_size(frame->regs[reg]) == 0)
+	{
+		/* the register is empty ? */
+		return 0;
+	}
 	if(_cesk_frame_free_reg(frame,reg) < 0)
 	{
 		LOG_ERROR("can not free the old value of register %d", reg);

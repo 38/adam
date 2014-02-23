@@ -186,10 +186,80 @@ int main()
 	assert(prev_hash == cesk_frame_hashcode(frame));
 
 	/* now test the gc function, which dectect the matually refering garabage in memory */
+	/* create 3 objects */
+	uint32_t obj1 = cesk_frame_store_new_object(frame, inst, classpath);
+	uint32_t obj2 = cesk_frame_store_new_object(frame, inst2, classpath);
+	uint32_t obj3 = cesk_frame_store_new_object(frame, inst3, classpath);
+	/* check 3 addresses are not same */
+	assert(obj1 != obj2);
+	assert(obj1 != obj3);
+	assert(obj2 != obj3);
+	/* check 3 address are valid */
+	assert(obj1 != CESK_STORE_ADDR_NULL);
+	assert(obj2 != CESK_STORE_ADDR_NULL);
+	assert(obj3 != CESK_STORE_ADDR_NULL);
+	/* verify the hashcode of the store */
+	assert(cesk_frame_hashcode(frame) == cesk_frame_compute_hashcode(frame));
+	/* load 3 object to register */
+	assert(0 == cesk_frame_register_load(frame, inst, 1, obj1));
+	assert(0 == cesk_frame_register_load(frame, inst, 2, obj2));
+	assert(0 == cesk_frame_register_load(frame, inst, 3, obj3));
+	/* verify the hashcode of the store */
+	assert(cesk_frame_hashcode(frame) == cesk_frame_compute_hashcode(frame));
+	/* build a circle */
+	/* 1 --> 2 */
+	assert(0 == cesk_frame_store_object_put(frame, inst, obj1, superclass, field, 2));
+	/* 2 --> 3 */
+	assert(0 == cesk_frame_store_object_put(frame, inst, obj2, superclass, field, 3));
+	/* 3 --> 1 */
+	assert(0 == cesk_frame_store_object_put(frame, inst, obj3, superclass, field, 1));
+	/* verify the hashcode of the store */
+	assert(cesk_frame_hashcode(frame) == cesk_frame_compute_hashcode(frame));
+	/* the refcnt for each object should be 2 */
+	assert(2 == cesk_store_get_refcnt(frame->store, obj1));
+	assert(2 == cesk_store_get_refcnt(frame->store, obj2));
+	assert(2 == cesk_store_get_refcnt(frame->store, obj3));
+	/* run gc now, not free any memory */
+	assert(0 == cesk_frame_gc(frame));
+	/* verify the hashcode of the store */
+	assert(cesk_frame_hashcode(frame) == cesk_frame_compute_hashcode(frame));
+	/* now, decref from reg */
+	assert(0 == cesk_frame_register_clear(frame, inst, 1));
+	assert(0 == cesk_frame_register_clear(frame, inst, 2));
+	/* verify the hashcode of the store */
+	assert(cesk_frame_hashcode(frame) == cesk_frame_compute_hashcode(frame));
+	/* check the ref count */
+	assert(1 == cesk_store_get_refcnt(frame->store, obj1));
+	assert(1 == cesk_store_get_refcnt(frame->store, obj2));
+	assert(2 == cesk_store_get_refcnt(frame->store, obj3));
+	/* run gc now, not free any memory */
+	assert(0 == cesk_frame_gc(frame));
+	/* verify the hashcode of the store */
+	assert(cesk_frame_hashcode(frame) == cesk_frame_compute_hashcode(frame));
+	/* decref */
+	assert(0 == cesk_frame_register_clear(frame, inst, 3));
+	/* is the object still alive ? */
+	assert(NULL != cesk_store_get_ro(frame->store, obj1));
+	assert(NULL != cesk_store_get_ro(frame->store, obj2));
+	assert(NULL != cesk_store_get_ro(frame->store, obj3));
+	/* check the ref count */
+	assert(1 == cesk_store_get_refcnt(frame->store, obj1));
+	assert(1 == cesk_store_get_refcnt(frame->store, obj2));
+	assert(1 == cesk_store_get_refcnt(frame->store, obj3));
+	/* run gc */
+	assert(0 == cesk_frame_gc(frame));
+	/* now 3 object should be swipeed out */
+	assert(NULL == cesk_store_get_ro(frame->store, obj1));
+	assert(NULL == cesk_store_get_ro(frame->store, obj2));
+	assert(NULL == cesk_store_get_ro(frame->store, obj3));
+	/* check if the ref count maintained correctly */
+	assert(0 == cesk_store_get_refcnt(frame->store, obj1));
+	assert(0 == cesk_store_get_refcnt(frame->store, obj2));
+	assert(0 == cesk_store_get_refcnt(frame->store, obj3));
 
-
+	assert(cesk_frame_hashcode(frame) == prev_hash);
+	
 	cesk_frame_free(frame);
-
 	adam_finalize();
 	return 0;
 }
