@@ -39,7 +39,8 @@ void log_init();
 void log_finalize();
 
 /* the implementation of write a log */
-void log_write(int level, const char* file, const char* function, int line, const char* fmt, ...);
+void log_write(int level, const char* file, const char* function, int line, const char* fmt, ...) 
+	__attribute__((format (printf, 5, 6)));
 
 /* helper macros for write a log, do not use it directly */
 #define __LOG__(level,fmt,arg...) do{\

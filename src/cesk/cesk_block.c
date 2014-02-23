@@ -127,7 +127,7 @@ static inline uint32_t _cesk_block_operand_to_addr(cesk_frame_t* frame,dalvik_op
 		{
 			if(!CESK_STORE_ADDR_IS_CONST(addr))
 			{
-				LOG_WARNING("the address %s is not a value constant address, ignoring", addr);
+				LOG_WARNING("the address @%x is not a value constant address, ignoring", addr);
 				continue;
 			}
 			ret |= addr;

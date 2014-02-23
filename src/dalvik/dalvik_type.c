@@ -41,7 +41,7 @@ void dalvik_type_init(void)
     {
         dalvik_type_atom[i] = _dalvik_type_alloc(i);
         if(NULL != dalvik_type_atom[i])
-            LOG_DEBUG("Assigned memory@0x%x to atmoic type %d", dalvik_type_atom[i], i);
+            LOG_DEBUG("Assigned memory@%p to atmoic type %d", dalvik_type_atom[i], i);
         else 
             LOG_FATAL("Unable to create a new atmoc type");
     }

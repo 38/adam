@@ -54,14 +54,44 @@ int main()
 
 	/* create a new object */
 	uint32_t addr = cesk_frame_store_new_object(frame, inst, classpath);
-	/* verify hashcode */
-	assert(cesk_frame_compute_hashcode(frame) == cesk_frame_hashcode(frame));
 	/* check the result */
 	assert(CESK_STORE_ADDR_NULL != addr);
-	/* test object_put */
-	cesk_frame_store_object_put(frame, inst, addr, superclass, field, 0);
-	//TODO: verify the hash code
+	/* verify hashcode */
 	assert(cesk_frame_compute_hashcode(frame) == cesk_frame_hashcode(frame));
+	/* test object get for new object */
+	assert(0 == cesk_frame_store_object_get(frame, inst, 1, addr, superclass, field));
+	/* the result should be empty set */
+	assert(0 == cesk_set_size(frame->regs[0]));
+	/* move reg0, $0 */
+	assert(0 == cesk_frame_register_load(frame, inst, 0, CESK_STORE_ADDR_ZERO));
+	/* verify the size of reg0 */
+	assert(1 == cesk_set_size(frame->regs[0]));
+	/* object-put addr, antlr.CharScanner.literals, reg0 */
+	cesk_frame_store_object_put(frame, inst, addr, superclass, field, 0);
+	/* verify the hash code */
+	assert(cesk_frame_compute_hashcode(frame) == cesk_frame_hashcode(frame));
+	/* try to get the field */
+	assert(0 == cesk_frame_store_object_get(frame, inst, 1, addr, superclass, field));
+	/* verify the store */
+	assert(cesk_set_equal(frame->regs[0], frame->regs[1]) == 1);
+	
+	/* the address is attached to signle object, put will override the old value */
+	/* move reg2, $-1 */
+	assert(0 == cesk_frame_register_load(frame, inst, 2, CESK_STORE_ADDR_NEG));
+	/* verify the size of reg2 */
+	assert(1 == cesk_set_size(frame->regs[2]));
+	/* verify the hash code */
+	assert(cesk_frame_compute_hashcode(frame) == cesk_frame_hashcode(frame));
+	/* object-put addr, antlr.CharScanner.literals, reg2 */
+	cesk_frame_store_object_put(frame, inst, addr, superclass, field, 2);
+	/* verify the hash code */
+	assert(cesk_frame_compute_hashcode(frame) == cesk_frame_hashcode(frame));
+	/* the value should be overrided , verify it */
+	assert(0 == cesk_frame_store_object_get(frame, inst, 3, addr, superclass, field));
+	/* so the value should be same as reg2 */
+	assert(cesk_set_equal(frame->regs[2], frame->regs[3]) == 1);
+
+
 
 #if 0
 	uint32_t addr3 = cesk_frame_store_new_object(frame, dalvik_instruction_get(123), stringpool_query("antlr/ANTLRLexer"));
