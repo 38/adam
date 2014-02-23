@@ -1,9 +1,6 @@
 #ifndef __ADAM_H__
-/*
- * ADAM: Another Dalvik Abstract Machine
- * anadroid.c: 
- *  1. Global Initalization & Finalization 
- *  2. Include all header files
+/** @file  adam.h
+ *  @brief Global Intalization and Finalization Functions 
  */
 #include <stdint.h>
 
@@ -13,9 +10,12 @@
 
 #include <dalvik/dalvik.h>
 #include <cesk/cesk.h>
-/* following two function is used for system inintialization and
- * finalization 
+/** @brief Intialize libadam
+ *  @return nothing
  */
 void adam_init(void);
+/** @brief Finalize libadam
+ *  @return nothing
+ */
 void adam_finalize(void);
 #endif
