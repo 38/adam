@@ -7,8 +7,10 @@ int main()
 	dalvik_loader_from_directory("../testdata/AndroidAntlr");
 	/* build a new frame with 32 registers */
 	cesk_frame_t* frame = cesk_frame_new(32);
-	/* a dumb instruction that used for testing */
+	/* a stub instruction that used for testing */
 	dalvik_instruction_t* inst = dalvik_instruction_get(123);
+	/* another stub instruction */
+	dalvik_instruction_t* inst2 = dalvik_instruction_get(124);
 	/* the class path we want to set */
 	const char* classpath = stringpool_query("antlr/ANTLRLexer");
 	const char* superclass = stringpool_query("antlr/CharScanner");
@@ -44,7 +46,6 @@ int main()
 	assert(cesk_frame_compute_hashcode(frame) == cesk_frame_hashcode(frame));
 	/* verify the result */
 	assert(1 == cesk_set_equal(frame->regs[0], frame->regs[1]));
-
 	/* try to clear the register */
 	assert(0 == cesk_frame_register_clear(frame, inst, 0));
 	/* verify the hashcode */
@@ -58,6 +59,10 @@ int main()
 	assert(CESK_STORE_ADDR_NULL != addr);
 	/* verify hashcode */
 	assert(cesk_frame_compute_hashcode(frame) == cesk_frame_hashcode(frame));
+	/* make the object a active object */
+	assert(0 == cesk_frame_register_load(frame, inst, 20, addr));
+	/* check the refcount */
+	assert(1 == cesk_store_get_refcnt(frame->store, addr));
 	/* test object get for new object */
 	assert(0 == cesk_frame_store_object_get(frame, inst, 1, addr, superclass, field));
 	/* the result should be empty set */
@@ -83,13 +88,34 @@ int main()
 	/* verify the hash code */
 	assert(cesk_frame_compute_hashcode(frame) == cesk_frame_hashcode(frame));
 	/* object-put addr, antlr.CharScanner.literals, reg2 */
-	cesk_frame_store_object_put(frame, inst, addr, superclass, field, 2);
+	assert(0 == cesk_frame_store_object_put(frame, inst, addr, superclass, field, 2));
 	/* verify the hash code */
 	assert(cesk_frame_compute_hashcode(frame) == cesk_frame_hashcode(frame));
 	/* the value should be overrided , verify it */
 	assert(0 == cesk_frame_store_object_get(frame, inst, 3, addr, superclass, field));
 	/* so the value should be same as reg2 */
 	assert(cesk_set_equal(frame->regs[2], frame->regs[3]) == 1);
+
+	/* test for cascade decref */
+	uint32_t addr2 = cesk_frame_store_new_object(frame, inst2, classpath);
+	/* check the validity of allocation */
+	assert(addr != addr2);
+	/* check the return value */
+	assert(CESK_STORE_ADDR_NULL != addr);
+	/* verify hashcode */
+	assert(cesk_frame_compute_hashcode(frame) == cesk_frame_hashcode(frame));
+	/* load the add ress of address 2 to reg5. move reg5, addr2 */
+	assert(0 == cesk_frame_register_load(frame, inst, 5, addr2));
+	/* verify hashcode */
+	assert(cesk_frame_compute_hashcode(frame) == cesk_frame_hashcode(frame));
+	/* object-put addr, antlr.CharScanner.literals, reg5 */
+	cesk_frame_store_object_put(frame, inst, addr, superclass, field, 5);
+	/* verify the hash code */
+	assert(cesk_frame_compute_hashcode(frame) == cesk_frame_hashcode(frame));
+	/* verify the refcount */
+	assert(2 == cesk_store_get_refcnt(frame->store, addr2));
+	
+	//TODO: test for reused object
 
 
 

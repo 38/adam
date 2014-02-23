@@ -114,4 +114,6 @@ int cesk_store_equal(cesk_store_t* fisrt, cesk_store_t* second);
 /* this function returns constants address from a constant operand */
 uint32_t cesk_store_const_addr_from_operand(dalvik_operand_t* operand);
 
+/* get the refcount of the address, used for testing */
+uint32_t cesk_store_get_refcnt(cesk_store_t* store, uint32_t addr);
 #endif

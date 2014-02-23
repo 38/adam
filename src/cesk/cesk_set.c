@@ -99,11 +99,11 @@ static inline void* _cesk_set_hash_find(uint32_t setidx, uint32_t addr)
         if(p->set_idx == setidx &&
            p->addr    == addr)
          {
-             LOG_DEBUG("find set hash entry (%d %d)", setidx, addr);
+             //LOG_DEBUG("find set hash entry (%d @%x)", setidx, addr);
              return p->data_section;
          }
     }
-    LOG_TRACE("can not find the set hash entry (%d, %d)", setidx, addr);
+    LOG_TRACE("can not find the set hash entry (%d, @%x)", setidx, addr);
     return NULL;
 }
 /* allocate a fresh set index */
