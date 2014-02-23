@@ -11,6 +11,8 @@ int main()
 	dalvik_instruction_t* inst = dalvik_instruction_get(123);
 	/* another stub instruction */
 	dalvik_instruction_t* inst2 = dalvik_instruction_get(124);
+	
+	dalvik_instruction_t* inst3 = dalvik_instruction_get(125);
 	/* the class path we want to set */
 	const char* classpath = stringpool_query("antlr/ANTLRLexer");
 	const char* superclass = stringpool_query("antlr/CharScanner");
@@ -22,23 +24,16 @@ int main()
 	assert(0 == cesk_frame_register_load(frame, inst, 0 , CESK_STORE_ADDR_NEG));
 	/* verify the hashcode */
 	assert(cesk_frame_compute_hashcode(frame) == cesk_frame_hashcode(frame));
+	uint32_t prev_hash = cesk_frame_hashcode(frame); 
 	/* check the result of load */
 	assert(1 == cesk_set_size(frame->regs[0]));
-	/* verify the hashcode */
-	assert(cesk_frame_compute_hashcode(frame) == cesk_frame_hashcode(frame));
 	/* open an iterator for the register */
 	cesk_set_iter_t iter;
 	assert(NULL != cesk_set_iter(frame->regs[0], &iter));
-	/* verify the hashcode */
-	assert(cesk_frame_compute_hashcode(frame) == cesk_frame_hashcode(frame));
 	/* check the content of the register */
 	assert(CESK_STORE_ADDR_NEG == cesk_set_iter_next(&iter));
-	/* verify the hashcode */
-	assert(cesk_frame_compute_hashcode(frame) == cesk_frame_hashcode(frame));
 	/* it's the last element, so the next address should be NULL*/
 	assert(CESK_STORE_ADDR_NULL == cesk_set_iter_next(&iter));
-	/* verify the hashcode */
-	assert(cesk_frame_compute_hashcode(frame) == cesk_frame_hashcode(frame));
 
 	/* try to move a register to another */
 	assert(0 == cesk_frame_register_move(frame, inst, 0, 1));
@@ -109,21 +104,89 @@ int main()
 	/* verify hashcode */
 	assert(cesk_frame_compute_hashcode(frame) == cesk_frame_hashcode(frame));
 	/* object-put addr, antlr.CharScanner.literals, reg5 */
-	cesk_frame_store_object_put(frame, inst, addr, superclass, field, 5);
+	assert(0 == cesk_frame_store_object_put(frame, inst, addr, superclass, field, 5));
 	/* verify the hash code */
 	assert(cesk_frame_compute_hashcode(frame) == cesk_frame_hashcode(frame));
 	/* verify the refcount */
 	assert(2 == cesk_store_get_refcnt(frame->store, addr2));
 	
-	//TODO: test for reused object
+	/* test for reused object */
+	uint32_t addr3 = cesk_frame_store_new_object(frame, inst, classpath);
+	/* the address should equal to addr1 */
+	assert(addr3 == addr);
+	assert(addr3 != addr2);
+	/* check hashcode again */
+	assert(cesk_frame_hashcode(frame) == cesk_frame_compute_hashcode(frame));
+	/* check the reuse flag */
+	assert(1 == cesk_store_is_reuse(frame->store, addr3));
+	/* ok, let's test the logic of reuse */
+	/* at the same time, we test the decref on old value when a new value are to be loaded to the register */
+	/* move reg5, $true */
+	assert(0 == cesk_frame_register_load(frame, inst, 5, CESK_STORE_ADDR_TRUE));
+	/* check the hash code after load */
+	assert(cesk_frame_hashcode(frame) == cesk_frame_compute_hashcode(frame));
+	/* now check the refcnt of addr2, should be 1, because register is not refer to the object any more */
+	assert(1 == cesk_store_get_refcnt(frame->store, addr2));
+	/* put the value to object 1 */
+	/* ((antlr.CharScanner) obj1).literals = reg5 */
+	assert(0 == cesk_frame_store_object_put(frame, inst, addr, superclass, field, 5)); 
+	/* check the hashcode */
+	assert(cesk_frame_hashcode(frame) == cesk_frame_compute_hashcode(frame));
+	/* then try to get the field */
+	assert(0 == cesk_frame_store_object_get(frame, inst, 5, addr, superclass, field));
+	/* the value should be a set {object2, true} */
+	assert(2 == cesk_set_size(frame->regs[5]));
+	assert(1 == cesk_set_contain(frame->regs[5], addr2));
+	assert(1 == cesk_set_contain(frame->regs[5], CESK_STORE_ADDR_TRUE));
+	/* check the refcnt */
+	assert(2 == cesk_store_get_refcnt(frame->store, addr2));
 
+	/* now check the refcnt of obj1 */
+	assert(1 == cesk_store_get_refcnt(frame->store, addr));
+	
+	/* okay, test the garbage collector, refcount first */
+	uint32_t addr4 = cesk_frame_store_new_object(frame, inst3, classpath);
+	/* check the hash code*/
+	assert(cesk_frame_hashcode(frame) == cesk_frame_compute_hashcode(frame));
+	/* move reg21, addr4 */
+	assert(0 == cesk_frame_register_load(frame, inst, 21, addr4));
+	/* instance-put addr2, antlr.CharScanner.literals ,reg4 */
+	assert(0 == cesk_frame_store_object_put(frame, inst, addr2, superclass, field, 21));
+	/* check the hash code*/
+	assert(cesk_frame_hashcode(frame) == cesk_frame_compute_hashcode(frame));
+	/* override the register that contains address of object 2 */
+	assert(0 == cesk_frame_register_load(frame, inst, 5, CESK_STORE_ADDR_TRUE));
+	/* check the hash code*/
+	assert(cesk_frame_hashcode(frame) == cesk_frame_compute_hashcode(frame));
+	/* load a new value to the register, this cause dereference, this should also cause the death of object 2 */
+	assert(0 == cesk_frame_register_load(frame, inst, 20, CESK_STORE_ADDR_ZERO));
+	/* check the hash code*/
+	assert(cesk_frame_hashcode(frame) == cesk_frame_compute_hashcode(frame));
+	/* addr2 is empty now */
+	assert(NULL == cesk_store_get_ro(frame->store, addr2));
+	/* addr is empty now */
+	assert(NULL == cesk_store_get_ro(frame->store, addr));
+	/* because reg21 is still pointing to addr4, so addr4 should not be empty */
+	assert(NULL != cesk_store_get_ro(frame->store, addr4));
+	/* fianlly, clear reg21 cause death of addr4 */
+	assert(0 == cesk_frame_register_clear(frame, inst, 21));
+	/* check the hashcode again */
+	assert(cesk_frame_hashcode(frame) == cesk_frame_compute_hashcode(frame));
+	/* now addr4 should be empty */
+	assert(NULL == cesk_store_get_ro(frame->store, addr4));
 
+	/* all object in the store is dead, restore the value of register, and check 
+	 * if the hashcode is inital hash code */
+	int i = 0;
+	for(i = 0; i < frame->size; i ++)
+		assert(0 == cesk_frame_register_clear(frame, inst, i));
+	assert(0 == cesk_frame_register_load(frame, inst, 0, CESK_STORE_ADDR_NEG));
+	/* check the hashcode again */
+	assert(cesk_frame_hashcode(frame) == cesk_frame_compute_hashcode(frame));
+	assert(prev_hash == cesk_frame_hashcode(frame));
 
-#if 0
-	uint32_t addr3 = cesk_frame_store_new_object(frame, dalvik_instruction_get(123), stringpool_query("antlr/ANTLRLexer"));
+	/* now test the gc function, which dectect the matually refering garabage in memory */
 
-	assert(addr2 == addr3);
-#endif
 
 	cesk_frame_free(frame);
 
