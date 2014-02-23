@@ -74,8 +74,12 @@ static inline int _cesk_store_swipe(cesk_store_t* store, cesk_store_block_t* blo
 {
     uint32_t ofs = addr % CESK_STORE_BLOCK_NSLOTS;
 	cesk_value_t* value = block->slots[ofs].value;
+	/* release the address */
+	block->slots[ofs].value = NULL; 
+	
 	/* update the hashcode */
 	store->hashcode ^= HASH_INC(addr, value);
+	
 	/* decref of it's refernces */
 	int rc = -1;
 	switch(value->type)
@@ -94,9 +98,7 @@ static inline int _cesk_store_swipe(cesk_store_t* store, cesk_store_block_t* blo
 		LOG_WARNING("can not dispose the object");
 	}
 	/* unreference from this frame */
-	cesk_value_decref(block->slots[ofs].value);
-	/* release the address */
-	block->slots[ofs].value = NULL; 
+	cesk_value_decref(value);
 	return 0;
 }
 /* the function for the addressing hash code */
@@ -501,13 +503,13 @@ int cesk_store_attach(cesk_store_t* store, uint32_t addr, cesk_value_t* value)
     {
         /* reference to new value */
         cesk_value_incref(value);
+		value->write_status = 1;
 		/*store->hashcode ^= (addr * MH_MULTIPLY + cesk_value_hashcode(value));*/
 		/* we do not update new hash code here, that means we should use cesk_store_release_rw function
 		 * After we finish modifiying the store */
     }
 	block_rw->slots[offset].value = value;
 	block_rw->slots[offset].reuse = 0;  /* attach to a object, all previous object is lost */
-	value->write_status = 1;
     return 0;
 }
 /* TODO: Question, once an adress is set to reusing, is there any time for the address to clear this bit ? */
@@ -535,7 +537,6 @@ int cesk_store_incref(cesk_store_t* store, uint32_t addr)
 {
 	if(CESK_STORE_ADDR_IS_CONST(addr))
 	{
-		LOG_DEBUG("the address %x is a constant address, no need to incref", addr);
 		return 0;
 	}
     uint32_t b_ofs = addr % CESK_STORE_BLOCK_NSLOTS;
@@ -556,7 +557,6 @@ int cesk_store_decref(cesk_store_t* store, uint32_t addr)
 {
 	if(CESK_STORE_ADDR_IS_CONST(addr))
 	{
-		LOG_DEBUG("the address %x is a constant address, no need to decref", addr);
 		return 0;
 	}
     uint32_t idx = addr / CESK_STORE_BLOCK_NSLOTS;
@@ -568,8 +568,7 @@ int cesk_store_decref(cesk_store_t* store, uint32_t addr)
     }
     if( store->blocks[idx]->slots[ofs].value == NULL)
     {
-        LOG_ERROR("can not decref on a dead object");
-        return -1;
+        return 0;
     }
     cesk_store_block_t* block = _cesk_store_getblock_rw(store, addr);
     if(NULL == block)
@@ -673,4 +672,16 @@ uint32_t cesk_store_get_refcnt(cesk_store_t* store, uint32_t addr)
     uint32_t idx = addr / CESK_STORE_BLOCK_NSLOTS;
     uint32_t ofs = addr % CESK_STORE_BLOCK_NSLOTS;
 	return store->blocks[idx]->slots[ofs].refcnt;
+}
+int cesk_store_clear_refcnt(cesk_store_t* store, uint32_t addr)
+{
+    uint32_t idx = addr / CESK_STORE_BLOCK_NSLOTS;
+    uint32_t ofs = addr % CESK_STORE_BLOCK_NSLOTS;
+	if(store->nblocks <= idx) 
+	{
+		LOG_ERROR("invalid address @0x%x", addr);
+		return -1;
+	}
+	store->blocks[idx]->slots[ofs].refcnt = 0;
+	return 0;
 }
