@@ -36,6 +36,9 @@ int cesk_frame_gc(cesk_frame_t* frame);
 /* the hash fucntion of this frame */
 hashval_t cesk_frame_hashcode(cesk_frame_t* frame);
 
+/* the hash code compute without incremental style */
+hashval_t cesk_frame_compute_hashcode(cesk_frame_t* frame);
+
 /* operation on frames */
 int cesk_frame_register_move(cesk_frame_t* frame, dalvik_instruction_t* inst, uint32_t dst_reg, uint32_t src_reg);
 

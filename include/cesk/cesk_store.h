@@ -14,11 +14,11 @@
  * This address does not actually exists, the address it self 
  * constains information about the value 
  */
-#define CESK_STORE_ADDR_NEG   CESK_STORE_ADDR_CONST_PREFIX | 0x01ul
-#define CESK_STORE_ADDR_ZERO  CESK_STORE_ADDR_CONST_PREFIX | 0x02ul
-#define CESK_STORE_ADDR_POS   CESK_STORE_ADDR_CONST_PREFIX | 0x04ul
-#define CESK_STORE_ADDR_TRUE  CESK_STORE_ADDR_CONST_PREFIX | 0x08ul
-#define CESK_STORE_ADDR_FALSE CESK_STORE_ADDR_CONST_PREFIX | 0x10ul
+#define CESK_STORE_ADDR_NEG   (CESK_STORE_ADDR_CONST_PREFIX | 0x01ul)
+#define CESK_STORE_ADDR_ZERO  (CESK_STORE_ADDR_CONST_PREFIX | 0x02ul)
+#define CESK_STORE_ADDR_POS   (CESK_STORE_ADDR_CONST_PREFIX | 0x04ul)
+#define CESK_STORE_ADDR_TRUE  (CESK_STORE_ADDR_CONST_PREFIX | 0x08ul)
+#define CESK_STORE_ADDR_FALSE (CESK_STORE_ADDR_CONST_PREFIX | 0x10ul)
 
 #define CESK_STORE_ADDR_IS_CONST(addr) (((addr)&CESK_STORE_ADDR_CONST_PREFIX) == CESK_STORE_ADDR_CONST_PREFIX)
 /* check the address, if it's true, compute the expression, otherwise return false */
@@ -67,7 +67,7 @@ const cesk_value_t* cesk_store_get_ro(cesk_store_t* store, uint32_t addr);
 /* check if the value is reused by multiple object */
 int cesk_store_is_reuse(cesk_store_t* store, uint32_t addr);
 /* set the reuse flag */
-void cesk_store_set_reuse(cesk_store_t* store, uint32_t addr);
+int cesk_store_set_reuse(cesk_store_t* store, uint32_t addr);
 
 
 /* allocate a fresh address for a new value, CESK_STORE_ADDR_NULL indicates an error 
@@ -82,7 +82,10 @@ void cesk_store_set_reuse(cesk_store_t* store, uint32_t addr);
 uint32_t cesk_store_allocate(cesk_store_t** p_store, const dalvik_instruction_t* inst, uint32_t parent, const char* field);
 
 /* attach a value to an address, >0 means success, <0 error. If the value is NULL, means
- * dettach the address
+ * dettach the address.
+ * NOTICE: After the attach function, your parameter value becomes a 
+ * writable pointer as aquired from cesk_store_get_rw.
+ * So YOU MUST RELEASE THE ADDRESS AFTER YOU DONE
  */
 int cesk_store_attach(cesk_store_t* store, uint32_t addr,cesk_value_t* value);
 
@@ -102,6 +105,9 @@ static inline hashval_t cesk_store_hashcode(cesk_store_t* store)
 {
     return store->hashcode;
 }
+
+/* compute the hashcode rather than based on the increamental method, for debug purpose */
+hashval_t cesk_store_compute_hashcode(cesk_store_t* store);
 
 int cesk_store_equal(cesk_store_t* fisrt, cesk_store_t* second);
 

@@ -55,5 +55,7 @@ hashval_t cesk_set_hashcode(cesk_set_t* set);
 /* compare two set */
 int cesk_set_equal(cesk_set_t* first, cesk_set_t* second);
 
+/* compute a hashcode without incremental style, only for debug porpuse */
+hashval_t cesk_set_compute_hashcode(cesk_set_t* set);
 
 #endif /* __CESK_SET_H__ */

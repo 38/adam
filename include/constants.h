@@ -72,6 +72,21 @@
 #	define CESK_STORE_ADDR_CONST_PREFIX 0xffffff00ul
 #endif
 
+/* the hash code for empty set */
+#ifndef CESK_SET_EMPTY_HASH
+#	define CESK_SET_EMPTY_HASH 0x9c7cba63ul
+#endif
+
+/* the hash code for an empty store */
+#ifndef CESK_STORE_EMPTY_HASH
+#	define CESK_STORE_EMPTY_HASH 0x547f6a73l
+#endif
+
+/* the initial hash of a frame */
+#ifndef CESK_FRAME_INIT_HASH
+#	define CESK_FRAME_INIT_HASH 0xa3efab97ul
+#endif
+
 /* the magic number used for Knuth Multiplicative Hash */
 #define MH_MULTIPLY (2654435761ul)
 

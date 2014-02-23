@@ -101,6 +101,8 @@ void cesk_value_decref(cesk_value_t* value);
  * But because the number of address is finite, the function will terminate using this method.
  */
 hashval_t cesk_value_hashcode(cesk_value_t* value);
+/* non-inremental style */
+hashval_t cesk_value_compute_hashcode(cesk_value_t* value);
 
 /* compare, the compare fuction is also based on the addr compare */
 int cesk_value_equal(cesk_value_t* first, cesk_value_t* second);

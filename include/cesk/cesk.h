@@ -10,6 +10,7 @@
 #include <cesk/cesk_set.h>
 #include <cesk/cesk_frame.h>
 #include <cesk/cesk_block.h>
+#include <cesk/cesk_addr_arithmetic.h>
 
 void cesk_init(void);
 void cesk_finalize(void);

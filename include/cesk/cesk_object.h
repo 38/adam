@@ -45,4 +45,6 @@ const char* cesk_object_to_string(cesk_object_t* object, char* buf, size_t sz);
 
 /* check if the object is a instantce of the class */
 int cesk_object_instance_of(cesk_object_t* object, const char* classpath);
+/* compute a non-incremental style hashcode, only for debugging */
+hashval_t cesk_object_compute_hashcode(cesk_object_t* object);
 #endif
