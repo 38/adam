@@ -291,6 +291,24 @@ hashval_t cesk_value_hashcode(cesk_value_t* value)
             return 0;
     }
 }
+hashval_t cesk_value_compute_hashcode(cesk_value_t* value)
+{
+    if(NULL == value) return (hashval_t)0x3c4fab47;
+    switch(value->type)
+    {
+        case CESK_TYPE_OBJECT:
+            /* object */
+            return cesk_object_compute_hashcode(*(cesk_object_t**)value->data);
+        case CESK_TYPE_SET:
+            return cesk_set_compute_hashcode(*(cesk_set_t**)value->data);
+        case CESK_TYPE_ARRAY:
+            /* array */
+            LOG_INFO("fixme: array type support");
+            //return cesk_set_hashcode((*(cesk_value_array_t**)value->data)->values);
+        default:
+            return 0;
+    }
+}
 int cesk_value_equal(cesk_value_t* first, cesk_value_t* second)
 {
     if(NULL == first || NULL == second) return first == second;

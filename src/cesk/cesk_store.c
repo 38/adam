@@ -3,7 +3,9 @@
 #include <log.h>
 
 #include <cesk/cesk_store.h>
+
 #define HASH_INC(addr,val) (addr * MH_MULTIPLY + cesk_value_hashcode(val))
+#define HASH_CMP(addr,val) (addr * MH_MULTIPLY + cesk_value_compute_hashcode(val))
 /* make a copy of a store block */
 static inline cesk_store_block_t* _cesk_store_block_fork(cesk_store_block_t* block)
 {
@@ -34,6 +36,7 @@ cesk_store_t* cesk_store_empty_store()
    }
    ret->nblocks = 0;
    ret->num_ent = 0;
+   ret->hashcode = CESK_STORE_EMPTY_HASH;
    return ret;
 }
 
@@ -88,22 +91,23 @@ int cesk_store_is_reuse(cesk_store_t* store, uint32_t addr)
 	}
 	return block->slots[offset].reuse;
 }
-void cesk_store_set_reuse(cesk_store_t* store, uint32_t addr)
+int cesk_store_set_reuse(cesk_store_t* store, uint32_t addr)
 {
 	uint32_t block_idx = addr / CESK_STORE_BLOCK_NSLOTS;
 	uint32_t offset = addr / CESK_STORE_BLOCK_NSLOTS;
 	if(block_idx >= store->nblocks)
 	{
 		LOG_ERROR("out of memory");
-		return;
+		return -1;
 	}
 	cesk_store_block_t* block = store->blocks[block_idx];
 	if(NULL == block)
 	{
 		LOG_ERROR("what's wrong?");
-		return;
+		return -1;
 	}
 	block->slots[offset].reuse = 1;
+	return 0;
 }
 cesk_value_t* cesk_store_get_rw(cesk_store_t* store, uint32_t addr)
 {
@@ -196,6 +200,24 @@ void cesk_store_release_rw(cesk_store_t* store, uint32_t addr)
     val->write_status = 0;
     /* update the hashcode */
     store->hashcode ^= HASH_INC(addr, val);
+}
+/* just for debug purpose */
+hashval_t cesk_store_compute_hashcode(cesk_store_t* store)
+{
+	uint32_t ret = CESK_STORE_EMPTY_HASH;
+	int i,j;
+	for(i = 0; i < store->nblocks; i ++)
+	{
+		for(j = 0; j < CESK_STORE_BLOCK_NSLOTS; j ++)
+		{
+			if(NULL != store->blocks[i]->slots[j].value)
+			{
+				uint32_t addr = i * CESK_STORE_BLOCK_NSLOTS + j;
+				ret ^= HASH_CMP(addr, store->blocks[i]->slots[j].value);
+			}
+		}
+	}
+	return ret;
 }
 static inline hashval_t _cesk_store_address_hashcode(const dalvik_instruction_t* inst, uint32_t parent, const char* field)
 {

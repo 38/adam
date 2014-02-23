@@ -119,7 +119,7 @@ static inline uint32_t _cesk_set_idx_alloc(cesk_set_info_entry_t** p_entry)
     entry->size = 0;
     entry->refcnt = 0;
     entry->first = NULL;
-    entry->hashcode = 0x9c7cba63ul;  /* any magic number */
+    entry->hashcode = CESK_SET_EMPTY_HASH;  /* any magic number */
     *(p_entry) = entry;
     return next_idx ++;
 }
@@ -253,8 +253,9 @@ uint32_t cesk_set_iter_next(cesk_set_iter_t* iter)
     if(NULL == iter) return CESK_STORE_ADDR_NULL;
     if(NULL == iter->next) return CESK_STORE_ADDR_NULL;
     uint32_t ret = iter->next->addr;
-    iter->next = iter->next->next;
-    return ret;
+    //iter->next = iter->next->next;
+    iter->next = iter->next->data_entry->next;
+	return ret;
 }
 /* for performance reason, we also maintain reference counter here
  * Because we assume the caller always returns a new set rather than 
@@ -422,4 +423,20 @@ hashval_t cesk_set_hashcode(cesk_set_t* set)
     if(NULL == info) 
         return 0;
     return info->hashcode;
+}
+hashval_t cesk_set_compute_hashcode(cesk_set_t* set)
+{
+	cesk_set_iter_t iter;
+	if(NULL == cesk_set_iter(set, &iter))
+	{
+		LOG_ERROR("can not aquire iterator for set %d", set->set_idx);
+		return 0;
+	}
+	uint32_t ret = CESK_SET_EMPTY_HASH;
+	uint32_t this;
+	while(CESK_STORE_ADDR_NULL != (this = cesk_set_iter_next(&iter)))
+	{
+		ret ^= (this * MH_MULTIPLY);
+	}
+	return ret;
 }

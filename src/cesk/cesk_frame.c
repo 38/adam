@@ -78,6 +78,7 @@ void cesk_frame_free(cesk_frame_t* frame)
         cesk_set_free(frame->regs[i]);
     }
     cesk_store_free(frame->store);
+	free(frame);
 }
 
 int cesk_frame_equal(cesk_frame_t* first, cesk_frame_t* second)
@@ -173,15 +174,32 @@ int cesk_frame_gc(cesk_frame_t* frame)
 }
 hashval_t cesk_frame_hashcode(cesk_frame_t* frame)
 {
-    hashval_t ret = 0xa3efab97ul;
+    hashval_t ret = CESK_FRAME_INIT_HASH;
     hashval_t mul = MH_MULTIPLY;
     int i;
     for(i = 0; i < frame->size; i ++)
     {
         ret ^= mul * cesk_set_hashcode(frame->regs[i]);
+		LOG_ERROR("%x" ,ret);
         mul *= MH_MULTIPLY;
     }
     ret ^= cesk_store_hashcode(frame->store);
+	LOG_ERROR("%x" ,ret);
+    return ret;
+}
+hashval_t cesk_frame_compute_hashcode(cesk_frame_t* frame)
+{
+    hashval_t ret = CESK_FRAME_INIT_HASH;
+    hashval_t mul = MH_MULTIPLY;
+    int i;
+    for(i = 0; i < frame->size; i ++)
+    {
+        ret ^= mul * cesk_set_compute_hashcode(frame->regs[i]);
+		LOG_ERROR("%x" ,ret);
+        mul *= MH_MULTIPLY;
+    }
+    ret ^= cesk_store_compute_hashcode(frame->store);
+	LOG_ERROR("%x" ,ret);
     return ret;
 }
 /* this function is used for other function to do following things:
@@ -441,7 +459,7 @@ int cesk_frame_store_object_put(cesk_frame_t* frame, dalvik_instruction_t* inst,
 
 	if(value->type != CESK_TYPE_OBJECT)
 	{
-		LOG_ERROR("try to get a member from a non-object address %x", dst_addr);
+		LOG_ERROR("try to put a member from a non-object address %x", dst_addr);
 		return -1;
 	}
 	
@@ -473,7 +491,11 @@ int cesk_frame_store_object_put(cesk_frame_t* frame, dalvik_instruction_t* inst,
 			LOG_ERROR("can not create an empty set for field %s/%s", classpath, field);
 			return -1;
 		}
-		cesk_store_attach(frame->store, *paddr, value_set); 
+		if(cesk_store_attach(frame->store, *paddr, value_set) < 0)
+		{
+			LOG_ERROR("can not attach empty set to address %x", *paddr);
+			return -1;
+		}
 	}
 	else if(cesk_store_is_reuse(frame->store, dst_addr) == 1)
 	{
@@ -497,7 +519,15 @@ int cesk_frame_store_object_put(cesk_frame_t* frame, dalvik_instruction_t* inst,
 			LOG_ERROR("can not create an empty set for field %s/%s", classpath, field);
 			return -1;
 		}
-		cesk_store_attach(frame->store, *paddr, value_set);   /* we just cover the old set with an empty set */
+		/* because cesk_store_attach is responsible for decref to the old value,
+		 * And if the set is used only by this object, this will trigger the dispose
+		 * function, and this will eventually decref all address that this set 
+		 * refered */
+		if(cesk_store_attach(frame->store, *paddr, value_set) < 0)   /* we just cover the old set with an empty set */
+		{
+			LOG_ERROR("can not attach empty set to address %x", *paddr);
+			return -1;
+		}
 	}
 	if(NULL == value_set)
 	{
@@ -506,8 +536,13 @@ int cesk_frame_store_object_put(cesk_frame_t* frame, dalvik_instruction_t* inst,
 	}
 	cesk_set_t* set = *(cesk_set_t**)value_set->data;
 	/* okay, append the value of registers to the set */
-	cesk_set_join(set, frame->regs[src_reg]);
+	if(cesk_set_join(set, frame->regs[src_reg]) < 0)
+	{
+		LOG_ERROR("can not merge set");
+		return -1;
+	}
 	/* release the write pointer */
+	cesk_store_release_rw(frame->store, *paddr);
 	cesk_store_release_rw(frame->store, dst_addr);
 	return 0;
 }
@@ -553,12 +588,12 @@ uint32_t cesk_frame_store_new_object(cesk_frame_t* frame, const dalvik_instructi
 			return CESK_STORE_ADDR_NULL;
 		}
 		/* reuse */
-		if(NULL == value)
+		if(cesk_store_set_reuse(frame->store, addr) < 0)
 		{
-			LOG_ERROR("can not get writable pointer at addr %x", addr);
+			LOG_ERROR("can not reuse the address @ %x", addr);
 			return CESK_STORE_ADDR_NULL;
 		}
-		cesk_store_set_reuse(frame->store, addr);
+
 	}
 	else
 	{
@@ -569,7 +604,16 @@ uint32_t cesk_frame_store_new_object(cesk_frame_t* frame, const dalvik_instructi
 			LOG_ERROR("can not create new object from class %s", classpath);
 			return CESK_STORE_ADDR_NULL;
 		}
-		cesk_store_attach(frame->store, addr, new_val);
+		if(cesk_store_attach(frame->store, addr, new_val) < 0)
+		{
+			LOG_ERROR("failed to attach new object to address %x", addr);
+			return CESK_STORE_ADDR_NULL;
+		}
+		/* because the attach function auqire a writable pointer automaticly, 
+		 * Therefore, you should release the address first
+		 */
+		cesk_store_release_rw(frame->store, addr);
+		
 	}
 	return addr;
 }

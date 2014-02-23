@@ -149,6 +149,12 @@ hashval_t cesk_object_hashcode(cesk_object_t* object)
     }
     return hash;
 }
+hashval_t cesk_object_compute_hashcode(cesk_object_t* object)
+{
+	/* the object hash itself is non-incremental style, so call
+	 * the hashcode function directly */
+	return cesk_object_hashcode(object);
+}
 int cesk_object_equal(cesk_object_t* first, cesk_object_t* second)
 {
     if(NULL == first || NULL == second) return first == second;

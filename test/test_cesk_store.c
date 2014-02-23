@@ -56,6 +56,10 @@ int main()
     LOG_ERROR("hash code of store3 : %x", cesk_store_hashcode(store3));
     LOG_ERROR("object dump origin: %s", cesk_object_to_string(*(cesk_object_t**)value_ro->data, NULL, 0));
 
+	assert(cesk_store_hashcode(store) == cesk_store_compute_hashcode(store));
+	assert(cesk_store_hashcode(store3) == cesk_store_compute_hashcode(store3));
+	assert(cesk_store_hashcode(store2) == cesk_store_compute_hashcode(store2));
+
     cesk_store_free(store);
     cesk_store_free(store2);
     cesk_store_free(store3);
