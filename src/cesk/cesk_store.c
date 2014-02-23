@@ -25,7 +25,129 @@ static inline cesk_store_block_t* _cesk_store_block_fork(cesk_store_block_t* blo
             cesk_value_incref(new_block->slots[i].value);
     return new_block;
 }
+/* decref all members of the set before free it */
+static inline int _cesk_store_free_set(cesk_store_t* store, cesk_set_t* set)
+{
+	cesk_set_iter_t iter;
+	if(NULL == cesk_set_iter(set, &iter))
+	{
+		LOG_ERROR("can not aquire iterator for the set");
+		return -1;
+	}
+	uint32_t addr;
+	while(CESK_STORE_ADDR_NULL != (addr = cesk_set_iter_next(&iter)))
+	{
+		/* decref for all its references */
+		if(cesk_store_decref(store, addr) < 0)
+		{
+			LOG_WARNING("can not decref at address %x", addr);
+		}
+	}
+	return 0;
+}
+/* decref all members of the object before free it */
+static inline int _cesk_store_free_object(cesk_store_t* store, cesk_object_t* object)
+{
+	if(NULL == object)
+	{
+		LOG_ERROR("can not dispose a NULL object");
+		return -1;
+	}
+	cesk_object_struct_t* this = object->members;
+	int i;
+	for(i = 0; i < object->depth; i ++)
+	{
+		int j;
+		for(j = 0; j < this->num_members; j ++)
+		{
+			if(cesk_store_decref(store, this->valuelist[j]) < 0)
+			{
+				LOG_WARNING("can not decref at address %x", this->valuelist[j]);
+			}
+		}
+		this = (cesk_object_struct_t*)(this->valuelist + this->num_members);
+	}
+	return 0;
+}
+/* make an address empty, but do not affect the refcnt */
+static inline int _cesk_store_swipe(cesk_store_t* store, cesk_store_block_t* block, uint32_t addr)
+{
+    uint32_t ofs = addr % CESK_STORE_BLOCK_NSLOTS;
+	cesk_value_t* value = block->slots[ofs].value;
+	/* update the hashcode */
+	store->hashcode ^= HASH_INC(addr, value);
+	/* decref of it's refernces */
+	int rc = -1;
+	switch(value->type)
+	{
+		case CESK_TYPE_OBJECT:
+			rc = _cesk_store_free_object(store, *(cesk_object_t**)value->data);
+			break;
+		case CESK_TYPE_SET:
+			rc = _cesk_store_free_set(store, *(cesk_set_t**) value->data);
+			break;
+		case CESK_TYPE_ARRAY:
+			LOG_TRACE("fixme: array support: decref of its reference here");
+	}
+	if(rc < 0)
+	{
+		LOG_WARNING("can not dispose the object");
+	}
+	/* unreference from this frame */
+	cesk_value_decref(block->slots[ofs].value);
+	/* release the address */
+	block->slots[ofs].value = NULL; 
+	return 0;
+}
+/* the function for the addressing hash code */
+static inline hashval_t _cesk_store_address_hashcode(const dalvik_instruction_t* inst, uint32_t parent, const char* field)
+{
+    uint32_t idx;
+	
+	if(NULL == inst)
+	{
+		LOG_ERROR("invalid instruction address");
+		return 0;
+	}
+	
+	/* read the instruction annotation for index */
+	//dalvik_instruction_read_annotation(inst, &idx, sizeof(idx));
+	idx = dalvik_instruction_get_index(inst);
 
+	return (idx * idx * MH_MULTIPLY + parent * 100007 * MH_MULTIPLY + ((uintptr_t)field&(hashval_t)~0));
+
+}
+/* get a block in a store and prepare to write */
+static inline cesk_store_block_t* _cesk_store_getblock_rw(cesk_store_t* store, uint32_t addr)
+{
+    if(NULL == store || CESK_STORE_ADDR_NULL == addr) 
+    {
+        LOG_ERROR("invailid argument");
+        return NULL;
+    }
+    uint32_t b_idx = addr / CESK_STORE_BLOCK_NSLOTS;
+    if(b_idx >= store->nblocks)
+    {
+        LOG_ERROR("out of memory");
+        return NULL;
+    }
+    cesk_store_block_t* block = store->blocks[b_idx];
+    if(block->refcnt > 1)
+    {
+        LOG_DEBUG("more than one store are using this block, fork it");
+        cesk_store_block_t* newblock = _cesk_store_block_fork(block);
+        if(NULL == newblock)
+        {
+            LOG_ERROR("can not fork the block");
+            return NULL;
+        }
+        newblock->refcnt ++;
+        block->refcnt --;
+        store->blocks[b_idx] = newblock;
+        block = newblock;
+    }
+    return block;
+}
 cesk_store_t* cesk_store_empty_store()
 {
    cesk_store_t* ret = (cesk_store_t*)malloc(sizeof(cesk_store_t));
@@ -219,23 +341,6 @@ hashval_t cesk_store_compute_hashcode(cesk_store_t* store)
 	}
 	return ret;
 }
-static inline hashval_t _cesk_store_address_hashcode(const dalvik_instruction_t* inst, uint32_t parent, const char* field)
-{
-    uint32_t idx;
-	
-	if(NULL == inst)
-	{
-		LOG_ERROR("invalid instruction address");
-		return 0;
-	}
-	
-	/* read the instruction annotation for index */
-	//dalvik_instruction_read_annotation(inst, &idx, sizeof(idx));
-	idx = dalvik_instruction_get_index(inst);
-
-	return (idx * idx * MH_MULTIPLY + parent * 100007 * MH_MULTIPLY + ((uintptr_t)field&(hashval_t)~0));
-
-}
 uint32_t cesk_store_allocate(cesk_store_t** p_store, const dalvik_instruction_t* inst, uint32_t parent, const char* field)
 {
     cesk_store_t* store = *p_store;
@@ -330,7 +435,7 @@ uint32_t cesk_store_allocate(cesk_store_t** p_store, const dalvik_instruction_t*
         return equal_block * CESK_STORE_BLOCK_NSLOTS  + equal_offset;
     }
 }
-int cesk_store_attach(cesk_store_t* store, uint32_t addr,cesk_value_t* value)
+int cesk_store_attach(cesk_store_t* store, uint32_t addr, cesk_value_t* value)
 {
     if(NULL == store || CESK_STORE_ADDR_NULL == addr)
     {
@@ -349,9 +454,11 @@ int cesk_store_attach(cesk_store_t* store, uint32_t addr,cesk_value_t* value)
         LOG_TRACE("value is already attached to this address");
         return 0;
     }
+	/* just aquire a writable pointer of this block */
+	cesk_store_block_t* block_rw = _cesk_store_getblock_rw(store, addr);
+	/*
     if(store->blocks[block]->refcnt > 1)
     {
-        /* copy this block */
         cesk_store_block_t* newblock = _cesk_store_block_fork(store->blocks[block]);
         if(NULL == newblock)
         {
@@ -361,27 +468,30 @@ int cesk_store_attach(cesk_store_t* store, uint32_t addr,cesk_value_t* value)
         store->blocks[block]->refcnt --;
         newblock->refcnt ++;
         store->blocks[block] = newblock;
-    }
-    if(store->blocks[block]->slots[offset].value == NULL && value != NULL) 
+    }*/
+    if(block_rw->slots[offset].value == NULL && value != NULL) 
     {
-        store->blocks[block]->num_ent ++;
+        block_rw->num_ent ++;
         store->num_ent ++;
     }
-    else if(store->blocks[block]->slots[offset].value != NULL && value == NULL)
+    else if(block_rw->slots[offset].value != NULL && value == NULL)
     {
-        store->blocks[block]->num_ent --;
+        block_rw->num_ent --;
         store->num_ent --;
     }
-    if(NULL != store->blocks[block]->slots[offset].value)
+    if(NULL != block_rw->slots[offset].value)
     {
 		/* update the hashcode */ 
 		//store->hashcode ^= addr * MH_MULTIPLY + cesk_value_hashcode(store->blocks[block]->slots[offset].value);
         //store->hashcode ^= HASH_INC(addr, store->blocks[block]->slots[offset].value);
 		/* Because cesk_store_decref also update the value, so we do not update the value here */
 		/* clean the old object */
-		store->blocks[block]->slots[offset].refcnt = 1;
-		cesk_store_decref(store, addr);   /* dirty hack, using this way to trigger the clean procedure */
-
+		/*block_rw->slots[offset].refcnt = 1;
+		cesk_store_decref(store, addr);*/   /* dirty hack, using this way to trigger the clean procedure */
+		/* we can not reduce the refcnt here, because the address is actually not defered from others
+		 * So we should swipe the old value out, but do not affect the refcnt here
+		 */
+		_cesk_store_swipe(store, block_rw, addr);
 		/* dereference to previous object */
 		/* it seems that the cesk_store_decref will call cesk_value_decref */
 		/* cesk_value_decref(store->blocks[block]->slots[offset].value);*/
@@ -395,8 +505,8 @@ int cesk_store_attach(cesk_store_t* store, uint32_t addr,cesk_value_t* value)
 		/* we do not update new hash code here, that means we should use cesk_store_release_rw function
 		 * After we finish modifiying the store */
     }
-	store->blocks[block]->slots[offset].value = value;
-	store->blocks[block]->slots[offset].reuse = 0;  /* attach to a object, all previous object is lost */
+	block_rw->slots[offset].value = value;
+	block_rw->slots[offset].reuse = 0;  /* attach to a object, all previous object is lost */
 	value->write_status = 1;
     return 0;
 }
@@ -420,37 +530,6 @@ void cesk_store_free(cesk_store_t* store)
     }
     free(store);
 }
-/* get a block in a store and prepare to write */
-static inline cesk_store_block_t* _cesk_store_getblock_rw(cesk_store_t* store, uint32_t addr)
-{
-    if(NULL == store || CESK_STORE_ADDR_NULL == addr) 
-    {
-        LOG_ERROR("invailid argument");
-        return NULL;
-    }
-    uint32_t b_idx = addr / CESK_STORE_BLOCK_NSLOTS;
-    if(b_idx >= store->nblocks)
-    {
-        LOG_ERROR("out of memory");
-        return NULL;
-    }
-    cesk_store_block_t* block = store->blocks[b_idx];
-    if(block->refcnt > 1)
-    {
-        LOG_DEBUG("more than one store are using this block, fork it");
-        cesk_store_block_t* newblock = _cesk_store_block_fork(block);
-        if(NULL == newblock)
-        {
-            LOG_ERROR("can not fork the block");
-            return NULL;
-        }
-        newblock->refcnt ++;
-        block->refcnt --;
-        store->blocks[b_idx] = newblock;
-        block = newblock;
-    }
-    return block;
-}
 
 int cesk_store_incref(cesk_store_t* store, uint32_t addr)
 {
@@ -472,48 +551,6 @@ int cesk_store_incref(cesk_store_t* store, uint32_t addr)
         LOG_ERROR("the object @%xS is alread dead", addr);
         return -1;
     }
-}
-static inline int _cesk_store_free_set(cesk_store_t* store, cesk_set_t* set)
-{
-	cesk_set_iter_t iter;
-	if(NULL == cesk_set_iter(set, &iter))
-	{
-		LOG_ERROR("can not aquire iterator for the set");
-		return -1;
-	}
-	uint32_t addr;
-	while(CESK_STORE_ADDR_NULL != (addr = cesk_set_iter_next(&iter)))
-	{
-		/* decref for all its references */
-		if(cesk_store_decref(store, addr) < 0)
-		{
-			LOG_WARNING("can not decref at address %x", addr);
-		}
-	}
-	return 0;
-}
-static inline int _cesk_store_free_object(cesk_store_t* store, cesk_object_t* object)
-{
-	if(NULL == object)
-	{
-		LOG_ERROR("can not dispose a NULL object");
-		return -1;
-	}
-	cesk_object_struct_t* this = object->members;
-	int i;
-	for(i = 0; i < object->depth; i ++)
-	{
-		int j;
-		for(j = 0; j < this->num_members; i ++)
-		{
-			if(cesk_store_decref(store, this->valuelist[j]) < 0)
-			{
-				LOG_WARNING("can not decref at address %x", this->valuelist[j]);
-			}
-		}
-		this = (cesk_object_struct_t*)(this->valuelist + this->num_members);
-	}
-	return 0;
 }
 int cesk_store_decref(cesk_store_t* store, uint32_t addr)
 {
@@ -546,32 +583,8 @@ int cesk_store_decref(cesk_store_t* store, uint32_t addr)
 
     if(0 == block->slots[ofs].refcnt)
     {
-        LOG_TRACE("value %xS is dead, swipe it out", addr);
-
-		cesk_value_t* value = block->slots[ofs].value;
-		/* update the hashcode */
-		store->hashcode ^= HASH_INC(addr, value);
-		/* decref of it's refernces */
-		int rc = -1;
-		switch(value->type)
-		{
-			case CESK_TYPE_OBJECT:
-				rc = _cesk_store_free_object(store, *(cesk_object_t**)value->data);
-				break;
-			case CESK_TYPE_SET:
-				rc = _cesk_store_free_set(store, *(cesk_set_t**) value->data);
-				break;
-			case CESK_TYPE_ARRAY:
-				LOG_TRACE("fixme: array support: decref of its reference here");
-		}
-		if(rc < 0)
-		{
-			LOG_WARNING("can not dispose the object");
-		}
-        /* unreference from this frame */
-        cesk_value_decref(block->slots[ofs].value);
-        /* release the address */
-        block->slots[ofs].value = NULL; 
+        LOG_TRACE("value @0x%x is dead, swipe it out", addr);
+		_cesk_store_swipe(store, block, addr);
         block->num_ent --;
         store->num_ent --;
     }

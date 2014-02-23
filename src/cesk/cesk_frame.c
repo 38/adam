@@ -180,11 +180,9 @@ hashval_t cesk_frame_hashcode(cesk_frame_t* frame)
     for(i = 0; i < frame->size; i ++)
     {
         ret ^= mul * cesk_set_hashcode(frame->regs[i]);
-		LOG_ERROR("%x" ,ret);
         mul *= MH_MULTIPLY;
     }
     ret ^= cesk_store_hashcode(frame->store);
-	LOG_ERROR("%x" ,ret);
     return ret;
 }
 hashval_t cesk_frame_compute_hashcode(cesk_frame_t* frame)
@@ -195,11 +193,10 @@ hashval_t cesk_frame_compute_hashcode(cesk_frame_t* frame)
     for(i = 0; i < frame->size; i ++)
     {
         ret ^= mul * cesk_set_compute_hashcode(frame->regs[i]);
-		LOG_ERROR("%x" ,ret);
         mul *= MH_MULTIPLY;
     }
     ret ^= cesk_store_compute_hashcode(frame->store);
-	LOG_ERROR("%x" ,ret);
+	LOG_ERROR("hashcode: 0x%.8x", ret);
     return ret;
 }
 /* this function is used for other function to do following things:
@@ -507,6 +504,12 @@ int cesk_frame_store_object_put(cesk_frame_t* frame, dalvik_instruction_t* inst,
 		if(cesk_store_attach(frame->store, *paddr, value_set) < 0)
 		{
 			LOG_ERROR("can not attach empty set to address %x", *paddr);
+			return -1;
+		}
+		/* increase the refcount to the new address */
+		if(cesk_store_incref(frame->store, *paddr) < 0)
+		{
+			LOG_ERROR("can not incref to addr@%x", *paddr);
 			return -1;
 		}
 	}
