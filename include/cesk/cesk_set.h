@@ -31,40 +31,80 @@ cesk_set_t* cesk_set_empty_set();
  * @return the result of the operation
  */
 int cesk_set_join(cesk_set_t* dest, cesk_set_t* sour); 
-/* push a signle element to the set. dest := dest + {addr} */
+/** @brief push a signle element to the set. dest := dest + {addr} 
+ * @param dest the destination set
+ * @param sour the source set
+ * @return the result of the operation
+ */
 int cesk_set_push(cesk_set_t* dest, uint32_t addr);
 
-/* return a iterator that used for tranverse the set */
+/** @breif return a iterator that used for tranverse the set 
+ *  @param set the set
+ *  @param buf the buffer used for creating a new iterator
+ *  @return a pointer to the new iterator, which actually equals to buf. 
+ *  		NULL indicates error
+ */
 cesk_set_iter_t* cesk_set_iter(cesk_set_t* set, cesk_set_iter_t* buf);
 
-/* advance the iterator, the value is the next address in the set
- * If the function returns CESK_STORE_ADDR_NULL, that means there's
- * no more element in the set.
+/** @brief advance the iterator, the value is the next address in the set
+ * 	  	   If the function returns CESK_STORE_ADDR_NULL, that means there's
+ * 		   no more element in the set.
+ *  @param iter the iterator
+ *  @return the next address in the set. CESK_STORE_ADDR_NULL indicates 
+ *  		the iterator reach the end of the set
  */
 uint32_t cesk_set_iter_next(cesk_set_iter_t* iter);
 
-/* return the size of the set */
+/** @brief return the size of the set 
+ *  @param set the set
+ *  @return the number of elements in the set
+ */
 size_t cesk_set_size(cesk_set_t* set);
 
-/* fork a set */
+/** @brief duplicate a set, set is a copy-on-write object
+ *  @param sour the source set
+ *  @return the copy of the source set
+ */
 cesk_set_t* cesk_set_fork(cesk_set_t* sour);
-/* despose a set */
+/** @brief despose a set 
+ *  @param set the set
+ *  @return nothing
+ */
 void cesk_set_free(cesk_set_t* set);
 
-/* check if the set contains some element */
+/** @brief check if the set contains some element 
+ *  @param set the set
+ *  @param addr address to test
+ *  @return the result 
+ */
 int cesk_set_contain(cesk_set_t* set, uint32_t addr);
 
-/* init & finalize */
+/** @brief initialize 
+ *  @return nothing
+ */
 void cesk_set_init();
+/** @brief finalize 
+ *  @return nothing
+ */
 void cesk_set_finalize();
 
-/* hash code of two set */
+/** @brief hash code of two set 
+ *  @param set the set
+ *  @return hash code
+ */
 hashval_t cesk_set_hashcode(cesk_set_t* set);
 
-/* compare two set */
+/** @brief compare two set 
+ *  @param first the first set
+ *  @param second the second set
+ *  @return the result
+ */
 int cesk_set_equal(cesk_set_t* first, cesk_set_t* second);
 
-/* compute a hashcode without incremental style, only for debug porpuse */
+/** @brief compute a hashcode without incremental style, only for debug porpuse 
+ *  @param set the set
+ *  @return hash code
+ */
 hashval_t cesk_set_compute_hashcode(cesk_set_t* set);
 
 #endif /* __CESK_SET_H__ */
