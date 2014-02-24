@@ -97,7 +97,7 @@ static inline int _dalvik_instruction_write_annotation(dalvik_instruction_t* ins
     return -1;
 }
 #pragma GCC diagnostic ignored "-Wpointer-to-int-cast"
-#define __DI_CONSTRUCTOR(kw) static inline int _dalvik_instruction_##kw(sexpression_t* next, dalvik_instruction_t* buf)
+#define __DI_CONSTRUCTOR(kw) static inline int _dalvik_instruction_##kw(const sexpression_t* next, dalvik_instruction_t* buf)
 #define __DI_SETUP_OPERAND(id, flag, value) do{_dalvik_instruction_operand_setup(buf->operands + (id), (flag), (uint64_t)(value));}while(0)
 #define __DI_WRITE_ANNOTATION(what, sz) do{_dalvik_instruction_write_annotation(buf, &(what), (sz));}while(0)
 #define __DI_REGNUM(buf) (atoi((buf)+1))
@@ -522,7 +522,7 @@ __DI_CONSTRUCTOR(IF)
 static inline int _dalvik_instruction_setup_object_operations(
         int opcode,                 /* opcode we what to set */
         int flags,                  /* opcode flags */
-        sexpression_t* next,        /* the sexpression */
+        const sexpression_t* next,        /* the sexpression */
         dalvik_instruction_t* buf   /* the output */
         )
 {
@@ -557,7 +557,7 @@ static inline int _dalvik_instruction_setup_object_operations(
     const char *dest, *obj, *idx, *path, *field;
     dalvik_type_t* type;
     int opflags = 0;    /* Indicates the property of oprands */
-    sexpression_t *previous;
+    const sexpression_t *previous;
     previous = next;   /* store the previous S-Expression, because we might be want to go back */
     if(sexp_match(next, "(L?A", &curlit, &next) == 0)
         return -1;
@@ -805,10 +805,10 @@ __DI_CONSTRUCTOR(INVOKE)
     }
     return 0;
 }
-static inline int32_t _dalvik_instruction_sexpression_fetch_type(sexpression_t** psexp, int addtional_flags)
+static inline int32_t _dalvik_instruction_sexpression_fetch_type(const sexpression_t** psexp, int addtional_flags)
 {
     int ret = addtional_flags;
-    sexpression_t* sexp = *psexp;
+    const sexpression_t* sexp = *psexp;
     const char* type;
     if(sexp_match(sexp, "(L?A", &type, &psexp))
     {
@@ -836,7 +836,7 @@ static inline int _dalvik_instruction_setup_arithmetic(
         int flags,    /* flag of the instruction */
         int num_operands,
         int operand_flags[],   /* flag of the first operand */
-        sexpression_t* next,
+        const sexpression_t* next,
         dalvik_instruction_t* buf)
 {
     buf->opcode = opcode;
@@ -870,7 +870,7 @@ __DI_CONSTRUCTOR(NOT)
     operand_flags[0] = operand_flags[1] = _dalvik_instruction_sexpression_fetch_type(&next, 0);
     return _dalvik_instruction_setup_arithmetic(DVM_UNOP, DVM_FLAG_UOP_NOT, 2, operand_flags, next, buf);
 }
-static inline int _dalvik_instruction_convert_operator(sexpression_t* next, dalvik_instruction_t* buf, int type)
+static inline int _dalvik_instruction_convert_operator(const sexpression_t* next, dalvik_instruction_t* buf, int type)
 {
     int operand_flags[2];
     if(sexp_match(next, "(L=A", DALVIK_TOKEN_TO, &next)) return -1;
@@ -894,7 +894,7 @@ __DI_CONSTRUCTOR(DOUBLE)
 {
     return _dalvik_instruction_convert_operator(next, buf, DVM_OPERAND_TYPE_DOUBLE);
 }
-static inline int _dalvik_instruction_setup_binary_operator(int flags, sexpression_t* next, dalvik_instruction_t *buf)
+static inline int _dalvik_instruction_setup_binary_operator(int flags, const sexpression_t* next, dalvik_instruction_t *buf)
 {
     buf->opcode = DVM_BINOP;
     buf->flags = flags;
@@ -902,7 +902,7 @@ static inline int _dalvik_instruction_setup_binary_operator(int flags, sexpressi
     opflags = _dalvik_instruction_sexpression_fetch_type(&next, 0);
     if(opflags == -1) return -1;
     const char* curlit;
-    sexpression_t *previous;
+    const sexpression_t *previous;
     int const_operand = 0;
     previous = next;
     if(!sexp_match(next, "(L?A", &curlit, &next)) return -1;
@@ -1075,7 +1075,7 @@ __DI_CONSTRUCTOR(FILLED)
     return 0;
 }
 #undef __DI_CONSTRUCTOR
-int dalvik_instruction_from_sexp(sexpression_t* sexp, dalvik_instruction_t* buf, int line)
+int dalvik_instruction_from_sexp(const sexpression_t* sexp, dalvik_instruction_t* buf, int line)
 {
 #ifdef PARSER_COUNT
     dalvik_instruction_count ++;
@@ -1189,7 +1189,7 @@ void dalvik_instruction_free(dalvik_instruction_t* buf)
 #define __PR(fmt, args...) do{\
             p += snprintf(p, buf + sz - p, fmt, ##args);\
 }while(0)
-static inline int _dalvik_instruction_operand_const_to_string(dalvik_operand_t* op, char* buf, size_t sz)
+static inline int _dalvik_instruction_operand_const_to_string(const dalvik_operand_t* op, char* buf, size_t sz)
 {
     char *p = buf;
     vector_t* vec;
@@ -1242,7 +1242,7 @@ static inline int _dalvik_instruction_operand_const_to_string(dalvik_operand_t* 
     }
     return p - buf;
 }
-static inline int _dalvik_instruction_operand_to_string(dalvik_operand_t* opr, char* buf, size_t sz)
+static inline int _dalvik_instruction_operand_to_string(const dalvik_operand_t* opr, char* buf, size_t sz)
 {
     char *p = buf;
     if(opr->header.info.is_const)
@@ -1259,7 +1259,7 @@ static inline int _dalvik_instruction_operand_to_string(dalvik_operand_t* opr, c
 }
 #define __PO(id) do{p += _dalvik_instruction_operand_to_string(inst->operands + id, p, buf + sz - p);} while(0)
 #define __CI(_name) name = #_name; break
-const char* dalvik_instruction_to_string(dalvik_instruction_t* inst, char* buf, size_t sz)
+const char* dalvik_instruction_to_string(const dalvik_instruction_t* inst, char* buf, size_t sz)
 {
     static char default_buf[1024];
     if(NULL == buf)

@@ -69,7 +69,7 @@ static inline dalvik_exception_handler_set_t* _dalvik_exception_handler_set_allo
     return ret;   /* Because we do not push the new allocated object into the vecotr,
                      So we should do it by callee */
 }
-dalvik_exception_handler_t* dalvik_exception_handler_from_sexp(sexpression_t* sexp, int* from, int* to)   /* 2 Cases */
+dalvik_exception_handler_t* dalvik_exception_handler_from_sexp(const sexpression_t* sexp, int* from, int* to)   /* 2 Cases */
 {
     if(SEXP_NIL == sexp ||
        NULL     == from ||

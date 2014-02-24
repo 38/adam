@@ -115,14 +115,14 @@ int sexp_match(const sexpression_t* sexpr, const char* pattern, ...);
  * sexp_strip(sexpr, "from16", "16", NULL) = (v123,456)
  * sexp_strip(sexpr, "abc", "def", NULL) = (from16 v123,456)
  * NOTICE: All string assumed to be a pooled string, that means address equal <==> value equal */
-sexpression_t* sexp_strip(sexpression_t* sexpr, ...);
+const sexpression_t* sexp_strip(const sexpression_t* sexpr, ...);
 
 /**@brief Get object path (a/b/c d) ==> 'a/b/c' && (d)
  * @param sexpr Input S-Expression
  * @param remaining The remaining element after object path is parsed 
  * @return a pooled string of object path, NULL indicates error
  */
-const char* sexp_get_object_path(sexpression_t* sexpr, sexpression_t** remaining);
+const char* sexp_get_object_path(const sexpression_t* sexpr, const sexpression_t ** remaining);
 
 /** @brief Get objet path (a/b/c d) ==> 'a/b' 'c' && (d) .
  *  
@@ -136,19 +136,19 @@ const char* sexp_get_object_path(sexpression_t* sexpr, sexpression_t** remaining
  *  @param name buf for name
  *  @return >=0 means success, <0 means error
  */
-int sexp_get_method_address(sexpression_t* sexp, sexpression_t** remaining, const char** path, const char** name);
+int sexp_get_method_address(const sexpression_t* sexp, const sexpression_t ** remaining, const char** path, const char** name);
 
 /** @brief return the length of the S-Expression sexp_length(s) <==> (length s)
  *  @param sexp S-Expression
  *  @return length of the S-Expression, -1 indicate an error */
-int sexp_length(sexpression_t* sexp);
+int sexp_length(const sexpression_t* sexp);
 
 /** @brief convert s-expression to string 
  *  @param sexp	s-expression to be convert
  *  @param buf   the buffer for output, if buf is NULL, use default buf
  *  @return the result string, NULL means error
  */
-char* sexp_to_string(sexpression_t* sexp, char* buf);
+char* sexp_to_string(const sexpression_t* sexp, char* buf);
 
 /** @brief empty S-Expression */
 #define SEXP_NIL NULL

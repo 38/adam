@@ -8,7 +8,7 @@
 int dalvik_method_count = 0;
 #endif
 
-dalvik_method_t* dalvik_method_from_sexp(sexpression_t* sexp, const char* class_path,const char* file)
+dalvik_method_t* dalvik_method_from_sexp(const sexpression_t* sexp, const char* class_path,const char* file)
 {
 
 #ifdef PARSER_COUNT

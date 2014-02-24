@@ -4,7 +4,7 @@
 #include <dalvik/dalvik_tokens.h>
 #include <debug.h>
 
-int dalvik_attrs_from_sexp(sexpression_t* sexp)
+int dalvik_attrs_from_sexp(const sexpression_t* sexp)
 {
     LOG_DEBUG("sexp = %s", sexp_to_string(sexp, NULL));
     int flags = 0;

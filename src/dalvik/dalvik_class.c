@@ -12,7 +12,7 @@
 int dalvik_class_count = 0;
 #endif
 
-dalvik_class_t* dalvik_class_from_sexp(sexpression_t* sexp)
+dalvik_class_t* dalvik_class_from_sexp(const sexpression_t* sexp)
 {
 #ifdef PARSER_COUNT
     dalvik_class_count ++;

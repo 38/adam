@@ -54,7 +54,7 @@ void dalvik_type_finalize(void)
         free(dalvik_type_atom[i]);
 }
 
-dalvik_type_t* dalvik_type_from_sexp(sexpression_t* sexp)
+dalvik_type_t* dalvik_type_from_sexp(const sexpression_t* sexp)
 {
    const char* curlit;
    if(sexp_match(sexp, "L?", &curlit))  /* A single literal ? atom */

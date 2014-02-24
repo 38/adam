@@ -46,7 +46,7 @@ ERROR:
     }
     return NULL;
 }
-cesk_frame_t* cesk_frame_fork(cesk_frame_t* frame)
+cesk_frame_t* cesk_frame_fork(const cesk_frame_t* frame)
 {
     if(NULL == frame) 
     {
@@ -81,7 +81,7 @@ void cesk_frame_free(cesk_frame_t* frame)
 	free(frame);
 }
 
-int cesk_frame_equal(cesk_frame_t* first, cesk_frame_t* second)
+int cesk_frame_equal(const cesk_frame_t* first, const cesk_frame_t* second)
 {
     if(NULL == first || NULL == second) return first == second;
     if(cesk_frame_hashcode(first) != cesk_frame_hashcode(second)) return 0;
@@ -116,19 +116,13 @@ static inline void _cesk_frame_store_dfs(uint32_t addr,cesk_store_t* store, uint
     int i;
     switch(val->type)
     {
-#if 0
-        case CESK_TYPE_NUMERIC:
-        case CESK_TYPE_BOOLEAN:
-            /* atmoic types, no reference */
-            break;
-#endif
         case CESK_TYPE_SET:
-            for(iter = cesk_set_iter(*(cesk_set_t**)val->data, &iter_buf);
+            for(iter = cesk_set_iter(val->pointer.set, &iter_buf);
                 CESK_STORE_ADDR_NULL != (next_addr = cesk_set_iter_next(iter));)
                 _cesk_frame_store_dfs(next_addr, store, f);
             break;
         case CESK_TYPE_OBJECT:
-            obj = *(cesk_object_t**)val->data;
+            obj = val->pointer.object;
             this = obj->members;
             for(i = 0; i < obj->depth; i ++)
             {
@@ -176,7 +170,7 @@ int cesk_frame_gc(cesk_frame_t* frame)
 	free(fb);
     return 0;
 }
-hashval_t cesk_frame_hashcode(cesk_frame_t* frame)
+hashval_t cesk_frame_hashcode(const cesk_frame_t* frame)
 {
     hashval_t ret = CESK_FRAME_INIT_HASH;
     hashval_t mul = MH_MULTIPLY;
@@ -189,7 +183,7 @@ hashval_t cesk_frame_hashcode(cesk_frame_t* frame)
     ret ^= cesk_store_hashcode(frame->store);
     return ret;
 }
-hashval_t cesk_frame_compute_hashcode(cesk_frame_t* frame)
+hashval_t cesk_frame_compute_hashcode(const cesk_frame_t* frame)
 {
     hashval_t ret = CESK_FRAME_INIT_HASH;
     hashval_t mul = MH_MULTIPLY;
@@ -225,7 +219,7 @@ static inline int _cesk_frame_free_reg(cesk_frame_t* frame, uint32_t reg)
 
 	return 0;
 }
-int cesk_frame_register_move(cesk_frame_t* frame, dalvik_instruction_t* inst, uint32_t dst_reg, uint32_t src_reg)
+int cesk_frame_register_move(cesk_frame_t* frame, const dalvik_instruction_t* inst, uint32_t dst_reg, uint32_t src_reg)
 {
 	if(NULL == frame || dst_reg >= frame->size || src_reg >= frame->size) 
 	{
@@ -242,7 +236,7 @@ int cesk_frame_register_move(cesk_frame_t* frame, dalvik_instruction_t* inst, ui
 	frame->regs[dst_reg] = cesk_set_fork(frame->regs[src_reg]);
 	return 0;
 }
-int cesk_frame_register_load(cesk_frame_t* frame, dalvik_instruction_t* inst ,uint32_t dst_reg, uint32_t addr)
+int cesk_frame_register_load(cesk_frame_t* frame, const dalvik_instruction_t* inst ,uint32_t dst_reg, uint32_t addr)
 {
 	if(NULL == frame || dst_reg >= frame->size || NULL == inst)
 	{
@@ -271,7 +265,7 @@ int cesk_frame_register_load(cesk_frame_t* frame, dalvik_instruction_t* inst ,ui
 
 	return 0;
 }
-int cesk_frame_register_load_from_store(cesk_frame_t* frame, dalvik_instruction_t* inst, uint32_t dest, uint32_t src_addr)
+int cesk_frame_register_load_from_store(cesk_frame_t* frame, const dalvik_instruction_t* inst, uint32_t dest, uint32_t src_addr)
 {
 	if(NULL == frame || dest >= frame->size || NULL == inst)
 	{
@@ -296,7 +290,7 @@ int cesk_frame_register_load_from_store(cesk_frame_t* frame, dalvik_instruction_
 		return -1;
 	}
 	/* get the set object */
-	cesk_set_t* set = *(cesk_set_t**)value->data;
+	cesk_set_t* set = value->pointer.set;
 
 	/* delete the old value first */
 	if(_cesk_frame_free_reg(frame, dest) < 0)
@@ -333,7 +327,7 @@ int cesk_frame_register_load_from_store(cesk_frame_t* frame, dalvik_instruction_
 
 	return 0;
 }
-int cesk_frame_register_append_from_store(cesk_frame_t* frame, dalvik_instruction_t* inst, uint32_t dest, uint32_t src_addr)
+int cesk_frame_register_append_from_store(cesk_frame_t* frame, const dalvik_instruction_t* inst, uint32_t dest, uint32_t src_addr)
 {
 	if(NULL == frame ||
 	   NULL == inst ||
@@ -356,7 +350,7 @@ int cesk_frame_register_append_from_store(cesk_frame_t* frame, dalvik_instructio
 		return -1;
 	}
 	/* get the set object */
-	cesk_set_t* set = *(cesk_set_t**)value->data;
+	cesk_set_t* set = value->pointer.set;
 
 	cesk_set_iter_t iter;
 
@@ -376,7 +370,7 @@ int cesk_frame_register_append_from_store(cesk_frame_t* frame, dalvik_instructio
 	}
 	return 0;
 }
-int cesk_frame_register_clear(cesk_frame_t* frame, dalvik_instruction_t* inst, uint32_t reg)
+int cesk_frame_register_clear(cesk_frame_t* frame, const dalvik_instruction_t* inst, uint32_t reg)
 {
 	if(NULL == frame || reg >= frame->size)
 	{
@@ -403,7 +397,7 @@ int cesk_frame_register_clear(cesk_frame_t* frame, dalvik_instruction_t* inst, u
 	
 	return 0;
 }
-int cesk_frame_register_push(cesk_frame_t* frame, dalvik_instruction_t* inst, uint32_t reg, uint32_t addr)
+int cesk_frame_register_push(cesk_frame_t* frame, const dalvik_instruction_t* inst, uint32_t reg, uint32_t addr)
 {
 	if(NULL == frame || reg >= frame->size)
 	{
@@ -426,7 +420,10 @@ int cesk_frame_register_push(cesk_frame_t* frame, dalvik_instruction_t* inst, ui
 
 	return 0;
 }
-int cesk_frame_store_object_get(cesk_frame_t* frame,dalvik_instruction_t* inst,  uint32_t dst_reg, uint32_t src_addr, const char* classpath, const char* field)
+int cesk_frame_store_object_get(cesk_frame_t* frame, 
+		                        const dalvik_instruction_t* inst,  
+								uint32_t dst_reg, uint32_t src_addr, 
+								const char* classpath, const char* field)
 {
 	if(NULL == frame || NULL == classpath || NULL == field || dst_reg >= frame->size || src_addr == CESK_STORE_ADDR_NULL)
 	{
@@ -445,7 +442,7 @@ int cesk_frame_store_object_get(cesk_frame_t* frame,dalvik_instruction_t* inst, 
 		return -1;
 	}
 
-	cesk_object_t* object = *(cesk_object_t **)(value->data);
+	cesk_object_t* object = value->pointer.object;
 
 	uint32_t* paddr = cesk_object_get(object, classpath, field);
 	if(NULL == paddr)
@@ -458,7 +455,10 @@ int cesk_frame_store_object_get(cesk_frame_t* frame,dalvik_instruction_t* inst, 
 	//return cesk_frame_register_load(frame, inst ,dst_reg, *paddr);
 	return cesk_frame_register_load_from_store(frame, inst, dst_reg, *paddr);
 }
-int cesk_frame_store_object_put(cesk_frame_t* frame, dalvik_instruction_t* inst, uint32_t dst_addr, const char* classpath, const char* field, uint32_t src_reg)
+int cesk_frame_store_object_put(cesk_frame_t* frame, 
+								const dalvik_instruction_t* inst, 
+								uint32_t dst_addr, const char* classpath, 
+								const char* field, uint32_t src_reg)
 {
 	if(NULL == frame || NULL == classpath || NULL == field || src_reg >= frame->size || dst_addr == CESK_STORE_ADDR_NULL)
 	{
@@ -480,7 +480,7 @@ int cesk_frame_store_object_put(cesk_frame_t* frame, dalvik_instruction_t* inst,
 		return -1;
 	}
 	
-	cesk_object_t* object = *(cesk_object_t **)(value->data);
+	cesk_object_t* object = value->pointer.object;
 
 	uint32_t* paddr = cesk_object_get(object, classpath, field);
 
@@ -557,7 +557,7 @@ int cesk_frame_store_object_put(cesk_frame_t* frame, dalvik_instruction_t* inst,
 		LOG_ERROR("unknown error, but value_set should not be NULL");
 		return -1;
 	}
-	cesk_set_t* set = *(cesk_set_t**)value_set->data;
+	cesk_set_t* set = value_set->pointer.set;
 
 	/* of course, the refcount should be increased */
 	cesk_set_iter_t iter;
@@ -613,7 +613,7 @@ uint32_t cesk_frame_store_new_object(cesk_frame_t* frame, const dalvik_instructi
 			LOG_ERROR("can not attach an object to a non-object address");
 			return CESK_STORE_ADDR_NULL;
 		}
-		cesk_object_t* object = *(cesk_object_t**)value->data;
+		cesk_object_t* object = value->pointer.object;
 		if(NULL == object)
 		{
 			LOG_ERROR("invalid value");
@@ -657,12 +657,12 @@ uint32_t cesk_frame_store_new_object(cesk_frame_t* frame, const dalvik_instructi
 	}
 	return addr;
 }
-int cesk_frame_store_array_get(cesk_frame_t* frame, dalvik_instruction_t* inst, uint32_t dst_addr, uint32_t index, uint32_t src_reg)
+int cesk_frame_store_array_get(cesk_frame_t* frame, const dalvik_instruction_t* inst, uint32_t dst_addr, uint32_t index, uint32_t src_reg)
 {
 	LOG_TRACE("fixme : array support, get an element from the array");
 	return 0;
 }
-int cesk_frame_store_array_put(cesk_frame_t* frame, dalvik_instruction_t* inst, uint32_t index, uint32_t dst_reg, uint32_t src_reg)
+int cesk_frame_store_array_put(cesk_frame_t* frame, const dalvik_instruction_t* inst, uint32_t index, uint32_t dst_reg, uint32_t src_reg)
 {
 	LOG_TRACE("fixme : array support, put an emement to the array");
 	return 0;

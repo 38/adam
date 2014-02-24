@@ -35,8 +35,8 @@ typedef struct {
     /* DO NOT ADD ANYTHING HERE */
     dalvik_block_t*     block;     /*!<the code block of this branch */
     int32_t             ileft[0];  /*!<if left_inst is set, value is stored in ileft[0] */
-    dalvik_operand_t*   left;      /*!<the left operand */
-    dalvik_operand_t*   right;     /*!<the right operand */
+    const dalvik_operand_t*   left;      /*!<the left operand */
+    const dalvik_operand_t*   right;     /*!<the right operand */
 
     /* flags */
     uint8_t             flags[0];   /*!<the flags array*/

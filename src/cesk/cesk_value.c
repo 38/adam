@@ -1,43 +1,19 @@
+/** 
+ * @file cesk_value.c
+ * @brief the implementation of abstract value */
 #include <log.h>
 #include <cesk/cesk_value.h>
 #include <dalvik/dalvik_instruction.h>
 
+/** @brief the value list actuall record all values, and deallocate 
+ *         the memory when exiting 
+ */
 static cesk_value_t*  _cesk_value_list = NULL;
 
-#if 0
-static cesk_value_t*  _cesk_value_numeric_values_storage[3] = {};
-static cesk_value_t** _cesk_value_numeric_values = NULL; 
-
-static cesk_value_t* _cesk_value_boolean[2] = {};
-#endif
-
+/** @brief allocator */
 static inline cesk_value_t* _cesk_value_alloc(uint32_t type)
 {
-    size_t size = sizeof(cesk_value_t);
-    switch(type)
-    {
-#if 0
-        case CESK_TYPE_NUMERIC:
-            size += sizeof(cesk_value_numeric_t);
-            break;
-        case CESK_TYPE_BOOLEAN:
-            size += sizeof(cesk_value_boolean_t);
-            break;
-#endif
-        case CESK_TYPE_OBJECT:
-            size += sizeof(cesk_object_t*);
-            break;
-        case CESK_TYPE_ARRAY:
-            size += sizeof(cesk_value_array_t);
-            break;
-        case CESK_TYPE_SET:
-            size += sizeof(cesk_set_t*);
-            break;
-        default:
-            LOG_ERROR("unknown type %d", type);
-            return NULL;
-    }
-    cesk_value_t* ret = (cesk_value_t*)malloc(size);
+    cesk_value_t* ret = (cesk_value_t*)malloc(sizeof(cesk_value_t));
     if(NULL == ret) return NULL;
     ret->type = type;
     ret->refcnt = 0;
@@ -46,50 +22,14 @@ static inline cesk_value_t* _cesk_value_alloc(uint32_t type)
     if(_cesk_value_list) 
         _cesk_value_list->prev = ret;
     _cesk_value_list = ret;
+	ret->pointer._void = NULL;
     return ret;
 }
 void cesk_value_init()
 {
     _cesk_value_list = NULL;
-#if 0
-    _cesk_value_numeric_values = _cesk_value_numeric_values_storage + 1;
-    if(NULL == (_cesk_value_numeric_values[CESK_VALUE_NUMERIC_NEGATIVE] = _cesk_value_alloc(CESK_TYPE_NUMERIC)))
-
-    {
-        LOG_FATAL("Can not create abstract value for negative value");
-    }
-    else 
-        *(cesk_value_numeric_t*)_cesk_value_numeric_values[CESK_VALUE_NUMERIC_NEGATIVE]->data = CESK_VALUE_NUMERIC_NEGATIVE;
-    if(NULL == (_cesk_value_numeric_values[CESK_VALUE_NUMERIC_ZERO] = _cesk_value_alloc(CESK_TYPE_NUMERIC)))
-    {
-        LOG_FATAL("Can not create abstract value for zero value");
-    }
-    else
-        *(cesk_value_numeric_t*)_cesk_value_numeric_values[CESK_VALUE_NUMERIC_ZERO]->data = CESK_VALUE_NUMERIC_ZERO;
-
-    if(NULL == (_cesk_value_numeric_values[CESK_VALUE_NUMERIC_POSITIVE] = _cesk_value_alloc(CESK_TYPE_NUMERIC)))
-    {
-        LOG_FATAL("Can not create abstract value for positive value");
-    }
-    else
-        *(cesk_value_numeric_t*)(_cesk_value_numeric_values[CESK_VALUE_NUMERIC_POSITIVE]->data) = CESK_VALUE_NUMERIC_POSITIVE;
-    
-    if(NULL == (_cesk_value_boolean[CESK_VALUE_BOOLEAN_TRUE] = _cesk_value_alloc(CESK_TYPE_BOOLEAN)))
-    {
-        LOG_FATAL("Can not create abstract value for true");
-    }
-    else
-        *(cesk_value_boolean_t*)(_cesk_value_boolean[CESK_VALUE_BOOLEAN_TRUE]->data) = CESK_VALUE_BOOLEAN_TRUE;
-
-    
-    if(NULL == (_cesk_value_boolean[CESK_VALUE_BOOLEAN_FALSE] = _cesk_value_alloc(CESK_TYPE_BOOLEAN)))
-    {
-        LOG_FATAL("Can not create abstract value for false");
-    }
-    else
-        *(cesk_value_boolean_t*)(_cesk_value_boolean[CESK_VALUE_BOOLEAN_TRUE]->data) = CESK_VALUE_BOOLEAN_FALSE;
-#endif
 }
+/** @brief deallocate the memory for the value */
 static void _cesk_value_free(cesk_value_t* val)
 {
     if(val->prev) val->prev->next = val->next;
@@ -97,26 +37,18 @@ static void _cesk_value_free(cesk_value_t* val)
     if(_cesk_value_list == val) _cesk_value_list = val->next;
     switch(val->type)
     {
-#if 0
-        case CESK_TYPE_NUMERIC:
-        case CESK_TYPE_BOOLEAN:
-            break;
-#endif
         case CESK_TYPE_OBJECT:
-            if(*(cesk_object_t**)val->data != NULL)
-                cesk_object_free(*(cesk_object_t**)val->data);
-            break;
-        case CESK_TYPE_ARRAY:
-            /* TODO: free the array */
-            LOG_INFO("fixme: array value not disposed");
+            if(val->pointer.object != NULL)
+                cesk_object_free(val->pointer.object);
             break;
         case CESK_TYPE_SET:
-			cesk_set_free(*(cesk_set_t**)val->data);
+			cesk_set_free(val->pointer.set);
             break;
         default:
             LOG_WARNING("unknown type %d, do not know how to free", val->type);
     }
     free(val);
+	LOG_DEBUG("a value is deleted"); 
 }
 void cesk_value_finalize()
 {
@@ -145,11 +77,12 @@ cesk_value_t* cesk_value_from_classpath(const char* classpath)
     cesk_object_t* class = cesk_object_new(classpath);
     if(NULL == class) 
     {
-        *(void**)ret->data = NULL;
-        LOG_ERROR("can not create class %s", classpath);
+        _cesk_value_free(ret);
+		LOG_ERROR("can not create class %s", classpath);
         return NULL;
     }
-    *(cesk_object_t**)ret->data = class;
+    ret->pointer.object = class;
+	LOG_DEBUG("an object is built from class %s", classpath);
     return ret;
 }
 cesk_value_t* cesk_value_empty_set()
@@ -160,129 +93,59 @@ cesk_value_t* cesk_value_empty_set()
 
 	if(NULL == empty_set)
 	{
+		_cesk_value_free(ret);
 		LOG_ERROR("failed to create an empty set for new value");
-		*(void**)ret->data = NULL;
 		return NULL;
 	}
-	*(cesk_set_t**)ret->data = empty_set;
+	ret->pointer.set = empty_set;
 	return ret;
 }
-#if 0
-cesk_value_t* cesk_value_from_operand(dalvik_operand_t* operand)
+
+cesk_value_t* cesk_value_fork(const cesk_value_t* value)
 {
-    if(NULL == operand) return NULL;
-    if(!operand->header.info.is_const)
-    {
-        LOG_ERROR("can not create a value from a non-constant operand");
-        return NULL;
-    }
-    int intval = 0;
-    switch(operand->header.info.type)
-    {
-        case DVM_OPERAND_TYPE_LONG:
-            intval = operand->payload.int64;
-            goto num;
-        case DVM_OPERAND_TYPE_SHORT:
-            intval = operand->payload.int16;
-            goto num;
-        case DVM_OPERAND_TYPE_INT:
-            intval = operand->payload.int32;
-            goto num;
-        case DVM_OPERAND_TYPE_BYTE:
-            intval = operand->payload.int8;
-            goto num;
-        case DVM_OPERAND_TYPE_DOUBLE:
-            if(operand->payload.real64 < -1e-20)
-                intval = -1;
-            else if(operand->payload.real64 > 1e-20)
-                intval = 1;
-            else 
-                intval = 0;
-            goto num;
-        case DVM_OPERAND_TYPE_FLOAT:
-            if(operand->payload.real32 < -1e-20)
-                intval = -1;
-            else if(operand->payload.real32 > 1e-20)
-                intval = 1;
-            else 
-                intval = 0;
-            goto num;
-        case DVM_OPERAND_TYPE_CHAR:
-            intval = operand->payload.int8;
-num:
-            if(intval > 0)
-                return _cesk_value_numeric_values[1];
-            else if(intval < 0)
-                return _cesk_value_numeric_values[-1];
-            else 
-                return _cesk_value_numeric_values[0];
-        case DALVIK_TYPECODE_BOOLEAN:
-            if(operand->payload.uint8)
-                return _cesk_value_boolean[CESK_VALUE_BOOLEAN_TRUE];
-            else
-                return _cesk_value_boolean[CESK_VALUE_BOOLEAN_FALSE];
-            break;
-        default:
-            LOG_ERROR("can not create value for the type");
-            return NULL;
-    }
-    return NULL;
-}
-#endif
-cesk_value_t* cesk_value_fork(cesk_value_t* value)
-{
-#if 0
-    if(value->type != CESK_TYPE_OBJECT && value->type != CESK_TYPE_ARRAY)
-    {
-        LOG_ERROR("Can not fork a basic type");
-    }
-#endif
     cesk_value_t* newval = _cesk_value_alloc(value->type);
-    if(NULL == newval) return NULL;
-    if(value->type == CESK_TYPE_OBJECT)
-    {
-        cesk_object_t* object = *(cesk_object_t**)value->data;
-        cesk_object_t* newobj = cesk_object_fork(object);
-        if(NULL == newobj)
-        {
-            free(newval);
-            return NULL;
-        }
-        *(cesk_object_t**)newval->data = newobj;
-        return newval;
-    }
-    else if(value->type == CESK_TYPE_ARRAY)
-    {
-        //TODO: finish fork for an array
-        LOG_ERROR("fixme: fork an array");
-        return NULL;
-    }
-    else if(value->type == CESK_TYPE_SET)
-    {
-        //TODO: forking a set
-        LOG_ERROR("fixme: fork a set");
-        return NULL;
-    }
-    LOG_ERROR("unknown type");
-    return NULL;
+    if(NULL == newval) goto ERROR;
+	const cesk_object_t* object;
+	cesk_object_t* newobj;
+	const cesk_set_t* set;
+	cesk_set_t* newset;
+	switch (value->type)
+	{
+		case CESK_TYPE_OBJECT:
+			object = value->pointer.object;
+			newobj = cesk_object_fork(object);
+			if(NULL == newobj) goto ERROR;
+			newval->pointer.object = newobj;
+			break;
+		case CESK_TYPE_SET:
+			set = value->pointer.set;
+			newset = cesk_set_fork(set);
+			if(NULL == newset) goto ERROR;
+			newval->pointer.set = newset;
+			break;
+			/* TODO: array support */
+		default:
+			LOG_ERROR("unsupported type");
+			goto ERROR;
+	}
+    return newval;
+ERROR:
+	LOG_ERROR("error during forking a value");
+	if(NULL != newval)
+		_cesk_value_free(newval);
+	return NULL;
 }
 // Knuth's multiptive hash function 
-hashval_t cesk_value_hashcode(cesk_value_t* value)
+hashval_t cesk_value_hashcode(const cesk_value_t* value)
 {
     if(NULL == value) return (hashval_t)0x3c4fab47;
     switch(value->type)
     {
-#if 0
-        case CESK_TYPE_NUMERIC:
-        case CESK_TYPE_BOOLEAN:
-            /* atomic value */
-            return MH_MULTIPLY * ((uintptr_t)value&0xfffffffful);
-#endif 
         case CESK_TYPE_OBJECT:
             /* object */
-            return cesk_object_hashcode(*(cesk_object_t**)value->data);
+            return cesk_object_hashcode(value->pointer.object);
         case CESK_TYPE_SET:
-            return cesk_set_hashcode(*(cesk_set_t**)value->data);
+            return cesk_set_hashcode(value->pointer.set);
         case CESK_TYPE_ARRAY:
             /* array */
             LOG_INFO("fixme: array type support");
@@ -291,16 +154,16 @@ hashval_t cesk_value_hashcode(cesk_value_t* value)
             return 0;
     }
 }
-hashval_t cesk_value_compute_hashcode(cesk_value_t* value)
+hashval_t cesk_value_compute_hashcode(const cesk_value_t* value)
 {
     if(NULL == value) return (hashval_t)0x3c4fab47;
     switch(value->type)
     {
         case CESK_TYPE_OBJECT:
             /* object */
-            return cesk_object_compute_hashcode(*(cesk_object_t**)value->data);
+            return cesk_object_compute_hashcode(value->pointer.object);
         case CESK_TYPE_SET:
-            return cesk_set_compute_hashcode(*(cesk_set_t**)value->data);
+            return cesk_set_compute_hashcode(value->pointer.set);
         case CESK_TYPE_ARRAY:
             /* array */
             LOG_INFO("fixme: array type support");
@@ -309,21 +172,16 @@ hashval_t cesk_value_compute_hashcode(cesk_value_t* value)
             return 0;
     }
 }
-int cesk_value_equal(cesk_value_t* first, cesk_value_t* second)
+int cesk_value_equal(const cesk_value_t* first, const cesk_value_t* second)
 {
     if(NULL == first || NULL == second) return first == second;
     if(first->type != second->type) return 0;
     switch(first->type)
     {
-#if 0
-        case CESK_TYPE_NUMERIC:
-        case CESK_TYPE_BOOLEAN:
-            return first == second;
-#endif
         case CESK_TYPE_OBJECT:
-            return cesk_object_equal(*(cesk_object_t**)first->data, *(cesk_object_t**)second->data);
+            return cesk_object_equal(first->pointer.object, second->pointer.object);
         case CESK_TYPE_SET:
-            return cesk_set_equal(*(cesk_set_t**)first->data, *(cesk_set_t**)second->data);
+            return cesk_set_equal(first->pointer.set, second->pointer.set);
         case CESK_TYPE_ARRAY:
             LOG_INFO("fixme : array type support");
         default:

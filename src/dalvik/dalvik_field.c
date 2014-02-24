@@ -9,7 +9,7 @@
 int dalvik_field_count = 0;
 #endif
 
-dalvik_field_t* dalvik_field_from_sexp(sexpression_t* sexp, const char* class_path, const char* file_name)
+dalvik_field_t* dalvik_field_from_sexp(const sexpression_t* sexp, const char* class_path, const char* file_name)
 {
 #ifdef PARSER_COUNT
     dalvik_field_count ++;

@@ -85,10 +85,10 @@ static inline int _cesk_store_swipe(cesk_store_t* store, cesk_store_block_t* blo
 	switch(value->type)
 	{
 		case CESK_TYPE_OBJECT:
-			rc = _cesk_store_free_object(store, *(cesk_object_t**)value->data);
+			rc = _cesk_store_free_object(store, value->pointer.object);
 			break;
 		case CESK_TYPE_SET:
-			rc = _cesk_store_free_set(store, *(cesk_set_t**) value->data);
+			rc = _cesk_store_free_set(store, value->pointer.set);
 			break;
 		case CESK_TYPE_ARRAY:
 			LOG_TRACE("fixme: array support: decref of its reference here");
@@ -164,7 +164,7 @@ cesk_store_t* cesk_store_empty_store()
    return ret;
 }
 
-cesk_store_t* cesk_store_fork(cesk_store_t* store)
+cesk_store_t* cesk_store_fork(const cesk_store_t* store)
 {
     int i;
     size_t size = sizeof(cesk_store_t) + sizeof(cesk_store_block_t*) * store->nblocks;
@@ -181,7 +181,7 @@ cesk_store_t* cesk_store_fork(cesk_store_t* store)
     LOG_DEBUG("a store of %d entities is being forked, %zu bytes copied", ret->num_ent, size);
     return ret;
 }
-const cesk_value_t* cesk_store_get_ro(cesk_store_t* store, uint32_t addr)
+const cesk_value_t* cesk_store_get_ro(const cesk_store_t* store, uint32_t addr)
 {
     uint32_t block_idx = addr / CESK_STORE_BLOCK_NSLOTS;
     uint32_t offset    = addr % CESK_STORE_BLOCK_NSLOTS;
@@ -190,7 +190,7 @@ const cesk_value_t* cesk_store_get_ro(cesk_store_t* store, uint32_t addr)
         LOG_ERROR("invalid address out of space");
         return NULL;
     }
-    cesk_store_block_t* block = store->blocks[block_idx];
+    const cesk_store_block_t* block = store->blocks[block_idx];
     if(NULL == block)
     {
         LOG_ERROR("opps, it should not happen");
@@ -198,7 +198,7 @@ const cesk_value_t* cesk_store_get_ro(cesk_store_t* store, uint32_t addr)
     }
     return block->slots[offset].value;
 }
-int cesk_store_is_reuse(cesk_store_t* store, uint32_t addr)
+int cesk_store_is_reuse(const cesk_store_t* store, uint32_t addr)
 {
 	uint32_t block_idx = addr / CESK_STORE_BLOCK_NSLOTS;
 	uint32_t offset    = addr % CESK_STORE_BLOCK_NSLOTS;
@@ -207,7 +207,7 @@ int cesk_store_is_reuse(cesk_store_t* store, uint32_t addr)
 		LOG_ERROR("out of memory");
 		return -1;
 	}
-	cesk_store_block_t* block = store->blocks[block_idx];
+	const cesk_store_block_t* block = store->blocks[block_idx];
 	if(NULL == block)
 	{
 		LOG_ERROR("ooops, this should not happen");
@@ -326,7 +326,7 @@ void cesk_store_release_rw(cesk_store_t* store, uint32_t addr)
     store->hashcode ^= HASH_INC(addr, val);
 }
 /* just for debug purpose */
-hashval_t cesk_store_compute_hashcode(cesk_store_t* store)
+hashval_t cesk_store_compute_hashcode(const cesk_store_t* store)
 {
 	uint32_t ret = CESK_STORE_EMPTY_HASH;
 	int i,j;
@@ -591,7 +591,7 @@ int cesk_store_decref(cesk_store_t* store, uint32_t addr)
 }
 
 
-int cesk_store_equal(cesk_store_t* first, cesk_store_t* second)
+int cesk_store_equal(const cesk_store_t* first, const cesk_store_t* second)
 {
     if(NULL == first || NULL == second) return first != second;
     if(first->nblocks != second->nblocks) return 0;   /* because there must be an occupied address that another store does not have */
@@ -607,7 +607,7 @@ int cesk_store_equal(cesk_store_t* first, cesk_store_t* second)
     }
     return 1;
 }
-uint32_t cesk_store_const_addr_from_operand(dalvik_operand_t* operand)
+uint32_t cesk_store_const_addr_from_operand(const dalvik_operand_t* operand)
 {
     if(NULL == operand) return CESK_STORE_ADDR_NULL;
     if(!operand->header.info.is_const)
@@ -667,7 +667,7 @@ num:
     }
 	return CESK_STORE_ADDR_NULL;
 }
-uint32_t cesk_store_get_refcnt(cesk_store_t* store, uint32_t addr)
+uint32_t cesk_store_get_refcnt(const cesk_store_t* store, uint32_t addr)
 {
     uint32_t idx = addr / CESK_STORE_BLOCK_NSLOTS;
     uint32_t ofs = addr % CESK_STORE_BLOCK_NSLOTS;

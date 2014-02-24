@@ -250,7 +250,7 @@ int dalvik_instruction_finalize( void );
  * @param line the line number
  * @return <0 error, 0 success
  */ 
-int dalvik_instruction_from_sexp(sexpression_t* sexp, dalvik_instruction_t* buf, int line);
+int dalvik_instruction_from_sexp(const sexpression_t* sexp, dalvik_instruction_t* buf, int line);
 
 /**
  * @brief free the instruction 
@@ -280,7 +280,7 @@ static inline dalvik_instruction_t* dalvik_instruction_get(uint32_t offset)
     return dalvik_instruction_pool + offset;
 }
 /** @brief print the instruction to a string */
-const char* dalvik_instruction_to_string(dalvik_instruction_t* inst, char* buf, size_t sz);
+const char* dalvik_instruction_to_string(const dalvik_instruction_t* inst, char* buf, size_t sz);
 
 /** @brief invalid instruction index */
 #define DALVIK_INSTRUCTION_INVALID 0xfffffffful

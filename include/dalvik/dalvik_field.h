@@ -24,7 +24,7 @@ typedef struct {
  *  @param sexp S-Expression
  *  @param class_path the class path this field belongs to 
  *  @param file_name the file name contains defination of this field */
-dalvik_field_t* dalvik_field_from_sexp(sexpression_t* sexp, const char* class_path, const char* file_name);
+dalvik_field_t* dalvik_field_from_sexp(const sexpression_t* sexp, const char* class_path, const char* file_name);
 
 /** @brief free a field defination */
 void dalvik_field_free(dalvik_field_t* mem);
