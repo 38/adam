@@ -66,7 +66,7 @@ void log_write(int level, const char* file, const char* function, int line, cons
 #if LOG_LEVEL >= 0
 /** @brief print a fatal log
  *  @param fmt	formating string
- *  @param arg... arguments
+ *  @param arg arguments
  *  @return nothing
  */ 
 #        define LOG_FATAL(fmt,arg...) __LOG__(FATAL,fmt,##arg)
@@ -77,7 +77,7 @@ void log_write(int level, const char* file, const char* function, int line, cons
 #if LOG_LEVEL >= 1
 /** @brief print a error log
  *  @param fmt	formating string
- *  @param arg... arguments
+ *  @param arg arguments
  *  @return nothing
  */ 
 #        define LOG_ERROR(fmt,arg...) __LOG__(ERROR,fmt,##arg)
@@ -88,7 +88,7 @@ void log_write(int level, const char* file, const char* function, int line, cons
 #if LOG_LEVEL >= 2
 /** @brief print a warning log
  *  @param fmt	formating string
- *  @param arg... arguments
+ *  @param arg arguments
  *  @return nothing
  */ 
 #        define LOG_WARNING(fmt,arg...) __LOG__(WARNING,fmt,##arg)
@@ -99,7 +99,7 @@ void log_write(int level, const char* file, const char* function, int line, cons
 #if LOG_LEVEL >= 3
 /** @brief print a notice log
  *  @param fmt	formating string
- *  @param arg... arguments
+ *  @param arg arguments
  *  @return nothing
  */ 
 #        define LOG_NOTICE(fmt,arg...) __LOG__(NOTICE,fmt,##arg)
@@ -110,7 +110,7 @@ void log_write(int level, const char* file, const char* function, int line, cons
 #if LOG_LEVEL >= 4
 /** @brief print a info log
  *  @param fmt	formating string
- *  @param arg... arguments
+ *  @param arg arguments
  *  @return nothing
  */ 
 #        define LOG_INFO(fmt,arg...) __LOG__(INFO,fmt,##arg)
@@ -121,7 +121,7 @@ void log_write(int level, const char* file, const char* function, int line, cons
 #if LOG_LEVEL >= 5
 /** @brief print a trace log
  *  @param fmt	formating string
- *  @param arg... arguments
+ *  @param arg arguments
  *  @return nothing
  */ 
 #        define LOG_TRACE(fmt,arg...) __LOG__(TRACE,fmt,##arg)
@@ -132,7 +132,7 @@ void log_write(int level, const char* file, const char* function, int line, cons
 #if LOG_LEVEL >= 6
 /** @brief print a debug log
  *  @param fmt	formating string
- *  @param arg... arguments
+ *  @param arg arguments
  *  @return nothing
  */ 
 #        define LOG_DEBUG(fmt,arg...) __LOG__(DEBUG,fmt,##arg)

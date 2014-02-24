@@ -4,7 +4,7 @@
  * @file cesk_store.h
  * @brief the virtual store of CESK Virtual Machine
  *
- * @detial
+ * @details
  * This file contains declarations for Frame Store
  * The Frame Store unlike the nomally store, the 
  * store is owned by a signle frame, and have virtual address
@@ -172,34 +172,58 @@ int cesk_store_attach(cesk_store_t* store, uint32_t addr,cesk_value_t* value);
 /** @brief release an attached address 
  *  @param store virtual store
  *  @param addr virtual address
+ *  @return nothing
  */
 void cesk_store_release_rw(cesk_store_t* store, uint32_t addr);
 
-/* deallocate the store, you should free memory manually */
+/** @brief deallocate the store, you should free memory manually 
+ *  @param store virtual store
+ *  @return nothing
+ */
 void cesk_store_free(cesk_store_t* store); 
 
-/* increase the reference counter, return the new reference counter, negative means failure */
+/** @brief increase the reference counter, return the new reference counter, negative means failure 
+ *  @param store virtual store
+ *  @param addr virtual address
+ *  @return the result of the opreation >=0 means success
+ */
 int cesk_store_incref(cesk_store_t* store, uint32_t addr);
 
-/* decrease the reference counter, return the new reference counter, negative means failure */
+/** @brief decrease the reference counter, return the new reference counter, negative means failure 
+ *  @return retsult
+ */
 int cesk_store_decref(cesk_store_t* store, uint32_t addr);
 
+/** @brief get the hash code of the store 
+ *  @return hash code 
+ */
 static inline hashval_t cesk_store_hashcode(cesk_store_t* store)
 {
     return store->hashcode;
 }
 
-/* compute the hashcode rather than based on the increamental method, for debug purpose */
+/** @brief compute the hashcode rather than based on the increamental method, for debug purpose 
+ *  @return hash code
+ */
 hashval_t cesk_store_compute_hashcode(cesk_store_t* store);
-
+/** @brief return if two store are equal 
+ *  @return compare result 
+ */
 int cesk_store_equal(cesk_store_t* fisrt, cesk_store_t* second);
 
-/* this function returns constants address from a constant operand */
+/** @brief this function returns constants address from a constant operand 
+ *  @param operand this operand must carry a constant value
+ *  @return the constant address convert from the operand
+ */
 uint32_t cesk_store_const_addr_from_operand(dalvik_operand_t* operand);
 
-/* get the refcount of the address, used for testing */
+/** @brief get the refcount of the address, used for testing 
+ *  @return the refcnt of the adress
+ */
 uint32_t cesk_store_get_refcnt(cesk_store_t* store, uint32_t addr);
 
-/* set the refcnt @ addr to zero, use for garbage clean */
+/** @brief set the refcnt @ addr to zero, use for garbage clean 
+ * @return the result of operation
+ */
 int cesk_store_clear_refcnt(cesk_store_t* store, uint32_t addr);
 #endif

@@ -4,7 +4,7 @@
  * @file stringpool.h
  * @brief the string pool utils
  *
- * @detial 
+ * @details 
  * string pool manages a group of string. User can query the string pool,
  * and get an address of the pooled string which is equal to the query string.
  * For two euqal strings, the query function always returns the same address.
@@ -37,7 +37,7 @@ void stringpool_fianlize(void);
 /** 
  * @brief string accumulator
  *
- * @detail
+ * @details
  * There's another interface for stringpool. 
  * The user provide the char in the string one by one,
  * rather than provide an array of char .

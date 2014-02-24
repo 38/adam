@@ -200,7 +200,6 @@ hashval_t cesk_frame_compute_hashcode(cesk_frame_t* frame)
         mul *= MH_MULTIPLY;
     }
     ret ^= cesk_store_compute_hashcode(frame->store);
-	LOG_ERROR("hashcode: 0x%.8x", ret);
     return ret;
 }
 /* this function is used for other function to do following things:

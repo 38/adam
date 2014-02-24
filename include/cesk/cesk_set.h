@@ -33,12 +33,12 @@ cesk_set_t* cesk_set_empty_set();
 int cesk_set_join(cesk_set_t* dest, cesk_set_t* sour); 
 /** @brief push a signle element to the set. dest := dest + {addr} 
  * @param dest the destination set
- * @param sour the source set
+ * @param addr the source set
  * @return the result of the operation
  */
 int cesk_set_push(cesk_set_t* dest, uint32_t addr);
 
-/** @breif return a iterator that used for tranverse the set 
+/** @brief return a iterator that used for tranverse the set 
  *  @param set the set
  *  @param buf the buffer used for creating a new iterator
  *  @return a pointer to the new iterator, which actually equals to buf. 

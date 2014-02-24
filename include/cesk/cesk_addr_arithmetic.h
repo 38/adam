@@ -3,10 +3,10 @@
 /** @file cesk_addr_arithmetic.h
  *  @brief Address Arithemtic
  *
- *  @detial 
+ *  @details 
  *  Adam cesk machine use special address reperesents 
  *  basic values like numeric, boolean etc.(See documentation of
- *  cesk_store.h for detial)
+ *  cesk_store.h for detail)
  *
  *  Those address do not actually exist in the store,
  *  So we need a group of operation to operate those
@@ -354,7 +354,7 @@ static inline uint32_t cesk_addr_arithmetic_sign_bit(uint32_t a)
 	return sa;
 }
 /** @brief convert sign bit to numberic
- *  @param a boolean value
+ *  @param sr boolean value
  *  @return numeric result
  */
 static inline uint32_t cesk_addr_arithmetic_sign_bit_to_numeric(uint32_t sr)

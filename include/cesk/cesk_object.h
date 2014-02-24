@@ -10,7 +10,7 @@
 /**
  * @brief an abstract object value
  *
- * @detial A object struct contains all field defined in the class file.
+ * @details A object struct contains all field defined in the class file.
  * 		   But the class may have super class and we have to allocate memory
  *         for the superclass, a signle abstruct object value can not 
  *         reperecent required for the object. Therefore we need a 
@@ -25,7 +25,7 @@ typedef struct {
 /**
  * @brief An abstruct object
  *
- * @detial The object is actually a list of object struct which contains all
+ * @details The object is actually a list of object struct which contains all
  * 		   memory that allocate for the superclasses of the object
  */
 typedef struct {
@@ -35,7 +35,7 @@ typedef struct {
 
 
 /**
- * @brief Create a new instance object of class in <classpath> 
+ * @brief Create a new instance object of class in classpath 
  * @param classpath the class path of the object
  * @return the object created from the object, NULL indicates error
  */
@@ -61,7 +61,7 @@ void cesk_object_free(cesk_object_t* object);
 /**
  * @brief make a copy of the object 
  *
- * @detial this fork function is an actual copy function which
+ * @details this fork function is an actual copy function which
  * 		   copy the function immedately.
  * @param object the source object
  * @return the forked object

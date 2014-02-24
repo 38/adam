@@ -1,7 +1,10 @@
+/** @file cesk_set.h
+ *  @brief implementation of CESK address set
+ */
 #include <string.h>
-
 #include <log.h>
 #include <cesk/cesk_set.h>
+/** @brief invalid set id */
 #define CESK_SET_INVALID (~0u)
 /* We do not maintain a hash table for each set, because
  * most set contains a few element. 
@@ -9,29 +12,33 @@
  * we maintain a large hash table use <set_idx, address>
  * as key. 
  */
+/** @brief the structure holds a address set */
 struct _cesk_set_t {
-    uint32_t set_idx;    /* the set index */
+    uint32_t set_idx;    /*!<the set index */
 };
-/* data that the some set holds */
+/**@brief data that the some set holds */
 typedef struct {
-    cesk_set_node_t *next;
+    cesk_set_node_t *next;  /*!<next pointer*/
 } cesk_set_data_entry_t;
+/**@brief the entry that holds metadata of a set */
 typedef struct {
-    uint32_t size;          /* how many element in the set */
-    uint32_t refcnt;        /* the reference count of this, indicates how many cesk_set_t for this set are returned */
-    hashval_t hashcode;     /* the hash code of the set */
-    cesk_set_node_t* first; /* first element of the set */
+    uint32_t size;          /*!<how many element in the set */
+    uint32_t refcnt;        /*!<the reference count of this, indicates how many cesk_set_t for this set are returned */
+    hashval_t hashcode;     /*!<the hash code of the set */
+    cesk_set_node_t* first; /*!<first element of the set */
 } cesk_set_info_entry_t;
+
+/**@brief the node in the hash table*/
 struct _cesk_set_node_t {
-    uint32_t set_idx;       /* the set index */
-    uint32_t addr;          /* the address this data entry refer */
+    uint32_t set_idx;       /*!<the set index */
+    uint32_t addr;          /*!<the address this data entry refer */
     /* this pointer is for the hash table */
-    cesk_set_node_t *next;
-    cesk_set_node_t *prev;
+    cesk_set_node_t *next;  /*!<next element in hash slot */
+    cesk_set_node_t *prev;  /*!<previous element in hash slot */
     /* the following space is for the actuall data */
-    char data_section[0]; /* the data section of this node */
-    cesk_set_data_entry_t data_entry[0];   /* this is valid for a data entry node */
-    cesk_set_info_entry_t info_entry[0];   /* this is valid for an info entry node */
+    char data_section[0]; /*!<the data section of this node */
+    cesk_set_data_entry_t data_entry[0];   /*!<this is valid for a data entry node */
+    cesk_set_info_entry_t info_entry[0];   /*!<this is valid for an info entry node */
 };
 
 static cesk_set_node_t* _cesk_set_hash[CESK_SET_HASH_SIZE];
