@@ -43,6 +43,7 @@ foreach(test ${UnitTests})
     target_link_libraries(test/${TEST_BIN} adam)
 endforeach(test)
 
+find_package(Doxygen)
 add_custom_target(docs
 	${DOXYGEN_EXECUTABLE} ${CMAKE_CURRENT_BINARY_DIR}/Doxyfile
 	WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}

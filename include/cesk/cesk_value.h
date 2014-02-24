@@ -17,8 +17,8 @@
  */
 
 /* previous defination */
-struct   _cesk_value_t;
 typedef  struct _cesk_value_t cesk_value_t;
+typedef  struct _cesk_value_const_t cesk_value_const_t;
 
 #include <dalvik/dalvik_instruction.h>
 #include <cesk/cesk_object.h>
@@ -31,29 +31,33 @@ enum{
     CESK_TYPE_SET		/*!<set type*/
 };
 
-/* abstract object */
-#include <cesk/cesk_object.h>
-
-/* TODO: array support */
-
-/* set */
-#include <cesk/cesk_set.h>
+#define __CESK_POINTER_LIST(prefix) \
+		prefix void*	     _void;	/*!<as a void pointer */\
+		prefix cesk_set_t*    set;   /*!<as a set */\
+		prefix cesk_object_t* object; /*!<as an object */
 
 /** @brief the data structure for a abstruct value */
-typedef struct _cesk_value_t {
+struct _cesk_value_t {
     uint8_t     type:7;       /*!<type of this value */
     uint8_t     write_status:1; /*!<this bit check if the value is associated with a writable pointer */
+	union {
+		__CESK_POINTER_LIST()
+	} pointer; /*!<actuall data pointer*/
     uint32_t    refcnt;     /*!<the reference counter */
     hashval_t   hashcode;   /*!<the hashcode */
     struct _cesk_value_t 
                 *prev, *next; /*!<the previous and next pointer used by value list */
-	union {
-		void*	     _void;	/*!<as a void pointer */
-		cesk_set_t*    set;   /*!<as a set */
-		cesk_object_t* object; /*!<as an object */
-	} pointer; /*!<actuall data pointer*/
-} cesk_value_t; 
+}; 
 
+struct _cesk_value_const_t {
+    uint8_t     type:7;       /*!<type of this value */
+    uint8_t     write_status:1; /*!<this bit check if the value is associated with a writable pointer */
+	union {
+		__CESK_POINTER_LIST(const)
+	} pointer; /*!<actuall data pointer*/
+};
+
+#undef __CESK_POINTER_LIST
 
 /* 
  * What initilize function does :

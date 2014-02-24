@@ -40,8 +40,6 @@
 #include <cesk/cesk_value.h>
 #include <dalvik/dalvik_instruction.h>
 
-/** @brief the invalid address in the virtual store */
-#define CESK_STORE_ADDR_NULL 0xfffffffful
 
 /* special address that used for constants */
 /* this special address is stands for some constants value,
@@ -117,7 +115,7 @@ cesk_value_t* cesk_store_get_rw(cesk_store_t* store, uint32_t addr);
  *  @param addr address
  *  @return the read-only value pointer
  */
-const cesk_value_t* cesk_store_get_ro(const cesk_store_t* store, uint32_t addr);
+cesk_value_const_t* cesk_store_get_ro(const cesk_store_t* store, uint32_t addr);
 
 /** @brief check if the value is reused by multiple object 
  *  @param store the virtual store

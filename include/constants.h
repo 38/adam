@@ -90,6 +90,9 @@
 #	define CESK_FRAME_INIT_HASH 0xa3efab97ul
 #endif
 
+/** @brief the invalid address in the virtual store */
+#define CESK_STORE_ADDR_NULL 0xfffffffful
+
 /** @brief the magic number used for Knuth Multiplicative Hash */
 #define MH_MULTIPLY (2654435761ul)
 

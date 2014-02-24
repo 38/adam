@@ -113,4 +113,21 @@ int cesk_object_instance_of(const cesk_object_t* object, const char* classpath);
  * @return hash code
  */
 hashval_t cesk_object_compute_hashcode(const cesk_object_t* object);
+/**
+ * @brief get set address of the field, this function like 
+ *        cesk_object_get, but instead of returning the pointer
+ *        to the store address, it returns the address directly
+ * @param object the object
+ * @param classpath the class path
+ * @param field_name the field name of the class
+ * @param buf the address buf 
+ * @return <0 error otherwise success
+ */
+static inline int cesk_object_get_addr(const cesk_object_t* object, const char* classpath, const char* field_name, uint32_t* buf)
+{
+	uint32_t* ret = cesk_object_get((cesk_object_t*)object, classpath, field_name);
+	if(NULL == ret) return -1;
+	*buf = *ret;
+	return 0;
+}
 #endif

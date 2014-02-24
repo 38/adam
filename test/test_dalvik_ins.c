@@ -3,6 +3,7 @@
 #include <sexp.h>
 #include <dalvik/dalvik_tokens.h>
 #include <assert.h>
+#include <adam.h>
 sexpression_t *sexp;
 dalvik_instruction_t inst;
 void test_move()
@@ -325,17 +326,16 @@ void test_instanceops()
 }
 void test_invoke()
 {
-    assert(NULL != sexp_parse("(invoke-virtual {v1,v2,v3} this/is/a.test int int int)", &sexp));
+    assert(NULL != sexp_parse("(invoke-virtual {v1,v2,v3} this/is/a/test int int int)", &sexp));
     assert(0 == dalvik_instruction_from_sexp(sexp,&inst, 0));
     assert(inst.opcode == DVM_INVOKE);
     assert(inst.flags == DVM_FLAG_INVOKE_VIRTUAL);
-    assert(inst.num_operands == 5);
+    assert(inst.num_operands == 6);
     //TODO: test it 
 }
 int main()
 {
-    stringpool_init(1027);
-    dalvik_tokens_init();
+	adam_init();
 
     test_move();
     test_return();
@@ -346,7 +346,8 @@ int main()
     test_arrayops();
     test_instanceops();
     test_invoke();
-    stringpool_fianlize();
+
+	adam_finalize();
     
     return 0;
 }
