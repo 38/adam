@@ -1,6 +1,8 @@
 #ifndef __DALVIK_H__
 #define __DALVIK_H__ 
-
+/** @file dalvik.h
+ *  @brief dalvik bytecode utils
+ */
 /* System Headers */
 #include <stdint.h>
 #include <unistd.h>
@@ -27,8 +29,9 @@
 #include <dalvik/dalvik_attrs.h>
 #include <dalvik/dalvik_loader.h>
 #include <dalvik/dalvik_block.h>
-
+/** @brief initialization */
 void dalvik_init(void);
+/** @brief finalization */
 void dalvik_finalize(void);
 
 #endif

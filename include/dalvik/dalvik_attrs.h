@@ -1,6 +1,8 @@
 #ifndef __DALVIK_ATTRS_H__
 #define __DALVIK_ATTRS_H__
-
+/**@file dalvik_attrs.h
+ * @brief define dalvik object attributes 
+ */
 /* The general attribute flags should use low 16 bits only */
 #define DALVIK_ATTRS_ABSTARCT    0x1
 #define DALVIK_ATTRS_ANNOTATION  0x2
@@ -14,5 +16,8 @@
 
 /* DO NOT define any attribute lager than 0xffff */
 
+/** @brief parse a sexpression to a attribute 
+ *  @return attribute code, otherwise return negative value 
+ */
 int dalvik_attrs_from_sexp(sexpression_t* sexp);
 #endif

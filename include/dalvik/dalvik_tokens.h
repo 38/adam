@@ -1,10 +1,15 @@
 #ifndef __DALVIK_TOKENS_H__
 #define __DALVIK_TOKENS_H__
+/** @file dalvik_token.h
+ *  @brief lexer tokens 
+ */
 
+/** @brief the maximum keyword */
 #define DALVIK_MAX_NUM_KEYWORDS 256
-
+/** @brief keyword array */
 extern const char* dalvik_keywords[DALVIK_MAX_NUM_KEYWORDS];
 
+/** @brief return a token table entity */
 #define DALVIK_TOKEN_TABLE_ENTITY(id) ((const char* const)dalvik_keywords[(id)])
 
 #define DALVIK_TOKEN_MOVE       DALVIK_TOKEN_TABLE_ENTITY(0)
@@ -121,6 +126,7 @@ extern const char* dalvik_keywords[DALVIK_MAX_NUM_KEYWORDS];
 #define DALVIK_TOKEN_USING      DALVIK_TOKEN_TABLE_ENTITY(111)
 #define DALVIK_TOKEN_FROM       DALVIK_TOKEN_TABLE_ENTITY(112)
 
+/** @brief initialize the token table. no need to finalize, because stringpool can dealing with this */
 int dalvik_tokens_init(void);
 
 #endif

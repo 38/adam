@@ -4,10 +4,10 @@
 /** @file cesk_frame.h
  *  @brief A stack frame of the virtual machine
  *
- *  @detial see 
+ *  @details see 
  *  <a herf=http://source.android.com/devices/tech/dalvik/dalvik-bytecode.html>
  *  http://source.android.com/devices/tech/dalvik/dalvik-bytecode.html</a> for
- *  the detial of dalvik virtual machine.
+ *  the detail of dalvik virtual machine.
  *
  *  We do not need any function for destory an object, because we have garbage 
  *  collector in the frame
@@ -130,17 +130,17 @@ int cesk_frame_store_object_put(cesk_frame_t* frame, dalvik_instruction_t* inst,
 /** @brief load value of a field from source array to destination register(to be implemented)
  *  @param frame the frame we are operating
  *  @param inst current instruction
- *  @param dst_reg destiantion register
- *  @param src_addr address of source object
+ *  @param dst_addr destiantion register
  *  @param index index in the array
+ *  @param src_reg address of source object
  *  @return the result of the opreation, >=0 means success
  */
 int cesk_frame_store_array_get(cesk_frame_t* frame, dalvik_instruction_t* inst, uint32_t dst_addr, uint32_t index, uint32_t src_reg);
 /** @brief save the value of source register to the field of destination array(to be implemented) 
  *  @param frame the frame we are operating
  *  @param inst current instruction
- *  @param dst_addr destiantion addrest
  *  @param index index in the array
+ *  @param dst_reg destiantion addrest
  *  @param src_reg source register
  *  @return the result of the opreation, >=0 means success
  */
@@ -148,7 +148,7 @@ int cesk_frame_store_array_put(cesk_frame_t* frame, dalvik_instruction_t* inst, 
 
 /** @brief allocate a 'fresh' address in this frame, and create a new object.
  *
- * @detail For the same allocation instruction, the virtual machine just return the same address, in this we
+ * @details For the same allocation instruction, the virtual machine just return the same address, in this we
  *  we can get a finate store. 
  *
  *  The function do not incref the return address, so you should save the return value after the function return
@@ -166,21 +166,21 @@ uint32_t cesk_frame_store_new_array(cesk_frame_t* frame, const dalvik_instructio
 
 /** @brief push a new value to this register (keep the old value) 
  * 
- * @detial the function like cesk_frame_register_load function, save an addr in a register.
+ * @details the function like cesk_frame_register_load function, save an addr in a register.
  * But unlike cesk_frame_register_load, which clear the old value first, this function
  * keep the old value and append the new value.
  *
  * @param frame the frame we are oeprating 
- * @inst current instruction
- * @reg destination register
- * @addr source address
+ * @param inst current instruction
+ * @param reg destination register
+ * @param addr source address
  * @return the result of the opration, >=0 means success
  */
 int cesk_frame_register_push(cesk_frame_t* frame, dalvik_instruction_t* inst, uint32_t reg, uint32_t addr);
 
 /** @brief load a value from the store to register 
  *
- * @detail this function loads a set saved in store to a register.
+ * @details this function loads a set saved in store to a register.
  *
  * @param frame
  * @param inst current instruction
@@ -192,7 +192,7 @@ int cesk_frame_register_load_from_store(cesk_frame_t* frame, dalvik_instruction_
 
 /** @brief append a value from the store to register 
  *
- * @detail like cesk_frame_register_load_from_store, but the function do not clear the destination register 
+ * @details like cesk_frame_register_load_from_store, but the function do not clear the destination register 
  *
  * @param frame
  * @param inst current instruction

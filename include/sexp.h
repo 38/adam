@@ -6,7 +6,7 @@
  * @file sexp.h
  * @brief Utils for maintanance of S-Expression.
  * 
- * @detail 
+ * @details 
  * This file provides functions to parse, process a S-Expression.
  *
  * Syntax of S-Expression:
@@ -38,9 +38,6 @@
  *
  * TOKEN1 :: lit2 :: tail
  *
- */
-
-/** @comment 
  * The reason why we don't need a type for empty S-Expression NIL 
  * is it's actully a singleton, we can use NULL pointer to repr it.
  */
@@ -84,7 +81,7 @@ void sexp_free(sexpression_t* buf);
 
 /** 
  * @brief Check S-Expression matches a pattern 
- * @detail Like printf function, pattern only describe the property of following function
+ * @details Like printf function, pattern only describe the property of following function
  * The pattern can be defined as
  *
  * PATTERN := ({TYPE DESC}* | TYPE DESC
@@ -134,9 +131,9 @@ const char* sexp_get_object_path(sexpression_t* sexpr, sexpression_t** remaining
  *  class path and method name seperately, rather than a single object path
  *
  *  @param sexp S-Expression
- *  @oaram remaining Remaining S-Expression after parse
+ *  @param remaining Remaining S-Expression after parse
  *  @param path	buf for path
- *  @param path buf for name
+ *  @param name buf for name
  *  @return >=0 means success, <0 means error
  */
 int sexp_get_method_address(sexpression_t* sexp, sexpression_t** remaining, const char** path, const char** name);
@@ -148,7 +145,7 @@ int sexp_length(sexpression_t* sexp);
 
 /** @brief convert s-expression to string 
  *  @param sexp	s-expression to be convert
- *  @buf   the buffer for output, if buf is NULL, use default buf
+ *  @param buf   the buffer for output, if buf is NULL, use default buf
  *  @return the result string, NULL means error
  */
 char* sexp_to_string(sexpression_t* sexp, char* buf);

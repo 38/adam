@@ -21,7 +21,7 @@ vector_t* vector_new(size_t elem_size);  /* Create a new vector */
  *  @param vec vector that to be freed
  *  @return nothing */
 void      vector_free(vector_t* vec);      /* free the vector after use */
-/** @breif push an element at the end of the vector, if the vector is full, resize first
+/** @brief push an element at the end of the vector, if the vector is full, resize first
  *  @param vec vector 
  *  @param data data to be stored
  *  @return result of operation >=0 means success

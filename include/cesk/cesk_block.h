@@ -4,7 +4,7 @@
  *
  * @brief The Block Graph Analyzer
  *
- * @detial Based on the block seperated by dalvik_block.c, 
+ * @details Based on the block seperated by dalvik_block.c, 
  * We can perform a block graph analysis. 
  * At the begnning of the analysis process, all frames remains 
  * empty. For each iteration, we analysis the code blocks and 
