@@ -1,48 +1,61 @@
 #ifndef __LOG_H__
 #define __LOG_H__
-/*
- * log.h: Macros for logging. 
- * You can use LOG_<LOG_LEVEL> to output a log in the code.
- * There are 6 log levels, you can find them in the enumerate below
- * e.g.:
- *       p = malloc(1024);
- *       if(NULL == p) LOG_ERROR("something was wrong!");
- * 
- * By default, all log will be printed to stderr. But you can write a 
- * log.conf in the configure directory (defined in constants.h).
- * 
- * Sample configure file :
- *      # This is a comment
- *      # level    file name      mode
- *        DEBUG   /tmp/debug.log    a
- *        WARNING /dev/null             # WARNING will be ignored
+/**
+ * @file log.h
+ * @brief function and macros for logging. (needs initalization and fianlization)
+ * @details  You can use LOG_<LOG_LEVEL> to output a log in the code.
+ * 			 
+ * 			 In program you can use LOG_xxx to print a log 
+ * 			 
+ * 			 There are 6 log levels : fatal, error, warning, notice, info, trace, debug
  *
- *        default <stderr>              # other level will be printed to stderr
+ * 			 You can use LOG_LEVEL to set above which level, the log should display. 
  *
+ * 			 LOG_LEVEL=6 means record all logs, LOG_LEVEL=0 means only fatals.
  *
- * THIS FILE NEEDS INITIALIZATION BEFORE YOU CAN USE THE FUNCTION
+ * 			 Config file log.conf is used for redirect log to a file. For each log level, we 
+ * 			 can define an output file, so that we can seperately record log in different  level in 
+ * 			 different files.
  */
-
 /* log levels */
 enum{
-    FATAL,
-    ERROR,
-    WARNING,
-    NOTICE,
-    INFO,
-    TRACE,
-    DEBUG
+    /** Use this level when something would stop the program */
+	FATAL,
+    /** Error level, the routine can not continue */
+	ERROR,
+    /** Warning level, the routine can continue, but something may be wrong */
+	WARNING,
+    /** Notice level, there's no error, but something you should notice */
+	NOTICE,
+    /** Info level, provide some information */
+	INFO,
+    /** Trace level, trace the program routine and behviours */
+	TRACE,
+    /** Debug level, detail information used for debugging */
+	DEBUG
 };
 
-/* Initialization & Finalization */
+/** @brief initlaization 
+ *  @return nothing
+ */
 void log_init();
+/** @brief initlaization 
+ *  @return nothing
+ */
 void log_finalize();
 
-/* the implementation of write a log */
+/** @brief	the implementation of write a log
+ *  @param	level	the log level
+ *  @param	file	the file name of the source code
+ *  @param	function	function name
+ *  @param	line	line number
+ *  @param	fmt		formating string
+ *  @return nothing
+ */
 void log_write(int level, const char* file, const char* function, int line, const char* fmt, ...) 
 	__attribute__((format (printf, 5, 6)));
 
-/* helper macros for write a log, do not use it directly */
+/** @brief helper macros for write a log, do not use it directly */
 #define __LOG__(level,fmt,arg...) do{\
         log_write(level,__FILE__,__FUNCTION__,__LINE__,fmt, ##arg);\
 }while(0)
@@ -51,42 +64,77 @@ void log_write(int level, const char* file, const char* function, int line, cons
         #define LOG_LEVEL 6
 #endif
 #if LOG_LEVEL >= 0
+/** @brief print a fatal log
+ *  @param fmt	formating string
+ *  @param arg... arguments
+ *  @return nothing
+ */ 
 #        define LOG_FATAL(fmt,arg...) __LOG__(FATAL,fmt,##arg)
 #else
 #        define LOG_FATAL(...)
 #endif
 
 #if LOG_LEVEL >= 1
+/** @brief print a error log
+ *  @param fmt	formating string
+ *  @param arg... arguments
+ *  @return nothing
+ */ 
 #        define LOG_ERROR(fmt,arg...) __LOG__(ERROR,fmt,##arg)
 #else
 #        define LOG_ERROR(...)
 #endif
 
 #if LOG_LEVEL >= 2
+/** @brief print a warning log
+ *  @param fmt	formating string
+ *  @param arg... arguments
+ *  @return nothing
+ */ 
 #        define LOG_WARNING(fmt,arg...) __LOG__(WARNING,fmt,##arg)
 #else
 #        define LOG_WARNING(...)
 #endif
 
 #if LOG_LEVEL >= 3
+/** @brief print a notice log
+ *  @param fmt	formating string
+ *  @param arg... arguments
+ *  @return nothing
+ */ 
 #        define LOG_NOTICE(fmt,arg...) __LOG__(NOTICE,fmt,##arg)
 #else
 #        define LOG_NOTICE(...)
 #endif
 
 #if LOG_LEVEL >= 4
+/** @brief print a info log
+ *  @param fmt	formating string
+ *  @param arg... arguments
+ *  @return nothing
+ */ 
 #        define LOG_INFO(fmt,arg...) __LOG__(INFO,fmt,##arg)
 #else
 #        define LOG_INFO(...)
 #endif
 
 #if LOG_LEVEL >= 5
+/** @brief print a trace log
+ *  @param fmt	formating string
+ *  @param arg... arguments
+ *  @return nothing
+ */ 
 #        define LOG_TRACE(fmt,arg...) __LOG__(TRACE,fmt,##arg)
 #else
 #        define LOG_TRACE(...)
 #endif
 
 #if LOG_LEVEL >= 6
+/** @brief print a debug log
+ *  @param fmt	formating string
+ *  @param arg... arguments
+ *  @return nothing
+ */ 
 #        define LOG_DEBUG(fmt,arg...) __LOG__(DEBUG,fmt,##arg)
 #else
 #        define LOG_DEBUG(...)

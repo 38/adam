@@ -1,7 +1,10 @@
 #ifndef __STRINGPOOL_H__
 #define __STRINGPOOL_H__
-/*
- * stringpool.h: the string pool utils
+/**
+ * @file stringpool.h
+ * @brief the string pool utils
+ *
+ * @detial 
  * string pool manages a group of string. User can query the string pool,
  * and get an address of the pooled string which is equal to the query string.
  * For two euqal strings, the query function always returns the same address.
@@ -10,44 +13,54 @@
  * In this project, only string read from file are not pooled. In this way, we always
  * compare two string by comparing thier address
  *
- * SHOULD BE INITIALIZED BEFORE USE
  */
 #include <constants.h>
 #include <stdint.h>
 #include <stdio.h>
 
-/* 
- * query a string in the pool, if the string is alread in the pool, return the memory in pool direcly , 
+/** 
+ * @brief query a string in the pool, if the string is alread in the pool, return the memory in pool direcly , 
  * if not, the allocate a new item in the pool
+ * @param str the unpooled string
+ * @return pooled string, NULL means error
  */
 const char* stringpool_query(const char* str);
 
-/* Initialization & Finalization */
+/** @brief initliaze string pool 
+ * 	@param poolsize the initial poolsize 
+ * 	@return >= 0 means success, < 0 indicates error occurred */
 int stringpool_init(int poolsize);
+/** @brief finalize the string pool 
+ *  @return nothing */
 void stringpool_fianlize(void);
 
-/* 
+/** 
+ * @brief string accumulator
+ *
+ * @detail
  * There's another interface for stringpool. 
  * The user provide the char in the string one by one,
  * rather than provide an array of char .
  * This is more effctive way, when the program is scanning
- * a string 
+ * a string
  */
 typedef struct {
-    int         count; /* how many chars recieved before */
-    uint32_t    h[4];  /* current hash functions */
-    uint32_t    last;
-    const char* begin;
+    int         count; /*!<how many chars recieved before */
+    uint32_t    h[4];  /*!<current hash functions */
+    uint32_t    last;  /*!<the last 4 bytes */
+    const char* begin; /*!<begin of the string */
 } stringpool_accumulator_t;
 
-/* initialize an accumulator
- * buf:   The memory for this accumulator
- * begin: Where the string we are going to scan begin
+/** @brief initialize an accumulator
+ * @param buf   The memory for this accumulator
+ * @param begin Where the string we are going to scan begin
+ * @return nothing
  */
 void stringpool_accumulator_init(stringpool_accumulator_t* buf, const char* begin);
-/* put a char to the accumulator
- * acc: the accumulator
- * c  : the char
+/** @brief put a char to the accumulator
+ * @param acc the accumulator
+ * @param c   the char
+ * @return nothing
  */
 static inline void stringpool_accumulator_next(stringpool_accumulator_t* acc, char c)
 {
@@ -76,6 +89,9 @@ static inline void stringpool_accumulator_next(stringpool_accumulator_t* acc, ch
     acc->h[3] &= ~g;
     acc->count ++;
 }
-/* query current string */
+/**@brief query current string
+ * @param acc the accumulator to be queried
+ * @return the pooled string, NULL means error
+ */
 const char* stringpool_accumulator_query(stringpool_accumulator_t* acc);
 #endif /*__STRINGPOOL_H__*/

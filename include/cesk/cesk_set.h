@@ -2,10 +2,15 @@
 #define __CESK_SET_H__
 #include <constants.h>
 #include <log.h>
-
+/** @file  cesk_set.h
+ *  @brief the address used for CESK Virtual Machine 
+ */
 /* this file need previous definations */
+/** @brief the node in the hash table */
 typedef struct _cesk_set_node_t cesk_set_node_t;
+/** @brief the data structure for the set */
 typedef struct _cesk_set_t cesk_set_t;
+/** @brief the data structure for the iterator */
 typedef struct _cesk_set_iter_t cesk_set_iter_t;
 
 #include <cesk/cesk_set.h>
@@ -15,12 +20,16 @@ struct _cesk_set_iter_t{
     cesk_set_node_t *next;
 };
 
-/* TODO: how to compare two object ? */
-
-/* Create an empty set */
+/** @brief Create an empty set 
+ *  @return the new set
+ */
 cesk_set_t* cesk_set_empty_set();
 
-/* join two set. dest := dest + sour */
+/* @brief join two set. dest := dest + sour 
+ * @param dest the destination set
+ * @param sour the source set
+ * @return the result of the operation
+ */
 int cesk_set_join(cesk_set_t* dest, cesk_set_t* sour); 
 /* push a signle element to the set. dest := dest + {addr} */
 int cesk_set_push(cesk_set_t* dest, uint32_t addr);
