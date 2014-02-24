@@ -22,7 +22,7 @@ typedef struct _dalvik_memberdict_node_t {
 typedef struct _dalvik_memberdict_node_t {
     const char* class_path;             /* the class path */
     const char* member_name;            /* the name of the member */
-    dalvik_type_t* const * args;        /* the type list (only valid for method, otherwise set to NULL */
+    const dalvik_type_t* const * args;        /* the type list (only valid for method, otherwise set to NULL */
     int         type;                   /* type of the object method, field or class */
     void*       object;                 /* the storage of the object */
     struct _dalvik_memberdict_node_t* next; 
@@ -67,7 +67,7 @@ void dalvik_memberdict_finalize()
     }
 }
 
-static inline hashval_t _dalvik_memberdict_hash(const char* class_path, const char* member_name, dalvik_type_t* const * args, int type)
+static inline hashval_t _dalvik_memberdict_hash(const char* class_path, const char* member_name, const dalvik_type_t* const * args, int type)
 {
     /* it's fine when running on a 32 bit machine */
     static const uint32_t typeid[] = {0xe3deful, 0x12fcdeul, 0x2323feul};
@@ -77,7 +77,7 @@ static inline hashval_t _dalvik_memberdict_hash(const char* class_path, const ch
     return (a * a * 100003 + b * MH_MULTIPLY + c)^typeid[type];
 }
 
-static inline int _dalvik_memberdict_register_object(const char* class_path, const char* object_name, dalvik_type_t * const * args ,int type, void* obj)
+static inline int _dalvik_memberdict_register_object(const char* class_path, const char* object_name, const dalvik_type_t * const * args ,int type, void* obj)
 {
     uint32_t idx = _dalvik_memberdict_hash(class_path, object_name, args,type)%DALVIK_MEMBERDICT_SIZE;
     dalvik_memberdict_node_t* ptr;
@@ -124,7 +124,7 @@ int dalvik_memberdict_register_class(
     return _dalvik_memberdict_register_object(class_path, NULL, NULL,_TYPE_CLASS, class);
 }
 
-static inline void* _dalvik_memberdict_find_object(const char* path, const char* name, dalvik_type_t * const * args, int type)
+static inline void* _dalvik_memberdict_find_object(const char* path, const char* name, const dalvik_type_t * const * args, int type)
 {
     uint32_t idx = _dalvik_memberdict_hash(path, name, args ,type)%DALVIK_MEMBERDICT_SIZE;
     dalvik_memberdict_node_t* ptr;
@@ -141,7 +141,7 @@ static inline void* _dalvik_memberdict_find_object(const char* path, const char*
 }
 
 
-dalvik_method_t* dalvik_memberdict_get_method(const char* class_path, const char* name, dalvik_type_t * const * args)
+dalvik_method_t* dalvik_memberdict_get_method(const char* class_path, const char* name, const dalvik_type_t * const * args)
 {
     return (dalvik_method_t*)_dalvik_memberdict_find_object(class_path, name, args,_TYPE_METHOD);
 }

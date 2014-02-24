@@ -213,7 +213,7 @@ dalvik_method_t* dalvik_method_from_sexp(const sexpression_t* sexp, const char* 
             if(DALVIK_INSTRUCTION_INVALID == last) 
                 method->entry = dalvik_instruction_get_index(inst);
             else
-                dalvik_instruction_get(last)->next = dalvik_instruction_get_index(inst);
+                dalvik_instruction_set_next(last, inst);
             last = dalvik_instruction_get_index(inst);
             inst->handler_set = current_ehset; 
             if(label_sp > 0)
@@ -241,6 +241,6 @@ void dalvik_method_free(dalvik_method_t* method)
     int i;
     for(i = 0; i < method->num_args; i ++)
         if(NULL != method->args_type[i])
-            dalvik_type_free(method->args_type[i]);
+            dalvik_type_free((dalvik_type_t*)method->args_type[i]);
     free(method);
 }

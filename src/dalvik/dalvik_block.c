@@ -10,7 +10,7 @@
 typedef struct _dalvik_block_cache_node_t{
     const char*     methodname;
     const char*     classpath;
-    dalvik_type_t * const * typelist;
+    const dalvik_type_t * const * typelist;
     dalvik_block_t* block;
     struct _dalvik_block_cache_node_t * next;
 } dalvik_block_cache_node_t;
@@ -21,7 +21,7 @@ static dalvik_block_cache_node_t* _dalvik_block_cache[DALVIK_BLOCK_CACHE_SIZE];
 static inline dalvik_block_cache_node_t* _dalvik_block_cache_node_alloc(
         const char* class, 
         const char* method, 
-        dalvik_type_t * const * typelist,
+        const dalvik_type_t * const * typelist,
         dalvik_block_t* block)
 {
     if(NULL == block ||
@@ -78,7 +78,7 @@ static inline void _dalvik_block_graph_free(dalvik_block_t* entry)
     }
     vector_free(vec);
 }
-static inline hashval_t _dalvik_block_hash(const char* class, const char* method, dalvik_type_t * const * typelist)
+static inline hashval_t _dalvik_block_hash(const char* class, const char* method, const dalvik_type_t * const * typelist)
 {
     return 
             (((uintptr_t)class & 0xffffffffull) * MH_MULTIPLY) ^ 
@@ -123,7 +123,7 @@ static inline int _dalvik_block_get_key_instruction_list(uint32_t entry_point, u
 {
     uint32_t kcnt = 0;
     uint32_t inst;
-    dalvik_instruction_t * current_inst = NULL;
+    const dalvik_instruction_t * current_inst = NULL;
 #define __PUSH(value) do{\
     uint32_t tmp = (value);\
     if(tmp < entry_point)\
@@ -261,7 +261,7 @@ static inline int32_t _dalvik_block_find_blockid_by_instruction(uint32_t inst, c
             return i;
     return -1;
 }
-static inline dalvik_block_t* _dalvik_block_setup_keyinst_goto(dalvik_instruction_t* inst, const uint32_t* key, size_t kcnt, uint32_t index)
+static inline dalvik_block_t* _dalvik_block_setup_keyinst_goto(const dalvik_instruction_t* inst, const uint32_t* key, size_t kcnt, uint32_t index)
 {
     dalvik_block_t* block = _dalvik_block_new(1);
     if(NULL == block)
@@ -277,7 +277,7 @@ static inline dalvik_block_t* _dalvik_block_setup_keyinst_goto(dalvik_instructio
     LOG_DEBUG("possible path block %u --> %"PRIu64,  index, block->branches[0].block_id[0]);
     return block;
 }
-static inline dalvik_block_t* _dalvik_block_setup_keyinst_if(dalvik_instruction_t* inst, const uint32_t* key, size_t kcnt, uint32_t index)
+static inline dalvik_block_t* _dalvik_block_setup_keyinst_if(const dalvik_instruction_t* inst, const uint32_t* key, size_t kcnt, uint32_t index)
 {
     dalvik_block_t* block = _dalvik_block_new(2);
     if(NULL == block)
@@ -322,7 +322,7 @@ static inline dalvik_block_t* _dalvik_block_setup_keyinst_if(dalvik_instruction_
     LOG_DEBUG("possible path block %d --> %"PRIu64,  index, block->branches[0].block_id[0]);
     return block;
 }
-static inline dalvik_block_t* _dalvik_block_setup_keyinst_switch(dalvik_instruction_t* inst, const uint32_t *key, size_t kcnt, uint32_t index)
+static inline dalvik_block_t* _dalvik_block_setup_keyinst_switch(const dalvik_instruction_t* inst, const uint32_t *key, size_t kcnt, uint32_t index)
 {
     dalvik_block_t* block = NULL;
 
@@ -400,7 +400,7 @@ static inline dalvik_block_t* _dalvik_block_setup_keyinst_switch(dalvik_instruct
     }
     return block;
 }
-static inline dalvik_block_t* _dalvik_block_setup_keyinst(dalvik_instruction_t* inst, const uint32_t *key, size_t kcnt, uint32_t index)
+static inline dalvik_block_t* _dalvik_block_setup_keyinst(const dalvik_instruction_t* inst, const uint32_t *key, size_t kcnt, uint32_t index)
 {
     dalvik_block_t* block = _dalvik_block_new(1);  /* only 1 path is possible */
     if(NULL == block)
@@ -420,7 +420,7 @@ static inline dalvik_block_t* _dalvik_block_setup_keyinst(dalvik_instruction_t* 
     LOG_DEBUG("possible path block %d --> %"PRIu64, index, block->branches[0].block_id[0]);
     return block;
 }
-static inline dalvik_block_t* _dalvik_block_setup_return(dalvik_instruction_t* inst, const uint32_t *key, size_t kcnt, uint32_t index)
+static inline dalvik_block_t* _dalvik_block_setup_return(const dalvik_instruction_t* inst, const uint32_t *key, size_t kcnt, uint32_t index)
 {
     dalvik_block_t* block = _dalvik_block_new(1);  /* only 1 path is possible */
     block->index = index;
@@ -433,7 +433,7 @@ static inline int _dalvik_block_build_graph(uint32_t entry, dalvik_block_t** blo
     uint32_t i;
     for(i = 0; i < kcnt; i ++)
     {
-        dalvik_instruction_t* inst = dalvik_instruction_get(key[i]);  /*get the key instruction */
+        const dalvik_instruction_t* inst = dalvik_instruction_get(key[i]);  /*get the key instruction */
         dalvik_block_t* block = NULL;
         uint32_t block_end;
         LOG_DEBUG("key instruction: %s", dalvik_instruction_to_string(inst, NULL, 0));
@@ -498,7 +498,7 @@ static void inline _dalvik_block_graph_dfs(const dalvik_block_t * block, uint32_
         if(!block->branches[i].disabled)
             _dalvik_block_graph_dfs(block->branches[i].block, visit_status);  
 }
-dalvik_block_t* dalvik_block_from_method(const char* classpath, const char* methodname, dalvik_type_t * const * typelist)
+dalvik_block_t* dalvik_block_from_method(const char* classpath, const char* methodname, const dalvik_type_t * const * typelist)
 {
     if(NULL == classpath || NULL == methodname)
     {

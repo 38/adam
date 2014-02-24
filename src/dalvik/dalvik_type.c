@@ -172,7 +172,7 @@ hashval_t dalvik_type_hashcode(const dalvik_type_t* type)
             return 0;
     }
 }
-hashval_t dalvik_type_list_hashcode(dalvik_type_t * const * typelist)
+hashval_t dalvik_type_list_hashcode(const dalvik_type_t * const * typelist)
 {
     int i;
     hashval_t h = 0;
@@ -184,7 +184,7 @@ hashval_t dalvik_type_list_hashcode(dalvik_type_t * const * typelist)
     }
     return h;
 }
-int dalvik_type_list_equal(dalvik_type_t * const * left, dalvik_type_t * const * right)
+int dalvik_type_list_equal(const dalvik_type_t * const * left, const dalvik_type_t * const * right)
 {
     if(NULL == left || NULL == right)
         return left == right;
@@ -232,7 +232,7 @@ const char* dalvik_type_to_string(const dalvik_type_t* type, char* buf, size_t s
     _dalvik_type_to_string_imp(type, buf, sz);
     return buf;
 }
-const char* dalvik_type_list_to_string(dalvik_type_t * const * list, char* buf, size_t sz)
+const char* dalvik_type_list_to_string(const dalvik_type_t * const * list, char* buf, size_t sz)
 {
     static char _buf[1024];
     if(NULL == buf)
@@ -284,13 +284,13 @@ dalvik_type_t* dalvik_type_clone(const dalvik_type_t* type)
     }
 }
 
-dalvik_type_t**  dalvik_type_list_clone(dalvik_type_t * const * type)
+const dalvik_type_t**  dalvik_type_list_clone(const dalvik_type_t * const * type)
 {
     if(NULL == type) return NULL;
     int i;
     for(i = 0; type[i] != NULL; i ++);
     size_t sz = sizeof(dalvik_type_t*) * (i + 1);
-    dalvik_type_t** ret = (dalvik_type_t**)malloc(sizeof(dalvik_type_t*) * (i+1));
+    const dalvik_type_t** ret = (const dalvik_type_t**)malloc(sizeof(dalvik_type_t*) * (i+1));
     memset(ret, 0, sz);
     if(NULL == ret) 
     {
@@ -314,7 +314,7 @@ ERROR:
     {
         for(i = 0; NULL != type[i]; i ++)
             if(ret[i] != NULL)
-                dalvik_type_free(ret[i]);
+                dalvik_type_free((dalvik_type_t*)ret[i]);
         free(ret);
     }
     return NULL;

@@ -13,7 +13,7 @@ int main()
     const char* methodname = stringpool_query("treeParserSpec");
     dalvik_type_t* arglist[] = {NULL ,NULL};
     arglist[0] = type;
-    dalvik_block_t* block = dalvik_block_from_method(classname, methodname, arglist);
+    dalvik_block_t* block = dalvik_block_from_method(classname, methodname, (const dalvik_type_t**)arglist);
     dalvik_type_free(type);
     assert(NULL != block);
     adam_finalize();

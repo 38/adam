@@ -69,9 +69,9 @@ cesk_block_t* cesk_block_graph_new(const dalvik_block_t* entry)
         }
     return _cesk_block_buf[entry->index];
 }
-#define __CB_HANDLER(name) static inline int _cesk_block_interpreter_handler_##name(dalvik_instruction_t* inst, cesk_frame_t* output)
+#define __CB_HANDLER(name) static inline int _cesk_block_interpreter_handler_##name(const dalvik_instruction_t* inst, cesk_frame_t* output)
 /** @brief convert an register referencing operand to index of register */
-static inline uint32_t _cesk_block_operand_to_regidx(dalvik_operand_t* operand)
+static inline uint32_t _cesk_block_operand_to_regidx(const dalvik_operand_t* operand)
 {
 	if(operand->header.info.is_const)
 	{
@@ -142,7 +142,7 @@ __CB_HANDLER(THROW)
  * 		   is either a constant or a register which constains atomtic value.
  * 		   Otherwise you may get unexcepted result
  */
-static inline uint32_t _cesk_block_operand_to_addr(cesk_frame_t* frame,dalvik_operand_t* val)
+static inline uint32_t _cesk_block_operand_to_addr(cesk_frame_t* frame,const dalvik_operand_t* val)
 {
 	if(val->header.info.is_const)
 	{
@@ -202,7 +202,7 @@ __CB_HANDLER(CMP)
 	cesk_frame_register_load(output, inst, dest, res);
 	return 0;
 }
-static inline int _cesk_block_handler_instance_of(dalvik_instruction_t* inst, cesk_frame_t* frame)
+static inline int _cesk_block_handler_instance_of(const dalvik_instruction_t* inst, cesk_frame_t* frame)
 {
 	/* (instance-of result, object, type) */
 	//uint32_t dst = inst->operands[0].payload.uint32;
@@ -269,7 +269,7 @@ static inline int _cesk_block_handler_instance_of(dalvik_instruction_t* inst, ce
 	LOG_ERROR("invalid operand");
 	return -1;
 }
-static inline int _cesk_block_handler_instance_get(dalvik_instruction_t* inst, cesk_frame_t* frame)
+static inline int _cesk_block_handler_instance_get(const dalvik_instruction_t* inst, cesk_frame_t* frame)
 {
 	uint32_t dest = _cesk_block_operand_to_regidx(&inst->operands[0]);
 	uint32_t sour = _cesk_block_operand_to_regidx(&inst->operands[1]);
@@ -331,7 +331,7 @@ static inline int _cesk_block_handler_instance_get(dalvik_instruction_t* inst, c
 	}
 	return 0;
 }
-static inline int _cesk_block_handler_instance_put(dalvik_instruction_t* inst, cesk_frame_t* frame)
+static inline int _cesk_block_handler_instance_put(const dalvik_instruction_t* inst, cesk_frame_t* frame)
 {
 	uint32_t sour = _cesk_block_operand_to_regidx(&inst->operands[0]);
 	uint32_t dest = _cesk_block_operand_to_regidx(&inst->operands[1]);
@@ -387,7 +387,7 @@ static inline int _cesk_block_interpret(cesk_block_t* blk)
 #define __CB_INST(name) case DVM_##name: rc = _cesk_block_interpreter_handler_##name(inst, frame); break
     for(i = code_block->begin; i < code_block->end; i ++)
     {
-        dalvik_instruction_t* inst = dalvik_instruction_get(i);
+        const dalvik_instruction_t* inst = dalvik_instruction_get(i);
         LOG_DEBUG("current instruction: %s", dalvik_instruction_to_string(inst, NULL, 0));
         int rc;
         switch(inst->opcode)

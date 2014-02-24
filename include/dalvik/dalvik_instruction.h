@@ -137,7 +137,7 @@ typedef struct {
         vector_t*          branches;            /*!<a group of branch */
         vector_t*          sparse;              /*!<a sparse-switch oprand */
         dalvik_type_t*     type;                /*!<this operand is a type, if the type code is DVM_OPERAND_TYPE_TYPEDESC */
-        dalvik_type_t**    typelist;            /*!<if the type code is DVM_OPERAND_TYPE_TYPELIST, the pointer points an array of 
+        const dalvik_type_t *const*    typelist;            /*!<if the type code is DVM_OPERAND_TYPE_TYPELIST, the pointer points an array of 
                                                  * points, which ends with a null pointer
                                                  */
         const char*        field;               /*!<The field we what to operate */
@@ -274,10 +274,15 @@ static inline uint32_t dalvik_instruction_get_index(const dalvik_instruction_t* 
     return inst - dalvik_instruction_pool;
 }
 /**@brief get instruction of instruction */
-static inline dalvik_instruction_t* dalvik_instruction_get(uint32_t offset)
+static inline const dalvik_instruction_t* dalvik_instruction_get(uint32_t offset)
 {
     extern dalvik_instruction_t* dalvik_instruction_pool;
     return dalvik_instruction_pool + offset;
+}
+static inline void dalvik_instruction_set_next(uint32_t last, const dalvik_instruction_t* inst)
+{
+    extern dalvik_instruction_t* dalvik_instruction_pool;
+	dalvik_instruction_pool[last].next = dalvik_instruction_get_index(inst);
 }
 /** @brief print the instruction to a string */
 const char* dalvik_instruction_to_string(const dalvik_instruction_t* inst, char* buf, size_t sz);
