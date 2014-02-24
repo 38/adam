@@ -30,7 +30,7 @@ cesk_set_t* cesk_set_empty_set();
  * @param sour the source set
  * @return the result of the operation
  */
-int cesk_set_join(cesk_set_t* dest, cesk_set_t* sour); 
+int cesk_set_join(cesk_set_t* dest, const cesk_set_t* sour); 
 /** @brief push a signle element to the set. dest := dest + {addr} 
  * @param dest the destination set
  * @param addr the source set
@@ -44,7 +44,7 @@ int cesk_set_push(cesk_set_t* dest, uint32_t addr);
  *  @return a pointer to the new iterator, which actually equals to buf. 
  *  		NULL indicates error
  */
-cesk_set_iter_t* cesk_set_iter(cesk_set_t* set, cesk_set_iter_t* buf);
+cesk_set_iter_t* cesk_set_iter(const cesk_set_t* set, cesk_set_iter_t* buf);
 
 /** @brief advance the iterator, the value is the next address in the set
  * 	  	   If the function returns CESK_STORE_ADDR_NULL, that means there's
@@ -59,13 +59,13 @@ uint32_t cesk_set_iter_next(cesk_set_iter_t* iter);
  *  @param set the set
  *  @return the number of elements in the set
  */
-size_t cesk_set_size(cesk_set_t* set);
+size_t cesk_set_size(const cesk_set_t* set);
 
 /** @brief duplicate a set, set is a copy-on-write object
  *  @param sour the source set
  *  @return the copy of the source set
  */
-cesk_set_t* cesk_set_fork(cesk_set_t* sour);
+cesk_set_t* cesk_set_fork(const cesk_set_t* sour);
 /** @brief despose a set 
  *  @param set the set
  *  @return nothing
@@ -77,7 +77,7 @@ void cesk_set_free(cesk_set_t* set);
  *  @param addr address to test
  *  @return the result 
  */
-int cesk_set_contain(cesk_set_t* set, uint32_t addr);
+int cesk_set_contain(const cesk_set_t* set, uint32_t addr);
 
 /** @brief initialize 
  *  @return nothing
@@ -92,19 +92,19 @@ void cesk_set_finalize();
  *  @param set the set
  *  @return hash code
  */
-hashval_t cesk_set_hashcode(cesk_set_t* set);
+hashval_t cesk_set_hashcode(const cesk_set_t* set);
 
 /** @brief compare two set 
  *  @param first the first set
  *  @param second the second set
  *  @return the result
  */
-int cesk_set_equal(cesk_set_t* first, cesk_set_t* second);
+int cesk_set_equal(const cesk_set_t* first, const cesk_set_t* second);
 
 /** @brief compute a hashcode without incremental style, only for debug porpuse 
  *  @param set the set
  *  @return hash code
  */
-hashval_t cesk_set_compute_hashcode(cesk_set_t* set);
+hashval_t cesk_set_compute_hashcode(const cesk_set_t* set);
 
 #endif /* __CESK_SET_H__ */

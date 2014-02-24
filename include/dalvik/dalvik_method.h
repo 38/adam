@@ -31,7 +31,7 @@ typedef struct {
  * @param file file name
  * @return method defination
  */
-dalvik_method_t* dalvik_method_from_sexp(sexpression_t* sexp, const char* class_path ,const char* file);
+dalvik_method_t* dalvik_method_from_sexp(const sexpression_t* sexp, const char* class_path ,const char* file);
 
 /** @brief free a method
  *  @param method method

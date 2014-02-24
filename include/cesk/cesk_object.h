@@ -4,7 +4,7 @@
  * @brief defination of an abstract object 
  */
 #include <constants.h>
-
+typedef struct _cesk_object_t cesk_object_t;
 #include <cesk/cesk_value.h>
 #include <dalvik/dalvik_class.h>
 /**
@@ -28,10 +28,10 @@ typedef struct {
  * @details The object is actually a list of object struct which contains all
  * 		   memory that allocate for the superclasses of the object
  */
-typedef struct {
+struct _cesk_object_t {
     uint16_t         depth;      /*!<the depth in inherence tree */
     cesk_object_struct_t  members[0]; /*!<the length of the tree */
-} cesk_object_t;
+};
 
 
 /**
@@ -66,13 +66,13 @@ void cesk_object_free(cesk_object_t* object);
  * @param object the source object
  * @return the forked object
  */
-cesk_object_t* cesk_object_fork(cesk_object_t* object);
+cesk_object_t* cesk_object_fork(const cesk_object_t* object);
 /**
  * @brief get the hash code of an object 
  * @param object
  * @return the hash code
  */
-hashval_t cesk_object_hashcode(cesk_object_t* object); 
+hashval_t cesk_object_hashcode(const cesk_object_t* object); 
 
 /**
  * @brief return wether or not two object are equal
@@ -80,14 +80,14 @@ hashval_t cesk_object_hashcode(cesk_object_t* object);
  * @param second
  * @return 1 for first == second, 0 for first != second
  */
-int cesk_object_equal(cesk_object_t* first, cesk_object_t* second);
+int cesk_object_equal(const cesk_object_t* first, const cesk_object_t* second);
 
 /**
  * @brief the classpath of the object 
  * @param object
  * @return the class path of the object
  */
-static inline const char* cesk_object_classpath(cesk_object_t* object)
+static inline const char* cesk_object_classpath(const cesk_object_t* object)
 {
     return object->members[0].class->path;
 }
@@ -98,7 +98,7 @@ static inline const char* cesk_object_classpath(cesk_object_t* object)
  * @param sz size of buffer
  * @return the result string 
  */
-const char* cesk_object_to_string(cesk_object_t* object, char* buf, size_t sz);
+const char* cesk_object_to_string(const cesk_object_t* object, char* buf, size_t sz);
 
 /**
  * @brief check if the object is a instantce of the class 
@@ -106,11 +106,11 @@ const char* cesk_object_to_string(cesk_object_t* object, char* buf, size_t sz);
  * @param classpath the class path of the class
  * @return the result of the check
  */
-int cesk_object_instance_of(cesk_object_t* object, const char* classpath);
+int cesk_object_instance_of(const cesk_object_t* object, const char* classpath);
 /** 
  * @brief compute a non-incremental style hashcode, only for debugging 
  * @param object
  * @return hash code
  */
-hashval_t cesk_object_compute_hashcode(cesk_object_t* object);
+hashval_t cesk_object_compute_hashcode(const cesk_object_t* object);
 #endif

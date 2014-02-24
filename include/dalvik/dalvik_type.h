@@ -55,7 +55,7 @@ void dalvik_type_init(void);
 void dalvik_type_finalize(void);
 
 /** @brief get a dalvik type from a sexpression */
-dalvik_type_t* dalvik_type_from_sexp(sexpression_t* sexp);
+dalvik_type_t* dalvik_type_from_sexp(const sexpression_t* sexp);
 
 /** @brief clone a dalvik type from an existing one */
 dalvik_type_t* dalvik_type_clone(const dalvik_type_t* type);

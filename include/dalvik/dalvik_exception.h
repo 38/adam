@@ -21,7 +21,7 @@ typedef struct _dalvik_exception_handler_set_t{
  *  @param from,to the valid range of this handler
  *  @return the handler object
  */
-dalvik_exception_handler_t* dalvik_exception_handler_from_sexp(sexpression_t* sexp, int* from, int *to);
+dalvik_exception_handler_t* dalvik_exception_handler_from_sexp(const sexpression_t* sexp, int* from, int *to);
 /** @brief Create a new exception handler set 
  *  @param count number of handler set
  *  @param set list of handler

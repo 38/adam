@@ -312,7 +312,7 @@ int sexp_match(const sexpression_t* sexpr, const char* pattern, ...)
    va_end(va);
    return ret;
 }
-sexpression_t* sexp_strip(sexpression_t* sexpr, ...)
+const sexpression_t* sexp_strip(const sexpression_t* sexpr, ...)
 {
     va_list va;
     if(NULL == sexpr) return sexpr;
@@ -331,7 +331,7 @@ sexpression_t* sexp_strip(sexpression_t* sexpr, ...)
     va_end(va);
     return sexpr;   /* nothing to strip */
 }
-const char* sexp_get_object_path(sexpression_t* sexpr, sexpression_t** remaining)
+const char* sexp_get_object_path(const sexpression_t* sexpr, const sexpression_t** remaining)
 {
     int len = 0;
     static char buf[4096];   /* Issue: thread safe */
@@ -358,7 +358,7 @@ const char* sexp_get_object_path(sexpression_t* sexpr, sexpression_t** remaining
     buf[--len] = 0;
     return stringpool_query(buf);
 }
-int sexp_get_method_address(sexpression_t* sexpr, sexpression_t** remaining, const char** path, const char** name)
+int sexp_get_method_address(const sexpression_t* sexpr, const sexpression_t** remaining, const char** path, const char** name)
 {
     int len = 0;
     char buf[4096];
@@ -396,7 +396,7 @@ int sexp_get_method_address(sexpression_t* sexpr, sexpression_t** remaining, con
         (*path) = stringpool_query("");
     return 0;
 }
-int sexp_length(sexpression_t* sexp)
+int sexp_length(const sexpression_t* sexp)
 {
     if(SEXP_NIL == sexp) return 0;
     if(sexp->type == SEXP_TYPE_LIT ||
@@ -407,7 +407,7 @@ int sexp_length(sexpression_t* sexp)
         sexp = ((sexp_cons_t*)sexp->data)->second;
     return ret;
 }
-char* sexp_to_string(sexpression_t* sexp, char* buf)
+char* sexp_to_string(const sexpression_t* sexp, char* buf)
 {
     static char defualt_buf[1024];
     char * ret;

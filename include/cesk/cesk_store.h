@@ -104,7 +104,7 @@ cesk_store_t* cesk_store_empty_store();
  *  @param store the original store
  *  @return the copy of the store
  */
-cesk_store_t* cesk_store_fork(cesk_store_t* store);
+cesk_store_t* cesk_store_fork(const cesk_store_t* store);
 
 /** @brief get a writable pointer, you must release the adress when you are done
  *  @param store the virtual store
@@ -117,14 +117,14 @@ cesk_value_t* cesk_store_get_rw(cesk_store_t* store, uint32_t addr);
  *  @param addr address
  *  @return the read-only value pointer
  */
-const cesk_value_t* cesk_store_get_ro(cesk_store_t* store, uint32_t addr);
+const cesk_value_t* cesk_store_get_ro(const cesk_store_t* store, uint32_t addr);
 
 /** @brief check if the value is reused by multiple object 
  *  @param store the virtual store
  *  @param addr the virtual address
  *  @return result
  */
-int cesk_store_is_reuse(cesk_store_t* store, uint32_t addr);
+int cesk_store_is_reuse(const cesk_store_t* store, uint32_t addr);
 /** @brief set the reuse flag 
  *  @param store virtual store
  *  @param addr vitual address
@@ -197,7 +197,7 @@ int cesk_store_decref(cesk_store_t* store, uint32_t addr);
 /** @brief get the hash code of the store 
  *  @return hash code 
  */
-static inline hashval_t cesk_store_hashcode(cesk_store_t* store)
+static inline hashval_t cesk_store_hashcode(const cesk_store_t* store)
 {
     return store->hashcode;
 }
@@ -205,22 +205,22 @@ static inline hashval_t cesk_store_hashcode(cesk_store_t* store)
 /** @brief compute the hashcode rather than based on the increamental method, for debug purpose 
  *  @return hash code
  */
-hashval_t cesk_store_compute_hashcode(cesk_store_t* store);
+hashval_t cesk_store_compute_hashcode(const cesk_store_t* store);
 /** @brief return if two store are equal 
  *  @return compare result 
  */
-int cesk_store_equal(cesk_store_t* fisrt, cesk_store_t* second);
+int cesk_store_equal(const cesk_store_t* fisrt, const cesk_store_t* second);
 
 /** @brief this function returns constants address from a constant operand 
  *  @param operand this operand must carry a constant value
  *  @return the constant address convert from the operand
  */
-uint32_t cesk_store_const_addr_from_operand(dalvik_operand_t* operand);
+uint32_t cesk_store_const_addr_from_operand(const dalvik_operand_t* operand);
 
 /** @brief get the refcount of the address, used for testing 
  *  @return the refcnt of the adress
  */
-uint32_t cesk_store_get_refcnt(cesk_store_t* store, uint32_t addr);
+uint32_t cesk_store_get_refcnt(const cesk_store_t* store, uint32_t addr);
 
 /** @brief set the refcnt @ addr to zero, use for garbage clean 
  * @return the result of operation

@@ -40,7 +40,7 @@ int main()
     assert(excepted[i] == NULL);
     sexp_free(exp);
     // Strip test;
-    sexpression_t* stripped;
+    const sexpression_t* stripped;
     assert(0 == strcmp("", sexp_parse("(move v123,v456)", &exp)));
     assert(NULL != (stripped = sexp_strip(exp, DALVIK_TOKEN_MOVE, DALVIK_TOKEN_SHR, NULL)));
     assert(stripped != exp);

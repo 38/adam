@@ -166,7 +166,7 @@ void cesk_set_finalize()
     free(_cesk_empty_set);
 }
 /* fork a set */
-cesk_set_t* cesk_set_fork(cesk_set_t* sour)
+cesk_set_t* cesk_set_fork(const cesk_set_t* sour)
 {
     if(NULL == sour) return NULL;
     /* verify if the set exists */
@@ -190,7 +190,7 @@ cesk_set_t* cesk_set_empty_set()
     return cesk_set_fork(_cesk_empty_set);   /* fork the empty set to user */
 }
 
-size_t cesk_set_size(cesk_set_t* set)
+size_t cesk_set_size(const cesk_set_t* set)
 {
     if(NULL == set) return 0;
     cesk_set_info_entry_t* info = (cesk_set_info_entry_t*)_cesk_set_hash_find(set->set_idx, CESK_STORE_ADDR_NULL);
@@ -238,7 +238,7 @@ void cesk_set_free(cesk_set_t* set)
     return;
 }
 
-cesk_set_iter_t* cesk_set_iter(cesk_set_t* set, cesk_set_iter_t* buf)
+cesk_set_iter_t* cesk_set_iter(const cesk_set_t* set, cesk_set_iter_t* buf)
 {
     if(NULL == set || NULL == buf) 
     {
@@ -355,7 +355,7 @@ int cesk_set_push(cesk_set_t* dest, uint32_t addr)
     }
     return 0;
 }
-int cesk_set_join(cesk_set_t* dest, cesk_set_t* sour)
+int cesk_set_join(cesk_set_t* dest, const cesk_set_t* sour)
 {
     if(NULL == sour || NULL == dest) return -1;
     if(CESK_SET_INVALID == dest->set_idx ||
@@ -404,13 +404,13 @@ int cesk_set_join(cesk_set_t* dest, cesk_set_t* sour)
     }
     return 0;
 }
-int cesk_set_contain(cesk_set_t* set, uint32_t addr)
+int cesk_set_contain(const cesk_set_t* set, uint32_t addr)
 {
     if(NULL == set) return 0;
     if(addr == CESK_STORE_ADDR_NULL) return 0;
     return (NULL != _cesk_set_hash_find(set->set_idx, addr));
 }
-int cesk_set_equal(cesk_set_t* first, cesk_set_t* second)
+int cesk_set_equal(const cesk_set_t* first, const cesk_set_t* second)
 {
     if(NULL == first || NULL == second) return first == second;
     if(cesk_set_hashcode(first) != cesk_set_hashcode(second)) return 0;
@@ -424,14 +424,14 @@ int cesk_set_equal(cesk_set_t* first, cesk_set_t* second)
         if(cesk_set_contain(second, addr) == 0) return 0;
     return 1;
 }
-hashval_t cesk_set_hashcode(cesk_set_t* set)
+hashval_t cesk_set_hashcode(const cesk_set_t* set)
 {
     cesk_set_info_entry_t* info = (cesk_set_info_entry_t*)_cesk_set_hash_find(set->set_idx, CESK_STORE_ADDR_NULL);
     if(NULL == info) 
         return 0;
     return info->hashcode;
 }
-hashval_t cesk_set_compute_hashcode(cesk_set_t* set)
+hashval_t cesk_set_compute_hashcode(const cesk_set_t* set)
 {
 	cesk_set_iter_t iter;
 	if(NULL == cesk_set_iter(set, &iter))

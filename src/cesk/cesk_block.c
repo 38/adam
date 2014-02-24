@@ -1,8 +1,15 @@
+/**
+ * @file cesk_block.c
+ * @brief implementation of block analyzer
+ */
 #include <cesk/cesk_frame.h>
 #include <cesk/cesk_block.h>
 #include <cesk/cesk_addr_arithmetic.h>
+/** @brief the buffer holds all nodes of graph when the graph is constructing */
 static cesk_block_t* _cesk_block_buf[DALVIK_BLOCK_MAX_KEYS];
+/** @brief the maximum code block index, used for building a graph */
 static int32_t      _cesk_block_max_idx;
+/** @brief implementation of analyzer block construction */
 static inline int _cesk_block_graph_new_imp(const dalvik_block_t* entry)
 {
     if(NULL != _cesk_block_buf[entry->index]) 
@@ -55,50 +62,86 @@ cesk_block_t* cesk_block_graph_new(const dalvik_block_t* entry)
             for(j = 0; j < _cesk_block_buf[i]->code_block->nbranches; j ++)
             {
                 if(_cesk_block_buf[i]->code_block->branches[j].disabled) continue;
-                _cesk_block_buf[i]->fanout[j]  = _cesk_block_buf[_cesk_block_buf[i]->code_block->branches[j].block->index]->input;
+				/* the index of next block */
+				uint32_t next_block = _cesk_block_buf[i]->code_block->branches[j].block->index;
+                _cesk_block_buf[i]->fanout[j]  = _cesk_block_buf[next_block]->input;
             }
         }
     return _cesk_block_buf[entry->index];
 }
 #define __CB_HANDLER(name) static inline int _cesk_block_interpreter_handler_##name(dalvik_instruction_t* inst, cesk_frame_t* output)
+/** @brief convert an register referencing operand to index of register */
+static inline uint32_t _cesk_block_operand_to_regidx(dalvik_operand_t* operand)
+{
+	if(operand->header.info.is_const)
+	{
+		LOG_ERROR("can not convert a constant operand to register index");
+		return CESK_STORE_ADDR_NULL;
+	}
+	/* the exception type is special, it just means we want to use the exception register */
+	if(operand->header.info.type == DVM_OPERAND_TYPE_EXCEPTION)
+	{
+		return CESK_FRAME_EXCEPTION_REG;
+	}
+	else if(operand->header.info.is_result)
+	{
+		return CESK_FRAME_RESULT_REG;
+	}
+	else 
+	{
+		/* general registers */
+		return CESK_FRAME_GENERAL_REG(operand->payload.uint16);
+	}
+}
 __CB_HANDLER(MOVE)
 {
-	uint32_t dest = inst->operands[0].payload.uint32;
-	uint32_t sour = inst->operands[1].payload.uint32;
+	uint32_t dest = _cesk_block_operand_to_regidx(inst->operands + 0);
+	uint32_t sour = _cesk_block_operand_to_regidx(inst->operands + 1);
+	LOG_DEBUG("current operation: move register %d --> register %d", sour, dest);
 	cesk_frame_register_move(output, inst, dest, sour);  
 	return 0;
 }
 __CB_HANDLER(NOP)
 {
-	/* no operation */
+	LOG_DEBUG("current operation: nop");
 	return 0;
 }
 __CB_HANDLER(CONST)
 {
-	uint32_t dest = inst->operands[0].payload.uint32;
+	uint32_t dest = _cesk_block_operand_to_regidx(inst->operands + 0);
 	if(inst->operands[1].header.info.type == DVM_OPERAND_TYPE_STRING)
 	{
 		LOG_TRACE("fixme : string constant requires implementation of java/lang/String");
 		return 0;
 	}
-	return cesk_frame_register_load(output, inst, dest, 
-		        	                cesk_store_const_addr_from_operand(inst->operands + 1)); 
+	uint32_t sour = cesk_store_const_addr_from_operand(&inst->operands[1]);
+
+	LOG_DEBUG("current operation: load constant @0x%x --> register %d", sour, dest);
+	
+	return cesk_frame_register_load(output, inst, dest, sour); 
 }
 __CB_HANDLER(MONITOR)
 {
+	LOG_DEBUG("current operation: monitor");
 	LOG_TRACE("fixme : threading analysis");
 	return 0;
 }
 __CB_HANDLER(CHECK_CAST)
 {
+	LOG_DEBUG("current operation: check-cast");
 	LOG_TRACE("fixme : check-cast is relied on exception system");
 	return 0;
 }
 __CB_HANDLER(THROW)
 {
+	LOG_DEBUG("current operation: throw");
 	LOG_TRACE("fixme: throw is a part of execption system");
 	return 0;
 }
+/** @brief convert a operand to an address, this actually require the operand 
+ * 		   is either a constant or a register which constains atomtic value.
+ * 		   Otherwise you may get unexcepted result
+ */
 static inline uint32_t _cesk_block_operand_to_addr(cesk_frame_t* frame,dalvik_operand_t* val)
 {
 	if(val->header.info.is_const)
@@ -109,7 +152,7 @@ static inline uint32_t _cesk_block_operand_to_addr(cesk_frame_t* frame,dalvik_op
 	else
 	{
 		/* if it refer to a register */
-		uint32_t reg = val->payload.uint32;
+		uint32_t reg = _cesk_block_operand_to_regidx(val);
 		if(reg < 0 || reg > frame->size) 
 		{
 			LOG_ERROR("invalid register reference %d", reg);
@@ -145,7 +188,11 @@ __CB_HANDLER(CMP)
 	uint32_t dest = CESK_FRAME_RESULT_REG;
 	uint32_t val1 = _cesk_block_operand_to_addr(output, inst->operands);
 	uint32_t val2 = _cesk_block_operand_to_addr(output, inst->operands + 1);
+
+	LOG_DEBUG("current operation: compare address@0x%x to address@0x%x", val1, val2);
+
 	uint32_t res  = cesk_addr_arithmetic_sub(val1, val2);
+
 	if(res == CESK_STORE_ADDR_CONST_PREFIX)
 	{
 		LOG_WARNING("the result set is empty, just clear the register");
@@ -158,8 +205,11 @@ __CB_HANDLER(CMP)
 static inline int _cesk_block_handler_instance_of(dalvik_instruction_t* inst, cesk_frame_t* frame)
 {
 	/* (instance-of result, object, type) */
-	uint32_t dst = inst->operands[0].payload.uint32;
-	uint32_t src = inst->operands[1].payload.uint32;
+	//uint32_t dst = inst->operands[0].payload.uint32;
+	//uint32_t src = inst->operands[1].payload.uint32;
+	uint32_t dst = _cesk_block_operand_to_regidx(inst->operands + 0);
+	uint32_t src = _cesk_block_operand_to_regidx(inst->operands + 1);
+
 	cesk_set_iter_t iter;
 	if(NULL == cesk_set_iter(frame->regs[src],&iter))
 	{
@@ -171,6 +221,9 @@ static inline int _cesk_block_handler_instance_of(dalvik_instruction_t* inst, ce
 	{
 		/* use class path */
 		const char* classpath = inst->operands[2].payload.methpath;
+
+		LOG_DEBUG("current operation: is object refered by register %d a instance of %s --> register %d", 
+				  src, classpath, dst);
 		/* try to find the class path */
 		uint32_t addr;
 		while(CESK_STORE_ADDR_NULL != (addr = cesk_set_iter_next(&iter)))
@@ -186,7 +239,7 @@ static inline int _cesk_block_handler_instance_of(dalvik_instruction_t* inst, ce
 				LOG_WARNING("the element in same store is not homogeneric, it's likely a bug");
 				continue;
 			}
-			cesk_object_t* object = *(cesk_object_t**)value->data;
+			cesk_object_t* object = value->pointer.object;
 			if(NULL == object)
 			{
 				LOG_WARNING("can not aquire the object from cell %x", addr);
@@ -218,14 +271,12 @@ static inline int _cesk_block_handler_instance_of(dalvik_instruction_t* inst, ce
 }
 static inline int _cesk_block_handler_instance_get(dalvik_instruction_t* inst, cesk_frame_t* frame)
 {
-	uint32_t dest = inst->operands[0].payload.uint32;
-	uint32_t sour = inst->operands[1].payload.uint32;
+	uint32_t dest = _cesk_block_operand_to_regidx(&inst->operands[0]);
+	uint32_t sour = _cesk_block_operand_to_regidx(&inst->operands[1]);
 	const char* classpath = inst->operands[2].payload.methpath;
 	const char* fieldname = inst->operands[3].payload.methpath;
 	dalvik_type_t* type   = inst->operands[4].payload.type;
-	if(CESK_STORE_ADDR_NULL == dest ||
-	   dest >= frame->size ||
-	   CESK_STORE_ADDR_NULL == sour ||
+	if(dest >= frame->size ||
 	   sour >= frame->size ||
 	   NULL == classpath ||
 	   NULL == fieldname ||
@@ -234,13 +285,19 @@ static inline int _cesk_block_handler_instance_get(dalvik_instruction_t* inst, c
 		LOG_ERROR("invalid instruction instance-get");
 		return -1;
 	}
-	cesk_set_t* sour_set = frame->regs[dest];
+	
+	LOG_DEBUG("current operation: objects refered by register %d , field %s/%s with type %s --> %d",
+			  sour, classpath, fieldname, dalvik_type_to_string(type, NULL, 0), dest);
+	
+	cesk_set_t* sour_set = frame->regs[sour];
 	cesk_set_iter_t iter;
+	
 	if(NULL == cesk_set_iter(sour_set, &iter))
 	{
 		LOG_ERROR("can not aquire iterator for register %d", sour);
 		return -1;
 	}
+
 	uint32_t addr;
 	if(cesk_frame_register_clear(frame, inst, dest) < 0)
 	{
@@ -249,7 +306,58 @@ static inline int _cesk_block_handler_instance_get(dalvik_instruction_t* inst, c
 	}
 	while(CESK_STORE_ADDR_NULL != (addr = cesk_set_iter_next(&iter)))
 	{
-		cesk_frame_register_append_from_store(frame, inst, dest, addr);
+		const cesk_value_t* val_obj = cesk_store_get_ro(frame->store, addr);
+		if(NULL == val_obj)
+		{
+			LOG_WARNING("can not aquire readonly pointer @0x%x", addr);
+			continue;
+		}
+		if(CESK_TYPE_OBJECT != val_obj->type)
+		{
+			LOG_WARNING("can not get a class memeber from an non-class type");
+			continue;
+		}
+		cesk_object_t* object = val_obj->pointer.object;
+
+		uint32_t* paddr = cesk_object_get(object, classpath, fieldname);
+		if(NULL == paddr)
+		{
+			LOG_ERROR("can not get member %s/%s", classpath, fieldname);
+			continue;
+		}
+		if(*paddr == CESK_STORE_ADDR_NULL) continue;
+
+		cesk_frame_register_append_from_store(frame, inst, dest, *paddr);
+	}
+	return 0;
+}
+static inline int _cesk_block_handler_instance_put(dalvik_instruction_t* inst, cesk_frame_t* frame)
+{
+	uint32_t sour = _cesk_block_operand_to_regidx(&inst->operands[0]);
+	uint32_t dest = _cesk_block_operand_to_regidx(&inst->operands[1]);
+	const char* classpath = inst->operands[2].payload.methpath;
+	const char* fieldname = inst->operands[3].payload.methpath;
+	dalvik_type_t* type = inst->operands[4].payload.type;
+	
+	if(dest >= frame->size ||
+	   sour >= frame->size ||
+	   NULL == classpath ||
+	   NULL == fieldname ||
+	   NULL == type)
+	{
+		LOG_ERROR("invalid instruction instance-get");
+		return -1;
+	}
+	cesk_set_iter_t iter;
+	if(NULL == cesk_set_iter(frame->regs[dest], &iter))
+	{
+		LOG_ERROR("can not aquire iterator for register %d", dest); 
+	}
+	/* for each object in the set */
+	uint32_t addr;
+	while(CESK_STORE_ADDR_NULL != (addr = cesk_set_iter_next(&iter)))
+	{
+		
 	}
 	return 0;
 }
@@ -262,6 +370,10 @@ __CB_HANDLER(INSTANCE)
 	else if(inst->flags == DVM_FLAG_INSTANCE_GET)
 	{
 		return _cesk_block_handler_instance_get(inst, output);
+	}
+	else if(inst->flags == DVM_FLAG_INSTANCE_PUT)
+	{
+		return _cesk_block_handler_instance_put(inst, output);
 	}
 	//TODO: other operations
 	LOG_ERROR("unknown instruction flags 0x%x for opcode = INSTANCE", inst->flags);

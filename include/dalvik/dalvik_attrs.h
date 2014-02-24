@@ -19,5 +19,5 @@
 /** @brief parse a sexpression to a attribute 
  *  @return attribute code, otherwise return negative value 
  */
-int dalvik_attrs_from_sexp(sexpression_t* sexp);
+int dalvik_attrs_from_sexp(const sexpression_t* sexp);
 #endif

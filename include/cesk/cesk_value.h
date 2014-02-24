@@ -26,37 +26,15 @@ typedef  struct _cesk_value_t cesk_value_t;
 
 /** @brief type code of the value */
 enum{
-#if 0
-    CESK_TYPE_NUMERIC,   /* we treat char as a numeric value */
-    CESK_TYPE_BOOLEAN,
-#endif
     CESK_TYPE_OBJECT,	/*!<object type*/
     CESK_TYPE_ARRAY,	/*!<array type*/
     CESK_TYPE_SET		/*!<set type*/
 };
 
-#if 0
-#define CESK_VALUE_NUMERIC_POSITIVE 1  /* if a numeric value is positive */
-#define CESK_VALUE_NUMERIC_ZERO 0       /* if a numeric value is zero */
-#define CESK_VALUE_NUMERIC_NEGATIVE -1 /* if a numeric value is negative */
-typedef int8_t cesk_value_numeric_t;    /* a numberic value */
-
-/* abstract boolean */
-#define CESK_VALUE_BOOLEAN_TRUE  1
-#define CESK_VALUE_BOOLEAN_FALSE 0
-typedef int8_t cesk_value_boolean_t;
-
-/* abstract string */
-typedef int8_t cesk_value_string_t[0];
-#endif 
-
 /* abstract object */
 #include <cesk/cesk_object.h>
 
-/** @brief abstract array */
-typedef struct {
-    cesk_set_t* values;  /*!<the value set of the array */
-} cesk_value_array_t;
+/* TODO: array support */
 
 /* set */
 #include <cesk/cesk_set.h>
@@ -69,7 +47,11 @@ typedef struct _cesk_value_t {
     hashval_t   hashcode;   /*!<the hashcode */
     struct _cesk_value_t 
                 *prev, *next; /*!<the previous and next pointer used by value list */
-    char        data[0];    /*!<actual data payload */
+	union {
+		void*	     _void;	/*!<as a void pointer */
+		cesk_set_t*    set;   /*!<as a set */
+		cesk_object_t* object; /*!<as an object */
+	} pointer; /*!<actuall data pointer*/
 } cesk_value_t; 
 
 
@@ -111,7 +93,7 @@ cesk_value_t* cesk_value_empty_set();
 /** @brief fork the value, inorder to modify 
  *  @return the copy of the store
  */
-cesk_value_t* cesk_value_fork(cesk_value_t* value);
+cesk_value_t* cesk_value_fork(const cesk_value_t* value);
 /** @brief increase the reference counter 
  *	@return nothing
  * */
@@ -128,15 +110,15 @@ void cesk_value_decref(cesk_value_t* value);
  *
  * @return hash code
  */
-hashval_t cesk_value_hashcode(cesk_value_t* value);
+hashval_t cesk_value_hashcode(const cesk_value_t* value);
 /** @brief non-inremental style hash code
  *  @return hash code
  */
-hashval_t cesk_value_compute_hashcode(cesk_value_t* value);
+hashval_t cesk_value_compute_hashcode(const cesk_value_t* value);
 
 /* @brief compare, the compare fuction is also based on the addr compare 
  * @return 1 for two value are equal
  */
-int cesk_value_equal(cesk_value_t* first, cesk_value_t* second);
+int cesk_value_equal(const cesk_value_t* first, const cesk_value_t* second);
 
 #endif /* __CESK_VALUE_T__ */

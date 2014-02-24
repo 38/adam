@@ -26,6 +26,6 @@ typedef struct{
  * memberdict finalization function is called 
  * @return the class defination
  */
-dalvik_class_t* dalvik_class_from_sexp(sexpression_t* sexp);
+dalvik_class_t* dalvik_class_from_sexp(const sexpression_t* sexp);
 
 #endif
