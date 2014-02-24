@@ -1181,8 +1181,8 @@ void dalvik_instruction_free(dalvik_instruction_t* buf)
         {
             int j;
             for(j = 0; buf->operands[i].payload.typelist[j] != NULL; j ++)
-                dalvik_type_free(buf->operands[i].payload.typelist[j]);
-            free(buf->operands[i].payload.typelist);
+                dalvik_type_free((dalvik_type_t*)buf->operands[i].payload.typelist[j]);
+            free((dalvik_type_t*)buf->operands[i].payload.typelist);
         }
     }
 }
@@ -1215,7 +1215,7 @@ static inline int _dalvik_instruction_operand_const_to_string(const dalvik_opera
             __PR("%s", op->payload.field);
             break;
         case DVM_OPERAND_TYPE_TYPELIST:
-            __PR("%s", dalvik_type_list_to_string((dalvik_type_t * const *)op->payload.typelist, NULL, 0));
+            __PR("%s", dalvik_type_list_to_string(op->payload.typelist, NULL, 0));
             break;
         case DVM_OPERAND_TYPE_LABEL:
             __PR("L%u", op->payload.labelid);

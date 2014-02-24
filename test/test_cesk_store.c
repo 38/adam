@@ -21,7 +21,8 @@ int main()
 
     uint32_t    addr = cesk_store_allocate(&store2, ins, 0, NULL);
 
-    cesk_store_attach(store2, addr, objval);  //object val 
+    cesk_store_attach(store2, addr, objval);  //object val
+	cesk_store_release_rw(store2, addr);
     
     cesk_store_t* store3 = cesk_store_fork(store2);
 
@@ -30,6 +31,8 @@ int main()
     LOG_ERROR("hash code of store3 : %x", cesk_store_hashcode(store3));
 
     const cesk_value_t* value_ro = cesk_store_get_ro(store3, addr);
+    
+	assert(1 == cesk_store_equal(store2, store3));
 
     cesk_value_t* value_rw = cesk_store_get_rw(store3, addr);
 
@@ -40,16 +43,18 @@ int main()
     LOG_DEBUG("object dump: %s", cesk_object_to_string(object, NULL, 0));
     LOG_DEBUG("value hash: %x", cesk_value_hashcode(value_rw));
     LOG_DEBUG("object hash: %x", cesk_object_hashcode(object));
-    assert(1 == cesk_store_equal(store2, store3));
     *cesk_object_get(object, stringpool_query("antlr/ANTLRTokdefParser"), stringpool_query("antlrTool")) = 0;
-    LOG_DEBUG("object dump: %s", cesk_object_to_string(object, NULL, 0));
+    
+	cesk_store_release_rw(store3, addr);
+    
+	LOG_DEBUG("object dump: %s", cesk_object_to_string(object, NULL, 0));
     LOG_DEBUG("value hash: %x", cesk_value_hashcode(value_rw));
     LOG_DEBUG("object hash: %x", cesk_object_hashcode(object));
 
-    assert(0 == cesk_store_equal(store2, store3));
+    
+	assert(0 == cesk_store_equal(store2, store3));
     assert(0 == cesk_store_equal(store, store2));
 
-    cesk_store_release_rw(store3, addr);
 
     LOG_ERROR("hash code of store1 : %x", cesk_store_hashcode(store));
     LOG_ERROR("hash code of store2 : %x", cesk_store_hashcode(store2));

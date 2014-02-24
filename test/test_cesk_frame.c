@@ -8,11 +8,11 @@ int main()
 	/* build a new frame with 32 registers */
 	cesk_frame_t* frame = cesk_frame_new(32);
 	/* a stub instruction that used for testing */
-	dalvik_instruction_t* inst = dalvik_instruction_get(123);
+	const dalvik_instruction_t* inst = dalvik_instruction_get(123);
 	/* another stub instruction */
-	dalvik_instruction_t* inst2 = dalvik_instruction_get(124);
+	const dalvik_instruction_t* inst2 = dalvik_instruction_get(124);
 	
-	dalvik_instruction_t* inst3 = dalvik_instruction_get(125);
+	const dalvik_instruction_t* inst3 = dalvik_instruction_get(125);
 	/* the class path we want to set */
 	const char* classpath = stringpool_query("antlr/ANTLRLexer");
 	const char* superclass = stringpool_query("antlr/CharScanner");
