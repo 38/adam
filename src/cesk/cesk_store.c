@@ -181,7 +181,7 @@ cesk_store_t* cesk_store_fork(const cesk_store_t* store)
     LOG_DEBUG("a store of %d entities is being forked, %zu bytes copied", ret->num_ent, size);
     return ret;
 }
-const cesk_value_t* cesk_store_get_ro(const cesk_store_t* store, uint32_t addr)
+cesk_value_const_t* cesk_store_get_ro(const cesk_store_t* store, uint32_t addr)
 {
     uint32_t block_idx = addr / CESK_STORE_BLOCK_NSLOTS;
     uint32_t offset    = addr % CESK_STORE_BLOCK_NSLOTS;
@@ -196,7 +196,7 @@ const cesk_value_t* cesk_store_get_ro(const cesk_store_t* store, uint32_t addr)
         LOG_ERROR("opps, it should not happen");
         return NULL;
     }
-    return block->slots[offset].value;
+    return (cesk_value_const_t*)block->slots[offset].value;
 }
 int cesk_store_is_reuse(const cesk_store_t* store, uint32_t addr)
 {

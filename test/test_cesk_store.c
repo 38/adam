@@ -30,13 +30,13 @@ int main()
     LOG_ERROR("hash code of store2 : %x", cesk_store_hashcode(store2));
     LOG_ERROR("hash code of store3 : %x", cesk_store_hashcode(store3));
 
-    const cesk_value_t* value_ro = cesk_store_get_ro(store3, addr);
+    cesk_value_const_t* value_ro = cesk_store_get_ro(store3, addr);
     
 	assert(1 == cesk_store_equal(store2, store3));
 
     cesk_value_t* value_rw = cesk_store_get_rw(store3, addr);
 
-    assert(value_ro != value_rw);
+    assert((void*)value_ro != (void*)value_rw);
 
     //*value_rw = cesk_value_from_classpath(stringpool_query("antlr/ANTLRLexer"));
     cesk_object_t* object = value_rw->pointer.object;

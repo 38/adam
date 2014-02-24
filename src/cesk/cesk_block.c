@@ -228,7 +228,7 @@ static inline int _cesk_block_handler_instance_of(const dalvik_instruction_t* in
 		uint32_t addr;
 		while(CESK_STORE_ADDR_NULL != (addr = cesk_set_iter_next(&iter)))
 		{
-			const cesk_value_t* value = cesk_store_get_ro(frame->store, addr);
+			cesk_value_const_t* value = cesk_store_get_ro(frame->store, addr);
 			if(NULL == value)
 			{
 				LOG_WARNING("can not get value @ address %x", addr);
@@ -239,7 +239,7 @@ static inline int _cesk_block_handler_instance_of(const dalvik_instruction_t* in
 				LOG_WARNING("the element in same store is not homogeneric, it's likely a bug");
 				continue;
 			}
-			cesk_object_t* object = value->pointer.object;
+			const cesk_object_t* object = value->pointer.object;
 			if(NULL == object)
 			{
 				LOG_WARNING("can not aquire the object from cell %x", addr);
@@ -306,7 +306,7 @@ static inline int _cesk_block_handler_instance_get(const dalvik_instruction_t* i
 	}
 	while(CESK_STORE_ADDR_NULL != (addr = cesk_set_iter_next(&iter)))
 	{
-		const cesk_value_t* val_obj = cesk_store_get_ro(frame->store, addr);
+		cesk_value_const_t* val_obj = cesk_store_get_ro(frame->store, addr);
 		if(NULL == val_obj)
 		{
 			LOG_WARNING("can not aquire readonly pointer @0x%x", addr);
@@ -317,17 +317,16 @@ static inline int _cesk_block_handler_instance_get(const dalvik_instruction_t* i
 			LOG_WARNING("can not get a class memeber from an non-class type");
 			continue;
 		}
-		cesk_object_t* object = val_obj->pointer.object;
+		const cesk_object_t* object = val_obj->pointer.object;
 
-		uint32_t* paddr = cesk_object_get(object, classpath, fieldname);
-		if(NULL == paddr)
+		uint32_t paddr;
+		if(cesk_object_get_addr(object, classpath, fieldname, &paddr) < 0)
 		{
 			LOG_ERROR("can not get member %s/%s", classpath, fieldname);
 			continue;
 		}
-		if(*paddr == CESK_STORE_ADDR_NULL) continue;
-
-		cesk_frame_register_append_from_store(frame, inst, dest, *paddr);
+		if(paddr == CESK_STORE_ADDR_NULL) continue;
+		cesk_frame_register_append_from_store(frame, inst, dest, paddr);
 	}
 	return 0;
 }

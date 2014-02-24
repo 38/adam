@@ -106,13 +106,13 @@ static inline void _cesk_frame_store_dfs(uint32_t addr,cesk_store_t* store, uint
     if(1 == BITAT(f, addr)) return;
     /* set the flag */
     f[addr/8] |= (1<<(addr%8));
-    const cesk_value_t* val = cesk_store_get_ro(store, addr);
+    cesk_value_const_t* val = cesk_store_get_ro(store, addr);
     if(NULL == val) return;
     cesk_set_iter_t iter_buf;
     cesk_set_iter_t* iter;
     uint32_t next_addr;
-    cesk_object_struct_t* this;
-    cesk_object_t* obj;
+    const cesk_object_struct_t* this;
+    const cesk_object_t* obj;
     int i;
     switch(val->type)
     {
@@ -278,7 +278,7 @@ int cesk_frame_register_load_from_store(cesk_frame_t* frame, const dalvik_instru
 		return cesk_frame_register_clear(frame, inst, dest);
 	}
 
-	const cesk_value_t* value = cesk_store_get_ro(frame->store, src_addr);
+	cesk_value_const_t* value = cesk_store_get_ro(frame->store, src_addr);
 	if(NULL == value)
 	{
 		LOG_ERROR("can not aquire the value @ %x", src_addr);
@@ -290,7 +290,7 @@ int cesk_frame_register_load_from_store(cesk_frame_t* frame, const dalvik_instru
 		return -1;
 	}
 	/* get the set object */
-	cesk_set_t* set = value->pointer.set;
+	const cesk_set_t* set = value->pointer.set;
 
 	/* delete the old value first */
 	if(_cesk_frame_free_reg(frame, dest) < 0)
@@ -337,7 +337,7 @@ int cesk_frame_register_append_from_store(cesk_frame_t* frame, const dalvik_inst
 		LOG_ERROR("invalid arguments for append_from_store");
 		return -1;
 	}
-	const cesk_value_t* value = cesk_store_get_ro(frame->store, src_addr);
+	cesk_value_const_t* value = cesk_store_get_ro(frame->store, src_addr);
 	
 	if(NULL == value)
 	{
@@ -350,7 +350,7 @@ int cesk_frame_register_append_from_store(cesk_frame_t* frame, const dalvik_inst
 		return -1;
 	}
 	/* get the set object */
-	cesk_set_t* set = value->pointer.set;
+	const cesk_set_t* set = value->pointer.set;
 
 	cesk_set_iter_t iter;
 
@@ -430,7 +430,7 @@ int cesk_frame_store_object_get(cesk_frame_t* frame,
 		LOG_ERROR("invalid arguments");
 		return -1;
 	}
-	const cesk_value_t* value = cesk_store_get_ro(frame->store, src_addr);
+	cesk_value_const_t* value = cesk_store_get_ro(frame->store, src_addr);
 	if(NULL == value)
 	{
 		LOG_ERROR("can not find object @%x", src_addr);
@@ -442,10 +442,10 @@ int cesk_frame_store_object_get(cesk_frame_t* frame,
 		return -1;
 	}
 
-	cesk_object_t* object = value->pointer.object;
+	const cesk_object_t* object = value->pointer.object;
 
-	uint32_t* paddr = cesk_object_get(object, classpath, field);
-	if(NULL == paddr)
+	uint32_t addr;
+	if(cesk_object_get_addr(object, classpath, field, &addr) < 0)
 	{
 		LOG_ERROR("can not find the field %s/%s", classpath, field);
 		return -1;
@@ -453,7 +453,7 @@ int cesk_frame_store_object_get(cesk_frame_t* frame,
 	/* load the value */
 
 	//return cesk_frame_register_load(frame, inst ,dst_reg, *paddr);
-	return cesk_frame_register_load_from_store(frame, inst, dst_reg, *paddr);
+	return cesk_frame_register_load_from_store(frame, inst, dst_reg, addr);
 }
 int cesk_frame_store_object_put(cesk_frame_t* frame, 
 								const dalvik_instruction_t* inst, 
@@ -603,7 +603,7 @@ uint32_t cesk_frame_store_new_object(cesk_frame_t* frame, const dalvik_instructi
 		return CESK_STORE_ADDR_NULL;
 	}
 	
-	const cesk_value_t* value;
+	cesk_value_const_t* value;
 
 	if((value = cesk_store_get_ro(frame->store, addr)) != NULL)
 	{
@@ -613,7 +613,7 @@ uint32_t cesk_frame_store_new_object(cesk_frame_t* frame, const dalvik_instructi
 			LOG_ERROR("can not attach an object to a non-object address");
 			return CESK_STORE_ADDR_NULL;
 		}
-		cesk_object_t* object = value->pointer.object;
+		const cesk_object_t* object = value->pointer.object;
 		if(NULL == object)
 		{
 			LOG_ERROR("invalid value");
