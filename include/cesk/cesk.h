@@ -11,7 +11,16 @@
 #include <cesk/cesk_frame.h>
 #include <cesk/cesk_block.h>
 #include <cesk/cesk_addr_arithmetic.h>
-
+/**
+ * @file cesk.h
+ * @brief cesk analyzer
+ */
+/** @brief initialize 
+ *  @return nothing
+ */
 void cesk_init(void);
+/** @brief finalize 
+ *  @return nothing
+ */
 void cesk_finalize(void);
 #endif
