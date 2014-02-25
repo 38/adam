@@ -141,6 +141,7 @@ static inline void _cesk_frame_store_dfs(uint32_t addr,cesk_store_t* store, uint
 }
 int cesk_frame_gc(cesk_frame_t* frame)
 {
+	LOG_DEBUG("start run gc on frame@%p", frame);
     cesk_store_t* store = frame->store;
     size_t nslot = store->nblocks * CESK_STORE_BLOCK_NSLOTS;
     uint8_t *fb = (uint8_t*)malloc(nslot / 8 + 1);     /* the flag bits */
@@ -673,4 +674,76 @@ uint32_t cesk_frame_store_new_array(cesk_frame_t* frame, const dalvik_instructio
 {
 	LOG_TRACE("fixme : array support");
 	return CESK_STORE_ADDR_NULL;
+}
+/**
+ * @brief load content of set to an array
+ * @return number of address loaded
+ */
+static inline int _cesk_frame_load_set(const cesk_set_t* set, uint32_t* buf, size_t size)
+{
+	cesk_set_iter_t iter;
+	if(NULL == cesk_set_iter(set, &iter))
+	{
+		LOG_ERROR("can not aquire iterator the set");
+		return -1;
+	}
+	int ret = 0;
+	uint32_t addr;
+	while(CESK_STORE_ADDR_NULL != (addr = cesk_set_iter_next(&iter)) && ret < size)
+	{
+		buf[ret++] = addr;
+	}
+	return ret;
+}
+int cesk_frame_register_peek(const cesk_frame_t* frame, uint32_t regid, uint32_t* buf, size_t size)
+{
+	if(NULL == frame || regid >= frame->size || NULL == buf)
+	{
+		LOG_ERROR("invalid argument");
+		return -1;
+	}
+	return _cesk_frame_load_set(frame->regs[regid], buf, size);
+}
+int cesk_frame_register_peek_object(const cesk_frame_t* frame, 
+		uint32_t addr, 
+		const char* classpath, const char* fieldname, 
+		uint32_t* buf, size_t size)
+{
+	if(frame == NULL || addr >= frame->size ||
+	   NULL == classpath || NULL == fieldname ||
+	   NULL == buf)
+	{
+		LOG_ERROR("invalid argument");
+		return -1;
+	}
+	cesk_value_const_t* value = cesk_store_get_ro(frame->store, addr);
+	if(NULL == value)
+	{
+		LOG_ERROR("can not get value @0x%x", addr);
+		return -1;
+	}
+	if(CESK_TYPE_OBJECT != value->type)
+	{
+		LOG_ERROR("type error, an object expected @0x%x", addr);
+		return -1;
+	}
+	const cesk_object_t* object = value->pointer.object;
+	if(NULL == object)
+	{
+		LOG_ERROR("bad object pointer");
+		return -1;
+	}
+	uint32_t faddr;
+	if(cesk_object_get_addr(object, classpath, fieldname, &faddr) < 0)
+	{
+		LOG_ERROR("can not get field %s/%s of object @0x%x", classpath, fieldname, addr);
+		return -1;
+	}
+	cesk_value_const_t* set_value = cesk_store_get_ro(frame->store, faddr);
+	if(CESK_TYPE_SET != value->type)
+	{
+		LOG_ERROR("bad set pointer");
+		return -1;
+	}
+	return _cesk_frame_load_set(set_value->pointer.set, buf, size);
 }

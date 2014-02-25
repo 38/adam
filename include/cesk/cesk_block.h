@@ -29,9 +29,10 @@ typedef struct {
  */
 cesk_block_t* cesk_block_graph_new(const dalvik_block_t* entry);
 
-/** @brief analysis one block
- * @param block the block to be analyzed 
- * @return 1 means the output changed, 0 means unchangede, -1 indicates errors */
-int cesk_block_analyze(cesk_block_t* block);
+/** @brief interpret a signle block 
+ *  @param  block  
+ *  @return the output frame
+ */
+cesk_frame_t* cesk_block_interpret(cesk_block_t* block);
 
 #endif

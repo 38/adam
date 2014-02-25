@@ -205,4 +205,27 @@ int cesk_frame_register_load_from_store(cesk_frame_t* frame, const dalvik_instru
  * @return the result of the opration, >=0 means success
  */
 int cesk_frame_register_append_from_store(cesk_frame_t* frame, const dalvik_instruction_t* inst, uint32_t dest, uint32_t src_addr);
+/** 
+ *  @brief return all possible values of a register in an array (for debugging)
+ *  @param frame the frame object
+ *  @param regid register index
+ *  @param buf   output buffer
+ *  @param size	 buffer size
+ *  @return the number of values returned, <0 when error 
+ */
+int cesk_frame_register_peek(const cesk_frame_t* frame, uint32_t regid, uint32_t* buf, size_t size);
+/** 
+ *  @brief get all possible value of a class member in store
+ *  @param frame frame object
+ *  @param addr store address
+ *  @param classpath class path of the object
+ *  @param fieldname name of the field
+ *  @param buf output buffer
+ *  @param size buffer size
+ *  @return the number of value in result, < 0 error
+ */
+int cesk_frame_store_peek_field(const cesk_frame_t* frame, 
+		uint32_t addr, 
+		const char* classpath, const char* fieldname, 
+		uint32_t* buf, size_t size);
 #endif /* __CESK_FRAME_H__ */
