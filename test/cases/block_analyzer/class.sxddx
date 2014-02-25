@@ -1,0 +1,22 @@
+;this file contains test cases for the intra-block analyzer
+(class (attrs public) testClass
+ (super java/lang/object)
+ (source "testClass.java")
+ (field (attrs public) value1 int)
+ (field (attrs public) value2 int)
+ (field (attrs public) value3 int)
+ (method (attrs public) case1() void 
+  (limit registers 20)
+  (line 1)
+  ; assume v0 is 'this' pointer
+  ; test the cmp instruction
+  (const v1 100)
+  (const v2 200)
+  (cmp-long v3 v1 v2)
+  (iput v3 v0 testClass.value1 int)
+  (iget v4 v0 testClass.value1 int)
+  (return-void)
+  ;check output frame
+  ;v1 pos v2 pos v3 neg v4 neg 
+ )
+)
