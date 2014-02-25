@@ -4,7 +4,7 @@
 int main()
 {
     adam_init();
-    dalvik_loader_from_directory("../testdata/AndroidAntlr");
+    dalvik_loader_from_directory("test/data/AndroidAntlr");
     dalvik_loader_summary();
     
     /* test creating a new object */

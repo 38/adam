@@ -16,18 +16,25 @@
 #include <dalvik/dalvik_instruction.h>
 #include <cesk/cesk_frame.h>
 
+typedef struct _cesk_block_t cesk_block_t;
 /** @brief data type for a block in block graph */
-typedef struct {
+struct _cesk_block_t{
     const dalvik_block_t* code_block;      /*!<the code block */
     cesk_frame_t*   input;      /*!<input frame */
-    cesk_frame_t*   fanout[0];  /*!<output frames, contains block->nbranches possible branch */
-} cesk_block_t;
+    cesk_block_t*   fanout[0];  /*!<output blocks, contains block->nbranches possible branch */
+};
 
 /** @brief build a new analyzer block graph coresponding to the code block graph 
  * @param entry the entry code block of the function
  * @return the analysis block graph build from the code block graph. NULL indicates error 
  */
 cesk_block_t* cesk_block_graph_new(const dalvik_block_t* entry);
+/**
+ * @brief free a block graph
+ * @param graph 
+ * @return nothing
+ */
+void cesk_block_graph_free(cesk_block_t* graph);
 
 /** @brief interpret a signle block 
  *  @param  block  

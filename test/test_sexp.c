@@ -3,11 +3,11 @@
 #include <assert.h>
 #include <stringpool.h>
 #include <string.h>
+#include <adam.h>
 int main()
 {
-    stringpool_init(1027);
-    dalvik_tokens_init();
-    sexpression_t* exp;
+    adam_init();
+	sexpression_t* exp;
     assert(0 == strcmp("", sexp_parse("move", &exp)));
     assert(exp->type == SEXP_TYPE_LIT);
     assert(*(const char**)exp->data == DALVIK_TOKEN_MOVE);
@@ -54,5 +54,6 @@ int main()
     assert(0 == strcmp("", sexp_parse("(java/utils/xxxxx)", &exp)));
     assert(0 == strcmp("java/utils/xxxxx",sexp_get_object_path(exp, NULL)));
     sexp_free(exp);
+	adam_finalize();
     return 0;
 }

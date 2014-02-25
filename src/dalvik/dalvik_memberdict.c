@@ -63,6 +63,7 @@ void dalvik_memberdict_finalize()
                 default:
                     LOG_ERROR("unknown node type in member dict, do not know how to free it");
             }
+			free(old);
         }
     }
 }

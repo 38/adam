@@ -61,13 +61,39 @@ cesk_block_t* cesk_block_graph_new(const dalvik_block_t* entry)
             int j;
             for(j = 0; j < _cesk_block_buf[i]->code_block->nbranches; j ++)
             {
+				_cesk_block_buf[i]->fanout[j] = NULL;
                 if(_cesk_block_buf[i]->code_block->branches[j].disabled) continue;
 				/* the index of next block */
 				uint32_t next_block = _cesk_block_buf[i]->code_block->branches[j].block->index;
-                _cesk_block_buf[i]->fanout[j]  = _cesk_block_buf[next_block]->input;
+                _cesk_block_buf[i]->fanout[j]  = _cesk_block_buf[next_block];
             }
         }
     return _cesk_block_buf[entry->index];
+}
+void _cesk_block_graph_free_imp(cesk_block_t* node)
+{
+	if(NULL == node->input)
+	{
+		/* the node is already visited */
+		return;
+	}
+	_cesk_block_buf[_cesk_block_max_idx++] = node;
+	int i;
+	cesk_frame_free(node->input);
+	node->input = NULL;
+	for(i = 0; i < node->code_block->nbranches; i ++)
+	{
+		if(node->fanout[i] != NULL)
+			_cesk_block_graph_free_imp(node->fanout[i]);
+	}
+}
+void cesk_block_graph_free(cesk_block_t* graph)
+{
+	_cesk_block_max_idx = 0;
+	int i;
+	_cesk_block_graph_free_imp(graph);
+	for(i = 0; i < _cesk_block_max_idx; i ++)
+		free(_cesk_block_buf[i]);
 }
 #define __CB_HANDLER(name) static inline int _cesk_block_interpreter_handler_##name(const dalvik_instruction_t* inst, cesk_frame_t* output)
 #define __CB_INST(name) case DVM_##name: rc = _cesk_block_interpreter_handler_##name(inst, frame); break
@@ -364,6 +390,25 @@ static inline int _cesk_block_handler_instance_put(const dalvik_instruction_t* i
 	}
 	return 0;
 }
+static inline int _cesk_block_handler_instance_new(const dalvik_instruction_t* inst, cesk_frame_t* frame)
+{
+	uint32_t dest = _cesk_block_operand_to_regidx(inst->operands + 0);
+	const char* classpath = inst->operands[1].payload.methpath;
+	if(NULL == classpath || dest >= frame->size)
+	{
+		LOG_ERROR("invalid argument");
+		return -1;
+	}
+	LOG_DEBUG("going to create a new instance of class %s", classpath);
+	uint32_t objaddr = cesk_frame_store_new_object(frame, inst, classpath);
+	if(objaddr == CESK_STORE_ADDR_NULL)
+	{
+		LOG_ERROR("can not create new instance of %s", classpath);
+		return -1;
+	}
+	cesk_frame_register_load(frame, inst , dest, objaddr);
+	return 0;
+}
 __CB_HANDLER(INSTANCE)
 {
 	switch(inst->flags)
@@ -374,7 +419,8 @@ __CB_HANDLER(INSTANCE)
 			return _cesk_block_handler_instance_get(inst, output);
 		case DVM_FLAG_INSTANCE_PUT:
 			return _cesk_block_handler_instance_put(inst, output);
-		
+		case DVM_FLAG_INSTANCE_NEW:
+			return _cesk_block_handler_instance_new(inst, output);
 		case DVM_FLAG_INSTANCE_SPUT:
 		case DVM_FLAG_INSTANCE_SGET:
 			/* TODO */
@@ -419,7 +465,45 @@ __CB_HANDLER(UNOP)
 }
 __CB_HANDLER(BINOP)
 {
-	return 0;
+	uint32_t dest = _cesk_block_operand_to_regidx(inst->operands + 0);
+	uint32_t sour1 = _cesk_block_operand_to_addr(output, inst->operands + 1);
+	uint32_t sour2 = _cesk_block_operand_to_addr(output, inst->operands + 2);
+	uint32_t res = 0;
+	switch(inst->flags)
+	{
+		case DVM_FLAG_BINOP_ADD:
+			res = cesk_addr_arithmetic_add(sour1, sour2);
+			break;
+		case DVM_FLAG_BINOP_SUB:
+			res = cesk_addr_arithmetic_sub(sour1, sour2);
+			break;
+		case DVM_FLAG_BINOP_MUL:
+			res = cesk_addr_arithmetic_mul(sour1, sour2);
+			break;
+		case DVM_FLAG_BINOP_DIV:
+			res = cesk_addr_arithmetic_div(sour1, sour2);
+			break;
+		case DVM_FLAG_BINOP_REM:
+			res = CESK_STORE_ADDR_POS | CESK_STORE_ADDR_ZERO;   /* here we suppose that result of rem is non-negative */
+			break;
+		case DVM_FLAG_BINOP_AND:
+			res = cesk_addr_arithmetic_bitwise_and(sour1, sour2);
+			break;
+		case DVM_FLAG_BINOP_OR:
+			res = cesk_addr_arithmetic_bitwise_or(sour1, sour2);
+			break;
+		case DVM_FLAG_BINOP_XOR:
+			res = cesk_addr_arithmetic_bitwise_xor(sour1, sour2);
+			break;
+		case DVM_FLAG_BINOP_SHR:
+		case DVM_FLAG_BINOP_SHL:
+		//case DVM_FLAG_BINOP_USHR: TODO
+			res = CESK_STORE_ADDR_ZERO | CESK_STORE_ADDR_NEG | CESK_STORE_ADDR_POS;
+		default:
+			LOG_ERROR("unknown flag, bad instruction");
+			return -1;
+	}
+	return cesk_frame_register_load(output, inst, dest, res);
 }
 cesk_frame_t* cesk_block_interpret(cesk_block_t* blk)
 {

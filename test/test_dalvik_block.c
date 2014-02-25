@@ -3,7 +3,7 @@
 int main()
 {
     adam_init();
-    dalvik_loader_from_directory("../testdata/AndroidAntlr");
+    dalvik_loader_from_directory("test/data/AndroidAntlr");
     sexpression_t* sexp;
     sexp_parse("[object java/lang/String]", &sexp);
     dalvik_type_t *type = dalvik_type_from_sexp(sexp);

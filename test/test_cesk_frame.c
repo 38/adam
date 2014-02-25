@@ -4,7 +4,7 @@ int main()
 {
 	adam_init();
 	/* load the program */
-	dalvik_loader_from_directory("../testdata/AndroidAntlr");
+	dalvik_loader_from_directory("test/data/AndroidAntlr");
 	/* build a new frame with 32 registers */
 	cesk_frame_t* frame = cesk_frame_new(32);
 	/* a stub instruction that used for testing */
