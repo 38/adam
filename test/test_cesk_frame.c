@@ -257,6 +257,7 @@ int main()
 	assert(0 == cesk_store_get_refcnt(frame->store, obj2));
 	assert(0 == cesk_store_get_refcnt(frame->store, obj3));
 
+
 	assert(cesk_frame_hashcode(frame) == prev_hash);
 	
 	cesk_frame_free(frame);

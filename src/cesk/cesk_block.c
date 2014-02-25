@@ -185,9 +185,9 @@ static inline uint32_t _cesk_block_operand_to_addr(cesk_frame_t* frame,const dal
 }
 __CB_HANDLER(CMP)
 {
-	uint32_t dest = CESK_FRAME_RESULT_REG;
-	uint32_t val1 = _cesk_block_operand_to_addr(output, inst->operands);
-	uint32_t val2 = _cesk_block_operand_to_addr(output, inst->operands + 1);
+	uint32_t dest = _cesk_block_operand_to_regidx(inst->operands + 0);
+	uint32_t val1 = _cesk_block_operand_to_addr(output, inst->operands + 1);
+	uint32_t val2 = _cesk_block_operand_to_addr(output, inst->operands + 2);
 
 	LOG_DEBUG("current operation: compare address@0x%x to address@0x%x", val1, val2);
 
@@ -347,36 +347,78 @@ static inline int _cesk_block_handler_instance_put(const dalvik_instruction_t* i
 		LOG_ERROR("invalid instruction instance-get");
 		return -1;
 	}
-	cesk_set_iter_t iter;
-	if(NULL == cesk_set_iter(frame->regs[dest], &iter))
+	cesk_set_iter_t dest_iter;
+	if(NULL == cesk_set_iter(frame->regs[dest], &dest_iter))
 	{
 		LOG_ERROR("can not aquire iterator for register %d", dest); 
 	}
-	/* for each object in the set */
-	uint32_t addr;
-	while(CESK_STORE_ADDR_NULL != (addr = cesk_set_iter_next(&iter)))
+	/* for each object in the destination set */
+	uint32_t dest_addr;
+	while(CESK_STORE_ADDR_NULL != (dest_addr = cesk_set_iter_next(&dest_iter)))
 	{
-		
+		if(cesk_frame_store_object_put(frame, inst, dest_addr, classpath, fieldname, sour) < 0)
+		{
+			LOG_WARNING("can not put value of register %d to field %s/%s @ address %x", sour, classpath, fieldname, dest_addr);
+		}
 	}
 	return 0;
 }
 __CB_HANDLER(INSTANCE)
 {
-	if(inst->flags == DVM_FLAG_INSTANCE_OF)
+	switch(inst->flags)
 	{
-		return _cesk_block_handler_instance_of(inst, output);
+		case DVM_FLAG_INSTANCE_OF:
+			return _cesk_block_handler_instance_of(inst, output);
+		case DVM_FLAG_INSTANCE_GET:
+			return _cesk_block_handler_instance_get(inst, output);
+		case DVM_FLAG_INSTANCE_PUT:
+			return _cesk_block_handler_instance_put(inst, output);
+		
+		case DVM_FLAG_INSTANCE_SPUT:
+		case DVM_FLAG_INSTANCE_SGET:
+			/* TODO */
+			LOG_TRACE("fixme : static variable table & static instruction support");
+			return 0;
 	}
-	else if(inst->flags == DVM_FLAG_INSTANCE_GET)
-	{
-		return _cesk_block_handler_instance_get(inst, output);
-	}
-	else if(inst->flags == DVM_FLAG_INSTANCE_PUT)
-	{
-		return _cesk_block_handler_instance_put(inst, output);
-	}
-	//TODO: other operations
 	LOG_ERROR("unknown instruction flags 0x%x for opcode = INSTANCE", inst->flags);
 	return -1;
+}
+__CB_HANDLER(ARRAY)
+{
+	LOG_TRACE("fixme: array support");
+	return 0;
+}
+__CB_HANDLER(UNOP)
+{
+	uint32_t sour_addr = _cesk_block_operand_to_addr(output, inst->operands + 0);
+	uint32_t dest_reg  = _cesk_block_operand_to_regidx(inst->operands + 1);
+	if(sour_addr == CESK_STORE_ADDR_CONST_PREFIX || sour_addr == CESK_STORE_ADDR_NULL)
+	{
+		LOG_ERROR("can not perforam unop");
+		return -1;
+	}
+	uint32_t res_addr = CESK_STORE_ADDR_CONST_PREFIX;
+	switch(inst->flags)
+	{
+		case DVM_FLAG_UOP_NEG:
+			res_addr = cesk_addr_arithmetic_neg(sour_addr);
+			break;
+		case DVM_FLAG_UOP_NOT:
+			res_addr = cesk_addr_arithmetic_not(sour_addr);
+			break;
+		case DVM_FLAG_UOP_TO:
+			res_addr = sour_addr;
+	}
+	if(res_addr == CESK_STORE_ADDR_CONST_PREFIX)
+	{
+		LOG_ERROR("invalid result address");
+		return -1;
+	}
+	return cesk_frame_register_load_from_store(output, inst, dest_reg, res_addr);
+}
+__CB_HANDLER(BINOP)
+{
+	return 0;
 }
 static inline int _cesk_block_interpret(cesk_block_t* blk)
 {
@@ -399,6 +441,9 @@ static inline int _cesk_block_interpret(cesk_block_t* blk)
 			   __CB_INST(THROW);
 			   __CB_INST(CMP);
 			   __CB_INST(INSTANCE);
+			   __CB_INST(ARRAY);
+			   __CB_INST(UNOP);
+			   __CB_INST(BINOP);
 			   /* TODO: other instructions */
         }
         if(rc < 0)
@@ -406,6 +451,7 @@ static inline int _cesk_block_interpret(cesk_block_t* blk)
             LOG_ERROR("error during interpert this instruction");
         }
     }
+
     return 0;
 }
 #undef __CB_HANDLER

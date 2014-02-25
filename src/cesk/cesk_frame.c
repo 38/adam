@@ -54,7 +54,7 @@ cesk_frame_t* cesk_frame_fork(const cesk_frame_t* frame)
         return 0;
     }
     int i;
-    cesk_frame_t* ret = (cesk_frame_t*)(sizeof(cesk_frame_t) + frame->size * sizeof(cesk_set_t*));
+    cesk_frame_t* ret = (cesk_frame_t*)malloc(sizeof(cesk_frame_t) + frame->size * sizeof(cesk_set_t*));
     if(NULL == ret)
     {
         LOG_ERROR("can not allocate memory");
@@ -63,7 +63,7 @@ cesk_frame_t* cesk_frame_fork(const cesk_frame_t* frame)
     ret->size = frame->size;
     for(i = 0; i < frame->size; i ++)
     {
-        ret->regs[i] = cesk_set_fork(ret->regs[i]);
+        ret->regs[i] = cesk_set_fork(frame->regs[i]);
     }
     ret->store = cesk_store_fork(frame->store);
     return ret;
@@ -569,6 +569,8 @@ int cesk_frame_store_object_put(cesk_frame_t* frame,
 	uint32_t tmp_addr;
 	while(CESK_STORE_ADDR_NULL != (tmp_addr = cesk_set_iter_next(&iter)))
 	{
+		/* of course, the duplicated one do not need incref */
+		if(cesk_set_contain(set, tmp_addr) == 1) continue;
 		if(cesk_store_incref(frame->store, tmp_addr) < 0)
 		{
 			LOG_WARNING("can not incref at address @%x", tmp_addr);
