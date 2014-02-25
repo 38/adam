@@ -5,7 +5,7 @@ int main()
 {
     adam_init();
     
-    dalvik_loader_from_directory("../testdata/AndroidAntlr");
+    dalvik_loader_from_directory("test/data/AndroidAntlr");
     dalvik_loader_summary();
     cesk_value_t* objval = cesk_value_from_classpath(stringpool_query("antlr/ANTLRTokdefParser"));
 

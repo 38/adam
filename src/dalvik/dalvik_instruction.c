@@ -907,10 +907,12 @@ static inline int _dalvik_instruction_setup_binary_operator(int flags, const sex
     previous = next;
     if(!sexp_match(next, "(L?A", &curlit, &next)) return -1;
 
-    buf->num_operands = 2;
-    
+    buf->num_operands = 3;
+
+	int flag2addr = 0;
+
     if(curlit == DALVIK_TOKEN_2ADDR)  /* xxxx/2addr */
-        buf->num_operands = 2;
+        flag2addr = 1;
     if(curlit == DALVIK_TOKEN_LIT16 ||
        curlit == DALVIK_TOKEN_LIT8)   /* xxxxx/lityy */
         const_operand = 1;
@@ -921,11 +923,13 @@ static inline int _dalvik_instruction_setup_binary_operator(int flags, const sex
     const char* reg0, *reg1;
     if(!sexp_match(next, "(L?L?A", &reg0, &reg1, &next)) return -1;
     __DI_SETUP_OPERAND(0, opflags, __DI_REGNUM(reg0));
-    __DI_SETUP_OPERAND(1, opflags, __DI_REGNUM(reg1));
+	if(flag2addr) 
+		__DI_SETUP_OPERAND(1, opflags, __DI_REGNUM(reg0));
+    __DI_SETUP_OPERAND(1 + flag2addr, opflags, __DI_REGNUM(reg1));
 
     /* Setpu the last reg */
     const char* reg3;
-    if(buf->num_operands < 3) return 0;
+    if(flag2addr) return 0;
     if(!sexp_match(next, "(L?", &reg3)) return -1;
     if(const_operand)
     {

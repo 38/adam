@@ -3,14 +3,14 @@
 #include <string.h>
 #include <assert.h>
 #include <stdlib.h>
-
+#include <adam.h>
 const int* stringpool_accumulator_hash(stringpool_accumulator_t* acc);
 const int* stringpool_hash(const char* str);
 
 int main(int argc, char** argv) 
 {
-    stringpool_init(210011);
-    puts("Tring basic logic");
+    adam_init();
+	puts("Tring basic logic");
     const char *p = stringpool_query("teststring");
     assert(p != NULL);
     assert(strcmp(p, "teststring") == 0);
@@ -54,6 +54,6 @@ int main(int argc, char** argv)
     p = stringpool_query(first);
     assert(p != first);
     assert(strcmp(p, first) == 0);
-    stringpool_fianlize();
+	adam_finalize();
     return 0;
 }

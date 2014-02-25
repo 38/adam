@@ -99,6 +99,7 @@ void log_init()
     for(i = 0; i < 7; i ++)
         if(_log_fp[i] == NULL)
             _log_fp[i] = default_fp;
+	fclose(fp);
 }
 void log_finalize()
 {

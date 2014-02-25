@@ -26,9 +26,33 @@ int main()
 	cesk_frame_t* output = cesk_block_interpret(ablock);
 	assert(NULL != output);
 	/* check the result */
-	rc = cesk_frame_register_peek(output, CESK_FRAME_GENERAL_REG(0), result, sizeof(result)/sizeof(result[0]));
+	rc = cesk_frame_register_peek(output, CESK_FRAME_GENERAL_REG(0), result, 10);
 	assert(rc == 1);
 	assert(result[0] != CESK_STORE_ADDR_NULL);
+	
+	rc = cesk_frame_register_peek(output, CESK_FRAME_GENERAL_REG(1), result, 10);
+	assert(rc == 1);
+	assert(result[0] == CESK_STORE_ADDR_POS);
+	
+	rc = cesk_frame_register_peek(output, CESK_FRAME_GENERAL_REG(2), result, 10);
+	assert(rc == 1);
+	assert(result[0] == CESK_STORE_ADDR_POS);
+	
+	rc = cesk_frame_register_peek(output, CESK_FRAME_GENERAL_REG(3), result, 10);
+	assert(rc == 1);
+	assert(CESK_STORE_ADDR_CONST_CONTAIN(result[0], NEG));
+	assert(CESK_STORE_ADDR_CONST_CONTAIN(result[0], POS));
+	assert(CESK_STORE_ADDR_CONST_CONTAIN(result[0], ZERO));
+
+	rc = cesk_frame_register_peek(output, CESK_FRAME_GENERAL_REG(4), result, 10);
+	assert(rc == 1);
+	assert(CESK_STORE_ADDR_CONST_CONTAIN(result[0], NEG));
+	assert(CESK_STORE_ADDR_CONST_CONTAIN(result[0], POS));
+	assert(CESK_STORE_ADDR_CONST_CONTAIN(result[0], ZERO));
+
+	cesk_frame_free(output);
+	cesk_block_graph_free(ablock);
+	
 	adam_finalize();
 	return 0;
 }

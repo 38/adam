@@ -406,11 +406,12 @@ int cesk_frame_register_push(cesk_frame_t* frame, const dalvik_instruction_t* in
 		return -1;
 	}
 	
-	if(cesk_set_contain(frame->regs[reg], addr) == 0)
+	if(cesk_set_contain(frame->regs[reg], addr) == 1)
 	{
-		cesk_store_incref(frame->store, addr);
 		return 0;
 	}
+	
+	cesk_store_incref(frame->store, addr);
 
 	if(cesk_set_push(frame->regs[reg], addr) < 0)
 	{
