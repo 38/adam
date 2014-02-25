@@ -1,12 +1,9 @@
 #include <adam.h>
 #include <assert.h>
-int main()
+void case1()
 {
 	uint32_t result[10];
 	int rc;
-	adam_init();
-	/* load package */
-	dalvik_loader_from_directory("test/cases/block_analyzer");
 	/* get code blocks */
 	const dalvik_type_t  * const type[] = {NULL};
 	dalvik_block_t* block = dalvik_block_from_method(stringpool_query("testClass"), stringpool_query("case1"), type);
@@ -52,7 +49,30 @@ int main()
 
 	cesk_frame_free(output);
 	cesk_block_graph_free(ablock);
+}
+void case2()
+{
+	/* get code blocks */
+	const dalvik_type_t  * const type[] = {NULL};
+	dalvik_block_t* block = dalvik_block_from_method(stringpool_query("testClass"), stringpool_query("case2"), type);
+	assert(block != NULL);
+	/* create a new analyzer graph */
+	cesk_block_t* ablock = cesk_block_graph_new(block);
+	assert(NULL != ablock);
+	/* run */
+	cesk_frame_t* output = cesk_block_interpret(ablock);
+	assert(NULL != output);
 	
+	cesk_frame_free(output);
+	cesk_block_graph_free(ablock);
+}
+int main()
+{
+	adam_init();
+	/* load package */
+	dalvik_loader_from_directory("test/cases/block_analyzer");
+	case1();
+	case2();
 	adam_finalize();
 	return 0;
 }

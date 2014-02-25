@@ -810,7 +810,7 @@ static inline int32_t _dalvik_instruction_sexpression_fetch_type(const sexpressi
     int ret = addtional_flags;
     const sexpression_t* sexp = *psexp;
     const char* type;
-    if(sexp_match(sexp, "(L?A", &type, &psexp))
+    if(sexp_match(sexp, "(L?A", &type, psexp))
     {
         if(DALVIK_TOKEN_INT == type) 
             ret |= DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_INT);
@@ -913,7 +913,7 @@ static inline int _dalvik_instruction_setup_binary_operator(int flags, const sex
 
     if(curlit == DALVIK_TOKEN_2ADDR)  /* xxxx/2addr */
         flag2addr = 1;
-    if(curlit == DALVIK_TOKEN_LIT16 ||
+	else if(curlit == DALVIK_TOKEN_LIT16 ||
        curlit == DALVIK_TOKEN_LIT8)   /* xxxxx/lityy */
         const_operand = 1;
     else 
