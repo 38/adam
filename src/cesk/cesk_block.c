@@ -70,6 +70,7 @@ cesk_block_t* cesk_block_graph_new(const dalvik_block_t* entry)
     return _cesk_block_buf[entry->index];
 }
 #define __CB_HANDLER(name) static inline int _cesk_block_interpreter_handler_##name(const dalvik_instruction_t* inst, cesk_frame_t* output)
+#define __CB_INST(name) case DVM_##name: rc = _cesk_block_interpreter_handler_##name(inst, frame); break
 /** @brief convert an register referencing operand to index of register */
 static inline uint32_t _cesk_block_operand_to_regidx(const dalvik_operand_t* operand)
 {
@@ -420,12 +421,14 @@ __CB_HANDLER(BINOP)
 {
 	return 0;
 }
-static inline int _cesk_block_interpret(cesk_block_t* blk)
+cesk_frame_t* cesk_block_interpret(cesk_block_t* blk)
 {
+	if(NULL == blk)
+		return NULL;
+
     cesk_frame_t* frame = cesk_frame_fork(blk->input);   /* fork a frame for output */
     const dalvik_block_t* code_block = blk->code_block;
     int i;
-#define __CB_INST(name) case DVM_##name: rc = _cesk_block_interpreter_handler_##name(inst, frame); break
     for(i = code_block->begin; i < code_block->end; i ++)
     {
         const dalvik_instruction_t* inst = dalvik_instruction_get(i);
@@ -448,21 +451,11 @@ static inline int _cesk_block_interpret(cesk_block_t* blk)
         }
         if(rc < 0)
         {
-            LOG_ERROR("error during interpert this instruction");
+            LOG_WARNING("error during interpert this instruction");
         }
     }
 
-    return 0;
+	return frame;
 }
 #undef __CB_HANDLER
 #undef __CB_INST
-int cesk_block_analyze(cesk_block_t* block)
-{
-    if(NULL == block)
-    {
-        LOG_ERROR("invalid argument");
-        return -1;
-    }
-    _cesk_block_interpret(block);
-    return 0;
-}

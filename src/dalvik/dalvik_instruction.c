@@ -1197,7 +1197,7 @@ static inline int _dalvik_instruction_operand_const_to_string(const dalvik_opera
     switch(op->header.info.type)
     {
         case DVM_OPERAND_TYPE_CLASS:
-            __PR("class@%s", op->payload.string);
+            __PR("[class %s]", op->payload.string);
             break;
         case DVM_OPERAND_TYPE_STRING:
             __PR("\"%s\"", op->payload.string);
