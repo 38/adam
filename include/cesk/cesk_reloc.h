@@ -24,15 +24,16 @@ typedef struct _cesk_reloc_table_t cesk_reloc_table_t;
 /** @brief build a relocation table from two stores. 
  *  @details this function will check the differences between two stores, and find all conflict and 
  *  		 return a conflict table as the result
- *  @param first the first store
- *  @param second the second store
+ *  @param dest pointer to destination store, because the address of the destination may change during this
+ *  @param sour the source store
  *  @return the relocation table
  *  @todo implementation
  */
-cesk_reloc_table_t* cesk_reloc_table_from_store(const cesk_store_t* first, const cesk_store_t* second);
+cesk_reloc_table_t* cesk_reloc_table_from_store(cesk_store_t** p_dest, const cesk_store_t* sour)
 /** @brief free a relocation table
  *  @param table the relocation table to be despose
  *  @return nothing 
+ *  @todo implementation
  */
 void cesk_reloc_table_free(cesk_reloc_table_t* table);
 
@@ -41,6 +42,7 @@ void cesk_reloc_table_free(cesk_reloc_table_t* table);
  * 	@param table the relocation table
  * 	@param addr  address
  * 	@return a store address, CESK_STORE_ADDR_NULL when error
+ * 	@todo implementation
  */
 uint32_t cesk_reloc_look_for(const cesk_reloc_table_t* table, uint32_t addr);
 #endif
