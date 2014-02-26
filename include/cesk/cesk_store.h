@@ -37,6 +37,9 @@
  */
 #include <constants.h>
 
+/* previous defs */
+typedef struct _cesk_store_t cesk_store_t;
+
 #include <cesk/cesk_value.h>
 #include <dalvik/dalvik_instruction.h>
 
@@ -54,9 +57,9 @@
 /** @brief positive numeric value */
 #define CESK_STORE_ADDR_POS   (CESK_STORE_ADDR_CONST_PREFIX | 0x04ul)
 /** @brief true boolean value */
-#define CESK_STORE_ADDR_TRUE  (CESK_STORE_ADDR_CONST_PREFIX | 0x08ul)
+#define CESK_STORE_ADDR_TRUE  (CESK_STORE_ADDR_CONST_PREFIX | 0x04ul)
 /** @brief false boolean value */
-#define CESK_STORE_ADDR_FALSE (CESK_STORE_ADDR_CONST_PREFIX | 0x10ul)
+#define CESK_STORE_ADDR_FALSE (CESK_STORE_ADDR_CONST_PREFIX | 0x02ul)
 
 /** @brief check the address is a const address */
 #define CESK_STORE_ADDR_IS_CONST(addr) (((addr)&CESK_STORE_ADDR_CONST_PREFIX) == CESK_STORE_ADDR_CONST_PREFIX)
@@ -87,12 +90,12 @@ typedef struct {
 /** @brief the number of slots in one block */
 #define CESK_STORE_BLOCK_NSLOTS ((CESK_STORE_BLOCK_SIZE - sizeof(cesk_store_block_t))/sizeof(cesk_store_slot_t))
 /** @brief the virtual store object */
-typedef struct {
+struct _cesk_store_t {
     uint32_t            nblocks;    /*!<number of blocks */
     uint32_t            num_ent;    /*!<number of entities */
     hashval_t           hashcode;   /*!<hashcode of content of this store */
     cesk_store_block_t* blocks[0];  /*!<block array */
-} cesk_store_t;
+};
 
 /** @brief make an empty store 
  *  @return nothing
@@ -224,4 +227,32 @@ uint32_t cesk_store_get_refcnt(const cesk_store_t* store, uint32_t addr);
  * @return the result of operation
  */
 int cesk_store_clear_refcnt(cesk_store_t* store, uint32_t addr);
+
+/** @brief   merge the source store to the destination store
+ *  @detials the merge operation actually compares the host address of the blocks and values. If the address is same,
+ *  		 the function just ignore them. 
+ *  		 
+ *  		 If the address are different, then perform an actually merge operations. 
+ *
+ *  		 This is reasonable, because it's likely that most of the memory in a store are shared. So the function 
+ *  		 is not likely slow. 
+ *
+ *  		 But there's an issue is if there are two different instructions which allocated the same memory. The 
+ *  		 solution is to reallocate the object in the source store before merge. 
+ *  		 This operation is actually safe, and reasonable. Because all shared memory between two store has been
+ *  		 allocated before the two stores split. At that time, the conflict store address is valid in none of two
+ *  		 stores. As a result of this fact, all reference to the conflict address should be assigned after the 
+ *  		 store is splited. 
+ *  		 Since we have copy-on-write policy, their(the object which is using confict address) address must be 
+ *  		 different. 
+ *
+ *  		 So what we should do for the relocation of the object is just simply change a different address if we 
+ *  		 are mergering confict store address.  Therefore, we should scan the different part of source store 
+ *  		 and dicide what to reallocate first, and then perform an actually merge
+ *   @param  dest destination store
+ *   @param  sour source store
+ *   @return the number of values has been modified, negative return value means errors during merge
+ *   @todo   implementation
+ */
+int cesk_store_merge(cesk_store_t* dest, const cesk_store_t* sour);
 #endif

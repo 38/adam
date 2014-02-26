@@ -355,7 +355,7 @@ int cesk_set_push(cesk_set_t* dest, uint32_t addr)
     }
     return 0;
 }
-int cesk_set_join(cesk_set_t* dest, const cesk_set_t* sour)
+int cesk_set_merge(cesk_set_t* dest, const cesk_set_t* sour)
 {
     if(NULL == sour || NULL == dest) return -1;
     if(CESK_SET_INVALID == dest->set_idx ||

@@ -22,7 +22,7 @@ int main()
     assert(0 == cesk_set_push(set1, 456));      /* S1 = {123,456} S2 = {123,789} S3 = {123} */
 	assert(cesk_set_hashcode(set1) == cesk_set_compute_hashcode(set1));
 
-    assert(0 == cesk_set_join(set1, set2));     /* S1 = {123,456,789} S2 = {123,789} S3 = {123} */
+    assert(0 == cesk_set_merge(set1, set2));     /* S1 = {123,456,789} S2 = {123,789} S3 = {123} */
 	assert(cesk_set_hashcode(set1) == cesk_set_compute_hashcode(set1));
 
     assert(3 == cesk_set_size(set1));

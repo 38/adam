@@ -581,7 +581,7 @@ int cesk_frame_store_object_put(cesk_frame_t* frame,
 	}
 
 	/* okay, append the value of registers to the set */
-	if(cesk_set_join(set, frame->regs[src_reg]) < 0)
+	if(cesk_set_merge(set, frame->regs[src_reg]) < 0)
 	{
 		LOG_ERROR("can not merge set");
 		return -1;
@@ -645,7 +645,7 @@ uint32_t cesk_frame_store_new_object(cesk_frame_t* frame, const dalvik_instructi
 		/* a fresh address, use it */
 		cesk_value_t* new_val = cesk_value_from_classpath(classpath);
 		if(NULL == new_val)
-		{
+		{	
 			LOG_ERROR("can not create new object from class %s", classpath);
 			return CESK_STORE_ADDR_NULL;
 		}

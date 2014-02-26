@@ -15,6 +15,7 @@ typedef struct _cesk_set_iter_t cesk_set_iter_t;
 
 #include <cesk/cesk_set.h>
 #include <cesk/cesk_store.h>
+#include <cesk/cesk_reloc.h>
 
 struct _cesk_set_iter_t{
     cesk_set_node_t *next;
@@ -25,12 +26,20 @@ struct _cesk_set_iter_t{
  */
 cesk_set_t* cesk_set_empty_set();
 
-/* @brief join two set. dest := dest + sour 
+/** @brief merge two set. dest := dest + sour 
  * @param dest the destination set
  * @param sour the source set
  * @return the result of the operation
  */
-int cesk_set_join(cesk_set_t* dest, const cesk_set_t* sour); 
+int cesk_set_merge(cesk_set_t* dest, const cesk_set_t* sour); 
+/** @brief apply relocation table and then merge two set.
+ *  @param dest the destination set
+ *  @param sour source set
+ *  @reloc_table relocation table
+ *  @return operation result
+ *  @todo implementation
+ */
+int cesk_set_merge_reloc(cesk_set_t* dest, const cesk_set_t* sour, const cesk_reloc_table_t* reloc_table);
 /** @brief push a signle element to the set. dest := dest + {addr} 
  * @param dest the destination set
  * @param addr the source set
