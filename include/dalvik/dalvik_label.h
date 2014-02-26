@@ -6,10 +6,6 @@
 #include <constants.h>
 #include <stdint.h>
 #include <dalvik/dalvik_instruction.h>
-/* previous definitions */
-struct _dalvik_instruction_t;
-
-typedef struct _dalvik_instruction_t dalvik_instruction_t;
 /** @brief this is the jump table for the labels, labelid -> instruction index */
 extern uint32_t dalvik_label_jump_table[DAVLIK_LABEL_POOL_SIZE];
 

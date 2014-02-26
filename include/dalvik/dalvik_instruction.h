@@ -5,6 +5,9 @@
  */
 #include <stdint.h>
 
+/** @brief data structure for an dalvik bytecode */
+typedef struct _dalvik_instruction_t dalvik_instruction_t;
+
 #include <sexp.h>
 #include <dalvik/dalvik_tokens.h>
 #include <vector.h>
@@ -145,7 +148,7 @@ typedef struct {
 } dalvik_operand_t;
 
 /** @brief the DVM instruction */
-typedef struct _dalvik_instruction_t{
+struct _dalvik_instruction_t{
     uint8_t            opcode:4;        /*!<Opcode of the instruction */
     uint8_t            num_operands:4;  /*!<How many operand ? */
     uint16_t           flags:8;         /*!<Additional flags for instruction, DVM_FLAG_OPTYPE_NAME */
@@ -157,7 +160,7 @@ typedef struct _dalvik_instruction_t{
                                                       (void*)(annotation_begin + num_operands) */
     dalvik_operand_t   operands[16];        /*!<Operand array */
     char               annotation_end[0];   /*!<the limit address of this insturction */
-} dalvik_instruction_t;
+};
 
 /** @brief flags for monitor instruction */
 enum {
