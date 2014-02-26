@@ -45,15 +45,11 @@ enum{
     SEXP_TYPE_LIT,    /*!<A literal */
     SEXP_TYPE_STR,    /*!<A string */
     SEXP_TYPE_CONS    /*!<A pair */
-};
+}
+;
+typedef struct _sexpression_t sexpression_t;
 
-/** @brief header structure of a S-Expression */
-typedef struct {
-	/** Type of the S-Expression */
-    int type;
-	/** Actuall data */
-    char data[0];
-} sexpression_t;
+typedef struct _sexp_cons_t sexp_cons_t;
 
 /** @brief data type for a string S-Expression. It's actually a pooled string, for more detail about pooled string, see documentation for stringpool.h */
 typedef const char* sexp_str_t;
@@ -62,11 +58,24 @@ typedef const char* sexp_str_t;
 typedef const char* sexp_lit_t;
 
 /** @brief data structure for a cons */ 
-typedef struct{
+struct _sexp_cons_t {
     char seperator;  		/*!<The sperator between first and second, this is useful when parsing instruction */
     sexpression_t * first;  /*!<The first element of this cons */
     sexpression_t * second; /*!<The scond element of this cons */
-} sexp_cons_t;
+};
+
+
+/** @brief header structure of a S-Expression */
+struct _sexpression_t {
+	/** Type of the S-Expression */
+    int type;
+	/** Actuall data */
+	union{
+		sexp_str_t strdata;
+		sexp_lit_t litdata;
+		sexp_cons_t consdata;
+	} data[0];
+};
 
 /**@brief Parse a string into sexpression. 
  * @param str String to parse

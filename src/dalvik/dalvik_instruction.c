@@ -731,7 +731,7 @@ __DI_CONSTRUCTOR(INVOKE)
                 {
                     LOG_ERROR("can not parse type %s", sexp_to_string(type_sexp, NULL));
                     int j;
-                    for(i = 0; j < i; j ++)
+                    for(j = 0; j < i; j ++)
                         dalvik_type_free(array[j]);
                     free(array);
                     return -1;
@@ -794,7 +794,7 @@ __DI_CONSTRUCTOR(INVOKE)
                 {
                     LOG_ERROR("can not parse type %s", sexp_to_string(type_sexp, NULL));
                     int j;
-                    for(i = 0; j < i; j ++)
+                    for(j = 0; j < i; j ++)
                         dalvik_type_free(array[j]);
                     free(array);
                     return -1;
@@ -1042,13 +1042,9 @@ __DI_CONSTRUCTOR(NEW)
     const char *dest, *size, *path;
     if(!sexp_match(next, "(L?A", &dest, &next)) return -1;
     __DI_SETUP_OPERAND(0, 0, __DI_REGNUM(dest));
-    if(buf->opcode == DVM_ARRAY)
-    {
-        if(!sexp_match(next, "L?A", &size, &next)) return -1;
-        __DI_SETUP_OPERAND(1, 0, __DI_REGNUM(size));
-    }
     if(buf->opcode == DVM_INSTANCE)
     {
+		buf->flags = DVM_FLAG_INSTANCE_NEW;
         if(NULL == (path = sexp_get_object_path(next, NULL))) return -1;
         __DI_SETUP_OPERAND(1, 
                            DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_CLASS) |
@@ -1058,6 +1054,9 @@ __DI_CONSTRUCTOR(NEW)
     }
     else
     {
+		buf->flags = DVM_FLAG_ARRAY_NEW;
+        if(!sexp_match(next, "(L?A", &size, &next)) return -1;
+        __DI_SETUP_OPERAND(1, 0, __DI_REGNUM(size));
         dalvik_type_t* type;
         sexpression_t* type_sexp;
         if(!sexp_match(next, "(_?", &type_sexp)) return -1;
