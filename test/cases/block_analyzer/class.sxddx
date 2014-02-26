@@ -42,4 +42,11 @@
 		(move v0 v2)
 		(return-void)
 	)
+	(method (attrs public) case4() void
+	    (limit registers 10)
+		(line 1)
+		(const v0 0)
+		(add-int/lit8 v0 v0 1)
+		(return-void)
+	)
 )
