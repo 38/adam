@@ -29,7 +29,7 @@ typedef struct _cesk_reloc_table_t cesk_reloc_table_t;
  *  @return the relocation table
  *  @todo implementation
  */
-cesk_reloc_table_t* cesk_reloc_table_from_store(cesk_store_t** p_dest, const cesk_store_t* sour)
+cesk_reloc_table_t* cesk_reloc_table_from_store(cesk_store_t** p_dest, const cesk_store_t* sour);
 /** @brief free a relocation table
  *  @param table the relocation table to be despose
  *  @return nothing 
@@ -44,5 +44,5 @@ void cesk_reloc_table_free(cesk_reloc_table_t* table);
  * 	@return a store address, CESK_STORE_ADDR_NULL when error
  * 	@todo implementation
  */
-uint32_t cesk_reloc_look_for(const cesk_reloc_table_t* table, uint32_t addr);
+uint32_t cesk_reloc_table_look_for(const cesk_reloc_table_t* table, uint32_t addr);
 #endif
