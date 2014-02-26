@@ -52,6 +52,8 @@ void case1()
 }
 void case2()
 {
+	uint32_t result[10];
+	int rc;
 	/* get code blocks */
 	const dalvik_type_t  * const type[] = {NULL};
 	dalvik_block_t* block = dalvik_block_from_method(stringpool_query("testClass"), stringpool_query("case2"), type);
@@ -63,6 +65,56 @@ void case2()
 	cesk_frame_t* output = cesk_block_interpret(ablock);
 	assert(NULL != output);
 	
+	/* verify the registers */
+	rc = cesk_frame_register_peek(output, CESK_FRAME_GENERAL_REG(0), result, 10);
+	assert(rc == 1);
+	assert(result[0] == CESK_STORE_ADDR_ZERO);
+
+	rc = cesk_frame_register_peek(output, CESK_FRAME_GENERAL_REG(1), result, 10);
+	assert(rc == 1);
+	assert(result[0] == CESK_STORE_ADDR_ZERO);
+
+	
+	rc = cesk_frame_register_peek(output, CESK_FRAME_GENERAL_REG(2), result, 10);
+	assert(rc == 1);
+	assert(result[0] == CESK_STORE_ADDR_ZERO);
+	assert(0 == cesk_frame_gc(output));
+
+
+	rc = cesk_frame_register_peek(output, CESK_FRAME_GENERAL_REG(3), result, 10);
+	assert(rc == 1);
+	assert(result[0] == CESK_STORE_ADDR_TRUE);
+
+	/* after this, all object is cleaned */
+	assert(0 == output->store->num_ent);
+
+	cesk_frame_free(output);
+	cesk_block_graph_free(ablock);
+}
+void case3()
+{
+	uint32_t result[10];
+	int rc;
+	/* get code blocks */
+	const dalvik_type_t  * const type[] = {NULL};
+	dalvik_block_t* block = dalvik_block_from_method(stringpool_query("testClass"), stringpool_query("case3"), type);
+	assert(block != NULL);
+	/* create a new analyzer graph */
+	cesk_block_t* ablock = cesk_block_graph_new(block);
+	assert(NULL != ablock);
+	/* run */
+	cesk_frame_t* output = cesk_block_interpret(ablock);
+	assert(NULL != output);
+	
+	/* verify the registers */
+	rc = cesk_frame_register_peek(output, CESK_FRAME_GENERAL_REG(0), result, 10);
+	assert(rc == 1);
+	assert(result[0] == CESK_STORE_ADDR_POS);
+
+	rc = cesk_frame_register_peek(output, CESK_FRAME_GENERAL_REG(1), result, 10);
+	assert(rc == 1);
+	assert(result[0] == CESK_STORE_ADDR_NEG);
+
 	cesk_frame_free(output);
 	cesk_block_graph_free(ablock);
 }

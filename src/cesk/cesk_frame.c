@@ -5,6 +5,7 @@ cesk_frame_t* cesk_frame_new(uint16_t size)
 {
     if(0 == size)
     {
+		LOG_ERROR("a frame without register? are you kidding me");
         return NULL;
     }
 	size += 2;   /* because we need a result register and an expcetion register */

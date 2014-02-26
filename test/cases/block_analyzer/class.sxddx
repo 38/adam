@@ -16,28 +16,9 @@
 		(iput v3 v0 testClass.value1 int)
 		(iget v4 v0 testClass.value1 int)
 		(return-void)
-		; here we start to verify the value of the output frame
-		; the syntax of a verify script is
-		; begin with a @case (methodname typelist)
-		; end with a @end
-		; data-type  := num|objref|setref|obj|set
-		; values     := [data-type value1 value2 value3 ... ]
-		; verify-type:= value|reference|field
-		; checker    := (verify-type register values)
-		;@(case testClass.case1 [])
-		;@		(input)
-		;@			(set-ref v0 [object testClass])
-		;@		(output)
-		;@			(value v1 [int positive])
-		;@			(value v2 [int positive])
-		;@			(value v3 [int negative positive zero])
-		;@			(value v0 [objref])
-		;@			(referece v0 [obj testClass])
-		;@			(field v0 testClass.value1 [int negative positive zero])
-		;@(end)
 	)
 	(method (attrs public) case2() void
-	 	(limit registers 3)
+	 	(limit registers 4)
 		(line 1)
 		(new-instance v0 testClass)
 		(new-instance v1 testClass)
@@ -45,9 +26,20 @@
 		(iput v1 v0 testClass.value2 [object testClass])
 		(iput v2 v1 testClass.value2 [object testClass])
 		(iput v0 v2 testClass.value2 [object testClass])
-		(const-long v1 0)
-		(const-long v2 0)
-		(const-long v0 0)
+		(instance-of v3 v1 testClass)
+		(const v1 0)
+		(const v2 0)
+		(const v0 0)
+		(return-void)
+	)
+	(method (attrs public) case3() void
+	 	(limit registers 4)
+		(line 1)
+		(const v0 -1)
+		(const v1 1)
+		(move v2 v1)
+		(move v1 v0)
+		(move v0 v2)
 		(return-void)
 	)
 )

@@ -34,6 +34,12 @@ static inline int _cesk_block_graph_new_imp(const dalvik_block_t* entry)
     
     ret->code_block = entry;
     ret->input = cesk_frame_new(entry->nregs);
+
+	if(NULL == ret->input)
+	{
+		LOG_ERROR("can not create stack frame for the block");
+		return -1;
+	}
    
     int i;
     for(i = 0; i < entry->nbranches; i ++)
@@ -532,6 +538,9 @@ cesk_frame_t* cesk_block_interpret(cesk_block_t* blk)
 			   __CB_INST(UNOP);
 			   __CB_INST(BINOP);
 			   /* TODO: other instructions */
+			default:
+			   LOG_ERROR("unsupported instruction");
+			   rc = -1;
         }
         if(rc < 0)
         {

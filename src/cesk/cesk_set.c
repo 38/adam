@@ -279,7 +279,7 @@ static inline uint32_t _cesk_set_duplicate(cesk_set_info_entry_t* info, cesk_set
         LOG_ERROR("can not find the set (idx = %d)", idx);
         return CESK_SET_INVALID;
     }
-    cesk_set_info_entry_t* new_info;
+    cesk_set_info_entry_t* new_info = NULL;
     uint32_t new_idx = _cesk_set_idx_alloc(&new_info);
     if(NULL == new_info) 
     {
