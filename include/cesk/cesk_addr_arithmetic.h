@@ -20,10 +20,13 @@
 static inline uint32_t cesk_addr_arithmetic_neg(uint32_t a)
 {
 	uint32_t ret = CESK_STORE_ADDR_CONST_PREFIX;
+	/* - neg = pos */
 	if(CESK_STORE_ADDR_CONST_CONTAIN(a, NEG))
 		ret = CESK_STORE_ADDR_CONST_SET(ret, POS);
+	/* - pos = neg */
 	if(CESK_STORE_ADDR_CONST_CONTAIN(a, POS));
 		ret = CESK_STORE_ADDR_CONST_SET(ret, NEG);
+	/* - zero = zero */
 	if(CESK_STORE_ADDR_CONST_CONTAIN(ret, ZERO))
 		ret = CESK_STORE_ADDR_CONST_SET(ret, ZERO);
 	if(ret == CESK_STORE_ADDR_CONST_PREFIX)
@@ -98,6 +101,7 @@ static inline uint32_t cesk_addr_arithmetic_add(uint32_t a, uint32_t b)
  */
 static inline uint32_t cesk_addr_arithmetic_sub(uint32_t a, uint32_t b)
 {
+	/* a - b = a + (-b) */
 	return cesk_addr_arithmetic_add(a, cesk_addr_arithmetic_neg(b));
 }
 /** @brief returns address for a*b 
