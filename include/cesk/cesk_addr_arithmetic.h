@@ -292,6 +292,28 @@ static inline uint32_t cesk_addr_arithmetic_gt(uint32_t a, uint32_t b)
 static inline uint32_t cesk_addr_arithmetic_eq(uint32_t a, uint32_t b)
 {
 	int ret = CESK_STORE_ADDR_CONST_PREFIX;
+	/* because there are object address comaprasion which is also compiled as
+	 * numberic comparsion, so we should handle this situation here 
+	 * since the comparasion of object address always involves constant 0 and a 
+	 * empty constant address
+	 */
+	if((a == CESK_STORE_ADDR_ZERO && (b == CESK_STORE_ADDR_EMPTY || (!CESK_STORE_ADDR_IS_CONST(b))) || 
+	   (b == CESK_STORE_ADDR_ZERO) && (a == CESK_STORE_ADDR_EMPTY || (!CESK_STORE_ADDR_IS_CONST(a)))))
+	{
+		uint32_t ret = CESK_STORE_ADDR_CONST_PREFIX;
+		/* just swap the zero to the first operator */
+		if(a != CESK_STORE_ADDR_ZERO)
+		{
+			uint32_t c = a;
+			a = b;
+			b = c;
+		}
+		if(b == CESK_STORE_ADDR_EMPTY)
+		{
+			return CESK_STORE_ADDR_TRUE;
+		}
+		return CESK_STORE_ADDR_FALSE;
+	}
 	uint32_t tmp = cesk_addr_arithmetic_sub(a,b);
 	if(CESK_STORE_ADDR_CONST_SET(tmp, NEG))
 		ret = CESK_STORE_ADDR_CONST_SET(ret, FALSE);
