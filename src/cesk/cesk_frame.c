@@ -456,7 +456,13 @@ int cesk_frame_store_object_get(cesk_frame_t* frame,
 	/* load the value */
 
 	//return cesk_frame_register_load(frame, inst ,dst_reg, *paddr);
-	return cesk_frame_register_load_from_store(frame, inst, dst_reg, addr);
+	/* if the field value has been setup */
+	if(CESK_STORE_ADDR_NULL != addr)
+		return cesk_frame_register_load_from_store(frame, inst, dst_reg, addr);
+	else
+		/* not been setup yet? just load a null pointer */
+		return cesk_frame_register_load(frame, inst, dst_reg, CESK_STORE_ADDR_EMPTY);
+
 }
 int cesk_frame_store_object_put(cesk_frame_t* frame, 
 								const dalvik_instruction_t* inst, 

@@ -60,6 +60,8 @@ typedef struct _cesk_store_t cesk_store_t;
 #define CESK_STORE_ADDR_TRUE  (CESK_STORE_ADDR_CONST_PREFIX | 0x04ul)
 /** @brief false boolean value */
 #define CESK_STORE_ADDR_FALSE (CESK_STORE_ADDR_CONST_PREFIX | 0x02ul)
+/** @brief an empty value, which is acutall null but using a different address, used for null object reference */
+#define CESK_STORE_ADDR_EMPTY CESK_STORE_ADDR_CONST_PREFIX
 
 /** @brief check the address is a const address */
 #define CESK_STORE_ADDR_IS_CONST(addr) (((addr)&CESK_STORE_ADDR_CONST_PREFIX) == CESK_STORE_ADDR_CONST_PREFIX)
