@@ -38,8 +38,10 @@ typedef struct {
  */
 cesk_frame_t* cesk_frame_fork(const cesk_frame_t* frame);
 
-/* merge two frame, dest <- dest + sour */
-//int cesk_frame_merge(cesk_frame_t* dest, const cessk_frame_t* sour);
+/** @brief merge two frame, dest <- dest + sour
+ *  @return the result of operation
+ */
+int cesk_frame_merge(cesk_frame_t* dest, const cesk_frame_t* sour);
 
 /** @brief create an empty stack which is empty
  *  @param size number of general registers 

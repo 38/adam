@@ -69,11 +69,18 @@ add_custom_target(distclean
 	COMMAND make clean
 	COMMAND rm -rvf doc/doxygen
 	COMMAND rm -rvf test/data
+	COMMAND rm -rvf tags
 	WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
 )
 
 add_custom_target(data
-	COMMAND wget http://www.cs.utah.edu/~haohou/adam/data.tar.gz --output-document=/tmp/adam_testing_data.tar.gz
+	COMMAND wget http://www.cs.utah.edu/~haohou/adam/data.tar.gz --output-document=adam_testing_data.tar.gz
 	COMMAND tar -xzf /tmp/adam_testing_data.tar.gz
+	COMMAND rm -f adam_testing_data.tar.gz
+	WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+)
+
+add_custom_target(tags
+	COMMAND ctags -R include/ src/
 	WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
 )

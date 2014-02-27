@@ -6,7 +6,7 @@
 
 #define HASH_INC(addr,val) (addr * MH_MULTIPLY + cesk_value_hashcode(val))
 #define HASH_CMP(addr,val) (addr * MH_MULTIPLY + cesk_value_compute_hashcode(val))
-/* make a copy of a store block */
+/** @brief make a copy of a store block, but do not set the refcnt */
 static inline cesk_store_block_t* _cesk_store_block_fork(cesk_store_block_t* block)
 {
     /* copy the store block */
@@ -25,7 +25,7 @@ static inline cesk_store_block_t* _cesk_store_block_fork(cesk_store_block_t* blo
             cesk_value_incref(new_block->slots[i].value);
     return new_block;
 }
-/* decref all members of the set before free it */
+/** @brief set refcnt befofe actual deletion , decref all members of the set before free it */
 static inline int _cesk_store_free_set(cesk_store_t* store, cesk_set_t* set)
 {
 	cesk_set_iter_t iter;
@@ -45,7 +45,7 @@ static inline int _cesk_store_free_set(cesk_store_t* store, cesk_set_t* set)
 	}
 	return 0;
 }
-/* decref all members of the object before free it */
+/** @brief decref all members of the object before free it */
 static inline int _cesk_store_free_object(cesk_store_t* store, cesk_object_t* object)
 {
 	if(NULL == object)
@@ -80,7 +80,7 @@ static inline int _cesk_store_swipe(cesk_store_t* store, cesk_store_block_t* blo
 	/* update the hashcode */
 	store->hashcode ^= HASH_INC(addr, value);
 	
-	/* decref of it's refernces */
+	/* decref of its refernces */
 	int rc = -1;
 	switch(value->type)
 	{
@@ -101,7 +101,7 @@ static inline int _cesk_store_swipe(cesk_store_t* store, cesk_store_block_t* blo
 	cesk_value_decref(value);
 	return 0;
 }
-/* the function for the addressing hash code */
+/** @brief the function for the addressing hash code */
 static inline hashval_t _cesk_store_address_hashcode(const dalvik_instruction_t* inst, uint32_t parent, const char* field)
 {
     uint32_t idx;
@@ -119,7 +119,7 @@ static inline hashval_t _cesk_store_address_hashcode(const dalvik_instruction_t*
 	return (idx * idx * MH_MULTIPLY + parent * 100007 * MH_MULTIPLY + ((uintptr_t)field&(hashval_t)~0));
 
 }
-/* get a block in a store and prepare to write */
+/** @brief get a block in a store and prepare to write */
 static inline cesk_store_block_t* _cesk_store_getblock_rw(cesk_store_t* store, uint32_t addr)
 {
     if(NULL == store || CESK_STORE_ADDR_NULL == addr) 
@@ -134,6 +134,8 @@ static inline cesk_store_block_t* _cesk_store_getblock_rw(cesk_store_t* store, u
         return NULL;
     }
     cesk_store_block_t* block = store->blocks[b_idx];
+	/* if the block is used by more than one store, the block is not writable, so make a copy of 
+	 * the block and replace the old block with new  copy */
     if(block->refcnt > 1)
     {
         LOG_DEBUG("more than one store are using this block, fork it");
@@ -143,7 +145,7 @@ static inline cesk_store_block_t* _cesk_store_getblock_rw(cesk_store_t* store, u
             LOG_ERROR("can not fork the block");
             return NULL;
         }
-        newblock->refcnt ++;
+        newblock->refcnt = 1;
         block->refcnt --;
         store->blocks[b_idx] = newblock;
         block = newblock;
@@ -224,7 +226,7 @@ int cesk_store_set_reuse(cesk_store_t* store, uint32_t addr)
 		LOG_ERROR("out of memory");
 		return -1;
 	}
-	cesk_store_block_t* block = store->blocks[block_idx];
+	cesk_store_block_t* block = _cesk_store_getblock_rw(store, addr);
 	if(NULL == block)
 	{
 		LOG_ERROR("what's wrong?");
@@ -235,46 +237,9 @@ int cesk_store_set_reuse(cesk_store_t* store, uint32_t addr)
 }
 cesk_value_t* cesk_store_get_rw(cesk_store_t* store, uint32_t addr)
 {
-    uint32_t block_idx = addr / CESK_STORE_BLOCK_NSLOTS;
     uint32_t offset    = addr % CESK_STORE_BLOCK_NSLOTS;
-    if(block_idx >= store->nblocks) 
-    {
-        LOG_ERROR("invalid address out of space");
-        return NULL;
-    }
-    cesk_store_block_t* block = store->blocks[block_idx];
-    if(NULL == block)
-    {
-        LOG_ERROR("opps, it should not happen");
-        return NULL;
-    }
-    cesk_value_t* val = block->slots[offset].value;
-    if(NULL == val)
-    {
-        LOG_TRACE("is this an empty slot?");
-        return NULL;
-    }
-    /*
-     * Because the if the block is refered by more than one store,
-     * It's always nesscesary to copy the object 
-     * Because the object is also refered by more than one store
-     * In addition the block itself is to be modified, so
-     * We have to fork the block first in this situation
-     */
-    if(block->refcnt > 1) 
-    {
-        LOG_DEBUG("this block is refered by other frame, so fork it before modify");
-        cesk_store_block_t* newblock = _cesk_store_block_fork(block);
-        if(NULL == newblock)
-        {
-            LOG_ERROR("cannot fork the frame, aborting");
-            return NULL;
-        }
-        store->blocks[block_idx] = newblock;
-        block->refcnt --;
-        newblock->refcnt ++;
-        block = newblock;
-    }
+	cesk_store_block_t* block = _cesk_store_getblock_rw(store, addr);
+	cesk_value_t* val = block->slots[offset].value;
     if(val->refcnt > 1)
     {
         LOG_DEBUG("this value is refered by other frame block, so fork it first");
@@ -309,7 +274,7 @@ void cesk_store_release_rw(cesk_store_t* store, uint32_t addr)
         LOG_ERROR("invalid address out of space");
         return;
     }
-    cesk_store_block_t* block = store->blocks[block_idx];
+    cesk_store_block_t* block = _cesk_store_getblock_rw(store, addr);
     if(NULL == block)
     {
         LOG_ERROR("opps, it should not happen");
@@ -410,9 +375,9 @@ uint32_t cesk_store_allocate(cesk_store_t** p_store, const dalvik_instruction_t*
         empty_block = store->nblocks ++;
         empty_offset = init_slot;   /* use the init_slot, so that we can locate it faster */
     }
+	/* if there's no equal entry */
     if(equal_offset == -1)
     {
-        /* if there's no equal entry */
         if(empty_offset != -1)
         {
             LOG_DEBUG("allocate %lu (block=%d, offset = %d) for instruction %d", 
@@ -420,6 +385,7 @@ uint32_t cesk_store_allocate(cesk_store_t** p_store, const dalvik_instruction_t*
             store->blocks[empty_block]->slots[empty_offset].idx = idx;
 			store->blocks[empty_block]->slots[empty_offset].parent = parent;
 			store->blocks[empty_block]->slots[empty_offset].field = field;
+			store->blocks[empty_block]->slots[empty_offset].reuse = 0;
             return empty_block * CESK_STORE_BLOCK_NSLOTS + empty_offset;
         }
         else
@@ -458,19 +424,6 @@ int cesk_store_attach(cesk_store_t* store, uint32_t addr, cesk_value_t* value)
     }
 	/* just aquire a writable pointer of this block */
 	cesk_store_block_t* block_rw = _cesk_store_getblock_rw(store, addr);
-	/*
-    if(store->blocks[block]->refcnt > 1)
-    {
-        cesk_store_block_t* newblock = _cesk_store_block_fork(store->blocks[block]);
-        if(NULL == newblock)
-        {
-            LOG_ERROR("can't fork store");
-            return -1;
-        }
-        store->blocks[block]->refcnt --;
-        newblock->refcnt ++;
-        store->blocks[block] = newblock;
-    }*/
     if(block_rw->slots[offset].value == NULL && value != NULL) 
     {
         block_rw->num_ent ++;
@@ -482,29 +435,12 @@ int cesk_store_attach(cesk_store_t* store, uint32_t addr, cesk_value_t* value)
         store->num_ent --;
     }
     if(NULL != block_rw->slots[offset].value)
-    {
-		/* update the hashcode */ 
-		//store->hashcode ^= addr * MH_MULTIPLY + cesk_value_hashcode(store->blocks[block]->slots[offset].value);
-        //store->hashcode ^= HASH_INC(addr, store->blocks[block]->slots[offset].value);
-		/* Because cesk_store_decref also update the value, so we do not update the value here */
-		/* clean the old object */
-		/*block_rw->slots[offset].refcnt = 1;
-		cesk_store_decref(store, addr);*/   /* dirty hack, using this way to trigger the clean procedure */
-		/* we can not reduce the refcnt here, because the address is actually not defered from others
-		 * So we should swipe the old value out, but do not affect the refcnt here
-		 */
 		_cesk_store_swipe(store, block_rw, addr);
-		/* dereference to previous object */
-		/* it seems that the cesk_store_decref will call cesk_value_decref */
-		/* cesk_value_decref(store->blocks[block]->slots[offset].value);*/
-
-    }
     if(value)
     {
         /* reference to new value */
         cesk_value_incref(value);
 		value->write_status = 1;
-		/*store->hashcode ^= (addr * MH_MULTIPLY + cesk_value_hashcode(value));*/
 		/* we do not update new hash code here, that means we should use cesk_store_release_rw function
 		 * After we finish modifiying the store */
     }
@@ -512,7 +448,6 @@ int cesk_store_attach(cesk_store_t* store, uint32_t addr, cesk_value_t* value)
 	block_rw->slots[offset].reuse = 0;  /* attach to a object, all previous object is lost */
     return 0;
 }
-/* TODO: Question, once an adress is set to reusing, is there any time for the address to clear this bit ? */
 void cesk_store_free(cesk_store_t* store)
 {
     int i;
@@ -559,20 +494,19 @@ int cesk_store_decref(cesk_store_t* store, uint32_t addr)
 	{
 		return 0;
 	}
-    uint32_t idx = addr / CESK_STORE_BLOCK_NSLOTS;
     uint32_t ofs = addr % CESK_STORE_BLOCK_NSLOTS;
-    if(idx >= store->nblocks)
-    {
-        LOG_ERROR("out of memory");
-        return -1;
-    }
-    if( store->blocks[idx]->slots[ofs].value == NULL)
-    {
-        return 0;
-    }
     cesk_store_block_t* block = _cesk_store_getblock_rw(store, addr);
     if(NULL == block)
+	{
+		LOG_ERROR("can not aquire writable pointer to block");
         return -1;
+	}
+
+    if(block->slots[ofs].value == NULL)
+    {
+		LOG_DEBUG("the value is empty");
+        return 0;
+    }
 
     /* decrease the counter */
     if(block->slots[ofs].refcnt > 0) 
@@ -675,13 +609,95 @@ uint32_t cesk_store_get_refcnt(const cesk_store_t* store, uint32_t addr)
 }
 int cesk_store_clear_refcnt(cesk_store_t* store, uint32_t addr)
 {
-    uint32_t idx = addr / CESK_STORE_BLOCK_NSLOTS;
     uint32_t ofs = addr % CESK_STORE_BLOCK_NSLOTS;
-	if(store->nblocks <= idx) 
+	cesk_store_block_t* block = _cesk_store_getblock_rw(store, addr);
+	if(NULL == block)
 	{
-		LOG_ERROR("invalid address @0x%x", addr);
+		LOG_ERROR("can not get a writable pointer to the block");
 		return -1;
 	}
-	store->blocks[idx]->slots[ofs].refcnt = 0;
+	block->slots[ofs].refcnt = 0;
 	return 0;
 }
+//TODO
+#if 0
+int cesk_store_merge(cesk_store_t** p_dest, const cesk_store_t* sour)
+{
+	
+	if(NULL == p_dest || NULL == *p_dest || NULL == sour)
+	{
+		LOG_ERROR("invalid parameters");
+		return -1;
+	}
+	cesk_store_t* dest = *p_dest;
+	/* to resolve the conflict between two store, compute a relocate table first */
+	cesk_reloc_table_t* rtab = cesk_reloc_table_from_store(p_dest, sour);
+	if(NULL == rtab)
+	{
+		LOG_ERROR("can not compute relocate table from source to dest");
+		return -1;
+	}
+	/* if source is contains more blocks, add those blocks to the destination first */
+	int nblocks = 0;
+	if(sour->nblocks > dest->nblocks)
+	{
+		nblocks = dest->nblocks;
+		dest->nblocks = sour->nblocks;
+		LOG_DEBUG("destination store is smaller than source, realloc dest store first");
+		dest = (cesk_store_t*)realloc(dest, sizeof(cesk_store_t) + dest->nblocks * sizeof(cesk_store_block_t*));
+		if(NULL == dest)
+		{
+			LOG_ERROR("can not realloc");
+			return -1;
+		}
+		*p_dest = dest;
+		int i;
+		for(i = nblocks; i < sour->nblocks; i ++)
+		{
+			//TODO
+		}
+	}
+	int i;
+	for(i = 0; i < sour->nblocks; i ++)
+	{
+		int j;
+		/* if two blocks are actually same, the content of two block are the same */
+		if(sour->blocks[i] == dest->blocks[i])
+		{
+			continue;
+		}
+		for(j = 0; j < CESK_STORE_BLOCK_NSLOTS; j ++)
+		{
+			/* if the cell is empty */
+			if(NULL == sour->blocks[i]->slots[j].value)
+				continue;
+			/* do not merge set directly, because it always blongs to other objects */
+			if(CESK_TYPE_SET == sour->blocks[i]->slots[j].value->type)
+				continue;
+			uint32_t source_addr = (i * CESK_STORE_BLOCK_NSLOTS + j);
+			uint32_t target_addr = cesk_reloc_table_look_for(rtab, source_addr);
+			if(CESK_STORE_ADDR_NULL == target_addr)
+			{
+				LOG_WARNING("failed to aquire relocated address");
+				continue;
+			}
+			uint32_t offset  = target_addr % CESK_STORE_BLOCK_NSLOTS;
+			/* aquire a writable pointer to affected block */
+			cesk_store_block_t* block = _cesk_store_getblock_rw(sour, target_addr);
+			if(NULL == block)
+			{
+				LOG_WARNING("can not aquire writable pointer to target block");
+				continue;
+			}
+			/* if the target address is occupied */
+			if(NULL != block->slots[offset].value)
+			{
+
+			}
+			else
+			{
+			}
+		}
+	}
+}
+#endif
