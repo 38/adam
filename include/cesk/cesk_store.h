@@ -254,5 +254,5 @@ int cesk_store_clear_refcnt(cesk_store_t* store, uint32_t addr);
  *   @return the number of values has been modified, negative return value means errors during merge
  *   @todo   implementation
  */
-int cesk_store_merge(cesk_store_t* dest, const cesk_store_t* sour);
+int cesk_store_merge(cesk_store_t** p_dest, const cesk_store_t* sour);
 #endif

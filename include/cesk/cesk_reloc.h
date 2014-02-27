@@ -14,7 +14,6 @@
  *
  * 			This file contains utils for relocate a confict address. Include a relocate table
  * 			which we shoud aquire first before we actually merge two store
- * @todo    implementation
  */
 /* previous defination */
 /** @brief the relocation table */
@@ -27,13 +26,11 @@ typedef struct _cesk_reloc_table_t cesk_reloc_table_t;
  *  @param dest pointer to destination store, because the address of the destination may change during this
  *  @param sour the source store
  *  @return the relocation table
- *  @todo implementation
  */
 cesk_reloc_table_t* cesk_reloc_table_from_store(cesk_store_t** p_dest, const cesk_store_t* sour);
 /** @brief free a relocation table
  *  @param table the relocation table to be despose
  *  @return nothing 
- *  @todo implementation
  */
 void cesk_reloc_table_free(cesk_reloc_table_t* table);
 
@@ -42,7 +39,6 @@ void cesk_reloc_table_free(cesk_reloc_table_t* table);
  * 	@param table the relocation table
  * 	@param addr  address
  * 	@return a store address, CESK_STORE_ADDR_NULL when error
- * 	@todo implementation
  */
 uint32_t cesk_reloc_table_look_for(const cesk_reloc_table_t* table, uint32_t addr);
 #endif
