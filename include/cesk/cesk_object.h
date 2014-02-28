@@ -34,6 +34,21 @@ struct _cesk_object_t {
     cesk_object_struct_t  members[0]; /*!<the length of the tree */
 };
 
+/** 
+ * @brief this macro return the offset of a given field pointer to the 
+ *        beginging of the object, it's used when allocating a new field
+ *        value, because one object can have many value set, their address
+ *        must not be same
+ * @param object 
+ * @param p_field the pointer to the field
+ * @return the offset of the field 
+ */
+#define CESK_OBJECT_FIELD_OFS(object, p_field) ((uint32_t)(((char*)(p_field)) - ((char*)(object))))
+/**
+ * @brief goto the next object struct 
+ * @param cur the current struct
+ **/
+#define CESK_OBJECT_STRUCT_ADVANCE(cur) do{ cur = (typeof(cur))((cur)->valuelist + (cur)->num_members); } while(0)
 
 /**
  * @brief Create a new instance object of class in classpath 

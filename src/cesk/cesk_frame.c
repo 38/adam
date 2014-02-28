@@ -1,6 +1,23 @@
 #include <log.h>
 #include <cesk/cesk_frame.h>
 #include <cesk/cesk_store.h>
+
+/** 
+ * @brief operations for one stack frame
+ * @todo  ISSUE: because the reuse flag, we can not discard the value that should be discard.
+ * 		  e.g:
+ *
+ * 		        (new-instance v1 some/Class)
+ *
+ * 		        (const v0 10)
+ *
+ * 		        (iput  v0 v1 some/Class)
+ *
+ * 		        (iput  v1 some_actual_value)
+ *
+ * 		 in this case, in fact v1 = 10 is not a possible value. However in our 
+ * 		 program it just keep the value 10.
+ */
 cesk_frame_t* cesk_frame_new(uint16_t size)
 {
     if(0 == size)
@@ -133,7 +150,7 @@ static inline void _cesk_frame_store_dfs(uint32_t addr,cesk_store_t* store, uint
                     next_addr = this->valuelist[j];
                     _cesk_frame_store_dfs(next_addr, store, f);
                 }
-                this = (cesk_object_struct_t *)(this->valuelist + this->num_members);
+				CESK_OBJECT_STRUCT_ADVANCE(this);
             }
             break;
         case CESK_TYPE_ARRAY:
@@ -461,8 +478,7 @@ int cesk_frame_store_object_get(cesk_frame_t* frame,
 		return cesk_frame_register_load_from_store(frame, inst, dst_reg, addr);
 	else
 		/* not been setup yet? just load a null pointer */
-		return cesk_frame_register_load(frame, inst, dst_reg, CESK_STORE_ADDR_EMPTY);
-
+		return cesk_frame_register_load(frame, inst, dst_reg, CESK_STORE_ADDR_ZERO);
 }
 int cesk_frame_store_object_put(cesk_frame_t* frame, 
 								const dalvik_instruction_t* inst, 
@@ -505,7 +521,7 @@ int cesk_frame_store_object_put(cesk_frame_t* frame,
 	{
 		LOG_DEBUG("this is a new field, create an empty set for it");
 		/* if no set associated with the field */
-		*paddr = cesk_store_allocate(&frame->store, inst, dst_addr, field);
+		*paddr = cesk_store_allocate(&frame->store, inst, dst_addr, CESK_OBJECT_FIELD_OFS(object, paddr));
 		if(*paddr == CESK_STORE_ADDR_NULL)
 		{
 			LOG_ERROR("can not allocate new store address for the value set");
@@ -578,7 +594,7 @@ int cesk_frame_store_object_put(cesk_frame_t* frame,
 	uint32_t tmp_addr;
 	while(CESK_STORE_ADDR_NULL != (tmp_addr = cesk_set_iter_next(&iter)))
 	{
-		/* of course, the duplicated one do not need incref */
+		/* the duplicated one do not need incref */
 		if(cesk_set_contain(set, tmp_addr) == 1) continue;
 		if(cesk_store_incref(frame->store, tmp_addr) < 0)
 		{
@@ -606,7 +622,7 @@ uint32_t cesk_frame_store_new_object(cesk_frame_t* frame, const dalvik_instructi
 	}
 	LOG_DEBUG("creat new object from class %s", classpath);
 	/* allocate address */
-	uint32_t addr = cesk_store_allocate(&frame->store, inst, CESK_STORE_ADDR_NULL, NULL); 
+	uint32_t addr = cesk_store_allocate(&frame->store, inst, CESK_STORE_ADDR_NULL, 0); 
 
 	if(CESK_STORE_ADDR_NULL == addr)
 	{
@@ -644,7 +660,6 @@ uint32_t cesk_frame_store_new_object(cesk_frame_t* frame, const dalvik_instructi
 			LOG_ERROR("can not reuse the address @ %x", addr);
 			return CESK_STORE_ADDR_NULL;
 		}
-
 	}
 	else
 	{

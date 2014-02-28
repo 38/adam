@@ -80,7 +80,7 @@ typedef struct {
     uint8_t         reuse:1;          /*!<if this address is reused, because same insturction should allocate same address */
     uint32_t        idx;              /*!<instruction index created this object */
 	uint32_t		parent;			  /*!<the parent address of this slot */
-	const char*		field;		      /*!<filed name of the member */
+	uint32_t		field;		      /*!<filed name of the member */
     cesk_value_t*   value;			  /*!<the data payload */
 } cesk_store_slot_t;
 /** @brief the store block of virtual store */
@@ -149,10 +149,10 @@ int cesk_store_set_reuse(cesk_store_t* store, uint32_t addr);
  * @param p_store the pointer to the pointer of store
  * @param inst current instruction
  * @param parent address of parent object
- * @param field the field name
+ * @param field_ofs the field offset
  * @return the fresh address for this value
  */
-uint32_t cesk_store_allocate(cesk_store_t** p_store, const dalvik_instruction_t* inst, uint32_t parent, const char* field);
+uint32_t cesk_store_allocate(cesk_store_t** p_store, const dalvik_instruction_t* inst, uint32_t parent, uint32_t field);
 
 /* attach a value to an address, >0 means success, <0 error. If the value is NULL, means
  * dettach the address.

@@ -102,7 +102,7 @@ static inline int _cesk_store_swipe(cesk_store_t* store, cesk_store_block_t* blo
 	return 0;
 }
 /** @brief the function for the addressing hash code */
-static inline hashval_t _cesk_store_address_hashcode(const dalvik_instruction_t* inst, uint32_t parent, const char* field)
+static inline hashval_t _cesk_store_address_hashcode(const dalvik_instruction_t* inst, uint32_t parent, uint32_t field_ofs)
 {
     uint32_t idx;
 	
@@ -116,7 +116,7 @@ static inline hashval_t _cesk_store_address_hashcode(const dalvik_instruction_t*
 	//dalvik_instruction_read_annotation(inst, &idx, sizeof(idx));
 	idx = dalvik_instruction_get_index(inst);
 
-	return (idx * idx * MH_MULTIPLY + parent * 100007 * MH_MULTIPLY + ((uintptr_t)field&(hashval_t)~0));
+	return (idx * idx * MH_MULTIPLY + parent * 100007 * MH_MULTIPLY + (field_ofs * MH_MULTIPLY * MH_MULTIPLY));
 
 }
 /** @brief get a block in a store and prepare to write */
@@ -308,12 +308,12 @@ hashval_t cesk_store_compute_hashcode(const cesk_store_t* store)
 	}
 	return ret;
 }
-uint32_t cesk_store_allocate(cesk_store_t** p_store, const dalvik_instruction_t* inst, uint32_t parent, const char* field)
+uint32_t cesk_store_allocate(cesk_store_t** p_store, const dalvik_instruction_t* inst, uint32_t parent, uint32_t field_ofs)
 {
     cesk_store_t* store = *p_store;
     uint32_t idx;
 	idx = dalvik_instruction_get_index(inst);
-    uint32_t  init_slot = _cesk_store_address_hashcode(inst, parent, field)  % CESK_STORE_BLOCK_NSLOTS;
+    uint32_t  init_slot = _cesk_store_address_hashcode(inst, parent, field_ofs)  % CESK_STORE_BLOCK_NSLOTS;
     uint32_t  slot = init_slot;
     /* here we perform a quadratic probing inside each block
      * But we do not jump more than 5 times in one block
@@ -340,7 +340,7 @@ uint32_t cesk_store_allocate(cesk_store_t** p_store, const dalvik_instruction_t*
             if(store->blocks[block]->slots[slot].value != NULL && 
                store->blocks[block]->slots[slot].idx == idx && 
 			   store->blocks[block]->slots[slot].parent == parent &&
-			   store->blocks[block]->slots[slot].field == field)
+			   store->blocks[block]->slots[slot].field == field_ofs)
             {
                 LOG_DEBUG("find the equal slot @ (block = %d, offset = %d)", block, slot);
                 equal_block = block;
@@ -384,7 +384,7 @@ uint32_t cesk_store_allocate(cesk_store_t** p_store, const dalvik_instruction_t*
                        empty_block * CESK_STORE_BLOCK_NSLOTS + empty_offset, empty_block, empty_offset, idx);
             store->blocks[empty_block]->slots[empty_offset].idx = idx;
 			store->blocks[empty_block]->slots[empty_offset].parent = parent;
-			store->blocks[empty_block]->slots[empty_offset].field = field;
+			store->blocks[empty_block]->slots[empty_offset].field = field_ofs;
 			store->blocks[empty_block]->slots[empty_offset].reuse = 0;
             return empty_block * CESK_STORE_BLOCK_NSLOTS + empty_offset;
         }
@@ -628,12 +628,18 @@ int cesk_store_clear_refcnt(cesk_store_t* store, uint32_t addr)
  */
 static inline cesk_store_t* _cesk_store_merge_adjust(cesk_store_t* dest, const cesk_store_t* sour)
 {
+	if(NULL == dest || NULL == sour)
+	{
+		LOG_ERROR("invalid argument");
+		return NULL;
+	}
 	/* if source is contains more blocks, add those blocks to the destination first */
 	if(sour->nblocks > dest->nblocks)
 	{
+		LOG_DEBUG("address space of source store is larger than that of destination store, so create new blocks in destination store");
+		int prev_nblocks = dest->nblocks;
 		dest->nblocks = sour->nblocks;
-		LOG_DEBUG("destination store is smaller than source, realloc dest store first");
-		dest = (cesk_store_t*)realloc(dest, sizeof(cesk_store_t) + source->nblocks * sizeof(cesk_store_block_t*));
+		dest = (cesk_store_t*)realloc(dest, sizeof(cesk_store_t) + sour->nblocks * sizeof(cesk_store_block_t*));
 		if(NULL == dest)
 		{
 			LOG_ERROR("can not realloc");
@@ -641,192 +647,193 @@ static inline cesk_store_t* _cesk_store_merge_adjust(cesk_store_t* dest, const c
 		}
 		int i;
 		/* add those block to the desination store first */
-		for(i = nblocks; i < sour->nblocks; i ++)
+		for(i = prev_nblocks; i < sour->nblocks; i ++)
 		{
 			dest->blocks[i] = sour->blocks[i];
+			/* of course, the refcnt increased */
 			sour->blocks[i]->refcnt ++;
 		}
+		LOG_DEBUG("destination store has been resized from %d blocks to %d blocks", prev_nblocks, dest->nblocks);
 	}
 	return dest;
 }
-/** @brief merge two object 
+/** @brief merge two object, in the given store. In this function, we assume
+ *         that all object which should be add to the destination has been 
+ *         added alread. Therefore, the only resonsibility is to intialize the
+ *         value set of the object. 
+ *         Because all object has been placed now, so there's no possibility of
+ *         a newly created set conflict to an object.
+ *  @param sour the source store
+ *  @param dest the destination store
+ *  @param sour_addr the source address
+ *  @param dest_addr the destination address
+ *  @param reloc the relocation table 
  *  @return -1 if error
  */
 static inline int _cesk_store_merge_object(
-		cesk_store_t*  sour,
-		cesk_object_t* sour_obj, 
-		const cesk_store_t*  dest,
-		const cesk_object_t* dest_obj)
+		cesk_store_t* dest,
+		uint32_t dest_addr,
+		const cesk_store_t* sour,
+		uint32_t sour_addr,
+		cesk_reloc_table_t* reloc)
 {
-
-}
-/** @brief merge an given address 
- *  @return -1 if error 
- */
-static inline int _cesk_store_merge_address(cesk_store_t* dest, const cesk_store_t* sour, uint32_t addr, const cesk_reloc_table_t* reloc)
-{
-	uint32_t sour_addr = addr;
-	uint32_t dest_addr = cesk_reloc_table_look_for(reloc, addr);
-	if(CESK_STORE_ADDR_NULL == dest_addr)
+	if(NULL == dest || NULL == sour ||
+	   CESK_STORE_ADDR_NULL == dest_addr ||
+	   CESK_STORE_ADDR_NULL == sour_addr)
 	{
-		LOG_WARNING("failed to aquire relocated address");
-		continue;
+		LOG_ERROR("invalid argument");
+		return -1;
+	}
+	/* first get the pointer to the value */
+	cesk_value_t*       dest_val = cesk_store_get_rw(dest, dest_addr);
+	cesk_value_const_t* sour_val = cesk_store_get_ro(sour, sour_addr);
+	if(NULL == dest_val || NULL == sour_val)
+	{
+		LOG_ERROR("can not aquire pointer to destination adress or source address");
+		goto ERROR;
+	}
+	/* check if it's an object value */
+	if(dest_val->type != CESK_TYPE_OBJECT || sour_val->type != CESK_TYPE_OBJECT)
+	{
+		LOG_ERROR("can not merge two address that is not object");
+		goto ERROR;
+	}
+	/* okay, then get the object */
+	cesk_object_t* dest_obj = dest_val->pointer.object;
+	const cesk_object_t* sour_obj = sour_val->pointer.object;
+	if(NULL == dest_obj || NULL == sour_obj)
+	{
+		LOG_ERROR("one of the object is NULL?");
+		goto ERROR;
 	}
 
-	uint32_t offset  = dest_addr % CESK_STORE_BLOCK_NSLOTS;
+	/* We should check the compatibility of two object. Because after the relocation, different instruction would occupy 
+	 * different store address. So that, the actual class path of two object should be same */
+	if(cesk_object_classpath(sour_obj) != cesk_object_classpath(dest_obj))
+	{
+		LOG_ERROR("can not merge two object with different class path");
+		LOG_DEBUG("class path of source object: %s", cesk_object_classpath(sour_obj));
+		LOG_DEBUG("class path of destination object: %s", cesk_object_classpath(dest_obj));
+		goto ERROR;
+	}
+
+	/* merge two object */
+	cesk_object_struct_t* dest_struct = dest_obj->members;
+	const cesk_object_struct_t* sour_struct = sour_obj->members;
 	
-	/* aquire a writable pointer to affected block */
-	cesk_store_block_t* block = _cesk_store_getblock_rw(dest, dest_addr);
-	if(NULL == block)
-	{
-		LOG_ERROR("can not aquire writable pointer to target block");
-		return -1;
-	}
-	
-	/* if the target address is occupied */
-	if(NULL != block->slots[offset].value)
-	{
-		/* if it's occupied, it's surely reusing right now */
-		block->slots[offset].reuse = 1;
-		/* merge the source object to destination */
-		const cesk_object_t* sour_obj = sour->blocks[i]->slots[j].value->pointer.object;
-		cesk_object_t* dest_obj = dest->blocks[i]->slots[j].value->pointer.object;
-		cesk_value_t* dest_value = dest->blocks[i]->slots[j].value;
-		if(NULL == sour_obj || NULL == dest_obj)
-		{
-			LOG_WARNING("is this a NULL value?");
-			continue;
-		}
-		if(cesk_object_classpath(sour_obj) != cesk_object_classpath(dest_obj))
-		{
-			LOG_WARNING("type of source object and type of destination object are different, can not merge");
-			continue;
-		}
-		/* now the source object and the destination object should be in the same structure */
-		//TODO move this to the function above
-		int i;
-		const cesk_object_struct_t* sour_struct = sour_obj->members;
-		cesk_object_struct_t* dest_struct  = dest_obj->members;
-		for(i = 0; i < sour_obj->depth; i ++)
-		{
-			int j;
-			for(j = 0; j < sour_struct->num_members; j ++)
-			{
-				uint32_t sour_addr = sour_struct->members[j];
-				uint32_t dest_addr = dest_struct->members[j];
-				cesk_value_t* value_set = NULL;
-				/* if the destination field has not setup yet */
-				if(CESK_STORE_ADDR_NULL == dest_addr)
-				{
-					dest_addr = cesk_store_allocate(dest, dalvik_instruction_get(dest_value->idx), dest_value->parent, dest_value->field);
-					if(CESK_STORE_ADDR_NULL == dest_addr)
-					{
-						LOG_WARNING("can not allocate a new store address in the destination store");
-						continue;
-					}
-					value_set = cesk_value_empty_set();
-					/* of course, append a empty value to the set, indicates there's some unintialized values */
-					if(cesk_set_push(value_set, CESK_STORE_ADDR_EMPTY) < 0)
-					{
-						LOG_WARNING("can not insert null pointer to the value set");
-					}
-					if(cesk_store_attach(dest, dest_addr, value) < 0)
-					{
-						LOG_WARNING("can not attach the new value set to the store");
-						continue;
-					}
-				}
-				else  /* otherwise, there's old value there */
-				{
-					value_set = cesk_store_get_rw(dest_store, dest_addr);
-					if(NULL == value_set)
-					{
-						LOG_WARNING("unable to aquire a writable address for address @0x%x", dest_addr);
-						continue;
-					}
-					if(CESK_TYPE_SET != value_set.type)
-					{
-						LOG_WARNING("wrong type");
-						continue;
-					}
-				}
-				if(CESK_STORE_ADDR_NULL == sour_addr)
-				{
-					if(cesk_set_push(value_set->pointer.set, CESK_STORE_ADDR_EMPTY) < 0)
-					{
-						LOG_WARNING("can not merge the destination store and the source store at address @0x%x", dest_addr);
-						cesk_store_release_rw(dest, dest_addr);
-						continue;
-					}
-				}
-				else
-				{
-					cesk_value_const_t* sour_value = cesk_store_get_ro(sour, sour_addr);
-					if(NULL == sour_value)
-					{
-						LOG_WARNING("can not aquire readonly pointer to the source set");
-						cesk_store_release_rw(dest, dest_addr);
-						continue;
-					}
-					const cesk_set_t* sour_set = 
-					if(cesk_set_merge_reloc(value_set->pointer.set,  
-				}
+	/* because we need to allocate set during the merge, therefore 
+	 * we should know which instruction creates the object 
+	 */
+	const dalvik_instruction_t* inst = NULL;
+	uint32_t block_idx = dest_addr / CESK_STORE_BLOCK_NSLOTS;
+	uint32_t offset    = dest_addr % CESK_STORE_BLOCK_NSLOTS;
+	inst = dalvik_instruction_get(dest->blocks[block_idx]->slots[offset].idx);
 
-			}
-			sour_struct = (const cesk_object_struct_t*)(sour_struct->members + sour_struct->num_members);
-			dest_struct = (cesk_object_t*)(dest_struct->members + dest_struct->num_members);
-		}
-	}
-	else
-	{
-	}
-}
-/* because we may realoocate the dest store and it's address may change
- * So we should pass a pointer to the destination pointer */
-int cesk_store_merge(cesk_store_t** p_dest, const cesk_store_t* sour)
-{
-	
-	if(NULL == p_dest || NULL == *p_dest || NULL == sour)
-	{
-		LOG_ERROR("invalid parameters");
-		return -1;
-	}
-	cesk_store_t* dest = *p_dest;
-	/* step1 : to resolve the conflict between two store, compute a relocate table first */
-	cesk_reloc_table_t* rtab = cesk_reloc_table_from_store(p_dest, sour);
-	if(NULL == rtab)
-	{
-		LOG_ERROR("can not compute relocate table from source to dest");
-		return -1;
-	}
-	/* step2: adjust two store, so that they contains the same number of blocks */
-	dest = _cesk_store_merge_adjust(dest, sour);
-	if(NULL == dest)
-	{
-		LOG_ERROR("can not adjust the destination store, aborting");
-		return -1;
-	}
-
-	/* step3: start merge */
+	/* tanverse the member list */
 	int i;
-	for(i = 0; i < sour->nblocks; i ++)
+	for(i = 0; i < sour_obj->depth; i ++)
 	{
 		int j;
-		/* if two blocks are actually same, the content of two block are the same */
-		if(sour->blocks[i] == dest->blocks[i]) continue;
-		/* otherwise, something maybe different */
-		for(j = 0; j < CESK_STORE_BLOCK_NSLOTS; j ++)
+		/* for each object structure */
+		for(j = 0; j < dest_obj->depth; j ++)
 		{
-			/* if the cell is empty */
-			if(NULL == sour->blocks[i]->slots[j].value) continue;
-			/* do not merge set directly, because it always blongs to other objects */
-			if(CESK_TYPE_SET == sour->blocks[i]->slots[j].value->type)
-				continue;
-			/* do actual merge */
-			if(_cesk_store_merge_address(sour, dest, i * CESK_STORE_BLOCK_NSLOTS +j) < 0)
+			/* here we loop for each field, get the value set first */
+			uint32_t sour_set_addr = sour_struct->valuelist[j];
+			uint32_t dest_set_addr = dest_struct->valuelist[j];
+			cesk_value_t* setval = NULL;
+			/* if the dest set has not been set up yet. In fact there's one possible value: null pointer */
+			if(CESK_STORE_ADDR_NULL == dest_set_addr)
 			{
-				LOG_WARNING("can not merge address @0x%x", i + CESK_STORE_BLOCK_NSLOTS + j);
+				/* allocate a new address for the value set */
+				dest_set_addr = cesk_store_allocate(&dest, inst, dest_addr, CESK_OBJECT_FIELD_OFS(dest_obj, dest_struct->valuelist + j));
+				if(CESK_STORE_ADDR_NULL == dest_set_addr)
+				{
+					LOG_ERROR("can not allocate memory for new field");
+					goto ERROR;
+				}
+				/* put default ZERO */
+				setval = cesk_value_empty_set();
+				if(NULL == setval)
+				{
+					LOG_ERROR("can not create an empty set for the new field");
+					goto ERROR;
+				}
+				if(cesk_set_push(setval->pointer.set, CESK_STORE_ADDR_ZERO) < 0)
+				{
+					LOG_ERROR("can not push default to the field");
+					goto ERROR;
+				}
+				/* fianlly attach it */
+				if(cesk_store_attach(dest, dest_set_addr, setval) < 0)
+				{
+					LOG_ERROR("can not attach the value set the value address");
+					goto ERROR;
+				}
 			}
+			/* otehrwise, there's an value set for this field, aquire it directly */
+			else
+			{
+				setval = cesk_store_get_rw(dest, dest_set_addr);
+				if(NULL == setval)
+				{
+					LOG_ERROR("can not aquire writable pointer to the destination set");
+					goto ERROR;
+				}
+			}
+			if(CESK_TYPE_SET != setval->type)
+			{
+				LOG_ERROR("the field value should be a set, but it's not");
+				cesk_store_release_rw(dest, dest_set_addr);
+				goto ERROR;
+			}
+			/* now we have a valid and writable set value for merge */
+			cesk_set_t* set = setval->pointer.set;
+
+			/* if the source set is empty, just put a zero in the desintation set */
+			if(CESK_STORE_ADDR_NULL == sour_set_addr)
+			{
+				if(cesk_set_push(set, CESK_STORE_ADDR_ZERO) < 0)
+				{
+					LOG_ERROR("can not push value to the destination set");
+					cesk_store_release_rw(dest, dest_set_addr);
+					goto ERROR;
+				}
+			}
+			/* otherwise, there are some value in the destination set, use the set merge function */
+			else
+			{
+				cesk_value_const_t* tmp = cesk_store_get_ro(sour, sour_set_addr);
+				if(NULL == tmp)
+				{
+					LOG_ERROR("can not get the value set in the sour store");
+					cesk_store_release_rw(dest, dest_set_addr);
+					goto ERROR;
+				}
+				const cesk_set_t* src_set = tmp->pointer.set;
+				if(NULL == src_set)
+				{
+					LOG_ERROR("the set value should not be NULL pointer");
+					cesk_store_release_rw(dest, dest_set_addr);
+					goto ERROR;
+				}
+				if(cesk_set_merge_reloc(set, src_set, reloc) < 0)
+				{
+					LOG_ERROR("can not merge the field set");
+					cesk_store_release_rw(dest, dest_set_addr);
+					goto ERROR;
+				}
+			}
+
+			/* After everthing is done, we simply release the pointer */
+			cesk_store_release_rw(dest, dest_set_addr);
 		}
+		CESK_OBJECT_STRUCT_ADVANCE(sour_struct);
+		CESK_OBJECT_STRUCT_ADVANCE(dest_struct);
 	}
+	return 0;
+ERROR:
+	LOG_ERROR("can not merge two object");
+	if(dest_addr != 0) cesk_store_release_rw(dest, dest_addr);
+	return -1;
 }
+
