@@ -67,7 +67,7 @@ cesk_object_t* cesk_object_new(const char* classpath)
         }
         base->class = classes[i];
         base->num_members = j;
-        base = (cesk_object_struct_t*)(base->valuelist + j);
+		CESK_OBJECT_STRUCT_ADVANCE(base);
     }
     object->depth = class_count;
     return object;
@@ -86,7 +86,7 @@ uint32_t* cesk_object_get(cesk_object_t* object, const char* classpath, const ch
         {
             break;
         }
-        this = (cesk_object_struct_t*)(this->valuelist + this->num_members);
+		CESK_OBJECT_STRUCT_ADVANCE(this);
     }
     if(object->depth == i)
     {
@@ -119,7 +119,7 @@ cesk_object_t* cesk_object_fork(const cesk_object_t* object)
     for(i = 0; i < object->depth; i ++)
     {
         objsize += sizeof(cesk_object_struct_t) + sizeof(uint32_t) * base->num_members;
-        base = (cesk_object_struct_t*)(base->valuelist + base->num_members);
+		CESK_OBJECT_STRUCT_ADVANCE(base);
     }
     cesk_object_t* newobj = (cesk_object_t*)malloc(objsize);
     if(NULL == newobj) return NULL;
@@ -145,7 +145,7 @@ hashval_t cesk_object_hashcode(const cesk_object_t* object)
             hash ^= k;
             hash = (hash << 16) | (hash >> 16);
         }
-        this = (cesk_object_struct_t*)(this->valuelist + this->num_members);
+		CESK_OBJECT_STRUCT_ADVANCE(this);
     }
     return hash;
 }
@@ -189,8 +189,8 @@ int cesk_object_equal(const cesk_object_t* first, const cesk_object_t* second)
             uint32_t addr2 = that->valuelist[j];
             if(addr1 != addr2) return 0;
         }
-        this = (const cesk_object_struct_t*)(this->valuelist + this->num_members);
-        that = (const cesk_object_struct_t*)(that->valuelist + that->num_members);
+		CESK_OBJECT_STRUCT_ADVANCE(this);
+		CESK_OBJECT_STRUCT_ADVANCE(that);
     }
     return 1;
 }
@@ -215,7 +215,7 @@ const char* cesk_object_to_string(const cesk_object_t* object, char* buf, size_t
             __PR("%d ", this->valuelist[j]);
         }
         __PR(")]");
-        this = (const cesk_object_struct_t*)(this->valuelist + this->num_members);
+		CESK_OBJECT_STRUCT_ADVANCE(this);
     }
 #undef __PR
     return buf;
