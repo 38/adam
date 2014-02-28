@@ -22,7 +22,8 @@ typedef struct _cesk_reloc_table_t cesk_reloc_table_t;
 #include <cesk/cesk_store.h>
 /** @brief build a relocation table from two stores. 
  *  @details this function will check the differences between two stores, and find all conflict and 
- *  		 return a conflict table as the result
+ *  		 return a conflict table as the result.
+ *
  *  @param dest pointer to destination store, because the address of the destination may change during this
  *  @param sour the source store
  *  @return the relocation table
