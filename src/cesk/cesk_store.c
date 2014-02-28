@@ -671,19 +671,20 @@ static inline cesk_store_t* _cesk_store_merge_adjust(cesk_store_t* dest, const c
  *  @return -1 if error
  */
 static inline int _cesk_store_merge_object(
-		cesk_store_t* dest,
+		cesk_store_t** p_dest,
 		uint32_t dest_addr,
 		const cesk_store_t* sour,
 		uint32_t sour_addr,
 		cesk_reloc_table_t* reloc)
 {
-	if(NULL == dest || NULL == sour ||
+	if(NULL == p_dest || NULL == sour || NULL == *p_dest ||
 	   CESK_STORE_ADDR_NULL == dest_addr ||
 	   CESK_STORE_ADDR_NULL == sour_addr)
 	{
 		LOG_ERROR("invalid argument");
 		return -1;
 	}
+	cesk_store_t *dest = *p_dest;
 	/* first get the pointer to the value */
 	cesk_value_t*       dest_val = cesk_store_get_rw(dest, dest_addr);
 	cesk_value_const_t* sour_val = cesk_store_get_ro(sour, sour_addr);
@@ -735,7 +736,7 @@ static inline int _cesk_store_merge_object(
 	{
 		int j;
 		/* for each object structure */
-		for(j = 0; j < dest_obj->depth; j ++)
+		for(j = 0; j < sour_struct->num_members; j ++)
 		{
 			/* here we loop for each field, get the value set first */
 			uint32_t sour_set_addr = sour_struct->valuelist[j];
@@ -830,10 +831,101 @@ static inline int _cesk_store_merge_object(
 		CESK_OBJECT_STRUCT_ADVANCE(sour_struct);
 		CESK_OBJECT_STRUCT_ADVANCE(dest_struct);
 	}
+	*p_dest = dest;
 	return 0;
 ERROR:
 	LOG_ERROR("can not merge two object");
 	if(dest_addr != 0) cesk_store_release_rw(dest, dest_addr);
+	*p_dest = dest; 
 	return -1;
 }
 
+int cesk_store_merge(cesk_store_t** p_dest, const cesk_store_t* sour)
+{
+	if(NULL == p_dest || NULL == *p_dest || NULL == sour)
+	{
+		LOG_ERROR("invalid argument");
+		return -1;
+	}
+	cesk_store_t* adjusted_dest = _cesk_store_merge_adjust(*p_dest, sour);
+	if(NULL == adjusted_dest)
+	{
+		LOG_ERROR("can not merge two store");
+		return -1;
+	}
+	(*p_dest) = adjusted_dest;
+
+	/* then we just get the reloc table */
+	cesk_reloc_table_t* rtab = cesk_reloc_table_from_store(p_dest, sour);
+
+	cesk_store_t* dest = *p_dest;
+
+	if(NULL == rtab)
+	{
+		LOG_ERROR("can not compute the relocation table");
+		return -1;
+	}
+
+	int i = 0;
+	uint32_t sour_addr = 0;
+	for(i = 0; i < sour->nblocks; i ++)
+	{
+		int j;
+		if(sour->blocks[i] == dest->blocks[i])
+		{
+			sour_addr += CESK_STORE_BLOCK_NSLOTS;
+			continue;
+		}
+		for(j = 0; j < CESK_STORE_BLOCK_NSLOTS; j ++, sour_addr ++)
+		{
+			/* if this address in the source store is empty, skip */
+			if(sour->blocks[i]->slots[j].value == NULL) continue;
+			/* if this address do not contain any objet */
+			if(sour->blocks[i]->slots[j].value->type != CESK_TYPE_OBJECT)
+				continue;
+			uint32_t dest_addr = cesk_reloc_table_look_for(rtab, sour_addr);
+			if(CESK_STORE_ADDR_NULL == dest_addr)
+			{
+				LOG_WARNING("failed to query the relocation table");
+				continue;
+			}
+			uint32_t bid = dest_addr / CESK_STORE_BLOCK_NSLOTS;
+			uint32_t ofs = dest_addr % CESK_STORE_BLOCK_NSLOTS;
+			/* if two object is actually the same one */
+			if(sour->blocks[i]->slots[j].value->pointer._void == 
+			   dest->blocks[bid]->slots[ofs].value->pointer._void)
+				continue;
+			/* if this  destination store is empty, just make a new object for the slot */
+			if(dest->blocks[bid]->slots[ofs].value->pointer._void == NULL)
+			{
+				const char* classpath = cesk_object_classpath(sour->blocks[i]->slots[j].value->pointer.object);
+				if(NULL == classpath)
+				{
+					LOG_WARNING("can not get the class path of the object");
+					continue;
+				}
+				cesk_value_t* newval = cesk_value_from_classpath(classpath);
+				if(NULL == newval)
+				{
+					LOG_WARNING("can not build a new object for the relocated object");
+					continue;
+				}
+				if(cesk_store_attach(dest, dest_addr ,newval) < 0)
+				{
+					LOG_WARNING("can not attach the new object to the destination store");
+					continue;
+				}
+				cesk_store_release_rw(dest, dest_addr);
+			}
+			/* okay, now the destination store is assigned to an object, now start to merge */
+			if(_cesk_store_merge_object(p_dest, dest_addr, sour, sour_addr, rtab) < 0)
+			{
+				LOG_WARNING("can not merge two object");
+				continue;
+			}
+			dest = *p_dest;
+		}
+	}
+
+	return 0;
+}

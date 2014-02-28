@@ -3,3 +3,8 @@ block analyzer
 
 how to dealing with the output frame of last block . because return do not have any output
 test block analyzer and complete it
+
+
+test the store merge function. 
+
+Then move on to the inter-block analysis

@@ -160,7 +160,6 @@ cesk_reloc_table_t* cesk_reloc_table_from_store(cesk_store_t** p_dest, const ces
 			
 			/* because the p_dest might change, so we must update the value of dest now */
 			dest = *p_dest;
-
 			/* okay, build an actually relocation rule */
 			uint32_t old_addr = i * CESK_STORE_BLOCK_NSLOTS + j;
 			LOG_DEBUG("find relocation plan: @0x%x --> @0x%x", old_addr, new_addr);
@@ -170,6 +169,19 @@ cesk_reloc_table_t* cesk_reloc_table_from_store(cesk_store_t** p_dest, const ces
 				LOG_WARNING("can not build relocation rule from @0x%x to @0x%x", old_addr, new_addr);
 				continue;
 			}
+			/* then we put an empty object in that place, so that we can merge the source object later */
+			cesk_value_t* newval = cesk_value_from_classpath(cesk_object_classpath(sour->blocks[i]->slots[j].value->pointer.object));
+			if(NULL == newval)
+			{
+				LOG_ERROR("can not create new val for the relocated object");
+				continue;
+			}
+			if(cesk_store_attach(dest, new_addr, newval) < 0)
+			{
+				LOG_WARNING("can not attach the source value to the destination store");
+				continue;
+			}
+			cesk_store_release_rw(dest, new_addr);
 		}
 	}
 	LOG_DEBUG("relocate table has been built for store@%p to store@%p", *p_dest, sour);
