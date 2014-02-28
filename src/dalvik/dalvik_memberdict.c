@@ -10,15 +10,6 @@
 #define _TYPE_METHOD 0
 #define _TYPE_FIELD 1
 #define _TYPE_CLASS 2
-<<<<<<< HEAD
-
-typedef struct _dalvik_memberdict_node_t {
-    int type;
-    const char* class_path;
-    const char* member_name;
-    void*       object;
-    struct _dalvik_memberdict_node_t* next;
-=======
 typedef struct _dalvik_memberdict_node_t {
     const char* class_path;             /* the class path */
     const char* member_name;            /* the name of the member */
@@ -26,7 +17,6 @@ typedef struct _dalvik_memberdict_node_t {
     int         type;                   /* type of the object method, field or class */
     void*       object;                 /* the storage of the object */
     struct _dalvik_memberdict_node_t* next; 
->>>>>>> change member dict to support reload
 } dalvik_memberdict_node_t;
 
 dalvik_memberdict_node_t* _dalvik_memberdict_hash_table[DALVIK_MEMBERDICT_SIZE];

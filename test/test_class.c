@@ -1,8 +1,6 @@
-<<<<<<< HEAD
-=======
 #include <adam.h>
->>>>>>> rename to adam
 #include <dalvik/dalvik_class.h>
+#include <dalvik/dalvik_memberdict.h>
 const char input[] = 
 "(class (attrs ) antlr/TokenRangeElement\n"
 " (super antlr/AlternativeElement)\n"

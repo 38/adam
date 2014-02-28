@@ -57,6 +57,7 @@ void dalvik_type_finalize(void)
 dalvik_type_t* dalvik_type_from_sexp(const sexpression_t* sexp)
 {
    const char* curlit;
+   LOG_DEBUG("parsing type %s", sexp_to_string(sexp, NULL));
    if(sexp_match(sexp, "L?", &curlit))  /* A single literal ? atom */
    {
        if(curlit == DALVIK_TOKEN_VOID)
@@ -104,7 +105,7 @@ dalvik_type_t* dalvik_type_from_sexp(const sexpression_t* sexp)
            
            /* We have too unpack the sexp first */
 
-           if(sexp_match(sexp, "(C?", &sexp) == 0) return NULL;
+           if(sexp_match(sexp, "(_?", &sexp) == 0) return NULL;
            
            if(NULL == (ret->data.array.elem_type = dalvik_type_from_sexp(sexp)))
            {

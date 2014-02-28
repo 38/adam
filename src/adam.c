@@ -8,8 +8,6 @@ void adam_init(void)
 }
 void adam_finalize(void)
 {
-    dalvik_exception_finalize();
-    dalvik_memberdict_finalize();
     cesk_finalize();
     dalvik_finalize();
     stringpool_fianlize();

@@ -1,22 +1,17 @@
-<<<<<<< HEAD
-Start testing: Feb 28 15:15 MST
-----------------------------------------------------------
-End testing: Feb 28 15:15 MST
-=======
-Start testing: Feb 25 13:15 MST
+Start testing: Feb 28 13:13 MST
 ----------------------------------------------------------
 1/15 Testing: test_vector
 1/15 Test: test_vector
 Command: "/home/ghost/source/adam/bin/test/test_vector"
 Directory: /home/ghost/source/adam
-"test_vector" start time: Feb 25 13:15 MST
+"test_vector" start time: Feb 28 13:13 MST
 Output:
 ----------------------------------------------------------
 <end of output>
 Test time =   0.01 sec
 ----------------------------------------------------------
 Test Passed.
-"test_vector" end time: Feb 25 13:15 MST
+"test_vector" end time: Feb 28 13:13 MST
 "test_vector" time elapsed: 00:00:00
 ----------------------------------------------------------
 
@@ -24,14 +19,14 @@ Test Passed.
 2/15 Test: test_dalvik_field
 Command: "/home/ghost/source/adam/bin/test/test_dalvik_field"
 Directory: /home/ghost/source/adam
-"test_dalvik_field" start time: Feb 25 13:15 MST
+"test_dalvik_field" start time: Feb 28 13:13 MST
 Output:
 ----------------------------------------------------------
 <end of output>
 Test time =   0.01 sec
 ----------------------------------------------------------
 Test Passed.
-"test_dalvik_field" end time: Feb 25 13:15 MST
+"test_dalvik_field" end time: Feb 28 13:13 MST
 "test_dalvik_field" time elapsed: 00:00:00
 ----------------------------------------------------------
 
@@ -39,14 +34,14 @@ Test Passed.
 3/15 Test: test_dalvik_method
 Command: "/home/ghost/source/adam/bin/test/test_dalvik_method"
 Directory: /home/ghost/source/adam
-"test_dalvik_method" start time: Feb 25 13:15 MST
+"test_dalvik_method" start time: Feb 28 13:13 MST
 Output:
 ----------------------------------------------------------
 <end of output>
 Test time =   0.01 sec
 ----------------------------------------------------------
 Test Passed.
-"test_dalvik_method" end time: Feb 25 13:15 MST
+"test_dalvik_method" end time: Feb 28 13:13 MST
 "test_dalvik_method" time elapsed: 00:00:00
 ----------------------------------------------------------
 
@@ -54,14 +49,14 @@ Test Passed.
 4/15 Test: test_sexp
 Command: "/home/ghost/source/adam/bin/test/test_sexp"
 Directory: /home/ghost/source/adam
-"test_sexp" start time: Feb 25 13:15 MST
+"test_sexp" start time: Feb 28 13:13 MST
 Output:
 ----------------------------------------------------------
 <end of output>
 Test time =   0.01 sec
 ----------------------------------------------------------
 Test Passed.
-"test_sexp" end time: Feb 25 13:15 MST
+"test_sexp" end time: Feb 28 13:13 MST
 "test_sexp" time elapsed: 00:00:00
 ----------------------------------------------------------
 
@@ -69,14 +64,14 @@ Test Passed.
 5/15 Test: test_cesk_set
 Command: "/home/ghost/source/adam/bin/test/test_cesk_set"
 Directory: /home/ghost/source/adam
-"test_cesk_set" start time: Feb 25 13:15 MST
+"test_cesk_set" start time: Feb 28 13:13 MST
 Output:
 ----------------------------------------------------------
 <end of output>
 Test time =   0.01 sec
 ----------------------------------------------------------
 Test Passed.
-"test_cesk_set" end time: Feb 25 13:15 MST
+"test_cesk_set" end time: Feb 28 13:13 MST
 "test_cesk_set" time elapsed: 00:00:00
 ----------------------------------------------------------
 
@@ -84,14 +79,14 @@ Test Passed.
 6/15 Test: test_cesk_store
 Command: "/home/ghost/source/adam/bin/test/test_cesk_store"
 Directory: /home/ghost/source/adam
-"test_cesk_store" start time: Feb 25 13:15 MST
+"test_cesk_store" start time: Feb 28 13:13 MST
 Output:
 ----------------------------------------------------------
 <end of output>
-Test time =   1.02 sec
+Test time =   1.03 sec
 ----------------------------------------------------------
 Test Passed.
-"test_cesk_store" end time: Feb 25 13:15 MST
+"test_cesk_store" end time: Feb 28 13:13 MST
 "test_cesk_store" time elapsed: 00:00:01
 ----------------------------------------------------------
 
@@ -99,16 +94,16 @@ Test Passed.
 7/15 Test: test_strpool
 Command: "/home/ghost/source/adam/bin/test/test_strpool"
 Directory: /home/ghost/source/adam
-"test_strpool" start time: Feb 25 13:15 MST
+"test_strpool" start time: Feb 28 13:13 MST
 Output:
 ----------------------------------------------------------
 Tring basic logic
 Tring qurey randmoized strings
 <end of output>
-Test time =   0.13 sec
+Test time =   0.17 sec
 ----------------------------------------------------------
 Test Passed.
-"test_strpool" end time: Feb 25 13:15 MST
+"test_strpool" end time: Feb 28 13:13 MST
 "test_strpool" time elapsed: 00:00:00
 ----------------------------------------------------------
 
@@ -116,14 +111,14 @@ Test Passed.
 8/15 Test: test_dalvik_label
 Command: "/home/ghost/source/adam/bin/test/test_dalvik_label"
 Directory: /home/ghost/source/adam
-"test_dalvik_label" start time: Feb 25 13:15 MST
+"test_dalvik_label" start time: Feb 28 13:13 MST
 Output:
 ----------------------------------------------------------
 <end of output>
-Test time =   0.10 sec
+Test time =   0.17 sec
 ----------------------------------------------------------
 Test Passed.
-"test_dalvik_label" end time: Feb 25 13:15 MST
+"test_dalvik_label" end time: Feb 28 13:13 MST
 "test_dalvik_label" time elapsed: 00:00:00
 ----------------------------------------------------------
 
@@ -131,14 +126,14 @@ Test Passed.
 9/15 Test: test_dalvik_ins
 Command: "/home/ghost/source/adam/bin/test/test_dalvik_ins"
 Directory: /home/ghost/source/adam
-"test_dalvik_ins" start time: Feb 25 13:15 MST
+"test_dalvik_ins" start time: Feb 28 13:13 MST
 Output:
 ----------------------------------------------------------
 <end of output>
 Test time =   0.01 sec
 ----------------------------------------------------------
 Test Passed.
-"test_dalvik_ins" end time: Feb 25 13:15 MST
+"test_dalvik_ins" end time: Feb 28 13:13 MST
 "test_dalvik_ins" time elapsed: 00:00:00
 ----------------------------------------------------------
 
@@ -146,14 +141,14 @@ Test Passed.
 10/15 Test: test_cesk_block
 Command: "/home/ghost/source/adam/bin/test/test_cesk_block"
 Directory: /home/ghost/source/adam
-"test_cesk_block" start time: Feb 25 13:15 MST
+"test_cesk_block" start time: Feb 28 13:13 MST
 Output:
 ----------------------------------------------------------
 <end of output>
 Test time =   0.01 sec
 ----------------------------------------------------------
 Test Passed.
-"test_cesk_block" end time: Feb 25 13:15 MST
+"test_cesk_block" end time: Feb 28 13:13 MST
 "test_cesk_block" time elapsed: 00:00:00
 ----------------------------------------------------------
 
@@ -161,14 +156,14 @@ Test Passed.
 11/15 Test: test_cesk_object
 Command: "/home/ghost/source/adam/bin/test/test_cesk_object"
 Directory: /home/ghost/source/adam
-"test_cesk_object" start time: Feb 25 13:15 MST
+"test_cesk_object" start time: Feb 28 13:13 MST
 Output:
 ----------------------------------------------------------
 <end of output>
-Test time =   1.01 sec
+Test time =   1.05 sec
 ----------------------------------------------------------
 Test Passed.
-"test_cesk_object" end time: Feb 25 13:15 MST
+"test_cesk_object" end time: Feb 28 13:13 MST
 "test_cesk_object" time elapsed: 00:00:01
 ----------------------------------------------------------
 
@@ -176,14 +171,14 @@ Test Passed.
 12/15 Test: test_dalvik_loader
 Command: "/home/ghost/source/adam/bin/test/test_dalvik_loader"
 Directory: /home/ghost/source/adam
-"test_dalvik_loader" start time: Feb 25 13:15 MST
+"test_dalvik_loader" start time: Feb 28 13:13 MST
 Output:
 ----------------------------------------------------------
 <end of output>
-Test time =   1.03 sec
+Test time =   1.05 sec
 ----------------------------------------------------------
 Test Passed.
-"test_dalvik_loader" end time: Feb 25 13:15 MST
+"test_dalvik_loader" end time: Feb 28 13:13 MST
 "test_dalvik_loader" time elapsed: 00:00:01
 ----------------------------------------------------------
 
@@ -191,14 +186,14 @@ Test Passed.
 13/15 Test: test_dalvik_block
 Command: "/home/ghost/source/adam/bin/test/test_dalvik_block"
 Directory: /home/ghost/source/adam
-"test_dalvik_block" start time: Feb 25 13:15 MST
+"test_dalvik_block" start time: Feb 28 13:13 MST
 Output:
 ----------------------------------------------------------
 <end of output>
-Test time =   1.02 sec
+Test time =   1.08 sec
 ----------------------------------------------------------
 Test Passed.
-"test_dalvik_block" end time: Feb 25 13:15 MST
+"test_dalvik_block" end time: Feb 28 13:13 MST
 "test_dalvik_block" time elapsed: 00:00:01
 ----------------------------------------------------------
 
@@ -206,14 +201,14 @@ Test Passed.
 14/15 Test: test_cesk_frame
 Command: "/home/ghost/source/adam/bin/test/test_cesk_frame"
 Directory: /home/ghost/source/adam
-"test_cesk_frame" start time: Feb 25 13:15 MST
+"test_cesk_frame" start time: Feb 28 13:13 MST
 Output:
 ----------------------------------------------------------
 <end of output>
-Test time =   1.02 sec
+Test time =   1.04 sec
 ----------------------------------------------------------
 Test Passed.
-"test_cesk_frame" end time: Feb 25 13:15 MST
+"test_cesk_frame" end time: Feb 28 13:13 MST
 "test_cesk_frame" time elapsed: 00:00:01
 ----------------------------------------------------------
 
@@ -221,16 +216,15 @@ Test Passed.
 15/15 Test: test_class
 Command: "/home/ghost/source/adam/bin/test/test_class"
 Directory: /home/ghost/source/adam
-"test_class" start time: Feb 25 13:15 MST
+"test_class" start time: Feb 28 13:13 MST
 Output:
 ----------------------------------------------------------
 <end of output>
-Test time =   0.03 sec
+Test time =   0.01 sec
 ----------------------------------------------------------
 Test Passed.
-"test_class" end time: Feb 25 13:15 MST
+"test_class" end time: Feb 28 13:13 MST
 "test_class" time elapsed: 00:00:00
 ----------------------------------------------------------
 
-End testing: Feb 25 13:15 MST
->>>>>>> s
+End testing: Feb 28 13:13 MST

@@ -160,8 +160,6 @@ dalvik_method_t* dalvik_method_from_sexp(const sexpression_t* sexp, const char* 
             }
             current_ehset = dalvik_exception_new_handler_set(enbaled_count, exceptionset);
         }
-<<<<<<< HEAD
-=======
         else if(sexp_match(this_smt, "(L=A", DALVIK_TOKEN_ANNOTATION, &arg))
         {
             /* Simplely ignore */
@@ -196,7 +194,6 @@ dalvik_method_t* dalvik_method_from_sexp(const sexpression_t* sexp, const char* 
             //TODO: fill-array-data psuedo-instruction
             LOG_INFO("fixme: (fill-array-data) is to be implemented");
         }
->>>>>>> fix memory leak
         else
         {
             dalvik_instruction_t* inst = dalvik_instruction_new();

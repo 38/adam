@@ -30,7 +30,7 @@ static int _dalvik_instruction_pool_resize()
     
     old_pool = dalvik_instruction_pool;
     
-    dalvik_instruction_pool = realloc(old_pool, _dalvik_instruction_pool_capacity * 2);
+    dalvik_instruction_pool = realloc(old_pool, sizeof(dalvik_instruction_t) * _dalvik_instruction_pool_capacity * 2);
 
     if(NULL == dalvik_instruction_pool) 
     {
@@ -873,7 +873,7 @@ __DI_CONSTRUCTOR(NOT)
 static inline int _dalvik_instruction_convert_operator(const sexpression_t* next, dalvik_instruction_t* buf, int type)
 {
     int operand_flags[2];
-    if(sexp_match(next, "(L=A", DALVIK_TOKEN_TO, &next)) return -1;
+    if(!sexp_match(next, "(L=A", DALVIK_TOKEN_TO, &next)) return -1;
     operand_flags[0] = DVM_OPERAND_FLAG_TYPE(type);
     operand_flags[1] = _dalvik_instruction_sexpression_fetch_type(&next, 0);
     return _dalvik_instruction_setup_arithmetic(DVM_UNOP, DVM_FLAG_UOP_TO, 2, operand_flags, next, buf);

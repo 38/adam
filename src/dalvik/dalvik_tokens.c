@@ -114,18 +114,12 @@ const char* _dalvik_token_defs[DALVIK_MAX_NUM_KEYWORDS] = {
     "field",
     "source",
     "implements",
-<<<<<<< HEAD
-=======
     "data",
     "catch",
     "catchall",
     "fill",
-<<<<<<< HEAD
->>>>>>> fix memory leak
-=======
     "using",
     "from",
->>>>>>> exception handler
     NULL
 }; 
 

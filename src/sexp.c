@@ -409,7 +409,9 @@ int sexp_length(const sexpression_t* sexp)
 }
 char* sexp_to_string(const sexpression_t* sexp, char* buf)
 {
+    static char defualt_buf[1024];
     char * ret;
+    if(buf == NULL) buf = defualt_buf;
     ret = buf;
     if(NULL == buf) return NULL;
     if(SEXP_NIL == sexp) 
