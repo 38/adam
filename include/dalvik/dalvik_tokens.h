@@ -1,6 +1,6 @@
 #ifndef __DALVIK_TOKENS_H__
 #define __DALVIK_TOKENS_H__
-/** @file dalvik_token.h
+/** @file dalvik_tokens.h
  *  @brief lexer tokens 
  */
 

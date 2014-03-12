@@ -35,7 +35,7 @@ int cesk_set_merge(cesk_set_t* dest, const cesk_set_t* sour);
 /** @brief apply relocation table and then merge two set.
  *  @param dest the destination set
  *  @param sour source set
- *  @reloc_table relocation table
+ *  @param reloc_table relocation table
  *  @return operation result
  *  @todo implementation
  */

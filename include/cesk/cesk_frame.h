@@ -163,7 +163,7 @@ int cesk_frame_store_array_put(cesk_frame_t* frame, const dalvik_instruction_t* 
  * @param frame the frame we are operating
  * @param inst current instruction
  * @param classpath the class path of the clas
- * @param return the address of the new object
+ * @return the address of the new object
  */
 uint32_t cesk_frame_store_new_object(cesk_frame_t* frame, const dalvik_instruction_t* inst, const char* classpath);
 

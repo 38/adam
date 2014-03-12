@@ -27,7 +27,7 @@ static inline hashval_t _cesk_reloc_table_entry_hashcode(uint32_t fromaddr)
 }
 /** 
  * @brief insert an entry to the relocation table
- * @detials here we assume the table pointer is always valid
+ * @details here we assume the table pointer is always valid
  * @return result of insertion operate
  **/
 static inline int _cesk_reloc_table_insert(cesk_reloc_table_t* table, uint32_t fromaddr, uint32_t toaddr)

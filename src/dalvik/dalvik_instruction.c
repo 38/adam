@@ -1,3 +1,6 @@
+/**
+ * @brief: The Dalvik Instruction Parser
+ */
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
@@ -14,13 +17,23 @@
 #ifdef PARSER_COUNT
 int dalvik_instruction_count = 0;
 #endif
-
+/**@brief The instruction pool, all instruction is allcoated in the pool,
+ *        So that we do not need to free the memory for the instruction,
+ *        because all memory will be freed when the fianlization fucntion 
+ *        is called
+ *        NOTICE that the memory address of an instruction might be change
+ *        after they are allocated, so use the instruction ID rather than 
+ *        the pointer to instruction for refering the instruction.
+ */
 dalvik_instruction_t* dalvik_instruction_pool = NULL;
 
+/** @brief The capacity of the pool, although the sizeof the pool can increase dynamically,
+ * 		   But it's a relateively slow operation to reallocate the memory for the pool,
+ * 		   so that, we must set up a proper initial value of the size. */
 static size_t _dalvik_instruction_pool_capacity = DALVIK_POOL_INIT_SIZE;
 
 static size_t _dalvik_instruction_pool_size = 0;
-
+/** @brief double the size of  the instruction pool when there's no space */
 static int _dalvik_instruction_pool_resize()
 {
     LOG_DEBUG("resize dalvik instruction pool from %zu to %zu", _dalvik_instruction_pool_capacity, 
@@ -34,21 +47,27 @@ static int _dalvik_instruction_pool_resize()
 
     if(NULL == dalvik_instruction_pool) 
     {
+		LOG_ERROR("can not double the size of instruction pool");
         dalvik_instruction_pool = old_pool;
         return -1;
     }
     _dalvik_instruction_pool_capacity *= 2;
     return 0;
 }
-
 int dalvik_instruction_init( void )
 {
     _dalvik_instruction_pool_size = 0;
     if(NULL == dalvik_instruction_pool) 
+	{
+		LOG_DEBUG("there's no space for instruction pool, create a new pool");
         dalvik_instruction_pool = 
             (dalvik_instruction_t*)malloc(sizeof(dalvik_instruction_t) * _dalvik_instruction_pool_capacity);
+	}
     if(NULL == dalvik_instruction_pool)
+	{
+		LOG_ERROR("can not allocate instruction pool");
         return -1;
+	}
     LOG_DEBUG("dalvik instruction pool initialized");
     return 0;
 }
@@ -56,11 +75,13 @@ int dalvik_instruction_init( void )
 int dalvik_instruction_finalize( void )
 {
     int i;
-    
-    for(i = 0; i < _dalvik_instruction_pool_size; i ++)
-        dalvik_instruction_free(dalvik_instruction_pool + i);
+	if(NULL != dalvik_instruction_pool)
+	{
+		for(i = 0; i < _dalvik_instruction_pool_size; i ++)
+			dalvik_instruction_free(dalvik_instruction_pool + i);
 
-    if(dalvik_instruction_pool != NULL) free(dalvik_instruction_pool);
+    	free(dalvik_instruction_pool);
+	}
     return 0;
 }
 
@@ -76,14 +97,22 @@ dalvik_instruction_t* dalvik_instruction_new( void )
     }
     dalvik_instruction_t* val = dalvik_instruction_pool + (_dalvik_instruction_pool_size ++);
     memset(val, 0, sizeof(dalvik_instruction_t));
-    val->next = DALVIK_INSTRUCTION_INVALID;
+	/* TODO: because we assume the next instruction is the following instruction in the pool, so 
+	 * is this field a meaningful one?
+	 */
+    val->next = DALVIK_INSTRUCTION_INVALID;   
     return val;
 }
+/** @brief setup an operand */
 static inline void _dalvik_instruction_operand_setup(dalvik_operand_t* operand, uint8_t flags, uint64_t payload)
 {
     operand->header.flags = flags;
     operand->payload.uint64 = payload;
 }
+/** @brief write an annotation to the instruction. The annotation is 
+ * 	some additional information that is stored in the unused space
+ * 	in a instruction
+ */
 static inline int _dalvik_instruction_write_annotation(dalvik_instruction_t* inst, const void* value, size_t size)
 {
     char* mem_start = (char*)(inst->annotation_begin + inst->num_operands);
@@ -96,10 +125,29 @@ static inline int _dalvik_instruction_write_annotation(dalvik_instruction_t* ins
         LOG_WARNING("no space for annotation for instruction(opcode = 0x%x, flags = 0x%x)", inst->opcode, inst->flags);
     return -1;
 }
-#pragma GCC diagnostic ignored "-Wpointer-to-int-cast"
+#pragma GCC diagnostic ignored "-Wpointer-to-int-cast"  /* turn off the annoying warning options */
+/** 
+ * @brief this macro is used to define a function that is used to initialize a instruction. 
+ * 		  `next' is the S-Expression that has not been parsed yet, `buf' is the output buffer
+ **/
 #define __DI_CONSTRUCTOR(kw) static inline int _dalvik_instruction_##kw(const sexpression_t* next, dalvik_instruction_t* buf)
+/**
+ * @brief setup a operand, should be used in a instruction constructor, the operand will be write to
+ * 		  variable buf.
+ * @param id the index of the operand
+ * @param flag the flag of this operand, see definition of dalvik_operand_t for details 
+ **/
 #define __DI_SETUP_OPERAND(id, flag, value) do{_dalvik_instruction_operand_setup(buf->operands + (id), (flag), (uint64_t)(value));}while(0)
+/**
+ * @brief write an annotation to the buffer
+ * @param what what to write to the instruction
+ * @param sz the size of the instruction
+ **/
 #define __DI_WRITE_ANNOTATION(what, sz) do{_dalvik_instruction_write_annotation(buf, &(what), (sz));}while(0)
+/**
+ * @brief get the register name
+ * @param buf the input buffer
+ **/
 #define __DI_REGNUM(buf) (atoi((buf)+1))
 #define __DI_INSNUM(buf) (atoi(buf))
 #define __DI_INSNUMLL(buf) (atoll(buf))
@@ -117,6 +165,7 @@ __DI_CONSTRUCTOR(MOVE)
     buf->num_operands = 2;
     const char* curlit;
     int rc;
+	/* try to peek the first literal */
     rc = sexp_match(next, "(L?A", &curlit, &next);
     if(rc == 0) return -1;
     else if(curlit == DALVIK_TOKEN_FROM16 || curlit == DALVIK_TOKEN_16)  /* move/from16 or move/16 */
@@ -134,7 +183,11 @@ __DI_CONSTRUCTOR(MOVE)
             __DI_SETUP_OPERAND(0, DVM_OPERAND_FLAG_WIDE, __DI_REGNUM(dest));
             __DI_SETUP_OPERAND(1, DVM_OPERAND_FLAG_WIDE, __DI_REGNUM(sour));
         }
-        else return -1; 
+        else 
+		{
+			LOG_ERROR("invalid operand");
+			return -1; 
+		}
     }
     else if(curlit == DALVIK_TOKEN_OBJECT)  /*move-object*/
     {
@@ -162,7 +215,11 @@ __DI_CONSTRUCTOR(MOVE)
             __DI_SETUP_OPERAND(0, 0, __DI_REGNUM(dest));
             __DI_SETUP_OPERAND(1, DVM_OPERAND_FLAG_RESULT, 0);
         }
-        else return -1;
+        else 
+		{
+			LOG_ERROR("invalid operand");
+			return -1;
+		}
     }
     else if(curlit == DALVIK_TOKEN_EXCEPTION)  /* move-exception */
     {
@@ -171,7 +228,11 @@ __DI_CONSTRUCTOR(MOVE)
             __DI_SETUP_OPERAND(0, 0, __DI_REGNUM(dest));
             __DI_SETUP_OPERAND(1, DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_EXCEPTION), 0);
         }
-        else return -1;
+        else 
+		{
+			LOG_ERROR("invalid operand");
+			return -1;
+		}
     }
     else
     {
@@ -200,13 +261,21 @@ __DI_CONSTRUCTOR(RETURN)
     {
         if(sexp_match(next, "(L?", &dest))
             __DI_SETUP_OPERAND(0, DVM_OPERAND_FLAG_WIDE, __DI_REGNUM(dest));
-        else return -1;
+        else 
+		{
+			LOG_ERROR("can not get the source register");
+			return -1;
+		}
     }
     else if(curlit == DALVIK_TOKEN_OBJECT) /* return-object */
     {
         if(sexp_match(next, "(L?", &dest))
             __DI_SETUP_OPERAND(0, DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_OBJECT), __DI_REGNUM(dest));
-        else return -1;
+        else 
+		{
+			LOG_ERROR("can not get the source register");
+			return -1;
+		}
     }
     else  /* return */
     {
@@ -222,7 +291,11 @@ __DI_CONSTRUCTOR(CONST)
     int rc;
     next = sexp_strip(next, DALVIK_TOKEN_4, DALVIK_TOKEN_16, NULL);     /* We don't care the size of instance number */
     rc = sexp_match(next, "(L?A", &curlit, &next);
-    if(0 == rc) return -1;
+    if(0 == rc) 
+	{
+		LOG_ERROR("can not get next literal");
+		return -1;
+	}
     if(curlit == DALVIK_TOKEN_HIGH16) /* const/high16 */
     {
         if(sexp_match(next, "(L?L?", &dest, &sour))
@@ -230,10 +303,15 @@ __DI_CONSTRUCTOR(CONST)
             __DI_SETUP_OPERAND(0, 0, __DI_REGNUM(dest));
             __DI_SETUP_OPERAND(1, DVM_OPERAND_FLAG_CONST | DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_INT), __DI_INSNUM(sour) << 16);
         }
-        else return -1;
+        else 
+		{
+			LOG_ERROR("invalid operands");
+			return -1;
+		}
     }
     else if(curlit == DALVIK_TOKEN_WIDE) /* const-wide */
     {
+		/* again, we don't care the either */
         next = sexp_strip(next, DALVIK_TOKEN_16, DALVIK_TOKEN_32, NULL);
         if(sexp_match(next, "(L=L?L?", DALVIK_TOKEN_HIGH16, &dest, &sour))  /* const-wide/high16 */
         {
@@ -250,7 +328,11 @@ __DI_CONSTRUCTOR(CONST)
                                  DVM_OPERAND_FLAG_CONST | 
                                  DVM_OPERAND_FLAG_WIDE, __DI_INSNUMLL(sour));
         }
-        else return -1;
+        else 
+		{
+			LOG_ERROR("invalid instruction format");
+			return -1;
+		}
     }
     else if(curlit == DALVIK_TOKEN_STRING) /* const-string */
     {
@@ -260,7 +342,11 @@ __DI_CONSTRUCTOR(CONST)
            __DI_SETUP_OPERAND(0, DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_STRING), __DI_REGNUM(dest));
            __DI_SETUP_OPERAND(1, DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_STRING) | DVM_OPERAND_FLAG_CONST, sour);
        }
-       else return -1;
+       else
+	   {
+		   LOG_ERROR("invalid instruction format");
+		   return -1;
+	   }
     }
     else if(curlit == DALVIK_TOKEN_CLASS)  /* const-class */
     {
@@ -269,7 +355,11 @@ __DI_CONSTRUCTOR(CONST)
            __DI_SETUP_OPERAND(0, DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_OBJECT), __DI_REGNUM(dest));
            __DI_SETUP_OPERAND(1, DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_CLASS) | DVM_OPERAND_FLAG_CONST, sexp_get_object_path(next, NULL));
         }
-        else return -1;
+        else 
+		{
+			LOG_ERROR("invalid instruction format");
+			return -1;
+		}
     }
     else /* const or const/4 or const/16 */
     {
@@ -279,7 +369,11 @@ __DI_CONSTRUCTOR(CONST)
             __DI_SETUP_OPERAND(0, 0, __DI_REGNUM(dest));
             __DI_SETUP_OPERAND(1, DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_INT) | DVM_OPERAND_FLAG_CONST, __DI_INSNUM(sour));
         }
-        else return -1;
+        else 
+		{
+			LOG_ERROR("invalid instruction format");
+			return -1;
+		}
     }
     return 0;
 }
@@ -328,9 +422,17 @@ __DI_CONSTRUCTOR(CHECK)
                                   DVM_OPERAND_FLAG_CONST , 
                                   sexp_get_object_path(next, NULL));
         }
-        else return -1;
+        else 
+		{
+			LOG_ERROR("invalid operands");
+			return -1;
+		}
     }
-    else return -1;
+    else 
+	{
+		LOG_ERROR("invalid instruction format");
+		return -1;
+	}
     return 0;
 }
 __DI_CONSTRUCTOR(THROW)
@@ -342,7 +444,11 @@ __DI_CONSTRUCTOR(THROW)
     {
         __DI_SETUP_OPERAND(0, DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_OBJECT), __DI_REGNUM(sour));
     }
-    else return -1;
+    else 
+	{
+		LOG_ERROR("invalid operand");
+		return -1;
+	}
     return 0;
 }
 __DI_CONSTRUCTOR(GOTO)
@@ -356,7 +462,11 @@ __DI_CONSTRUCTOR(GOTO)
         int lid = dalvik_label_get_label_id(label);
         __DI_SETUP_OPERAND(0, DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_LABEL) | DVM_OPERAND_FLAG_CONST, lid);
     }
-    else return -1;
+    else 
+	{
+		LOG_ERROR("invalid label");
+		return -1;
+	}
     return 0;
 }
 __DI_CONSTRUCTOR(PACKED)
@@ -376,11 +486,16 @@ __DI_CONSTRUCTOR(PACKED)
         __DI_SETUP_OPERAND(2, DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_LABELVECTOR) |
                               DVM_OPERAND_FLAG_CONST,
                               jump_table = vector_new(sizeof(uint32_t)));
-        if(NULL == jump_table) return -1;
+        if(NULL == jump_table) 
+		{
+			LOG_ERROR("can not allocate a vector for jump table");
+			return -1;
+		}
         while(SEXP_NIL != next)
         {
             if(!sexp_match(next, "(L?A", &label, &next)) 
             {
+				LOG_ERROR("invalid instruction format");
                 vector_free(jump_table);
                 return -1;
             }
@@ -389,6 +504,7 @@ __DI_CONSTRUCTOR(PACKED)
 
             if(lid < 0) 
             {
+				LOG_ERROR("label %s does not exist", label);
                 vector_free(jump_table);
                 return -1;
             }
@@ -396,7 +512,11 @@ __DI_CONSTRUCTOR(PACKED)
             vector_pushback(jump_table, &lid);
         }
     }
-    else return -1;
+    else 
+	{
+		LOG_ERROR("invalid instruction format");
+		return -1;
+	}
     return 0;
 }
 __DI_CONSTRUCTOR(SPARSE)
@@ -414,12 +534,17 @@ __DI_CONSTRUCTOR(SPARSE)
         __DI_SETUP_OPERAND(1, DVM_OPERAND_FLAG_CONST |
                               DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_SPARSE),
                               jump_table = vector_new(sizeof(dalvik_sparse_switch_branch_t)));
-        if(NULL == jump_table) return -1;
+        if(NULL == jump_table) 
+		{
+			LOG_ERROR("can not allocate vector to store the jump table");
+			return -1;
+		}
         while(SEXP_NIL != next)
         {
             sexpression_t* this;
             if(!sexp_match(next, "(C?A", &this, &next))
             {
+				LOG_ERROR("invalid operands");
                 vector_free(jump_table);
                 return -1;
             }
@@ -430,6 +555,7 @@ __DI_CONSTRUCTOR(SPARSE)
                 int cit = __DI_INSNUM(cond);
                 if(lid < 0)
                 {
+					LOG_ERROR("label %s does not exist", label);
                     vector_free(jump_table);
                     return -1;
                 }
@@ -444,12 +570,17 @@ __DI_CONSTRUCTOR(SPARSE)
             }
             else
             {
+				LOG_ERROR("invalid operand format");
                 vector_free(jump_table);
                 return -1;
             }
         }
     }
-    else return -1;
+    else 
+	{
+		LOG_ERROR("invalid instruction format");
+		return -1;
+	}
     return 0;
 }
 __DI_CONSTRUCTOR(CMP)
@@ -457,7 +588,7 @@ __DI_CONSTRUCTOR(CMP)
     buf->opcode = DVM_CMP;
     buf->num_operands = 3;
     const char *type, *dest, *sourA, *sourB; 
-    if(sexp_match(next, "(L?L?L?L?", &type, &dest, &sourA, &sourB))
+    if(sexp_match(next, "(L?L?L?L?", &type, &dest, &sourA, &sourB))   /* cmp-type dest, sourA, sourB */
     {
         __DI_SETUP_OPERAND(0, 0, __DI_REGNUM(dest));
         uint32_t flag;
@@ -467,11 +598,19 @@ __DI_CONSTRUCTOR(CMP)
             flag = DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_DOUBLE) | DVM_OPERAND_FLAG_WIDE;
         else if(DALVIK_TOKEN_LONG == type)
             flag = DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_LONG);
-        else return -1;
+        else 
+		{
+			LOG_ERROR("invaild type");
+			return -1;
+		}
         __DI_SETUP_OPERAND(1, flag, __DI_REGNUM(sourA));
         __DI_SETUP_OPERAND(2, flag, __DI_REGNUM(sourB));
     }
-    else return -1;
+    else 
+	{
+		LOG_ERROR("invalid instruction format");
+		return -1;
+	}
     return 0;
 }
 __DI_CONSTRUCTOR(IF)
@@ -481,7 +620,11 @@ __DI_CONSTRUCTOR(IF)
     const char* how, *sourA, *sourB, *label;
     int rc, lid;
     rc = sexp_match(next, "(L?L?A", &how, &sourA ,&next);
-    if(!rc) return -1;
+    if(!rc) 
+	{
+		LOG_ERROR("can not peek the first literal");
+		return -1;
+	}
     /* setup the first operand */
     __DI_SETUP_OPERAND(0, 0, __DI_REGNUM(sourA));
     if(DALVIK_TOKEN_EQZ == how ||
@@ -495,13 +638,25 @@ __DI_CONSTRUCTOR(IF)
     {
         /* read the second operand */
         rc = sexp_match(next, "(L?A", &sourB, &next);
-        if(!rc) return -1;
+        if(!rc) 
+		{
+			LOG_ERROR("invalid operands");
+			return -1;
+		}
         __DI_SETUP_OPERAND(1, 0, __DI_REGNUM(sourB));
     }
     rc = sexp_match(next, "(L?", &label);
-    if(!rc) return -1;
+    if(!rc) 
+	{
+		LOG_ERROR("invalid label");
+		return -1;
+	}
     lid = dalvik_label_get_label_id(label);
-    if(lid < 0) return -1;
+    if(lid < 0) 
+	{
+		LOG_ERROR("label %s does not exist", label);
+		return -1;
+	}
     /* setup the third operand */
     __DI_SETUP_OPERAND(2, DVM_OPERAND_FLAG_CONST |
                           DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_LABEL),
@@ -513,11 +668,16 @@ __DI_CONSTRUCTOR(IF)
     else if(DALVIK_TOKEN_GTZ == how || DALVIK_TOKEN_GT == how) buf->flags = DVM_FLAG_IF_GT;
     else if(DALVIK_TOKEN_LTZ == how || DALVIK_TOKEN_LT == how) buf->flags = DVM_FLAG_IF_LT;
     else if(DALVIK_TOKEN_EQZ == how || DALVIK_TOKEN_EQ == how) buf->flags = DVM_FLAG_IF_EQ;
-    else return -1;
+    else 
+	{
+		LOG_ERROR("invalid instruction format");
+		return -1;
+	}
     return 0;
 }
-/* This function is used for build a group of similar instructions :
- * iget iput aget aput sget sput
+/** @brief: This function is used for build a group of similar instructions :
+ *          
+ *          iget iput aget aput sget sput
  */
 static inline int _dalvik_instruction_setup_object_operations(
         int opcode,                 /* opcode we what to set */
@@ -560,7 +720,10 @@ static inline int _dalvik_instruction_setup_object_operations(
     const sexpression_t *previous;
     previous = next;   /* store the previous S-Expression, because we might be want to go back */
     if(sexp_match(next, "(L?A", &curlit, &next) == 0)
+	{
+		LOG_ERROR("invalid instruction format");
         return -1;
+	}
     /* Determine the type flags */
     if(curlit == DALVIK_TOKEN_WIDE   ||
        curlit == DALVIK_TOKEN_OBJECT ||
@@ -590,28 +753,50 @@ static inline int _dalvik_instruction_setup_object_operations(
     
     /* Get the destination register */
     if(sexp_match(next, "(L?A", &dest, &next) == 0)
+	{
+		LOG_ERROR("invalid destination register");
         return -1;
+	}
     __DI_SETUP_OPERAND(0, opflags, __DI_REGNUM(dest));
     /* Move on to the next operand */
     if(ins_kind != 1)   /* We need a object register */
     {
         if(sexp_match(next, "(L?A", &obj, &next) == 0)
+		{
+			LOG_ERROR("invalid object register");
             return -1;
+		}
         __DI_SETUP_OPERAND(1, DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_OBJECT), __DI_REGNUM(obj));
     }
     /* Move on to the next one/two operand(s) */
     if(ins_kind != 0)   /* We need a path and a type */
     {
         if(NULL == (path = sexp_get_object_path(next, &next)))
+		{
+			LOG_ERROR("invalid path");
             return -1;
+		}
         if(!sexp_match(next, "(L?A", &field, &next))
+		{
+			LOG_ERROR("invalid field name");
             return -1;
+		}
         if(SEXP_NIL == next) 
+		{
+			LOG_ERROR("invalid instruction format");
             return -1;
-        if(!sexp_match(next, "(_?", &next)) 
+		}
+        if(!sexp_match(next, "(_?", &next))
+		{
+			LOG_ERROR("invalid instruction format");
             return -1;
+		}
+		/* so the last operand is the type */
         if(NULL == (type = dalvik_type_from_sexp(next)))
+		{
+			LOG_ERROR("invalid type");
             return -1;
+		}
         __DI_SETUP_OPERAND(ins_kind==1?1:2, 
                            DVM_OPERAND_FLAG_CONST |
                            DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_CLASS),
@@ -631,7 +816,11 @@ static inline int _dalvik_instruction_setup_object_operations(
         {
             __DI_SETUP_OPERAND(2, DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_INT), __DI_REGNUM(idx));
         }
-        else return -1;
+        else 
+		{
+			LOG_ERROR("invalid index");
+			return -1;
+		}
     }
     return 0;
 }
@@ -663,7 +852,11 @@ __DI_CONSTRUCTOR(INVOKE)
 {
     buf->opcode = DVM_INVOKE;
     const char* curlit;
-    if(!sexp_match(next, "(L?A", &curlit, &next)) return -1;
+    if(!sexp_match(next, "(L?A", &curlit, &next)) 
+	{
+		LOG_ERROR("invalid instruction format");
+		return -1;
+	}
     if(curlit == DALVIK_TOKEN_VIRTUAL)
         buf->flags = DVM_FLAG_INVOKE_VIRTUAL;
     else if(curlit == DALVIK_TOKEN_SUPER)
@@ -674,7 +867,11 @@ __DI_CONSTRUCTOR(INVOKE)
         buf->flags = DVM_FLAG_INVOKE_STATIC;
     else if(curlit == DALVIK_TOKEN_INTERFACE)
         buf->flags = DVM_FLAG_INVOKE_INTERFACE;
-    else return -1;
+    else 
+	{
+		LOG_ERROR("invalid call type %s", curlit);
+		return -1;
+	}
     sexpression_t* args;
     const char* path , *field, *reg1, *reg2;
     if(sexp_match(next, "(L=A", DALVIK_TOKEN_RANGE, &next)) /* invoke-xxx/range */

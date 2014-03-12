@@ -3,7 +3,7 @@
 /**
  * @file  cesk_reloc.c
  * @brief the relocation support for store
- * @detials Altough we guarantee that all allocation performed by different instruction
+ * @details Altough we guarantee that all allocation performed by different instruction
  * 			will return a different address in same store. 
  *
  * 			But when we merge two store, the conflict is possible and this conflict will
@@ -24,7 +24,7 @@ typedef struct _cesk_reloc_table_t cesk_reloc_table_t;
  *  @details this function will check the differences between two stores, and find all conflict and 
  *  		 return a conflict table as the result.
  *
- *  @param dest pointer to destination store, because the address of the destination may change during this
+ *  @param p_dest pointer to destination store, because the address of the destination may change during this
  *  @param sour the source store
  *  @return the relocation table
  */

@@ -149,7 +149,7 @@ int cesk_store_set_reuse(cesk_store_t* store, uint32_t addr);
  * @param p_store the pointer to the pointer of store
  * @param inst current instruction
  * @param parent address of parent object
- * @param field_ofs the field offset
+ * @param field the field offset
  * @return the fresh address for this value
  */
 uint32_t cesk_store_allocate(cesk_store_t** p_store, const dalvik_instruction_t* inst, uint32_t parent, uint32_t field);
@@ -231,7 +231,7 @@ uint32_t cesk_store_get_refcnt(const cesk_store_t* store, uint32_t addr);
 int cesk_store_clear_refcnt(cesk_store_t* store, uint32_t addr);
 
 /** @brief   merge the source store to the destination store
- *  @detials the merge operation actually compares the host address of the blocks and values. If the address is same,
+ *  @details the merge operation actually compares the host address of the blocks and values. If the address is same,
  *  		 the function just ignore them. 
  *  		 
  *  		 If the address are different, then perform an actually merge operations. 
@@ -251,7 +251,7 @@ int cesk_store_clear_refcnt(cesk_store_t* store, uint32_t addr);
  *  		 So what we should do for the relocation of the object is just simply change a different address if we 
  *  		 are mergering confict store address.  Therefore, we should scan the different part of source store 
  *  		 and dicide what to reallocate first, and then perform an actually merge
- *   @param  dest destination store
+ *   @param  p_dest destination store
  *   @param  sour source store
  *   @return the number of values has been modified, negative return value means errors during merge
  *   @todo   implementation

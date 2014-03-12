@@ -140,7 +140,7 @@ typedef struct {
         vector_t*          branches;            /*!<a group of branch */
         vector_t*          sparse;              /*!<a sparse-switch oprand */
         dalvik_type_t*     type;                /*!<this operand is a type, if the type code is DVM_OPERAND_TYPE_TYPEDESC */
-        const dalvik_type_t *const*    typelist;            /*!<if the type code is DVM_OPERAND_TYPE_TYPELIST, the pointer points an array of 
+        const dalvik_type_t *const*    typelist;/*!<if the type code is DVM_OPERAND_TYPE_TYPELIST, the pointer points an array of 
                                                  * points, which ends with a null pointer
                                                  */
         const char*        field;               /*!<The field we what to operate */

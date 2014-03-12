@@ -664,7 +664,7 @@ static inline cesk_store_t* _cesk_store_merge_adjust(cesk_store_t* dest, const c
  *         Because all object has been placed now, so there's no possibility of
  *         a newly created set conflict to an object.
  *  @param sour the source store
- *  @param dest the destination store
+ *  @param p_dest the destination store
  *  @param sour_addr the source address
  *  @param dest_addr the destination address
  *  @param reloc the relocation table 
