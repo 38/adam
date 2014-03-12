@@ -40,7 +40,7 @@ Testing/*
 config.h
 
 #doxegen files
-doc/doxygen/
+doc/doxygen/*
 
 #datafiles used for testing
-test/data
+test/data/*
