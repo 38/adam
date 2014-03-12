@@ -44,3 +44,6 @@ doc/doxygen/
 
 #datafiles used for testing
 test/data
+
+#temporary data file
+adam_testing_data.tar.gz

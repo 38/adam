@@ -14,6 +14,7 @@ cesk_object_t* cesk_object_new(const char* classpath)
     int field_count = 0;
     int class_count = 0;
     dalvik_class_t* classes[1024]; 
+	/* find classes inhernt relationship, and determin the memory layout */
     for(;;)
     {
         LOG_NOTICE("try to find class %s", classpath);
@@ -21,7 +22,8 @@ cesk_object_t* cesk_object_new(const char* classpath)
         if(NULL == target_class)
         {
             /* TODO: handle the built-in classes */
-            LOG_WARNING("we can not find class %s", classpath);
+            LOG_WARNING("can not find class %s", classpath);
+			LOG_NOTICE("fixme: here we should handle the built-in classes");
             break;
         }
         int i;
@@ -36,10 +38,11 @@ cesk_object_t* cesk_object_new(const char* classpath)
         LOG_INFO("found class %s at %p", classpath, target_class);
         classpath = target_class->super;
     }
-    size_t size = sizeof(cesk_object_t) +                   /* header */
+    /* compute the size required for this instance */
+	size_t size = sizeof(cesk_object_t) +                   	   /* header */
                   sizeof(cesk_object_struct_t) * class_count +     /* class header */
-                  sizeof(cesk_set_t*) * field_count;   /* fields */
-
+                  sizeof(cesk_set_t*) * field_count;   			   /* fields */
+	/* okay, create the new object */
     cesk_object_t* object = (cesk_object_t*)malloc(size);
     cesk_object_struct_t* base = object->members; 
     if(NULL == object)
@@ -60,7 +63,7 @@ cesk_object_t* cesk_object_new(const char* classpath)
                 continue;
             }
             base->valuelist[field->offset] = CESK_STORE_ADDR_NULL;  
-            LOG_INFO("Create new filed %s/%s for class %s at offset %d", classes[i]->path, 
+            LOG_DEBUG("Create new filed %s/%s for class %s at offset %d", classes[i]->path, 
                                                                          classes[i]->members[j], 
                                                                          classes[0]->path, 
                                                                          field->offset);
@@ -70,14 +73,18 @@ cesk_object_t* cesk_object_new(const char* classpath)
 		CESK_OBJECT_STRUCT_ADVANCE(base);
     }
     object->depth = class_count;
+	object->size = size;
     return object;
 }
 uint32_t* cesk_object_get(cesk_object_t* object, const char* classpath, const char* field_name)
 {
     if(NULL == object    ||
        NULL == classpath ||
-       NULL == field_name) 
+       NULL == field_name)
+	{
+		LOG_ERROR("invalid arguments");
         return NULL;
+	}
     int i;
     cesk_object_struct_t* this = object->members;
     for(i = 0; i < object->depth; i ++)
@@ -86,6 +93,7 @@ uint32_t* cesk_object_get(cesk_object_t* object, const char* classpath, const ch
         {
             break;
         }
+		/* move to next object struct */
 		CESK_OBJECT_STRUCT_ADVANCE(this);
     }
     if(object->depth == i)
@@ -112,17 +120,14 @@ void cesk_object_free(cesk_object_t* object)
 }
 cesk_object_t* cesk_object_fork(const cesk_object_t* object)
 {
-    const cesk_object_struct_t* base = object->members;
-    size_t objsize = sizeof(cesk_object_t);
-    LOG_TRACE("copy object %s@%p", base->class->path, object);
-    int i;
-    for(i = 0; i < object->depth; i ++)
-    {
-        objsize += sizeof(cesk_object_struct_t) + sizeof(uint32_t) * base->num_members;
-		CESK_OBJECT_STRUCT_ADVANCE(base);
-    }
+    LOG_TRACE("copy object %s@%p", cesk_object_classpath(object), object);
+    size_t objsize = object->size;
     cesk_object_t* newobj = (cesk_object_t*)malloc(objsize);
-    if(NULL == newobj) return NULL;
+    if(NULL == newobj) 
+	{
+		LOG_ERROR("can not allocate memory for the new object");
+		return NULL;
+	}
     memcpy(newobj, object, objsize);
     return newobj;
 }
@@ -163,14 +168,14 @@ int cesk_object_equal(const cesk_object_t* first, const cesk_object_t* second)
     const cesk_object_struct_t* that = second->members;
 
     /* if the class path is the same, we assume that 
-     * two object has the same depth 
-     */
+     * two object has the same depth  */
     int i;
     if(first->depth != second->depth)
     {
         LOG_WARNING("two object build from the same class %s has defferent inherent depth", cesk_object_classpath(first));
         return 0;
     }
+	/* do actuall comparasion */
     for(i = 0; i < first->depth; i ++)
     {
         int j;

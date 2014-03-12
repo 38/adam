@@ -31,6 +31,11 @@ enum{
     CESK_TYPE_SET		/*!<set type*/
 };
 
+/** @brief this macro this used to generate the member definition 
+ * 		   of pointer list. Because for the const value and non-const
+ * 		   value, the member name should be the same. That is why we 
+ * 		   should use this approach to do this
+ */
 #define __CESK_POINTER_LIST(prefix) \
 		prefix void*	     _void;	/*!<as a void pointer */\
 		prefix cesk_set_t*    set;   /*!<as a set */\
@@ -49,6 +54,7 @@ struct _cesk_value_t {
                 *prev, *next; /*!<the previous and next pointer used by value list */
 }; 
 
+/** @brief the abstruct value that can not be modified */
 struct _cesk_value_const_t {
     uint8_t     type:7;       /*!<type of this value */
     uint8_t     write_status:1; /*!<this bit check if the value is associated with a writable pointer */
