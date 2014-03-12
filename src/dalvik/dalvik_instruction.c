@@ -904,7 +904,11 @@ __DI_CONSTRUCTOR(INVOKE)
             {
                 reg_from = reg_to = __DI_REGNUM(reg1);
             }
-            else return -1;
+            else 
+            {
+                LOG_ERROR("invalid instruction format");
+                return -1;
+            }
             /* We use a constant indicates the range */
             __DI_SETUP_OPERAND(3, DVM_OPERAND_FLAG_CONST | DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_INT), reg_from);
             __DI_SETUP_OPERAND(4, DVM_OPERAND_FLAG_CONST | DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_INT), reg_to);
@@ -969,7 +973,11 @@ __DI_CONSTRUCTOR(INVOKE)
                         LOG_WARNING("num_operands overflow");
                     }
                 }
-                else return -1;
+                else 
+                {
+                    LOG_ERROR("invalid operand format");
+                    return -1;
+                }
             }
             
             /* here we parse the type */
@@ -1002,6 +1010,7 @@ __DI_CONSTRUCTOR(INVOKE)
     }
     return 0;
 }
+/** @brief get the type flags from S-Expression */
 static inline int32_t _dalvik_instruction_sexpression_fetch_type(const sexpression_t** psexp, int addtional_flags)
 {
     int ret = addtional_flags;
@@ -1028,6 +1037,7 @@ static inline int32_t _dalvik_instruction_sexpression_fetch_type(const sexpressi
     else return -1;
     return ret;
 }
+/** @brief set upo a arithmetic instruction */
 static inline int _dalvik_instruction_setup_arithmetic(
         int opcode, 
         int flags,    /* flag of the instruction */
@@ -1043,7 +1053,11 @@ static inline int _dalvik_instruction_setup_arithmetic(
     const char* reg;
     for(i = 0; i < num_operands; i ++)
     {
-        if(operand_flags[i] == -1) return -1;
+        if(operand_flags[i] == -1) 
+        {
+            LOG_ERROR("invalid operand flags");
+            return -1;
+        }
         if(sexp_match(next, "(L?A", &reg, &next))
         {
             if(operand_flags[i] & DVM_OPERAND_FLAG_CONST)
@@ -1051,7 +1065,11 @@ static inline int _dalvik_instruction_setup_arithmetic(
             else
                 __DI_SETUP_OPERAND(i, operand_flags[i], __DI_REGNUM(reg));
         }
-        else return -1;
+        else 
+        {
+            LOG_ERROR("invalid instruction format");
+            return -1;
+        }
     }
     return 0;
 }
@@ -1067,10 +1085,15 @@ __DI_CONSTRUCTOR(NOT)
     operand_flags[0] = operand_flags[1] = _dalvik_instruction_sexpression_fetch_type(&next, 0);
     return _dalvik_instruction_setup_arithmetic(DVM_UNOP, DVM_FLAG_UOP_NOT, 2, operand_flags, next, buf);
 }
+/** @brief used for converting (convert-xxx ) insturction */
 static inline int _dalvik_instruction_convert_operator(const sexpression_t* next, dalvik_instruction_t* buf, int type)
 {
     int operand_flags[2];
-    if(!sexp_match(next, "(L=A", DALVIK_TOKEN_TO, &next)) return -1;
+    if(!sexp_match(next, "(L=A", DALVIK_TOKEN_TO, &next)) 
+    {
+        LOG_ERROR("invalid instruction format");
+        return -1;
+    }
     operand_flags[0] = DVM_OPERAND_FLAG_TYPE(type);
     operand_flags[1] = _dalvik_instruction_sexpression_fetch_type(&next, 0);
     return _dalvik_instruction_setup_arithmetic(DVM_UNOP, DVM_FLAG_UOP_TO, 2, operand_flags, next, buf);
@@ -1097,12 +1120,20 @@ static inline int _dalvik_instruction_setup_binary_operator(int flags, const sex
     buf->flags = flags;
     int opflags;
     opflags = _dalvik_instruction_sexpression_fetch_type(&next, 0);
-    if(opflags == -1) return -1;
+    if(opflags == -1) 
+    {
+        LOG_ERROR("invalid instruction type");
+        return -1;
+    }
     const char* curlit;
     const sexpression_t *previous;
     int const_operand = 0;
     previous = next;
-    if(!sexp_match(next, "(L?A", &curlit, &next)) return -1;
+    if(!sexp_match(next, "(L?A", &curlit, &next)) 
+    {
+        LOG_ERROR("can not peek the next literal");
+        return -1;
+    }
 
     buf->num_operands = 3;
 
@@ -1114,7 +1145,7 @@ static inline int _dalvik_instruction_setup_binary_operator(int flags, const sex
        curlit == DALVIK_TOKEN_LIT8)   /* xxxxx/lityy */
         const_operand = 1;
     else 
-        next = previous; 
+        next = previous;  /* okay, nothing useful, we just go back to the previous one */ 
 
     /* Setup reg0 and reg1 */
     const char* reg0, *reg1;
@@ -1208,11 +1239,20 @@ __DI_CONSTRUCTOR(INSTANCE)
         if(sexp_match(next, "(_?", &next))
         {
             dalvik_type_t* type = dalvik_type_from_sexp(next);
+            if(NULL == type)
+            {
+                LOG_ERROR("invalid type");
+                return -1;
+            }
             __DI_SETUP_OPERAND(2, DVM_OPERAND_FLAG_CONST|
                                   DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_TYPEDESC),
                                   type);
         }
-        else return -1;
+        else 
+        {
+            LOG_ERROR("invalid instruction format");
+            return -1;
+        }
     }
     return 0;
 }
@@ -1222,7 +1262,11 @@ __DI_CONSTRUCTOR(ARRAY)
     buf->flags   = DVM_FLAG_ARRAY_LENGTH;
     buf->num_operands = 2;
     const char* dest, *sour;
-    if(!sexp_match(next, "(L=L?L?", DALVIK_TOKEN_LENGTH, &dest, &sour)) return -1;
+    if(!sexp_match(next, "(L=L?L?", DALVIK_TOKEN_LENGTH, &dest, &sour)) 
+    {
+        LOG_ERROR("invalid instruction format");
+        return -1;
+    }
     __DI_SETUP_OPERAND(0, 0, __DI_REGNUM(dest));
     __DI_SETUP_OPERAND(1, DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_OBJECT), __DI_REGNUM(sour));
     return 0;
@@ -1230,19 +1274,35 @@ __DI_CONSTRUCTOR(ARRAY)
 __DI_CONSTRUCTOR(NEW)
 {
     const char* curlit;
-    if(!sexp_match(next, "(L?A", &curlit, &next)) return -1;
+    if(!sexp_match(next, "(L?A", &curlit, &next)) 
+    {
+        LOG_ERROR("can not peek the next literal");
+        return -1;
+    }
     if(curlit == DALVIK_TOKEN_ARRAY)
         buf->opcode = DVM_ARRAY;
     else if(curlit == DALVIK_TOKEN_INSTANCE)
         buf->opcode = DVM_INSTANCE;
-    else return -1;
+    else 
+    {
+        LOG_ERROR("invalid instruction format");
+        return -1;
+    }
     const char *dest, *size, *path;
-    if(!sexp_match(next, "(L?A", &dest, &next)) return -1;
+    if(!sexp_match(next, "(L?A", &dest, &next)) 
+    {
+        LOG_ERROR("invalid instruction format");
+        return -1;
+    }
     __DI_SETUP_OPERAND(0, 0, __DI_REGNUM(dest));
     if(buf->opcode == DVM_INSTANCE)
     {
 		buf->flags = DVM_FLAG_INSTANCE_NEW;
-        if(NULL == (path = sexp_get_object_path(next, NULL))) return -1;
+        if(NULL == (path = sexp_get_object_path(next, NULL))) 
+        {
+            LOG_ERROR("invalid class path");
+            return -1;
+        }
         __DI_SETUP_OPERAND(1, 
                            DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_CLASS) |
                            DVM_OPERAND_FLAG_CONST,
@@ -1252,12 +1312,24 @@ __DI_CONSTRUCTOR(NEW)
     else
     {
 		buf->flags = DVM_FLAG_ARRAY_NEW;
-        if(!sexp_match(next, "(L?A", &size, &next)) return -1;
+        if(!sexp_match(next, "(L?A", &size, &next)) 
+        {
+            LOG_ERROR("invalid instruction format");
+            return -1;
+        }
         __DI_SETUP_OPERAND(1, 0, __DI_REGNUM(size));
         dalvik_type_t* type;
         sexpression_t* type_sexp;
-        if(!sexp_match(next, "(_?", &type_sexp)) return -1;
-        if(NULL == (type = dalvik_type_from_sexp(type_sexp))) return -1;
+        if(!sexp_match(next, "(_?", &type_sexp)) 
+        {
+            LOG_ERROR("invalid instruction format");
+            return -1;
+        }
+        if(NULL == (type = dalvik_type_from_sexp(type_sexp))) 
+        {
+            LOG_ERROR("invalid type");
+            return -1;
+        }
         __DI_SETUP_OPERAND(2, 
                            DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_TYPEDESC) |
                            DVM_OPERAND_FLAG_CONST,
@@ -1281,13 +1353,21 @@ int dalvik_instruction_from_sexp(const sexpression_t* sexp, dalvik_instruction_t
     dalvik_instruction_count ++;
 #endif
 
-    if(sexp == SEXP_NIL) return -1;
-    if(NULL == buf) return -1;
+    if(sexp == SEXP_NIL) 
+    {
+        LOG_ERROR("empty input");
+        return -1;
+    }
+    if(NULL == buf) 
+    {
+        LOG_ERROR("no place for output");
+        return -1;
+    }
     const char* firstword;
     sexpression_t* next;
     int rc;
     rc = sexp_match(sexp, "(L?A", &firstword, &next);
-#define __DI_BEGIN if(0 == rc){return -1;}
+#define __DI_BEGIN if(0 == rc){LOG_ERROR("can not peek the first literal");return -1;}
 #define __DI_CASE(kw) else if(firstword == DALVIK_TOKEN_##kw){ rc = _dalvik_instruction_##kw(next, buf); }
 #define __DI_END else rc = -1;
     __DI_BEGIN
@@ -1350,14 +1430,9 @@ int dalvik_instruction_from_sexp(const sexpression_t* sexp, dalvik_instruction_t
 #undef __DI_CASE
 #undef __DI_BEGIN
     if(rc == 0)
-    {
         buf->line = line;
-        //buf->file = file;
-    }
-    if(rc == -1)
-    {
+    else
         LOG_WARNING("failed to parse instruction");
-    }
     return rc;
 }
 

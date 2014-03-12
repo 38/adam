@@ -75,7 +75,7 @@ add_custom_target(distclean
 
 add_custom_target(data
 	COMMAND wget http://www.cs.utah.edu/~haohou/adam/data.tar.gz --output-document=adam_testing_data.tar.gz
-	COMMAND tar -xzf /tmp/adam_testing_data.tar.gz
+	COMMAND tar -xzf adam_testing_data.tar.gz
 	COMMAND rm -f adam_testing_data.tar.gz
 	WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
 )
