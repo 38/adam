@@ -31,7 +31,7 @@ typedef struct {
 /**@brief the node in the hash table*/
 struct _cesk_set_node_t {
     uint32_t set_idx;       /*!<the set index */
-    uint32_t addr;          /*!<the address this data entry refer */
+    uint32_t addr;          /*!<the address this data entry refer to */
     /* this pointer is for the hash table */
     cesk_set_node_t *next;  /*!<next element in hash slot */
     cesk_set_node_t *prev;  /*!<previous element in hash slot */
@@ -106,14 +106,13 @@ static inline void* _cesk_set_hash_find(uint32_t setidx, uint32_t addr)
         if(p->set_idx == setidx &&
            p->addr    == addr)
          {
-             //LOG_DEBUG("find set hash entry (%d @%x)", setidx, addr);
              return p->data_section;
          }
     }
     LOG_TRACE("can not find the set hash entry (%d, @%x)", setidx, addr);
     return NULL;
 }
-/* allocate a fresh set index */
+/* allocate a fresh set index, and append the info entry to hash table */
 static inline uint32_t _cesk_set_idx_alloc(cesk_set_info_entry_t** p_entry)
 {
     static uint32_t next_idx = 0;
@@ -202,11 +201,13 @@ void cesk_set_free(cesk_set_t* set)
     if(NULL == set) return;
     cesk_set_info_entry_t* info = (cesk_set_info_entry_t*)_cesk_set_hash_find(set->set_idx, CESK_STORE_ADDR_NULL);
     if(NULL == info) return;
+	/* the reference counter is reduced to zero, no one is using this */
     if(0 == --info->refcnt)
     {
-        /* the reference counter is reduced to zero, no one is using this */
+		/* get the info node of this */
         cesk_set_node_t* info_node = (cesk_set_node_t*)(((char*)info) - sizeof(cesk_set_node_t));
         cesk_set_node_t* data_node;
+		/* tranverse all members of this set */
         for(data_node = info->first; data_node != NULL;)
         {
             if(NULL != data_node->prev) 
@@ -223,6 +224,7 @@ void cesk_set_free(cesk_set_t* set)
             data_node = data_node->next;
             free(tmp);
         }
+		/* maintain the pointer used in the hash table */
         if(NULL != info_node->prev)
             info_node->prev->next = info_node->next;
         else
@@ -270,16 +272,16 @@ uint32_t cesk_set_iter_next(cesk_set_iter_t* iter)
  */
 static inline uint32_t _cesk_set_duplicate(cesk_set_info_entry_t* info, cesk_set_info_entry_t** new)
 {
-    //cesk_set_info_entry_t* info = (cesk_set_info_entry_t*)_cesk_set_hash_find(idx, CESK_STORE_ADDR_NULL);
-    uint32_t idx;
-    idx = ((cesk_set_node_t*)(((char*)info) - sizeof(cesk_set_node_t)))->set_idx;
-    
     if(NULL == info)
     {
-        LOG_ERROR("can not find the set (idx = %d)", idx);
+        LOG_ERROR("invalid arguments");
         return CESK_SET_INVALID;
     }
-    cesk_set_info_entry_t* new_info = NULL;
+    
+    uint32_t idx;
+	idx = ((cesk_set_node_t*)(((char*)info) - sizeof(cesk_set_node_t)))->set_idx;
+    
+	cesk_set_info_entry_t* new_info = NULL;
     uint32_t new_idx = _cesk_set_idx_alloc(&new_info);
     if(NULL == new_info) 
     {

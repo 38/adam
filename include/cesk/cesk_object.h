@@ -30,7 +30,8 @@ typedef struct {
  * 		   memory that allocate for the superclasses of the object
  */
 struct _cesk_object_t {
-    uint16_t         depth;      /*!<the depth in inherence tree */
+    uint16_t         	  depth;      /*!<the depth in inherence tree */
+	size_t				  size; /*!<the size of the object useful when clone an object */
     cesk_object_struct_t  members[0]; /*!<the length of the tree */
 };
 

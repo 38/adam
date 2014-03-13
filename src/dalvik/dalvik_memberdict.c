@@ -65,7 +65,7 @@ static inline hashval_t _dalvik_memberdict_hash(const char* class_path, const ch
     hashval_t a = ((uintptr_t)class_path) & 0xffffffff;
     hashval_t b = ((uintptr_t)member_name) & 0xffffffff;
     hashval_t c = dalvik_type_list_hashcode(args);
-    return (a * a * 100003 + b * MH_MULTIPLY + c)^typeid[type];
+    return (a * a * 100003 * MH_MULTIPLY + b * MH_MULTIPLY + c)^typeid[type];
 }
 
 static inline int _dalvik_memberdict_register_object(const char* class_path, const char* object_name, const dalvik_type_t * const * args ,int type, void* obj)
@@ -114,7 +114,7 @@ int dalvik_memberdict_register_class(
     if(NULL == class) return -1;
     return _dalvik_memberdict_register_object(class_path, NULL, NULL,_TYPE_CLASS, class);
 }
-
+/** @brief find an object from the member dict with key <classpath, name, typelist> */
 static inline void* _dalvik_memberdict_find_object(const char* path, const char* name, const dalvik_type_t * const * args, int type)
 {
     uint32_t idx = _dalvik_memberdict_hash(path, name, args ,type)%DALVIK_MEMBERDICT_SIZE;

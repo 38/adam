@@ -87,12 +87,12 @@ dalvik_class_t* dalvik_class_from_sexp(const sexpression_t* sexp)
         sexpression_t* this_def, *tail;
         if(!sexp_match(sexp, "(C?A", &this_def, &sexp))
         {
-            LOG_DEBUG("failed to fetch next defination in the class, aborting");
+            LOG_DEBUG("failed to fetch next definition in the class, aborting");
             goto ERR;
         }
         if(sexp_match(this_def, "(L=S?", DALVIK_TOKEN_SOURCE, &source))
         {
-            LOG_DEBUG("source file %s", source);
+            LOG_DEBUG("the source file for this class is %s", source);
             /* Do Nothing*/
         }
         else if(sexp_match(this_def, "(L=A", DALVIK_TOKEN_SUPER, &tail))
@@ -122,7 +122,7 @@ dalvik_class_t* dalvik_class_from_sexp(const sexpression_t* sexp)
         }
         else if(sexp_match(this_def, "(L=A", DALVIK_TOKEN_ANNOTATION, &tail))
         {
-            LOG_DEBUG("ingored psuedo-instruction (annotation)");
+            LOG_NOTICE("fixme: ingored psuedo-instruction (annotation)");
             /* just ingore */
         }
         else
@@ -149,8 +149,9 @@ dalvik_class_t* dalvik_class_from_sexp(const sexpression_t* sexp)
                     goto ERR;
                 }
                 LOG_DEBUG("new class method %s.%s", class->path, method->name);
-                /* because the method in fact is static object, we can retrive the method thru member dict */
-                //class->members[field_count++] = method->name;
+                /* because the method in fact is static object, we can retrive the method thru member dict
+                 * So we do not add them to the memberlist
+                 */
             }
             else if(firstlit == DALVIK_TOKEN_FIELD)
             {
@@ -160,6 +161,7 @@ dalvik_class_t* dalvik_class_from_sexp(const sexpression_t* sexp)
                     LOG_ERROR("can not resolve field %s", sexp_to_string(this_def, NULL));
                     goto ERR;
                 }
+                /* Not static? it's the real member */
                 if((field->attrs & DALVIK_ATTRS_STATIC) == 0)
                 {
                     field->offset = field_count;
@@ -174,7 +176,7 @@ dalvik_class_t* dalvik_class_from_sexp(const sexpression_t* sexp)
             }
             else 
             {
-                LOG_WARNING("we are ingoring a field");
+                LOG_WARNING("we are ingoring a field, because we dont know what does '%s' mean", firstlit);
             }
         }
     }

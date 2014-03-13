@@ -35,18 +35,21 @@ static void _cesk_value_free(cesk_value_t* val)
     if(val->prev) val->prev->next = val->next;
     if(val->next) val->next->prev = val->prev;
     if(_cesk_value_list == val) _cesk_value_list = val->next;
-    switch(val->type)
-    {
-        case CESK_TYPE_OBJECT:
-            if(val->pointer.object != NULL)
-                cesk_object_free(val->pointer.object);
-            break;
-        case CESK_TYPE_SET:
-			cesk_set_free(val->pointer.set);
-            break;
-        default:
-            LOG_WARNING("unknown type %d, do not know how to free", val->type);
-    }
+    if(NULL == val->pointer._void)
+	{
+		/* for each type, we use defferent way to deallocate the object */
+		switch(val->type)
+		{
+			case CESK_TYPE_OBJECT:
+					cesk_object_free(val->pointer.object);
+				break;
+			case CESK_TYPE_SET:
+				cesk_set_free(val->pointer.set);
+				break;
+			default:
+				LOG_WARNING("unknown type %d, do not know how to free", val->type);
+		}
+	}
     free(val);
 	LOG_DEBUG("a value is deleted"); 
 }
@@ -123,6 +126,8 @@ cesk_value_t* cesk_value_fork(const cesk_value_t* value)
 			if(NULL == newset) goto ERROR;
 			newval->pointer.set = newset;
 			break;
+		case CESK_TYPE_ARRAY:
+			LOG_INFO("fixme: array support");
 			/* TODO: array support */
 		default:
 			LOG_ERROR("unsupported type");
@@ -135,7 +140,6 @@ ERROR:
 		_cesk_value_free(newval);
 	return NULL;
 }
-// Knuth's multiptive hash function 
 hashval_t cesk_value_hashcode(const cesk_value_t* value)
 {
     if(NULL == value) return (hashval_t)0x3c4fab47;
@@ -167,7 +171,6 @@ hashval_t cesk_value_compute_hashcode(const cesk_value_t* value)
         case CESK_TYPE_ARRAY:
             /* array */
             LOG_INFO("fixme: array type support");
-            //return cesk_set_hashcode((*(cesk_value_array_t**)value->data)->values);
         default:
             return 0;
     }
