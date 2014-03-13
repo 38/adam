@@ -43,11 +43,7 @@ config.h
 doc/doxygen/*
 
 #datafiles used for testing
-<<<<<<< HEAD
 test/data/*
-=======
-test/data
 
 #temporary data file
 adam_testing_data.tar.gz
->>>>>>> 266656fd3c360a557833444074c89d2e6bd2a6c7
