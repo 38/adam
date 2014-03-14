@@ -116,9 +116,7 @@ dalvik_method_t* dalvik_method_from_sexp(const sexpression_t* sexp, const char* 
         LOG_DEBUG("#%d current instruction : %s",(++counter) ,sexp_to_string(this_smt, buf) );
         if(sexp_match(this_smt, "(L=L=L?", DALVIK_TOKEN_LIMIT, DALVIK_TOKEN_REGISTERS, &arg))
         {
-            /* (limit registers ...) */
-            /* simplely ignore */
-            //LOG_DEBUG("ignored psuedo-instruction (limit registers)");
+            /* (limit-registers k) */
             method->num_regs = atoi(arg);
             LOG_DEBUG("uses %d registers", method->num_regs);
         }
@@ -163,7 +161,7 @@ dalvik_method_t* dalvik_method_from_sexp(const sexpression_t* sexp, const char* 
         else if(sexp_match(this_smt, "(L=A", DALVIK_TOKEN_ANNOTATION, &arg))
         {
             /* Simplely ignore */
-            LOG_DEBUG("ignored psuedo-insturction (annotation)");
+            LOG_INFO("fixme: ignored psuedo-insturction (annotation)");
         }
         else if(sexp_match(this_smt, "(L=L=A", DALVIK_TOKEN_DATA, DALVIK_TOKEN_ARRAY, &arg))
         {
@@ -186,7 +184,7 @@ dalvik_method_t* dalvik_method_from_sexp(const sexpression_t* sexp, const char* 
             LOG_DEBUG("exception %s is handlered in label #%d", 
                       excepthandler[number_of_exception_handler]->exception, 
                       excepthandler[number_of_exception_handler]->handler_label);
-            label_st[number_of_exception_handler] = 0;
+            //label_st[number_of_exception_handler] = 0;   /* TODO: verify this is a bug */
             number_of_exception_handler ++;
         }
         else if(sexp_match(this_smt, "(L=A", DALVIK_TOKEN_FILL, &arg))

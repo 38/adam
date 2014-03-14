@@ -23,7 +23,7 @@ dalvik_field_t* dalvik_field_from_sexp(const sexpression_t* sexp, const char* cl
     sexpression_t *attr_list , *type_sexp;
     if(!sexp_match(sexp, "(L=C?L?_?A", DALVIK_TOKEN_FIELD, &attr_list, &name, &type_sexp, &sexp))
     {
-        LOG_ERROR("bad field defination");
+        LOG_ERROR("bad field definition");
         goto ERR;
     }
     
@@ -54,6 +54,7 @@ dalvik_field_t* dalvik_field_from_sexp(const sexpression_t* sexp, const char* cl
             LOG_ERROR("can't parse default value");
             goto ERR;
         }
+        LOG_NOTICE("fixme: parse default value of a field");
     }
     return ret;
 ERR:

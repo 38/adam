@@ -47,6 +47,7 @@ void dalvik_exception_finalize()
         vector_free(_dalvik_exception_handler_set_vector);
     }
 }
+/** @brief allocate an exception handler */
 static inline dalvik_exception_handler_t* _dalvik_exception_handler_alloc(const char* exception, int handler)
 {
     dalvik_exception_handler_t* ret;
@@ -61,6 +62,7 @@ static inline dalvik_exception_handler_t* _dalvik_exception_handler_alloc(const 
     vector_pushback(_dalvik_exception_handler_vector, &ret);
     return ret;
 }
+/** @brief allocate an exception handler set */
 static inline dalvik_exception_handler_set_t* _dalvik_exception_handler_set_alloc()
 {
     dalvik_exception_handler_set_t* ret;
