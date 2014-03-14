@@ -278,9 +278,6 @@ static inline uint32_t _cesk_set_duplicate(cesk_set_info_entry_t* info, cesk_set
         return CESK_SET_INVALID;
     }
     
-    uint32_t idx;
-	idx = ((cesk_set_node_t*)(((char*)info) - sizeof(cesk_set_node_t)))->set_idx;
-    
 	cesk_set_info_entry_t* new_info = NULL;
     uint32_t new_idx = _cesk_set_idx_alloc(&new_info);
     if(NULL == new_info) 

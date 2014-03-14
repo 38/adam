@@ -34,13 +34,13 @@ typedef struct {
     uintptr_t     block_id[0];   /*!<this is the address of member block, when the block remains unlinked, the pointer is resued as block id */
     /* DO NOT ADD ANYTHING HERE */
     dalvik_block_t*     block;     /*!<the code block of this branch */
-    int32_t             ileft[0];  /*!<if left_inst is set, value is stored in ileft[0] */
+    int32_t             ileft[0];  /*!<A instant number as left operand. if left_inst is set, value is stored in ileft[0] */
     const dalvik_operand_t*   left;      /*!<the left operand */
     const dalvik_operand_t*   right;     /*!<the right operand */
 
     /* flags */
     uint8_t             flags[0];   /*!<the flags array*/
-    uint8_t             conditional;/*!<if this branch a conditional branch */
+    uint8_t             conditional:1;/*!<if this branch a conditional branch */
     uint8_t             eq:1;       /*!<enter this branch if left == right */
     uint8_t             lt:1;       /*!<enter this branch if left < right */
     uint8_t             gt:1;       /*!<enter this branch if left > right */

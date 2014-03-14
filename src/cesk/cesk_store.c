@@ -6,7 +6,7 @@
 
 #define HASH_INC(addr,val) (addr * MH_MULTIPLY + cesk_value_hashcode(val))
 #define HASH_CMP(addr,val) (addr * MH_MULTIPLY + cesk_value_compute_hashcode(val))
-/** @brief make a copy of a store block, but do not set the refcnt */
+/** @brief make a copy of a store block, but *do not set store-block refcnt* */
 static inline cesk_store_block_t* _cesk_store_block_fork(cesk_store_block_t* block)
 {
     /* copy the store block */
@@ -25,7 +25,7 @@ static inline cesk_store_block_t* _cesk_store_block_fork(cesk_store_block_t* blo
             cesk_value_incref(new_block->slots[i].value);
     return new_block;
 }
-/** @brief set refcnt befofe actual deletion , decref all members of the set before free it */
+/** @brief set refcnt befofe actual deletion , intra-store decref all members of the set before free it */
 static inline int _cesk_store_free_set(cesk_store_t* store, cesk_set_t* set)
 {
 	cesk_set_iter_t iter;
@@ -60,16 +60,18 @@ static inline int _cesk_store_free_object(cesk_store_t* store, cesk_object_t* ob
 		int j;
 		for(j = 0; j < this->num_members; j ++)
 		{
+			/* decrease the intra-store refcount */
 			if(cesk_store_decref(store, this->valuelist[j]) < 0)
 			{
 				LOG_WARNING("can not decref at address %x", this->valuelist[j]);
 			}
 		}
-		this = (cesk_object_struct_t*)(this->valuelist + this->num_members);
+		//this = (cesk_object_struct_t*)(this->valuelist + this->num_members);
+		CESK_OBJECT_STRUCT_ADVANCE(this);
 	}
 	return 0;
 }
-/* make an address empty, but do not affect the refcnt */
+/* make an address empty, but do not affect the intra-frame refcnt */
 static inline int _cesk_store_swipe(cesk_store_t* store, cesk_store_block_t* block, uint32_t addr)
 {
     uint32_t ofs = addr % CESK_STORE_BLOCK_NSLOTS;
@@ -101,7 +103,7 @@ static inline int _cesk_store_swipe(cesk_store_t* store, cesk_store_block_t* blo
 	cesk_value_decref(value);
 	return 0;
 }
-/** @brief the function for the addressing hash code */
+/** @brief addressing hash code */
 static inline hashval_t _cesk_store_address_hashcode(const dalvik_instruction_t* inst, uint32_t parent, uint32_t field_ofs)
 {
     uint32_t idx;
@@ -146,7 +148,7 @@ static inline cesk_store_block_t* _cesk_store_getblock_rw(cesk_store_t* store, u
             return NULL;
         }
         newblock->refcnt = 1;
-        block->refcnt --;
+        block->refcnt --;   /* this is block-store ref count */
         store->blocks[b_idx] = newblock;
         block = newblock;
     }
@@ -176,6 +178,7 @@ cesk_store_t* cesk_store_fork(const cesk_store_t* store)
         LOG_ERROR("can not allocate memory for new store");
         return NULL;
     }
+	/* what we should do is just duplicating the block table in the block */
     memcpy(ret, store, size);
     /* increase refrence counter of all blocks */
     for(i = 0; i < ret->nblocks; i ++)
@@ -252,6 +255,7 @@ cesk_value_t* cesk_store_get_rw(cesk_store_t* store, uint32_t addr)
 
         block->slots[offset].value = newval;
 
+		/* maintain the value-block ref count */
         cesk_value_decref(val);
         cesk_value_incref(newval);
 
@@ -328,12 +332,12 @@ uint32_t cesk_store_allocate(cesk_store_t** p_store, const dalvik_instruction_t*
     for(attempt = 0; attempt < CESK_STORE_ALLOC_ATTEMPT; attempt ++)
     {
         int block;
-        LOG_DEBUG("attempt #%d @%d for instruction %d", attempt, slot, idx);
+        LOG_DEBUG("attempt #%d : slot @%d for instruction %d", attempt, slot, idx);
         for(block = 0; block < store->nblocks; block ++)
         {
             if(store->blocks[block]->slots[slot].value == NULL && empty_offset == -1)
             {
-                LOG_DEBUG("find an empty slot @ (block = %d, offset = %d)", block, slot);
+                LOG_DEBUG("find an empty slot @(block = %d, offset = %d)", block, slot);
                 empty_block = block;
                 empty_offset = slot;
             }
@@ -342,19 +346,19 @@ uint32_t cesk_store_allocate(cesk_store_t** p_store, const dalvik_instruction_t*
 			   store->blocks[block]->slots[slot].parent == parent &&
 			   store->blocks[block]->slots[slot].field == field_ofs)
             {
-                LOG_DEBUG("find the equal slot @ (block = %d, offset = %d)", block, slot);
+                LOG_DEBUG("find the equal slot @(block = %d, offset = %d)", block, slot);
                 equal_block = block;
                 equal_offset = slot;
             }
             if(equal_offset != -1) break;
         }
         if(equal_offset != -1) break;
-        slot = (slot * slot + 100007 * slot + 634567) % CESK_STORE_BLOCK_NSLOTS;
+        slot = (slot * slot * MH_MULTIPLY + 100007 * slot + 634567) % CESK_STORE_BLOCK_NSLOTS;
     }
     /* After look for empty slot / equal slot */
     if(empty_offset == -1 && equal_offset == -1)
     {
-        /* no empty slot, no equal slot, allocate a new page */
+        /* no empty slot, no equal slot, allocate a new block */
         LOG_DEBUG("can not allocate a store entry for this object, allocate a new block. current_size = %d, num_ent = %d", 
                    store->nblocks, store->num_ent);
         store = realloc(store, sizeof(cesk_store_t) + sizeof(cesk_store_block_t*) * (store->nblocks + 1));
@@ -424,16 +428,21 @@ int cesk_store_attach(cesk_store_t* store, uint32_t addr, cesk_value_t* value)
     }
 	/* just aquire a writable pointer of this block */
 	cesk_store_block_t* block_rw = _cesk_store_getblock_rw(store, addr);
+	/* Assign an empty slot to a non-empty value means we add some new value to store */
     if(block_rw->slots[offset].value == NULL && value != NULL) 
     {
         block_rw->num_ent ++;
         store->num_ent ++;
     }
+	/* On the other hand, if we assign a non-empty slot with a empty value, that means we want to
+	 * clean the value */
     else if(block_rw->slots[offset].value != NULL && value == NULL)
     {
         block_rw->num_ent --;
         store->num_ent --;
     }
+	/* And we should swipe the old value out, but we can not affect the ref count, because
+	 * No matter what the slot contains, the ref count does not depends on the value */
     if(NULL != block_rw->slots[offset].value)
 		_cesk_store_swipe(store, block_rw, addr);
     if(value)
@@ -535,8 +544,7 @@ int cesk_store_equal(const cesk_store_t* first, const cesk_store_t* second)
     {
         int j;
         for(j = 0; j < CESK_STORE_BLOCK_NSLOTS; j ++)
-            if(cesk_value_equal(first->blocks[i]->slots[j].value,
-                                second->blocks[i]->slots[j].value) == 0)
+            if(cesk_value_equal(first->blocks[i]->slots[j].value, second->blocks[i]->slots[j].value) == 0)
                 return 0;
     }
     return 1;
@@ -619,13 +627,31 @@ int cesk_store_clear_refcnt(cesk_store_t* store, uint32_t addr)
 	block->slots[ofs].refcnt = 0;
 	return 0;
 }
-/** @brief adjust the structure of the destination , because the slot number of
+/**
+ * @brief get the instruction that allocate this address 
+ **/
+static inline const dalvik_instruction_t* _cesk_store_get_instruction(const cesk_store_t* store, uint32_t addr)
+{
+	if(CESK_STORE_ADDR_NULL == addr || NULL == store)
+	{
+		return NULL;
+	}
+	uint32_t block = addr / CESK_STORE_BLOCK_NSLOTS;
+	uint32_t offset = addr % CESK_STORE_BLOCK_NSLOTS;
+	if(block > store->nblocks)
+	{
+		return NULL;
+	}
+	return dalvik_instruction_get(store->blocks[block]->slots[offset].idx);
+}
+/** 
+ * @brief adjust the structure of the destination , because the slot number of
  *         destination set should not be less than the source set
  *
  *         If some block is missing the destination store use the source block 
  *         directly
- *  @return the adjusted destination store (address may different from the input address)
- */
+ * @return the adjusted destination store (address may different from the input address)
+ **/
 static inline cesk_store_t* _cesk_store_merge_adjust(cesk_store_t* dest, const cesk_store_t* sour)
 {
 	if(NULL == dest || NULL == sour)
@@ -639,6 +665,7 @@ static inline cesk_store_t* _cesk_store_merge_adjust(cesk_store_t* dest, const c
 		LOG_DEBUG("address space of source store is larger than that of destination store, so create new blocks in destination store");
 		int prev_nblocks = dest->nblocks;
 		dest->nblocks = sour->nblocks;
+		/* reallocate the destination store, so that the size can fit the source store */
 		dest = (cesk_store_t*)realloc(dest, sizeof(cesk_store_t) + sour->nblocks * sizeof(cesk_store_block_t*));
 		if(NULL == dest)
 		{
@@ -657,19 +684,20 @@ static inline cesk_store_t* _cesk_store_merge_adjust(cesk_store_t* dest, const c
 	}
 	return dest;
 }
-/** @brief merge two object, in the given store. In this function, we assume
- *         that all object which should be add to the destination has been 
- *         added alread. Therefore, the only resonsibility is to intialize the
+/** 
+ * @brief merge two object in the given store. In this function, we assume
+ *         that all object which should be add to the destination store has been 
+ *         added already. Therefore, the only resonsibility is to intialize the
  *         value set of the object. 
  *         Because all object has been placed now, so there's no possibility of
  *         a newly created set conflict to an object.
- *  @param sour the source store
- *  @param p_dest the destination store
- *  @param sour_addr the source address
- *  @param dest_addr the destination address
- *  @param reloc the relocation table 
- *  @return -1 if error
- */
+ * @param sour the source store
+ * @param p_dest the destination store
+ * @param sour_addr the source address
+ * @param dest_addr the destination address
+ * @param reloc the relocation table 
+ * @return -1 if error
+ **/
 static inline int _cesk_store_merge_object(
 		cesk_store_t** p_dest,
 		uint32_t dest_addr,
@@ -696,7 +724,7 @@ static inline int _cesk_store_merge_object(
 	/* check if it's an object value */
 	if(dest_val->type != CESK_TYPE_OBJECT || sour_val->type != CESK_TYPE_OBJECT)
 	{
-		LOG_ERROR("can not merge two address that is not object");
+		LOG_ERROR("can not merge address that is not object");
 		goto ERROR;
 	}
 	/* okay, then get the object */
@@ -708,13 +736,14 @@ static inline int _cesk_store_merge_object(
 		goto ERROR;
 	}
 
+	LOG_DEBUG("class path of source object: %s", cesk_object_classpath(sour_obj));
+	LOG_DEBUG("class path of destination object: %s", cesk_object_classpath(dest_obj));
+
 	/* We should check the compatibility of two object. Because after the relocation, different instruction would occupy 
 	 * different store address. So that, the actual class path of two object should be same */
 	if(cesk_object_classpath(sour_obj) != cesk_object_classpath(dest_obj))
 	{
 		LOG_ERROR("can not merge two object with different class path");
-		LOG_DEBUG("class path of source object: %s", cesk_object_classpath(sour_obj));
-		LOG_DEBUG("class path of destination object: %s", cesk_object_classpath(dest_obj));
 		goto ERROR;
 	}
 
@@ -723,12 +752,19 @@ static inline int _cesk_store_merge_object(
 	const cesk_object_struct_t* sour_struct = sour_obj->members;
 	
 	/* because we need to allocate set during the merge, therefore 
-	 * we should know which instruction creates the object 
+	 * we should know which instruction creates the object
+	 * Because all object has been placed properly, therefore, we can
+	 * get the instruction that allocated this object even this object
+	 * is from the source store
 	 */
-	const dalvik_instruction_t* inst = NULL;
-	uint32_t block_idx = dest_addr / CESK_STORE_BLOCK_NSLOTS;
-	uint32_t offset    = dest_addr % CESK_STORE_BLOCK_NSLOTS;
-	inst = dalvik_instruction_get(dest->blocks[block_idx]->slots[offset].idx);
+
+	const dalvik_instruction_t* inst = _cesk_store_get_instruction(dest, dest_addr);
+
+	if(NULL == inst)
+	{
+		LOG_ERROR("can not get the instruction that allocated this object, aborting");
+		goto ERROR;
+	}
 
 	/* tanverse the member list */
 	int i;
@@ -752,18 +788,24 @@ static inline int _cesk_store_merge_object(
 					LOG_ERROR("can not allocate memory for new field");
 					goto ERROR;
 				}
-				/* put default ZERO */
 				setval = cesk_value_empty_set();
 				if(NULL == setval)
 				{
 					LOG_ERROR("can not create an empty set for the new field");
 					goto ERROR;
 				}
+				
+				/* put default ZERO */
+				/* TODO (Q) why we need default ZERO? */
+				/* (A) because if the value of the field is unintialized, the set is empty,
+				 * But in fact, we want to this value equals to zero. That is why we need
+				 * a default zero to represent the possibility of unintialized values here */
 				if(cesk_set_push(setval->pointer.set, CESK_STORE_ADDR_ZERO) < 0)
 				{
-					LOG_ERROR("can not push default to the field");
+					LOG_ERROR("can not push default 0 to the field");
 					goto ERROR;
 				}
+				
 				/* fianlly attach it */
 				if(cesk_store_attach(dest, dest_set_addr, setval) < 0)
 				{

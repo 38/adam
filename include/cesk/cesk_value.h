@@ -56,9 +56,9 @@ struct _cesk_value_t {
 
 /** @brief the abstruct value that can not be modified */
 struct _cesk_value_const_t {
-    uint8_t     type:7;       /*!<type of this value */
-    uint8_t     write_status:1; /*!<this bit check if the value is associated with a writable pointer */
-	union {
+    const uint8_t     type:7;       /*!<type of this value */
+    const uint8_t     write_status:1; /*!<this bit check if the value is associated with a writable pointer */
+	const union {
 		__CESK_POINTER_LIST(const)
 	} pointer; /*!<actuall data pointer*/
 };

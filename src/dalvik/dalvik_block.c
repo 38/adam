@@ -1,3 +1,6 @@
+/**@file dalvik_block.c 
+ * @brief implementation of code block.
+ */
 #include <string.h>
 #include <assert.h>
 #include <inttypes.h>
@@ -6,18 +9,28 @@
 #include <vector.h>
 
 #include <dalvik/dalvik_block.h>
-
+/** @brief The data struture for block cache 
+ *  @details For performance reseason, we store the result of 
+ *  		 block analysis. The data structure is used for this
+ *  		 purpose
+ *  		 This cache is actually a hash table, the key of this 
+ *  		 table is <methodname, classpath, typelist>
+ *
+ *  		 Because there's always a pointer to any analyzed block graphs,
+ *  		 So there's no need to deallocate the block graph maumually,
+ *  		 since the deallocation will be done by the fianlization function.
+ */
 typedef struct _dalvik_block_cache_node_t{
-    const char*     methodname;
-    const char*     classpath;
-    const dalvik_type_t * const * typelist;
-    dalvik_block_t* block;
-    struct _dalvik_block_cache_node_t * next;
+    const char*     methodname;		/*!<the method name */
+    const char*     classpath;		/*!<the class path contains this method */
+    const dalvik_type_t * const * typelist; /*!<excepted type of arguments */
+    dalvik_block_t* block;	/*!<the analysis result. */
+    struct _dalvik_block_cache_node_t * next; /*!<the next pointer used in hash table */
 } dalvik_block_cache_node_t;
 
 static dalvik_block_cache_node_t* _dalvik_block_cache[DALVIK_BLOCK_CACHE_SIZE];
 
-/* allocate a node refer to the block */
+/** @brief allocate a node refer to the block */
 static inline dalvik_block_cache_node_t* _dalvik_block_cache_node_alloc(
         const char* class, 
         const char* method, 
@@ -41,7 +54,7 @@ static inline dalvik_block_cache_node_t* _dalvik_block_cache_node_alloc(
     ret->next = NULL;
     return ret;
 }
-/* release the memory for a block cache node */
+/** @brief release the memory for a block cache node */
 static inline void _dalvik_block_cache_node_free(dalvik_block_cache_node_t* block)
 {
     if(NULL == block) return;
@@ -51,7 +64,7 @@ static inline void _dalvik_block_cache_node_free(dalvik_block_cache_node_t* bloc
     }
     free(block);
 }
-/* tranverse the graph */
+/** @brief tranverse the graph */
 static inline void _dalvik_block_tranverse_graph(dalvik_block_t* node, vector_t* result)
 {
     if(NULL == node ||
@@ -64,7 +77,7 @@ static inline void _dalvik_block_tranverse_graph(dalvik_block_t* node, vector_t*
     for(i = 0; i < node->nbranches; i ++)
         _dalvik_block_tranverse_graph(node->branches[i].block, result);
 }
-/* from the entry point, free the block graph */
+/** @brief from the entry point, free the block graph */
 static inline void _dalvik_block_graph_free(dalvik_block_t* entry)
 {
     
@@ -78,6 +91,7 @@ static inline void _dalvik_block_graph_free(dalvik_block_t* entry)
     }
     vector_free(vec);
 }
+/** @brief hash function for the cache */
 static inline hashval_t _dalvik_block_hash(const char* class, const char* method, const dalvik_type_t * const * typelist)
 {
     return 
@@ -109,7 +123,7 @@ void dalvik_block_finalize()
     }
 }
 /* Sort the instruction by the offset. this order is equavalient to the 
- * executing order without branch. Because parser always parse the instruction
+ * executing order if there's no branch. Because parser always parse the instruction
  * one by one 
  */
 static int _dalvik_block_key_comp(const void* this, const void* that)
@@ -137,7 +151,7 @@ static inline int _dalvik_block_get_key_instruction_list(uint32_t entry_point, u
             LOG_ERROR("excepting %zu key instructions, got more than that. Try to adjust constant DALVIK_BLOCK_MAX_KEYS", size);\
             return 0;\
         }\
-        key[kcnt ++] = (value);\
+        key[kcnt ++] = tmp;\
         LOG_TRACE("add a new key instruction #%d", key[kcnt-1]);\
     }\
 }while(0)
@@ -157,10 +171,10 @@ static inline int _dalvik_block_get_key_instruction_list(uint32_t entry_point, u
                  break;
              case DVM_IF:
                  __PUSH(inst);
-                 /* if it's not the last instruction, this is one possible routine */
-                 /*if(current_inst->next != DALVIK_INSTRUCTION_INVALID)
-                     __PUSH(current_inst->next);*/
-                 __PUSH_LABEL(current_inst->operands[2].payload.labelid);
+                 /* The reason why we do not careabout the next instruction, because 
+				  * move on to the next instruction is normal routine
+				  */
+				 __PUSH_LABEL(current_inst->operands[2].payload.labelid);
                  break;
              case DVM_SWITCH:
                  __PUSH(inst);
@@ -223,7 +237,7 @@ static inline int _dalvik_block_get_key_instruction_list(uint32_t entry_point, u
 
     if(0 == kcnt)
     {
-        LOG_WARNING("we can not find any key instruction here");
+        LOG_WARNING("can not find any key instruction here");
         return 0;
     }
     /* sort all key instructions */
@@ -253,6 +267,10 @@ static inline dalvik_block_t* _dalvik_block_new(size_t nbranches)
     ret->nbranches = nbranches;
     return ret;
 }
+/** 
+ * @brief find the block id using the instruction id
+ * @todo  binary search
+ **/
 static inline int32_t _dalvik_block_find_blockid_by_instruction(uint32_t inst, const uint32_t *key, int kcnt)
 {
     int i;
@@ -261,6 +279,9 @@ static inline int32_t _dalvik_block_find_blockid_by_instruction(uint32_t inst, c
             return i;
     return -1;
 }
+/**
+ * @brief the goto instruction, there should be a branch to the target block
+ **/
 static inline dalvik_block_t* _dalvik_block_setup_keyinst_goto(const dalvik_instruction_t* inst, const uint32_t* key, size_t kcnt, uint32_t index)
 {
     dalvik_block_t* block = _dalvik_block_new(1);
@@ -277,6 +298,14 @@ static inline dalvik_block_t* _dalvik_block_setup_keyinst_goto(const dalvik_inst
     LOG_DEBUG("possible path block %u --> %"PRIu64,  index, block->branches[0].block_id[0]);
     return block;
 }
+/**
+ * @brief for the if instruction, there's two possible branches,
+ *
+ * 		  1. the default branch 
+ *
+ * 		  2. the conditional jump branch
+ *
+ **/
 static inline dalvik_block_t* _dalvik_block_setup_keyinst_if(const dalvik_instruction_t* inst, const uint32_t* key, size_t kcnt, uint32_t index)
 {
     dalvik_block_t* block = _dalvik_block_new(2);
@@ -322,6 +351,9 @@ static inline dalvik_block_t* _dalvik_block_setup_keyinst_if(const dalvik_instru
     LOG_DEBUG("possible path block %d --> %"PRIu64,  index, block->branches[0].block_id[0]);
     return block;
 }
+/**
+ * @brief similar to the if clause, the only difference is there are more than one the conditional branches 
+ **/
 static inline dalvik_block_t* _dalvik_block_setup_keyinst_switch(const dalvik_instruction_t* inst, const uint32_t *key, size_t kcnt, uint32_t index)
 {
     dalvik_block_t* block = NULL;
@@ -329,7 +361,7 @@ static inline dalvik_block_t* _dalvik_block_setup_keyinst_switch(const dalvik_in
     if(DVM_FLAG_SWITCH_PACKED == inst->flags)
     {
         /* packed switch instruction */
-        vector_t* branches = inst->operands[1].payload.branches;
+        vector_t* branches = inst->operands[2].payload.branches;
         size_t nb = vector_size(branches);
         block = _dalvik_block_new(nb);
         if(NULL == block)
@@ -348,7 +380,7 @@ static inline dalvik_block_t* _dalvik_block_setup_keyinst_switch(const dalvik_in
             block->branches[j].conditional = 1;
             block->branches[j].linked      = 0;
             block->branches[j].block_id[0] = _dalvik_block_find_blockid_by_instruction(dalvik_label_jump_table[target], key, kcnt);
-            block->branches[j].left_inst = 1;   /* use the instant field */
+            block->branches[j].left_inst = 1;   /* use the instant number as the left operand */
             block->branches[j].ileft[0] = j + value_begin;
             block->branches[j].right = inst->operands + 0;
             block->branches[j].eq = 1;
