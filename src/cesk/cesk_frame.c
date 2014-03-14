@@ -115,9 +115,10 @@ int cesk_frame_equal(const cesk_frame_t* first, const cesk_frame_t* second)
     }
     return cesk_store_equal(first->store, second->store);
 }
-#define BITAT(f,n) (((f)[n/8]&(1<<(n%8))) > 0)
+/** @brief depth first search the store, and figure out what is unreachable from the register */
 static inline void _cesk_frame_store_dfs(uint32_t addr,cesk_store_t* store, uint8_t* f)
 {
+#define BITAT(f,n) (((f)[n/8]&(1<<(n%8))) != 0)
 	if(CESK_STORE_ADDR_NULL == addr) return;
 	/* constants do not need to collect */
 	if(CESK_STORE_ADDR_IS_CONST(addr)) return;
@@ -215,7 +216,7 @@ hashval_t cesk_frame_compute_hashcode(const cesk_frame_t* frame)
     ret ^= cesk_store_compute_hashcode(frame->store);
     return ret;
 }
-/* this function is used for other function to do following things:
+/** @brief  this function is used for other function to do following things:
  * 		1. derefer all address this function refered 
  * 		2. free the set 
  */
