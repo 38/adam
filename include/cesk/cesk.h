@@ -11,7 +11,6 @@
 #include <cesk/cesk_frame.h>
 #include <cesk/cesk_block.h>
 #include <cesk/cesk_addr_arithmetic.h>
-#include <cesk/cesk_reloc.h>
 
 /**
  * @file cesk.h

@@ -420,36 +420,6 @@ int cesk_set_merge(cesk_set_t* dest, const cesk_set_t* sour)
     }
     return 0;
 }
-int cesk_set_merge_reloc(cesk_set_t* dest, const cesk_set_t* sour, const cesk_reloc_table_t* reloc_table)
-{
-	if(NULL == reloc_table)
-	{
-		LOG_ERROR("reloc table should not be NULL");
-		return -1;
-	}
-	cesk_set_info_entry_t* info_src = NULL;
-	cesk_set_info_entry_t* info_dst = NULL;
-	if(_cesk_set_prepair_merge(dest, sour, &info_dst, &info_src) < 0)
-	{
-		LOG_ERROR("failed to prepair for merging");
-		return -1;
-	}
-    cesk_set_node_t* ptr;
-    for(ptr = info_src->first; NULL != ptr; ptr = ptr->data_entry->next)
-    {
-        uint32_t addr = cesk_reloc_table_look_for(reloc_table, ptr->addr);
-        if(NULL == _cesk_set_hash_find(dest->set_idx, addr))
-        {
-            /* if this is not a duplicate */
-            cesk_set_node_t* node = (cesk_set_node_t*)(((char*)_cesk_set_hash_insert(dest->set_idx, addr)) - sizeof(cesk_set_node_t));
-            node->data_entry->next = info_dst->first;
-            info_dst->first = node;
-            info_dst->hashcode ^= addr * MH_MULTIPLY;
-            info_dst->size ++;
-        }
-    }
-	return 0;
-}
 int cesk_set_contain(const cesk_set_t* set, uint32_t addr)
 {
     if(NULL == set) return 0;

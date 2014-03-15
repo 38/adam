@@ -6,7 +6,6 @@
 #include <constants.h>
 typedef struct _cesk_object_t cesk_object_t;
 #include <cesk/cesk_value.h>
-#include <cesk/cesk_reloc.h>
 #include <dalvik/dalvik_class.h>
 /**
  * @brief an abstract object value
@@ -147,15 +146,4 @@ static inline int cesk_object_get_addr(const cesk_object_t* object, const char* 
 	*buf = *ret;
 	return 0;
 }
-/**
- * @brief merge the source object to the destination object,
- *        and look for the relocate table, if there's some address 
- *        which should be relocate, reloate it first
- * @param dest destination object
- * @param sour source object
- * @param reloc_table the relocation table apply during the merge
- * @return indicates if the operation success >= 0 means no error
- * @todo  Q:is this useful?
- **/
-int cesk_object_merge_reloc(cesk_object_t* dest, const cesk_object_t* sour, cesk_reloc_table_t* reloc_table);
 #endif
