@@ -550,5 +550,6 @@ cesk_frame_t* cesk_block_interpret(cesk_block_t* blk)
 
 	return frame;
 }
+
 #undef __CB_HANDLER
 #undef __CB_INST
