@@ -1,0 +1,57 @@
+Frame Difference
+==
+Background
+==
+
+When we explore the inter-block values, our approach is to evaluate the fix
+point in which each iteration do not change the value of the frame. 
+The simplest way to do this is following:
+	blocks = [entry block]
+	for block in blocks:
+		output = evaluate_block(block, input)
+		if input != output:
+			for each block `ablock' that uses the output of this block as one of
+			the output:
+				merge the input of ablock with the output
+				add ablock to the blocks
+
+But in fact the merge is a slow process, because there's no way expect we
+visit all possible address so that we can merge two address in the same value.
+However this is very slow because the address space may be large. And another
+thing is conflict. Because we allocate the address based on the instruction 
+and we assume that different addresses never share the address. But it's 
+possible that the two address allocataed in different store for different 
+instruction are the same. But this breaks our assumption. So that we have to 
+resolve this conflict, however this is expensive. 
+
+==
+Solution 
+==
+
+That is why we do not want to implement the fix point use the merge technique.
+So that I designed another way to archieve this, it the difference based
+method.
+
+For each block, we have a input store assigned to this store, and for each
+iteration we apply all unmerged diff to this store, so that we can get the
+up-to-date input store and compute the diff of the output against the input
+frame. 
+
+Initially, all input store of the blocks is a copy of the input store of the
+method. And for each iteration, pop the first block from the queue and compute
+the absolute diff which is the diff between the up-to-date input frame and
+current frame. The absolute diff can be computed from the absolute diff.
+
+//TODO how to compute the absolute diff from previous diff ...
+
+That is, assuming we have an block evaluator that can produce the diff of
+output frame against the input frame. We can use this method to evaluate the
+fix point of the block graph.
+	blocks = [entry block]
+	for block in blocks:
+		compute block.absolute_diff
+		diff = evaluate_block(block, input)
+		
+
+The composition of a frame diff:
+1. A list of 
