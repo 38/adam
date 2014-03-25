@@ -127,7 +127,7 @@ cesk_value_const_t* cesk_store_get_ro(const cesk_store_t* store, uint32_t addr);
  *  @param addr the virtual address
  *  @return result
  */
-int cesk_store_is_reuse(const cesk_store_t* store, uint32_t addr);
+int cesk_store_get_reuse(const cesk_store_t* store, uint32_t addr);
 /** @brief set the reuse flag 
  *  @param store virtual store
  *  @param addr vitual address
@@ -135,6 +135,12 @@ int cesk_store_is_reuse(const cesk_store_t* store, uint32_t addr);
  */
 int cesk_store_set_reuse(cesk_store_t* store, uint32_t addr);
 
+/** @brief clear the reuse flag 
+ *  @param store virtual store
+ *  @param addr vitual address
+ *  @return >=0 for success operation
+ */
+int cesk_store_clear_reuse(cesk_store_t* store, uint32_t addr);
 
 /** @brief
  * allocate a fresh address for a new value, CESK_STORE_ADDR_NULL indicates an error 

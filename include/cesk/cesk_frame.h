@@ -1,6 +1,7 @@
 #ifndef __CESK_FRAME_H__
 #define __CESK_FRAME_H__
 #include <cesk/cesk_set.h>
+#include <dalvik/dalvik_instruction.h>
 /** @file cesk_frame.h
  *  @brief A stack frame of the virtual machine
  *
@@ -76,23 +77,23 @@ hashval_t cesk_frame_compute_hashcode(const cesk_frame_t* frame);
 
 /* functions that used for applying diffs */
 /** @brief set the value of the register 
- *  @param frame the frame to be operated
+ *  @param frame the frame to operated
  *  @param set   the value set you want to set to the register
- *  @return -1 indicates an error
- */
-int cesk_frame_register_set(cesk_frame_t* frame, cesk_set_t* set);
-/** @brief put a new object to a fresh address
- *  @param frame the frame to be operated
+ *  @return -1 indicates an error */
+int cesk_frame_register_put(cesk_frame_t* frame, uint32_t reg, cesk_set_t* set);
+
+/** @brief put a value at a fresh address
+ *  @param frame the frame to operated
  *  @param object the object 
- *  @return -1 for error
- */
-int cesk_frame_store_object_put(cesk_frame_t* frame, cesk_object_t* object);
+ *  @param inst instruction
+ *  @return the address of the object */
+uint32_t cesk_frame_store_put(cesk_frame_t* frame, cesk_value_t* value, const dalvik_instruction_t* inst);
+
 /** @brief set the reuse flag of a given address
  *  @param frame the frame to be oprated
- *  @param addr the address to be operated
+ *  @param addr the address to operated
  *  @param value the reused value to be set
- *  @return -1 for error
- */
+ *  @return -1 for error */
 int cesk_frame_store_object_reuse(cesk_frame_t* frame, uint32_t addr, uint8_t value);
-//TODO: set operations
+
 #endif /* __CESK_FRAME_H__ */

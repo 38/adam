@@ -203,7 +203,7 @@ cesk_value_const_t* cesk_store_get_ro(const cesk_store_t* store, uint32_t addr)
     }
     return (cesk_value_const_t*)block->slots[offset].value;
 }
-int cesk_store_is_reuse(const cesk_store_t* store, uint32_t addr)
+int cesk_store_get_reuse(const cesk_store_t* store, uint32_t addr)
 {
 	uint32_t block_idx = addr / CESK_STORE_BLOCK_NSLOTS;
 	uint32_t offset    = addr % CESK_STORE_BLOCK_NSLOTS;
@@ -223,7 +223,7 @@ int cesk_store_is_reuse(const cesk_store_t* store, uint32_t addr)
 int cesk_store_set_reuse(cesk_store_t* store, uint32_t addr)
 {
 	uint32_t block_idx = addr / CESK_STORE_BLOCK_NSLOTS;
-	uint32_t offset = addr / CESK_STORE_BLOCK_NSLOTS;
+	uint32_t offset = addr % CESK_STORE_BLOCK_NSLOTS;
 	if(block_idx >= store->nblocks)
 	{
 		LOG_ERROR("out of memory");
@@ -236,6 +236,24 @@ int cesk_store_set_reuse(cesk_store_t* store, uint32_t addr)
 		return -1;
 	}
 	block->slots[offset].reuse = 1;
+	return 0;
+}
+int cesk_store_clear_reuse(cesk_store_t* store, uint32_t addr)
+{
+	uint32_t block_idx = addr / CESK_STORE_BLOCK_NSLOTS;
+	uint32_t offset = addr % CESK_STORE_BLOCK_NSLOTS;
+	if(block_idx >= store->nblocks)
+	{
+		LOG_ERROR("out of memory");
+		return -1;
+	}
+	cesk_store_block_t* block = _cesk_store_getblock_rw(store, addr);
+	if(NULL == block)
+	{
+		LOG_ERROR("can not aquire an writable pointer to the block");
+		return -1;
+	}
+	block->slots[offset].reuse = 0;
 	return 0;
 }
 cesk_value_t* cesk_store_get_rw(cesk_store_t* store, uint32_t addr)
