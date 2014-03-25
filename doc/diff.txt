@@ -28,7 +28,7 @@ resolve this conflict, however this is expensive.
 Solution 
 ==
 
-That is why we do not want to implement the fix point use the merge technique.
+That is why we do not want to compute the fix point use the merge technique.
 So that I designed another way to archieve this, it the difference based
 method.
 
@@ -42,7 +42,9 @@ method. And for each iteration, pop the first block from the queue and compute
 the absolute diff which is the diff between the up-to-date input frame and
 current frame. The absolute diff can be computed from the absolute diff.
 
-//TODO how to compute the absolute diff from previous diff ...
+Obviously, there's no between input blocks and output blocks diff during 
+the first iteration. Therefore, after the first iteration, the frame 
+//TODO
 
 That is, assuming we have an block evaluator that can produce the diff of
 output frame against the input frame. We can use this method to evaluate the
