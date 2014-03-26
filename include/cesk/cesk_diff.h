@@ -5,7 +5,7 @@
  **/
 #ifndef __CESK_DIFF_H__
 #define __CESK_DIFF_H__
-#include <cesk/frame.h>
+#include <cesk/cesk_frame.h>
 #include <dalvik/dalvik_instruction.h>
 /*
  * TODO: a) a data structure to repr the diff between machine states 
@@ -52,7 +52,8 @@ typedef struct _cesk_diff_item_t {
 /** @brief reprs an diff */
 typedef struct {
 	uint32_t nitems; 			/*!< how many items in this diff */
-	cesk_diff_item_t* content; /*!< the content */
+	cesk_diff_item_t* head; /*!< the content head */
+	cesk_diff_item_t* tail; /*!< the content tail */
 } cesk_diff_t;
 
 /** 
@@ -65,15 +66,30 @@ cesk_diff_t* cesk_diff_new();
  * @return nothing
  */
 void cesk_diff_free(cesk_diff_t* diff);
-/**
- * @brief build a diff from a block
- * @param frame the input frame
- * @param code  the code block that to be analyzed
- * @param diff  the diff of output against input
- * @param reverse the diff of input against output
- * @return <0 for error
+
+
+/** 
+ * @brief push next diff item to end of the diff, this is used for gerneating diff
+ * @param diff the diff
+ * @param item the next item we want to push
+ * @return < 0 for error
  */
-int cesk_diff_from_code(const dalvik_block_t* code, cesk_frame_t* frame, cesk_diff_t* diff, cesk_diff_t* reverse);
+int cesk_diff_push_back(cesk_diff_t* diff, cesk_diff_item_t* item);
+
+/**
+ * @brief push the next diff item to the begining of the diff list, this is used for generating the reverse of diff
+ * @param diff the diff
+ * @param item the item to insert
+ * @return < 0 for error
+ */
+int cesk_diff_push_front(cesk_diff_t* diff, cesk_diff_item_t* item);
+
+/** 
+ * @brief reduce the diff e.g. {set 1 to 2, set 1 to 3} ==> {set 1 to 3} 
+ * @param diff the diff to reduce
+ * @return < 0 for error
+ */
+int cesk_diff_reduce(cesk_diff_t* diff);
 
 /**
  * @brief merge two diff, notice that the merge operator is not commutative, that is merge(A,B) != merge(B,A)
