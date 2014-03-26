@@ -44,7 +44,8 @@ current frame. The absolute diff can be computed from the absolute diff.
 
 Obviously, there's no between input blocks and output blocks diff during 
 the first iteration. Therefore, after the first iteration, the frame 
-//TODO
+
+D' = (S/D1) * D1 * D2 * D3 ... = (S/D1) * D_prev * D
 
 That is, assuming we have an block evaluator that can produce the diff of
 output frame against the input frame. We can use this method to evaluate the
@@ -55,5 +56,3 @@ fix point of the block graph.
 		diff = evaluate_block(block, input)
 		
 
-The composition of a frame diff:
-1. A list of 
