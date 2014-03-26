@@ -9,6 +9,7 @@
 #include <cesk/cesk_store.h>
 #include <cesk/cesk_set.h>
 #include <cesk/cesk_frame.h>
+#include <cesk/cesk_diff.h>
 #include <cesk/cesk_addr_arithmetic.h>
 
 /**

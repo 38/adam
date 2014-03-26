@@ -131,8 +131,8 @@ int cesk_frame_register_move(
 		const dalvik_instruction_t* inst, 
 		uint32_t dst_reg, 
 		uint32_t src_reg, 
-		cesk_diff_t* diffbuf, 
-		cesk_diff_t* rdiffbuf);
+		cesk_diff_item_t* diffbuf, 
+		cesk_diff_item_t* rdiffbuf);
 
 /** @brief load an address to destination regiseter
  * @param frame the frame we are operating
@@ -148,8 +148,8 @@ int cesk_frame_register_load(
 		const dalvik_instruction_t* inst, 
 		uint32_t dst_reg, 
 		uint32_t addr, 
-		cesk_diff_t* diffbuf, 
-		cesk_diff_t* rdiffbuf); 
+		cesk_diff_item_t* diffbuf, 
+		cesk_diff_item_t* rdiffbuf); 
 
 /** @brief clear the value of the register
  * @param frame the frame we are operating 
@@ -163,8 +163,8 @@ int cesk_frame_register_clear(
 		cesk_frame_t* frame,
 		const dalvik_instruction_t* inst,
 		uint32_t reg,
-		cesk_diff_t* diffbuf,
-		cesk_diff_t* rdiffbuf);
+		cesk_diff_item_t* diffbuf,
+		cesk_diff_item_t* rdiffbuf);
 
 /** @brief load value of a field from source object to destination register
  *  @param frame the frame we are operating
@@ -184,8 +184,8 @@ int cesk_frame_store_object_get(
 		uint32_t src_addr,
 		const char* classpath,
 		const char* field,
-		cesk_diff_t* diffbuf,
-		cesk_diff_t* rdiffbuf);
+		cesk_diff_item_t* diffbuf,
+		cesk_diff_item_t* rdiffbuf);
 
 /** @brief save the value of source register to the field of destination object 
  *  @param frame the frame we are operating
@@ -205,8 +205,8 @@ int cesk_frame_store_object_put(
 		const char* classpath,
 		const char* field,
 		uint32_t src_reg,
-		cesk_diff_t* diffbuf,
-		cesk_diff_t* rdiffbuf);
+		cesk_diff_item_t* diffbuf,
+		cesk_diff_item_t* rdiffbuf);
 
 
 /** @brief load value of a field from source array to destination register(to be implemented)
@@ -225,8 +225,8 @@ int cesk_frame_store_array_get(
 		uint32_t dst_addr,
 		uint32_t index,
 		uint32_t src_reg,
-		cesk_diff_t* diffbuf,
-		cesk_diff_t* rdiffbuf);
+		cesk_diff_item_t* diffbuf,
+		cesk_diff_item_t* rdiffbuf);
 
 /** @brief save the value of source register to the field of destination array(to be implemented) 
  *  @param frame the frame we are operating
@@ -244,8 +244,8 @@ int cesk_frame_store_array_put(
 		uint32_t index,
 		uint32_t dst_reg,
 		uint32_t src_reg,
-		cesk_diff_t* diffbuf,
-		cesk_diff_t* rdiffbuf);
+		cesk_diff_item_t* diffbuf,
+		cesk_diff_item_t* rdiffbuf);
 
 /** @brief allocate a 'fresh' address in this frame, and create a new object.
  *
@@ -266,15 +266,15 @@ uint32_t cesk_frame_store_new_object(
 		cesk_frame_t* frame,
 		const dalvik_instruction_t* inst,
 		const char* classpath,
-		cesk_diff_t* diffbuf,
-		cesk_diff_t* rdiffbuf);
+		cesk_diff_item_t* diffbuf,
+		cesk_diff_item_t* rdiffbuf);
 
 /** @brief TODO: allocate a fresh address for an array object */
 uint32_t cesk_frame_store_new_array(
 		cesk_frame_t* frame,
 		const dalvik_instruction_t* inst,
-		cesk_diff_t* diffbuf,
-		cesk_diff_t* rdiffbuf);
+		cesk_diff_item_t* diffbuf,
+		cesk_diff_item_t* rdiffbuf);
 
 /** @brief push a new value to this register (keep the old value) 
  * 
@@ -295,8 +295,8 @@ int cesk_frame_register_push(
 		const dalvik_instruction_t* inst,
 		uint32_t reg,
 		uint32_t addr,
-		cesk_diff_t* diffbuf,
-		cesk_diff_t* rdiffbuf);
+		cesk_diff_item_t* diffbuf,
+		cesk_diff_item_t* rdiffbuf);
 
 /** @brief load a value from the store to register 
  *
@@ -315,8 +315,8 @@ int cesk_frame_register_load_from_store(
 		const dalvik_instruction_t* inst,
 		uint32_t dest,
 		uint32_t src_addr,
-		cesk_diff_t* diffbuf,
-		cesk_diff_t* rdiffbuf);
+		cesk_diff_item_t* diffbuf,
+		cesk_diff_item_t* rdiffbuf);
 
 /** @brief append a value from the store to register 
  *
@@ -335,6 +335,6 @@ int cesk_frame_register_append_from_store(
 		const dalvik_instruction_t* inst,
 		uint32_t dest,
 		uint32_t src_addr,
-		cesk_diff_t* diffbuf,
-		cesk_diff_t* rdiffbuf);
+		cesk_diff_item_t* diffbuf,
+		cesk_diff_item_t* rdiffbuf);
 #endif /* __CESK_FRAME_H__ */
