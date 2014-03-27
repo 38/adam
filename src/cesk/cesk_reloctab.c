@@ -18,6 +18,7 @@ void cesk_reloctab_free(cesk_reloctab_t* table)
 	int i;
 	for(i = 0; i < table->_nxtidx; i ++)
 		cesk_value_decref(table->table[i]);
+	free(table->table);
 	free(table);
 }
 
@@ -31,8 +32,8 @@ int cesk_reloctab_insert(cesk_reloctab_t* table, cesk_value_t* value)
 	if(table->_capacity == table->_nxtidx)
 	{
 		uint32_t new_size = table->_capacity * 2;
-		LOG_DEBUG("the relocation table is full, resize the table from %u to %u", table->_capacity, new_size - 1);
-		cesk_value_t** new_val = (cesk_value_t**)  malloc(sizeof(cesk_value_t*) * new_size);
+		LOG_DEBUG("the relocation table is full, resize the table from %u to %u", table->_capacity, new_size);
+		cesk_value_t** new_val = (cesk_value_t**)  realloc(table->table, sizeof(cesk_value_t*) * new_size);
 		if(NULL == new_val)
 		{
 			LOG_ERROR("can not increase the capacity of the relocation table");

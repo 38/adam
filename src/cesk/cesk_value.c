@@ -35,7 +35,7 @@ static void _cesk_value_free(cesk_value_t* val)
     if(val->prev) val->prev->next = val->next;
     if(val->next) val->next->prev = val->prev;
     if(_cesk_value_list == val) _cesk_value_list = val->next;
-    if(NULL == val->pointer._void)
+    if(NULL != val->pointer._void)
 	{
 		/* for each type, we use defferent way to deallocate the object */
 		switch(val->type)
@@ -51,7 +51,7 @@ static void _cesk_value_free(cesk_value_t* val)
 		}
 	}
     free(val);
-	LOG_DEBUG("a value is deleted"); 
+	LOG_DEBUG("a value at host memory %p is deleted", val); 
 }
 void cesk_value_finalize()
 {

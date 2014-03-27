@@ -90,13 +90,6 @@
 #	define CESK_FRAME_INIT_HASH 0xa3efab97ul
 #endif
 
-#ifndef CESK_RELOC_TABLE_SIZE
-/** @brief slot size of cesk relocation table
- *  @todo adjust this value cuz i don't know if conlisions are usuall
- */
-#	define CESK_RELOC_TABLE_SIZE 1023
-#endif
-
 /** @brief the invalid address in the virtual store */
 #define CESK_STORE_ADDR_NULL 0xfffffffful
 

@@ -65,6 +65,17 @@ int cesk_diff_push_front(cesk_diff_t* diff, cesk_diff_item_t* item)
 }
 int cesk_diff_reduce(cesk_diff_t* diff)
 {
+	if(NULL == diff)
+	{
+		LOG_ERROR("invalid argument");
+		return -1;
+	}
+	if(1 == diff->reduced)
+	{
+		LOG_NOTICE("the diff is reduced");
+		return 0;
+	}
+
 	//TODO use a hash table
 	return 0;
 }

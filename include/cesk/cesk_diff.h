@@ -58,7 +58,8 @@ struct _cesk_diff_item_t {
 
 /** @brief reprs an diff */
 typedef struct {
-	uint32_t nitems; 			/*!< how many items in this diff */
+	uint8_t	reduced;        /*!< flag indicate if the diff is reduced, before reduced, the item is sorted by time, but after that the 
+							     items would be sorted by pair <address, time> */
 	cesk_diff_item_t* head; /*!< the content head */
 	cesk_diff_item_t* tail; /*!< the content tail */
 } cesk_diff_t;
