@@ -28,30 +28,28 @@ enum {
 
 /** @brief type of frame diff object addressing */
 enum {
-	CESK_DIFF_VALUE_FIXED,
-	CESK_DIFF_VALUE_RELOCATED
+	CESK_DIFF_FIXED,
+	CESK_DIFF_RELOCATED
 };
-
-/** @brief an address that to operate */
-typedef struct {
-	uint8_t  type:1;       /*!< the type of this item */
-	uint32_t addr;         /*!< the address content */
-} cesk_diff_addr_t;
 
 /** @brief an value to patch */
 typedef struct {
-	uint8_t  type:1;       /*!< the type of the value, fixed or relocated */
 	union {
-		uint32_t      valueid;  /*!< the value id, if it's a relocated value */
-		cesk_value_t* valueptr; /*!< the value ptr, if it's a fixed value */
+		uint32_t      id;  /*!< the value id, if it's a relocated value */
+		cesk_value_t* ptr; /*!< the value ptr, if it's a fixed value */
 	} value;					/*!< the value */
 } cesk_diff_value_t;
 
 /** @brief an patch items */ 
 struct _cesk_diff_item_t {
 	uint8_t opcode:1;			/*!< the type of operation */
-	cesk_diff_addr_t addr;		/*!< the affected address, if it's CESK_STORE_ADDR_NULL in memory, that means, we should allocate an address for it */
-	cesk_diff_value_t value;    /*!< the value to be operated */
+	uint8_t addr_type:1;		/*!< the address type, fixed or relocated */
+	uint8_t val_type:1;			/*!< the value type, fiexed or relocated */
+	uint32_t addr;				/*!< the affected address, if it's CESK_STORE_ADDR_NULL in memory, that means, we should allocate an address for it */
+	union{
+		uint32_t 		id;		/*!< the value id, if the object is located in the relocation table, aka RELOCATED */
+		cesk_value_t* 	ptr;	/*!< the object pointer, if it's in the store, aka FIXED */
+	}value;    					/*!< the value to be operated */
 	struct _cesk_diff_item_t* next; /*!< next item in the list */
 	struct _cesk_diff_item_t* prev; /*!< previous item in the list */
 };
@@ -63,6 +61,16 @@ typedef struct {
 	cesk_diff_item_t* head; /*!< the content head */
 	cesk_diff_item_t* tail; /*!< the content tail */
 } cesk_diff_t;
+/**
+ * @brief initlize the diff pool
+ * @return the result of initialization < 0 for error
+ **/
+int cesk_diff_init();
+/**
+ * @brief finalize the diff pool
+ * @return the return of finalization < 0 for error
+ **/
+int cesk_diff_finalize();
 
 /** 
  * @brief make an empty diff

@@ -90,6 +90,16 @@
 #	define CESK_FRAME_INIT_HASH 0xa3efab97ul
 #endif
 
+#ifndef CESK_DIFF_REDUCTION_TABLE_SIZE
+/** @brief the size of the hash table used for diff reduction */
+#	define CESK_DIFF_REDUCTION_TABLE_SIZE 1023
+#endif
+
+#ifndef CESK_DIFF_REDUCTION_POOL_SIZE
+/** @brief the size of reduction node pool */
+#	define CESK_DIFF_REDUCTION_POOL_SIZE 4096
+#endif
+
 /** @brief the invalid address in the virtual store */
 #define CESK_STORE_ADDR_NULL 0xfffffffful
 
