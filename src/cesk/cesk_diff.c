@@ -65,5 +65,6 @@ int cesk_diff_push_front(cesk_diff_t* diff, cesk_diff_item_t* item)
 }
 int cesk_diff_reduce(cesk_diff_t* diff)
 {
+	//TODO use a hash table
 	return 0;
 }
