@@ -100,6 +100,9 @@
 /** @brief the invalid address in the virtual store */
 #define CESK_STORE_ADDR_NULL 0xfffffffful
 
+/** @brief the initial size of the relocation table */
+#define CESK_RELOCTAB_INIT_SIZE 32
+
 /** @brief the magic number used for Knuth Multiplicative Hash */
 #define MH_MULTIPLY (2654435761ul)
 

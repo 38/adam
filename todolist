@@ -1,10 +1,4 @@
-test frames
-block analyzer
-
-how to dealing with the output frame of last block . because return do not have any output
-test block analyzer and complete it
-
-
-test the store merge function. 
-
-Then move on to the inter-block analysis
+test the relocation table
+implementation of cesk_diff
+implementation of high level instruction based on cesk_diff
+implementation of diff merge

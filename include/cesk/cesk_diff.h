@@ -5,6 +5,7 @@
  **/
 #ifndef __CESK_DIFF_H__
 #define __CESK_DIFF_H__
+typedef struct _cesk_diff_item_t cesk_diff_item_t;
 #include <adam.h>
 #include <cesk/cesk_frame.h>
 #include <dalvik/dalvik_instruction.h>
@@ -47,13 +48,13 @@ typedef struct {
 } cesk_diff_value_t;
 
 /** @brief an patch items */ 
-typedef struct _cesk_diff_item_t {
+struct _cesk_diff_item_t {
 	uint8_t opcode:1;			/*!< the type of operation */
 	cesk_diff_addr_t addr;		/*!< the affected address, if it's CESK_STORE_ADDR_NULL in memory, that means, we should allocate an address for it */
 	cesk_diff_value_t value;    /*!< the value to be operated */
 	struct _cesk_diff_item_t* next; /*!< next item in the list */
 	struct _cesk_diff_item_t* prev; /*!< previous item in the list */
-} cesk_diff_item_t;
+};
 
 /** @brief reprs an diff */
 typedef struct {
