@@ -89,6 +89,8 @@ typedef struct _cesk_store_t cesk_store_t;
 /** @brief check if or not an address is an object address */
 #define CESK_STORE_ADDR_IS_OBJ(addr) ((addr) < CESK_STORE_ADDR_RELOC_PREFIX)
 
+#include <cesk/cesk_alloc_table.h>
+
 
 /** @brief slot in virtual store */
 typedef struct {
@@ -102,35 +104,47 @@ typedef struct {
 /** @brief the store block of virtual store */
 typedef struct {
     uint32_t       refcnt;     /*!<for Copy-on-Write */
-    uint32_t       num_ent;    /*!<number of entities */
+    uint32_t       num_ent:31;    /*!<number of entities */
+	uint8_t		   reloc:1;    /*!<wether or not this block contains a reference to relocated address*/
     cesk_store_slot_t  slots[0];
 } cesk_store_block_t;
 /** @brief the number of slots in one block */
 #define CESK_STORE_BLOCK_NSLOTS ((CESK_STORE_BLOCK_SIZE - sizeof(cesk_store_block_t))/sizeof(cesk_store_slot_t))
 /** @brief the virtual store object */
 struct _cesk_store_t {
-    uint32_t            nblocks;    /*!<number of blocks */
+    uint32_t            nblocks:31; /*!<number of blocks */
     uint32_t            num_ent;    /*!<number of entities */
     hashval_t           hashcode;   /*!<hashcode of content of this store */
+	cesk_alloc_table_t*   alloc_tab;  /*!<the allocation table */
     cesk_store_block_t* blocks[0];  /*!<block array */
 };
 
-/** @brief make an empty store 
- *  @return nothing
- */
+/** 
+ * @brief make an empty store 
+ * @return nothing
+ **/
 cesk_store_t* cesk_store_empty_store();
+/**
+ * @brief set the allocation table associated to this store
+ * @param store 
+ * @param alloc_tab the allocation table
+ * @return < 0 if an error occurred 
+ **/
+int cesk_store_set_alloc_table(cesk_store_t* store, cesk_alloc_table_t* table);
 /** @brief make a copy of a store 
  *  @param store the original store
  *  @return the copy of the store
  */
 cesk_store_t* cesk_store_fork(const cesk_store_t* store);
 
-/** @brief get a writable pointer, you must release the adress when you are done
- *  @param store the virtual store
- *  @param addr address
- *  @return the writable value pointer
- */
-cesk_value_t* cesk_store_get_rw(cesk_store_t* store, uint32_t addr);
+/**
+ * @brief get a writable pointer, you must release the adress when you are done
+ * @param store the virtual store
+ * @param addr address
+ * @param noval if noval == 1, the function do no copy the value 
+ * @return the writable value pointer
+ **/
+cesk_value_t* cesk_store_get_rw(cesk_store_t* store, uint32_t addr, int noval);
 /** @brief get a read-only value pointer, do not try to write 
  *  @param store the virtual store
  *  @param addr address

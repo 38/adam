@@ -41,9 +41,13 @@ enum{
 		prefix cesk_set_t*    set;   /*!<as a set */\
 		prefix cesk_object_t* object; /*!<as an object */
 
-/** @brief the data structure for a abstruct value */
+/** 
+ * @brief the data structure for a abstruct value 
+ * @todo  maintain the reloc bit
+ **/
 struct _cesk_value_t {
-    uint8_t     type:7;       /*!<type of this value */
+    uint8_t     type:6;       /*!<type of this value */
+	uint8_t     reloc:1;      /*!<does the object contains an relocation address? */
     uint8_t     write_status:1; /*!<this bit check if the value is associated with a writable pointer */
 	union {
 		__CESK_POINTER_LIST()

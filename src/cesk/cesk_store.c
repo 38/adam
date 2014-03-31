@@ -165,9 +165,114 @@ cesk_store_t* cesk_store_empty_store()
    ret->nblocks = 0;
    ret->num_ent = 0;
    ret->hashcode = CESK_STORE_EMPTY_HASH;
+   ret->alloc_tab = NULL;
    return ret;
 }
-
+int cesk_store_set_alloc_table(cesk_store_t* store, cesk_alloc_table_t* table)
+{
+	if(NULL == store)
+	{
+		LOG_ERROR("invalid argument");
+		return -1;
+	}
+	store->alloc_tab = table;
+	return 0;
+}
+/**
+ * @brief apply the allocation table to the block
+ * @param store 
+ * @param blk a writable pointer to the block
+ * @param base_addr the base address of the block
+ * @return < 0 : error
+ **/
+static inline int _cesk_store_apply_alloc_tab(cesk_store_t* store, uint32_t base_addr)
+{
+	/* we have to flush it (because fork frame only called before the
+	 * guest function called other function) */
+	cesk_store_block_t* blk = _cesk_store_getblock_rw(store, base_addr);
+	if(NULL == blk)
+	{
+		LOG_ERROR("can not aquire writable pointer to the store block");
+		return -1;
+	}
+	int j;
+	for(j = 0; j < CESK_STORE_BLOCK_NSLOTS; j ++)
+	{
+		if(NULL == blk->slots[j].value || 0 == blk->slots[j].value->reloc) continue;
+		/* if the value does contain a relocated address, apply the allocation table on that */
+		LOG_DEBUG("object @0x%x contains relocated address, apply the relocation table on it", base_addr + j);
+		cesk_value_t* value = cesk_store_get_rw(store, base_addr + j, 0); 
+		if(NULL == value)
+		{
+			LOG_ERROR("can not get writable pointer to the address");
+			return -1;
+		}
+		cesk_set_iter_t iter;
+		cesk_set_t* set;
+		cesk_object_t* object;
+		cesk_object_struct_t* object_base;
+		uint32_t from_addr;
+		uint32_t to_addr;
+		int i,j;
+		switch(value->type)
+		{
+			case CESK_TYPE_ARRAY:
+				LOG_NOTICE("fixme: array support here");
+				break;
+			case CESK_TYPE_SET:
+				store->hashcode ^= HASH_INC(base_addr + j, value);
+				set = value->pointer.set;
+				if(NULL == cesk_set_iter(set, &iter))
+				{
+					LOG_ERROR("can not aquire set iterator");
+					return -1;
+				}
+				for(;(from_addr = cesk_set_iter_next(&iter)) != CESK_STORE_ADDR_NULL;)
+					if(CESK_STORE_ADDR_IS_RELOC(from_addr))
+					{
+						to_addr = cesk_alloc_table_query(store->alloc_tab, store, from_addr);
+						if(CESK_STORE_ADDR_NULL == to_addr)
+						{
+							LOG_WARNING("failed to query the allocation table for relocation address @0x%x", to_addr);
+							continue;
+						}
+						cesk_set_modify(set, from_addr, to_addr);
+						LOG_DEBUG("apply map record %u --> %u", from_addr, to_addr);
+					}
+				store->hashcode ^= HASH_INC(base_addr + j, value);
+				break;
+			case CESK_TYPE_OBJECT:
+				store->hashcode ^= HASH_INC(base_addr + j, value);
+				object = value->pointer.object;
+				object_base = object->members;
+				for(i = 0; i < object->depth; i ++)
+				{
+					for(j = 0; j < object_base->num_members; j ++)
+					{
+						from_addr = object_base->valuelist[j];
+						if(CESK_STORE_ADDR_IS_RELOC(from_addr))
+						{
+							to_addr = cesk_alloc_table_query(store->alloc_tab, store ,from_addr);
+							if(CESK_STORE_ADDR_NULL == to_addr)
+							{
+								LOG_WARNING("failed to query the allocation table for relocated address @0x%x", to_addr);
+								continue;
+							}
+							object_base->valuelist[j] = to_addr;
+						}
+					}
+					CESK_OBJECT_STRUCT_ADVANCE(object_base);
+				}
+				store->hashcode ^= HASH_INC(base_addr + j, value);
+				break;
+			default:
+				LOG_ERROR("invalid value typecode(%d)", value->type);
+				return -1;
+		}
+	}
+	blk->reloc = 0;
+	return 0;
+}
 cesk_store_t* cesk_store_fork(const cesk_store_t* store)
 {
     int i;
@@ -180,11 +285,28 @@ cesk_store_t* cesk_store_fork(const cesk_store_t* store)
     }
 	/* what we should do is just duplicating the block table in the block */
     memcpy(ret, store, size);
-    /* increase refrence counter of all blocks */
-    for(i = 0; i < ret->nblocks; i ++)
-        ret->blocks[i]->refcnt++;
+	uint32_t base_addr = 0;
+	/* increase refrence counter of all blocks */
+	for(i = 0; i < ret->nblocks; i ++, base_addr += CESK_STORE_BLOCK_NSLOTS)
+	{
+		ret->blocks[i]->refcnt++;
+		/* if there's some relocated address in the frame */
+		/* TODO: test it */
+		if(NULL != ret->alloc_tab && 
+		   ret->blocks[i]->reloc &&  
+		   _cesk_store_apply_alloc_tab(ret, base_addr) < 0)
+		{
+			LOG_ERROR("can not allocate allocation table to new store");
+			goto ERR;
+		}
+	}
     LOG_DEBUG("a store of %d entities is being forked, %zu bytes copied", ret->num_ent, size);
     return ret;
+ERR:
+	for(; i < ret->nblocks; i ++)
+		ret->blocks[i]->refcnt ++;
+	cesk_store_free(ret);
+	return NULL;
 }
 cesk_value_const_t* cesk_store_get_ro(const cesk_store_t* store, uint32_t addr)
 {
@@ -256,12 +378,12 @@ int cesk_store_clear_reuse(cesk_store_t* store, uint32_t addr)
 	block->slots[offset].reuse = 0;
 	return 0;
 }
-cesk_value_t* cesk_store_get_rw(cesk_store_t* store, uint32_t addr)
+cesk_value_t* cesk_store_get_rw(cesk_store_t* store, uint32_t addr, int noval)
 {
     uint32_t offset    = addr % CESK_STORE_BLOCK_NSLOTS;
 	cesk_store_block_t* block = _cesk_store_getblock_rw(store, addr);
 	cesk_value_t* val = block->slots[offset].value;
-    if(val->refcnt > 1)
+    if(val->refcnt > 1 && noval == 0)
     {
         LOG_DEBUG("this value is refered by other frame block, so fork it first");
         cesk_value_t* newval = cesk_value_fork(val);

@@ -37,6 +37,14 @@ int cesk_set_merge(cesk_set_t* dest, const cesk_set_t* sour);
  * @return the result of the operation
  */
 int cesk_set_push(cesk_set_t* dest, uint32_t addr);
+/**
+ * @brief modify an element of the set, if the element do not exist, just return
+ * @param dest the destination set
+ * @param from modify the address from this address
+ * @param to to this address
+ * @return result of the operation, < 0 when error 
+ **/
+int cesk_set_modify(cesk_set_t* dest, uint32_t from, uint32_t to);
 
 /** @brief return a iterator that used for tranverse the set 
  *  @param set the set

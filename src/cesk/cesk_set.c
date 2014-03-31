@@ -77,9 +77,10 @@ static inline uint32_t _cesk_set_idx_hashcode(uint32_t hashidx, uint32_t addr)
 {
     return (hashidx * MH_MULTIPLY) ^ ((addr & 0xffff) * MH_MULTIPLY) ^ (addr >> 16);
 }
-/* the function will insert a node in the hash table regardless if it's duplicated
+/**
+ * @brief the function will insert a node in the hash table regardless if it's duplicated
  * The return value of the function is the header address of data section
- */
+ **/
 static inline void* _cesk_set_hash_insert(uint32_t setidx, uint32_t addr)
 {
     /* if addr == CESK_STORE_ADDR_NULL, the node is a info node */
@@ -96,7 +97,7 @@ static inline void* _cesk_set_hash_insert(uint32_t setidx, uint32_t addr)
     _cesk_set_hash[h] = ret;
     return ret->data_section;
 }
-/* look for a value in the hash table, return the address of data section */
+/** @brief look for a value in the hash table, return the address of data section */
 static inline void* _cesk_set_hash_find(uint32_t setidx, uint32_t addr)
 {
     uint32_t h = _cesk_set_idx_hashcode(setidx, addr) % CESK_SET_HASH_SIZE;
@@ -311,12 +312,83 @@ static inline uint32_t _cesk_set_duplicate(cesk_set_info_entry_t* info, cesk_set
 
     return new_idx;
 }
+int cesk_set_modify(cesk_set_t* dest, uint32_t from, uint32_t to)
+{
+	if(NULL == dest || CESK_STORE_ADDR_NULL == from || CESK_STORE_ADDR_NULL == to)
+	{
+		LOG_ERROR("invalid argument");
+		return -1;
+	}
+	if(CESK_SET_INVALID == dest->set_idx)
+	{
+		LOG_ERROR("invalid set object");
+		return -1;
+	}
+	cesk_set_info_entry_t *info;
+	info = (cesk_set_info_entry_t*)_cesk_set_hash_find(dest->set_idx, CESK_STORE_ADDR_NULL);
+	if(NULL == info)
+	{
+		LOG_ERROR("can not find info entry for set #%d", dest->set_idx);
+		return -1;
+	}
+	/* check if the content of the set is used by more than one set. If yes, duplicate it before merge */
+	if(info->refcnt > 1)
+	{
+		LOG_DEBUG("set #%d is used by %d set objects, duplicate before writing",
+				  dest->set_idx,
+				  info->refcnt);
+		cesk_set_info_entry_t *new;
+		uint32_t idx = _cesk_set_duplicate(info, &new);
+		dest->set_idx = idx;
+		info = new;
+	}
+	cesk_set_data_entry_t* data = (cesk_set_data_entry_t*)_cesk_set_hash_find(dest->set_idx, from);
+	if(NULL == data)
+	{
+		LOG_WARNING("can not find element @0x%x in set #%d, nothing to modify", from, dest->set_idx);
+		return 0;
+	}
+	cesk_set_node_t* this = (cesk_set_node_t*)(((char*)data) - sizeof(cesk_set_node_t));  
+	/* remove the node from the slot list */
+	if(this->prev == NULL)
+	{
+		/* if it's the first element in the slot */
+		int h = _cesk_set_idx_hashcode(dest->set_idx, from) % CESK_SET_HASH_SIZE;
+		_cesk_set_hash[h] = this->next;
+	}
+	else
+		this->prev->next = this->next;
+	if(this->next != NULL)
+		this->next->prev = this->prev;
+	if(_cesk_set_hash_find(dest->set_idx, to))
+	{
+		/* if the destination element is duplicated, just free this node */
+		free(this);
+	}
+	else
+	{
+		/* if the destination element is not in the set, move it to a new position */
+		this->addr = to;
+		int h = _cesk_set_idx_hashcode(dest->set_idx, to) % CESK_SET_HASH_SIZE;
+		this->next = _cesk_set_hash[h];
+		_cesk_set_hash[h] = this;
+		this->prev = NULL;
+		info->hashcode ^= (from * MH_MULTIPLY) ^ (to * MH_MULTIPLY);   /* update the hash code */
+	}
+	return 0;
+}
 int cesk_set_push(cesk_set_t* dest, uint32_t addr)
 {
     if(NULL == dest || CESK_STORE_ADDR_NULL == addr)
+	{
+		LOG_ERROR("invalid argument");
         return -1;
+	}
     if(CESK_SET_INVALID == dest->set_idx)
+	{
+		LOG_ERROR("invalid set object");
         return -1;
+	}
     cesk_set_info_entry_t *info;
     info = (cesk_set_info_entry_t*)_cesk_set_hash_find(dest->set_idx, CESK_STORE_ADDR_NULL);
     if(NULL == info)

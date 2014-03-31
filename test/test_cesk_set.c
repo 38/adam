@@ -63,17 +63,22 @@ int main()
     assert(0 == cesk_set_equal(set3, set1));
     assert(0 == cesk_set_push(set4, 789));     /* S4 = {123, 789} */
     assert(1 == cesk_set_equal(set4, set2));
-    assert(0 == cesk_set_push(set4, 456));
-    assert(1 == cesk_set_equal(set4,set1));
+    assert(0 == cesk_set_push(set4, 456));   /* S4 = {123,456,789} */
+    assert(1 == cesk_set_equal(set4,set1));   
 
 	assert(cesk_set_compute_hashcode(set1) == cesk_set_hashcode(set1));
 	assert(cesk_set_compute_hashcode(set2) == cesk_set_hashcode(set2));
 	assert(cesk_set_compute_hashcode(set3) == cesk_set_hashcode(set3));
 	assert(cesk_set_compute_hashcode(set4) == cesk_set_hashcode(set4));
+
+	assert(0 == cesk_set_modify(set4, 456 , 111));
+	assert(1 == cesk_set_contain(set4, 111));
+	assert(0 == cesk_set_contain(set4, 456));
     
     cesk_set_free(set1);
     cesk_set_free(set2);
     cesk_set_free(set3);
+	cesk_set_free(set4);
 
 
 

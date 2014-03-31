@@ -34,7 +34,7 @@ int main()
 
 	assert(1 == cesk_store_equal(store2, store3));
 
-    cesk_value_t* value_rw = cesk_store_get_rw(store3, addr);
+    cesk_value_t* value_rw = cesk_store_get_rw(store3, addr, 0);
     
     assert((void*)value_ro != (void*)value_rw);
 
