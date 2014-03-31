@@ -75,6 +75,11 @@
 #	define CESK_STORE_ADDR_CONST_PREFIX 0xffffff00ul
 #endif
 
+#ifndef CESK_STORE_ADDR_RELOC_PREFIX
+/** @brief the address prefix for reloc address */
+#	define CESK_STORE_ADDR_RELOC_PREFIX 0xffff0000ul
+#endif
+
 #ifndef CESK_SET_EMPTY_HASH
 /** @brief the hash code for empty set */
 #	define CESK_SET_EMPTY_HASH 0x9c7cba63ul
@@ -90,21 +95,13 @@
 #	define CESK_FRAME_INIT_HASH 0xa3efab97ul
 #endif
 
-#ifndef CESK_DIFF_REDUCTION_TABLE_SIZE
-/** @brief the size of the hash table used for diff reduction */
-#	define CESK_DIFF_REDUCTION_TABLE_SIZE 1023
-#endif
-
-#ifndef CESK_DIFF_REDUCTION_POOL_SIZE
-/** @brief the size of reduction node pool */
-#	define CESK_DIFF_REDUCTION_POOL_SIZE 4096
-#endif
-
 /** @brief the invalid address in the virtual store */
 #define CESK_STORE_ADDR_NULL 0xfffffffful
 
-/** @brief the initial size of the relocation table */
-#define CESK_RELOCTAB_INIT_SIZE 32
+#ifndef CESK_ALLOC_TABLE_NSLOTS
+/** @brief the number of solots in an allocation table */
+#	define CESK_ALLOC_TABLE_NSLOTS 100007
+#endif
 
 /** @brief the magic number used for Knuth Multiplicative Hash */
 #define MH_MULTIPLY (2654435761ul)

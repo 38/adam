@@ -1,0 +1,40 @@
+Store Address Space
+==
+
+Code
+--
+The addressing mechanism is implemented in src/cesk/cesk_store.c 
+
+Address Space
+--
+The store address is a 32bit unsigned integer, the address space is composited with 3 parts. 
+1. The Object Address Space [0x00000000, 0xffff0000)
+Space in which an address is mapped to an actual value. Normal memory
+2. Relocation Address Space [0xffff0000, 0xffffff00)  
+Space in which refer to an object in gobal relocation table. 
+This is useful when we are transmitting value with diff packages. Because of
+the difference of memory layout in different store, the allocation result for
+the same object might not be the same. However, the pointer that is refer to
+an newly created object is necessary in most of the cases, that means in
+different store, the address refering the same object might not be same. So we
+can not create an universal diff package which can be applied for any frame
+store. 
+To solve this problem, instead of using the object adress to access the
+object, we use an global relocated object table to store the newly created
+object and the address in the relocation adress space to access the object. 
+In this way, even though the object adress of the new object is different from
+store to store, but the relocation adress remians same. In this way, the
+address provide a way to refer the same object in different store.
+After we finish the analyzing, we have to convert the relocation address to an
+object adress in output. 
+Notice that (reloc_addr & 0xffff) is the entry index in global relocation
+table.
+
+Therefore, for the caller this mechamism is transparent. 
+3. Const Address Space      [0xffffff00, 0xffffffff)
+The const address is the address represents a contant value. 
+
+Related objects
+--
+1. allocation table: a table keep tracking the allocation activity
+(cesk_alloc_table.c)

@@ -12,6 +12,7 @@
 #include <cesk/cesk_diff.h>
 #include <cesk/cesk_reloctab.h>
 #include <cesk/cesk_addr_arithmetic.h>
+#include <cesk/cesk_alloc_table.h>
 
 /**
  * @file cesk.h

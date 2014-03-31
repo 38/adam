@@ -1,0 +1,19 @@
+x * y != y * x
+x * (y + z) = x * y + x * z
+x * y + z = (x + z) * <x,y,z>
+x * y = x * <x,y> 
+
+S3 = S1 * d1  + S2 * d2 = (S1 + S2)*<S1,S2,d2>*<S1,S2*d2,d1>
+S3' = S3 * delta' = (S1 * d1 * delta1') + (S2 * d2 * delta2') 
+
+
+....
+
+<x,y> = y
+<a1,a2,a3,aN,b>:
+for items i in b:
+	for a in a1..aN:
+		if a in affected address of i: 
+			append a[addr] to the value
+
+

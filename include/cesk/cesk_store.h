@@ -43,6 +43,12 @@ typedef struct _cesk_store_t cesk_store_t;
 #include <cesk/cesk_value.h>
 #include <dalvik/dalvik_instruction.h>
 
+/* memory layout of a frame store : 
+ * ------------------------------------------------------------------
+ * |                     Object                  |  Reloc   | Const |
+ * ------------------------------------------------------------------
+ * 00000000										ffff0000    ffffff00 ffffffff
+ */
 
 /* special address that used for constants */
 /* this special address is stands for some constants value,
@@ -73,6 +79,16 @@ typedef struct _cesk_store_t cesk_store_t;
 #define CESK_STORE_ADDR_CONST_CONTAIN(addr, elem) CESK_STORE_ADDR_CHECK_COMP(addr, ((addr) & CESK_STORE_ADDR_CONST_SUFFIX(CESK_STORE_ADDR_##elem)))
 /** @brief return a new address that contains a value */
 #define CESK_STORE_ADDR_CONST_SET(addr, elem) ((addr) | CESK_STORE_ADDR_CONST_SUFFIX(CESK_STORE_ADDR_##elem))
+
+/* specal addresses used for relocation */
+/** @brief check if or not an address is a relocated address */
+#define CESK_STORE_ADDR_IS_RELOC(addr) ((((addr)&CESK_STORE_ADDR_RELOC_PREFIX) == CESK_STORE_ADDR_RELOC_PREFIX) && !CESK_STORE_ADDR_IS_CONST(addr))
+/** @brief get the index of global relocation object table from the address */
+#define CESK_STORE_ADDR_GET_RELOC_IDX(addr) (addr&~CESK_STORE_ADDR_RELOC_PREFIX)
+
+/** @brief check if or not an address is an object address */
+#define CESK_STORE_ADDR_IS_OBJ(addr) ((addr) < CESK_STORE_ADDR_RELOC_PREFIX)
+
 
 /** @brief slot in virtual store */
 typedef struct {

@@ -20,10 +20,18 @@ typedef struct _cesk_diff_item_t cesk_diff_item_t;
  *		          the diff operates the frame, the object must be converted to the store address)
  */
 
-/** @brief type of frame diff items */
+/** 
+ * @brief type of frame diff items
+ * @details The opcode actually contains 3 bit. The first bit indicates wether or not
+ *          this diff item requires to modifiy the reuse flag. If answer is yes, The 
+ *          third bit would be the value of new reuse flag at this address.
+ *          If the second bit is set, that means the diff also requires to modify the
+ *          value of this address
+ **/
 enum {
-	CESK_DIFF_OPCODE_REUSE,
-	CESK_DIFF_OPCODE_SET
+	CESK_DIFF_OPCODE_REUSE = 1,
+	CESK_DIFF_OPCODE_SET   = 2,
+	CESK_DIFF_OPCODE_REUSE_VAL = 4
 };
 
 /** @brief type of frame diff object addressing */
@@ -42,7 +50,7 @@ typedef struct {
 
 /** @brief an patch items */ 
 struct _cesk_diff_item_t {
-	uint8_t opcode:1;			/*!< the type of operation */
+	uint8_t opcode:3;			/*!< the type of operation */
 	uint8_t addr_type:1;		/*!< the address type, fixed or relocated */
 	uint8_t val_type:1;			/*!< the value type, fiexed or relocated */
 	uint32_t addr;				/*!< the affected address, if it's CESK_STORE_ADDR_NULL in memory, that means, we should allocate an address for it */
