@@ -39,6 +39,7 @@ void cesk_alloc_table_free(cesk_alloc_table_t* mem)
 			}
 		}
 	}
+	free(mem);
 }
 /**
  * @brief the hashcode for key <store, address> pair

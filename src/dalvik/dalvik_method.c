@@ -184,8 +184,8 @@ dalvik_method_t* dalvik_method_from_sexp(const sexpression_t* sexp, const char* 
             LOG_DEBUG("exception %s is handlered in label #%d", 
                       excepthandler[number_of_exception_handler]->exception, 
                       excepthandler[number_of_exception_handler]->handler_label);
-            //label_st[number_of_exception_handler] = 0;   /* TODO: verify this is a bug */
-            number_of_exception_handler ++;
+					  //label_st[number_of_exception_handler] = 0;   /* TODO: verify this is a bug */
+					  number_of_exception_handler ++;
         }
         else if(sexp_match(this_smt, "(L=A", DALVIK_TOKEN_FILL, &arg))
         {

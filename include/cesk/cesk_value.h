@@ -130,9 +130,37 @@ hashval_t cesk_value_hashcode(const cesk_value_t* value);
  */
 hashval_t cesk_value_compute_hashcode(const cesk_value_t* value);
 
-/* @brief compare, the compare fuction is also based on the addr compare 
+/**
+ * @brief compare, the compare fuction is also based on the addr compare 
  * @return 1 for two value are equal
- */
+ **/
 int cesk_value_equal(const cesk_value_t* first, const cesk_value_t* second);
 
+/**
+ * @brief set the reloc bit
+ * @param value
+ * @return nothing
+ **/
+static inline void cesk_value_set_reloc(cesk_value_t* value)
+{
+	value->reloc = 1;
+}
+/**
+ * @brief get the reloc bit
+ * @param value
+ * @return the value of reloc bit
+ **/
+static inline int cesk_value_get_reloc(cesk_value_t* value)
+{
+	return value->reloc;
+}
+/**
+ * @brief clear the reloc bit
+ * @param value
+ * @return nothing
+ **/
+static inline void cesk_value_clear_reloc(cesk_value_t* value)
+{
+	value->reloc = 0;
+}
 #endif /* __CESK_VALUE_T__ */

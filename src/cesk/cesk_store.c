@@ -196,17 +196,23 @@ static inline int _cesk_store_apply_alloc_tab(cesk_store_t* store, uint32_t base
 		return -1;
 	}
 	int j;
+	/* clear the reloc bit first */
+	blk->reloc = 0;   
+
 	for(j = 0; j < CESK_STORE_BLOCK_NSLOTS; j ++)
 	{
-		if(NULL == blk->slots[j].value || 0 == blk->slots[j].value->reloc) continue;
+		if(NULL == blk->slots[j].value || cesk_value_get_reloc(blk->slots[j].value)) continue;
 		/* if the value does contain a relocated address, apply the allocation table on that */
 		LOG_DEBUG("object @0x%x contains relocated address, apply the relocation table on it", base_addr + j);
-		cesk_value_t* value = cesk_store_get_rw(store, base_addr + j, 0); 
+		/* aquire a writable pointer, get ready to write */
+		cesk_value_t* value = cesk_store_get_rw(store, base_addr + j, 0);
 		if(NULL == value)
 		{
 			LOG_ERROR("can not get writable pointer to the address");
 			return -1;
 		}
+		/* clear the reloc flag of the vlaue */
+		cesk_value_clear_reloc(value);
 		cesk_set_iter_t iter;
 		cesk_set_t* set;
 		cesk_object_t* object;
@@ -214,13 +220,13 @@ static inline int _cesk_store_apply_alloc_tab(cesk_store_t* store, uint32_t base
 		uint32_t from_addr;
 		uint32_t to_addr;
 		int i,j;
+		/* switch for each type */
 		switch(value->type)
 		{
 			case CESK_TYPE_ARRAY:
 				LOG_NOTICE("fixme: array support here");
 				break;
 			case CESK_TYPE_SET:
-				store->hashcode ^= HASH_INC(base_addr + j, value);
 				set = value->pointer.set;
 				if(NULL == cesk_set_iter(set, &iter))
 				{
@@ -239,10 +245,8 @@ static inline int _cesk_store_apply_alloc_tab(cesk_store_t* store, uint32_t base
 						cesk_set_modify(set, from_addr, to_addr);
 						LOG_DEBUG("apply map record %u --> %u", from_addr, to_addr);
 					}
-				store->hashcode ^= HASH_INC(base_addr + j, value);
 				break;
 			case CESK_TYPE_OBJECT:
-				store->hashcode ^= HASH_INC(base_addr + j, value);
 				object = value->pointer.object;
 				object_base = object->members;
 				for(i = 0; i < object->depth; i ++)
@@ -263,12 +267,13 @@ static inline int _cesk_store_apply_alloc_tab(cesk_store_t* store, uint32_t base
 					}
 					CESK_OBJECT_STRUCT_ADVANCE(object_base);
 				}
-				store->hashcode ^= HASH_INC(base_addr + j, value);
 				break;
 			default:
 				LOG_ERROR("invalid value typecode(%d)", value->type);
 				return -1;
 		}
+		/* release the write pointer */
+		cesk_store_release_rw(store, base_addr + j);
 	}
 	blk->reloc = 0;
 	return 0;
@@ -462,6 +467,8 @@ void cesk_store_release_rw(cesk_store_t* store, uint32_t addr)
         return;
     }
     val->write_status = 0;
+	/* update the relocation bit */
+	block->reloc |= val->reloc;
     /* update the hashcode */
     store->hashcode ^= HASH_INC(addr, val);
 }
@@ -802,4 +809,3 @@ int cesk_store_clear_refcnt(cesk_store_t* store, uint32_t addr)
 	block->slots[ofs].refcnt = 0;
 	return 0;
 }
-

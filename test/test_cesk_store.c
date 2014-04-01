@@ -75,7 +75,52 @@ int main()
 	assert(NULL != store4);
 	assert(NULL != alloc_tab);
 	assert(cesk_store_set_alloc_table(store4, alloc_tab) == 0);
+	objval = cesk_value_from_classpath(stringpool_query("antlr/ANTLRTokdefParser"));
+
+	uint32_t oa = cesk_store_allocate(&store4, ins , 0, 0);
+	assert(oa != CESK_STORE_ADDR_NULL);
+	assert(cesk_alloc_table_insert(alloc_tab, store4, CESK_STORE_ADDR_RELOC_PREFIX, oa) == 0);
+	assert(cesk_alloc_table_insert(alloc_tab, store4, oa, CESK_STORE_ADDR_RELOC_PREFIX) == 0);
+
+	assert(cesk_store_attach_oa(store4, oa, objval) == 0);
+
+	/* test the relocation logic */
+	cesk_value_const_t* a = cesk_store_get_ro(store4, CESK_STORE_ADDR_RELOC_PREFIX);
+	cesk_value_const_t* b = cesk_store_get_ro(store4, oa);
+	
+	assert(a == b);
+	assert(NULL != a);
+
+	/* test the fork function */
+	cesk_value_t* new_val = cesk_value_from_classpath(stringpool_query("antlr/ANTLRTokdefParser"));
+	assert(NULL != new_val);
+	cesk_value_t* set_val = cesk_value_empty_set();
+	assert(NULL != set_val);
+
+	assert(-1 != cesk_set_push(set_val->pointer.set, CESK_STORE_ADDR_RELOC_PREFIX | 2));
+
+	object = objval->pointer.object;
+	assert(NULL != object);
+	object->members[0].valuelist[0] = CESK_STORE_ADDR_RELOC_PREFIX | 1; // this is the set object
+
+	uint32_t oa1 = cesk_store_allocate(&store4, ins, CESK_STORE_ADDR_RELOC_PREFIX, CESK_OBJECT_FIELD_OFS(object, object->members[0].valuelist));
+	uint32_t oa2 = cesk_store_allocate(&store4, ins, 0, 12345);
+
+	assert(CESK_STORE_ADDR_NULL != oa1);
+	assert(CESK_STORE_ADDR_NULL != oa2);
+
+	object->members[0].valuelist[0] = oa1;
+	
+	assert(0 == cesk_alloc_table_insert(alloc_tab, store4, oa1, CESK_STORE_ADDR_RELOC_PREFIX | 1ul));
+	assert(0 == cesk_alloc_table_insert(alloc_tab, store4, CESK_STORE_ADDR_RELOC_PREFIX | 1ul, oa1));
+	assert(0 == cesk_alloc_table_insert(alloc_tab, store4, oa2, CESK_STORE_ADDR_RELOC_PREFIX | 2ul));
+	assert(0 == cesk_alloc_table_insert(alloc_tab, store4, CESK_STORE_ADDR_RELOC_PREFIX | 2ul, oa2));
+
+	assert(0 == cesk_store_attach_oa(store4, oa1, set_val));
+	assert(0 == cesk_store_attach_oa(store4, oa2, new_val));
+
 	cesk_store_free(store4);
+	cesk_alloc_table_free(alloc_tab);
 
     adam_finalize();
     return 0;
