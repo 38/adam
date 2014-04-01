@@ -123,6 +123,20 @@ static inline void _cesk_frame_store_dfs(uint32_t addr,cesk_store_t* store, uint
 	if(CESK_STORE_ADDR_NULL == addr) return;
 	/* constants do not need to collect */
 	if(CESK_STORE_ADDR_IS_CONST(addr)) return;
+	/* relocated address should be translated here */
+	if(CESK_STORE_ADDR_IS_RELOC(addr))
+	{
+		if(NULL == store->alloc_tab)
+		{
+			LOG_WARNING("got an relocated address (@0x%x) without an allocation table, ingore it", addr);
+			return;
+		}
+		if(CESK_STORE_ADDR_NULL == (addr = cesk_alloctab_query(store->alloc_tab, store, addr)))
+		{
+			LOG_WARNING("can not find the object address associated with relocated address @0x%x", addr);
+			return;
+		}
+	}
 	if(1 == BITAT(f, addr)) return;
 	/* set the flag */
 	f[addr/8] |= (1<<(addr%8));

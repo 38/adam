@@ -1,1 +1,1 @@
-wc `find -name '*.c' -or -name '*.h' `
+wc `find include src test -name '*.c' -or -name '*.h' `

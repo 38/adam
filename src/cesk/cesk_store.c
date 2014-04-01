@@ -168,7 +168,7 @@ cesk_store_t* cesk_store_empty_store()
    ret->alloc_tab = NULL;
    return ret;
 }
-int cesk_store_set_alloc_table(cesk_store_t* store, cesk_alloc_table_t* table)
+int cesk_store_set_alloc_table(cesk_store_t* store, cesk_alloctab_t* table)
 {
 	if(NULL == store)
 	{
@@ -237,7 +237,7 @@ static inline int _cesk_store_apply_alloc_tab(const cesk_store_t* source, cesk_s
 				for(;(from_addr = cesk_set_iter_next(&iter)) != CESK_STORE_ADDR_NULL;)
 					if(CESK_STORE_ADDR_IS_RELOC(from_addr))
 					{
-						to_addr = cesk_alloc_table_query(store->alloc_tab, source, from_addr);
+						to_addr = cesk_alloctab_query(store->alloc_tab, source, from_addr);
 						if(CESK_STORE_ADDR_NULL == to_addr)
 						{
 							LOG_WARNING("failed to query the allocation table for relocation address @0x%x", 
@@ -258,7 +258,7 @@ static inline int _cesk_store_apply_alloc_tab(const cesk_store_t* source, cesk_s
 						from_addr = object_base->valuelist[j];
 						if(CESK_STORE_ADDR_IS_RELOC(from_addr))
 						{
-							to_addr = cesk_alloc_table_query(store->alloc_tab, source ,from_addr);
+							to_addr = cesk_alloctab_query(store->alloc_tab, source ,from_addr);
 							if(CESK_STORE_ADDR_NULL == to_addr)
 							{
 								LOG_WARNING("failed to query the allocation table for relocated address @0x%x",
@@ -334,7 +334,7 @@ static inline uint32_t _cesk_store_make_object_address(const cesk_store_t* store
 			LOG_ERROR("try to aquire a relocated address without an allocation table address=@0x%x", addr);
 			return CESK_STORE_ADDR_NULL;
 		}
-		ret = cesk_alloc_table_query(store->alloc_tab, store, addr);
+		ret = cesk_alloctab_query(store->alloc_tab, store, addr);
 		if(CESK_STORE_ADDR_NULL == ret)
 		{
 			LOG_ERROR("there's no record for this store at relocated address @0x%x", addr);
@@ -542,8 +542,9 @@ uint32_t cesk_store_allocate(cesk_store_t** p_store, const dalvik_instruction_t*
 	if(empty_offset == -1 && equal_offset == -1)
 	{
 		/* no empty slot, no equal slot, allocate a new block */
-		LOG_DEBUG("can not allocate a store entry for this object, allocate a new block. current_size = %d, num_ent = %d", 
-			   store->nblocks, store->num_ent);
+		LOG_DEBUG("can not allocate a store entry for this object,"
+				  "allocate a new block. current_size = %d, num_ent = %d", 
+			      store->nblocks, store->num_ent);
 		store = realloc(store, sizeof(cesk_store_t) + sizeof(cesk_store_block_t*) * (store->nblocks + 1));
 		if(NULL == store)
 		{

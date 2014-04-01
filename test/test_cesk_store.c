@@ -71,7 +71,7 @@ int main()
 
 	/* now we test store with allocation table */
 	cesk_store_t* store4 = cesk_store_empty_store();
-	cesk_alloc_table_t* alloc_tab = cesk_alloc_table_new();
+	cesk_alloctab_t* alloc_tab = cesk_alloctab_new();
 	assert(NULL != store4);
 	assert(NULL != alloc_tab);
 	assert(cesk_store_set_alloc_table(store4, alloc_tab) == 0);
@@ -79,8 +79,8 @@ int main()
 
 	uint32_t oa = cesk_store_allocate(&store4, ins , 0, 0);
 	assert(oa != CESK_STORE_ADDR_NULL);
-	assert(cesk_alloc_table_insert(alloc_tab, store4, CESK_STORE_ADDR_RELOC_PREFIX, oa) == 0);
-	assert(cesk_alloc_table_insert(alloc_tab, store4, oa, CESK_STORE_ADDR_RELOC_PREFIX) == 0);
+	assert(cesk_alloctab_insert(alloc_tab, store4, CESK_STORE_ADDR_RELOC_PREFIX, oa) == 0);
+	assert(cesk_alloctab_insert(alloc_tab, store4, oa, CESK_STORE_ADDR_RELOC_PREFIX) == 0);
 	
 	
 	object->members[0].valuelist[0] = CESK_STORE_ADDR_RELOC_PREFIX + 1;   /* setup an relocated address to it */
@@ -116,10 +116,10 @@ int main()
 	assert(CESK_STORE_ADDR_NULL != oa2);
 
 
-	assert(0 == cesk_alloc_table_insert(alloc_tab, store4, oa1, CESK_STORE_ADDR_RELOC_PREFIX + 1));
-	assert(0 == cesk_alloc_table_insert(alloc_tab, store4,      CESK_STORE_ADDR_RELOC_PREFIX + 1, oa1));
-	assert(0 == cesk_alloc_table_insert(alloc_tab, store4, oa2, CESK_STORE_ADDR_RELOC_PREFIX + 2));
-	assert(0 == cesk_alloc_table_insert(alloc_tab, store4,      CESK_STORE_ADDR_RELOC_PREFIX + 2, oa2));
+	assert(0 == cesk_alloctab_insert(alloc_tab, store4, oa1, CESK_STORE_ADDR_RELOC_PREFIX + 1));
+	assert(0 == cesk_alloctab_insert(alloc_tab, store4,      CESK_STORE_ADDR_RELOC_PREFIX + 1, oa1));
+	assert(0 == cesk_alloctab_insert(alloc_tab, store4, oa2, CESK_STORE_ADDR_RELOC_PREFIX + 2));
+	assert(0 == cesk_alloctab_insert(alloc_tab, store4,      CESK_STORE_ADDR_RELOC_PREFIX + 2, oa2));
 	
 	cesk_value_set_reloc(set_val);
 	
@@ -139,7 +139,7 @@ int main()
 
 
 	cesk_store_free(store4);
-	cesk_alloc_table_free(alloc_tab);
+	cesk_alloctab_free(alloc_tab);
 	cesk_store_free(store5);
 
 	adam_finalize();

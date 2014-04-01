@@ -1,4 +1,4 @@
-#include <cesk/cesk_alloc_table.h>
+#include <cesk/cesk_alloctab.h>
 /**
  * @brief node type of  allocation table
  **/
@@ -8,21 +8,21 @@ typedef struct _cesk_alloc_node_t{
 	uint32_t val;
 	struct _cesk_alloc_node_t* next;
 } cesk_alloc_node_t;
-struct _cesk_alloc_table_t{
+struct _cesk_alloctab_t{
 	cesk_alloc_node_t* slot[CESK_ALLOC_TABLE_NSLOTS];
 };
-cesk_alloc_table_t* cesk_alloc_table_new()
+cesk_alloctab_t* cesk_alloctab_new()
 {
-	cesk_alloc_table_t* ret = (cesk_alloc_table_t*)malloc(sizeof(cesk_alloc_table_t));
+	cesk_alloctab_t* ret = (cesk_alloctab_t*)malloc(sizeof(cesk_alloctab_t));
 	if(NULL == ret)
 	{
 		LOG_ERROR("can not allocate memory for allocation table");
 		return NULL;
 	}
-	memset(ret, 0, sizeof(cesk_alloc_table_t));
+	memset(ret, 0, sizeof(cesk_alloctab_t));
 	return ret;
 }
-void cesk_alloc_table_free(cesk_alloc_table_t* mem)
+void cesk_alloctab_free(cesk_alloctab_t* mem)
 {
 	if(NULL == mem) return;
 	int i;
@@ -44,7 +44,7 @@ void cesk_alloc_table_free(cesk_alloc_table_t* mem)
 /**
  * @brief the hashcode for key <store, address> pair
  **/
-static inline hashval_t _cesk_alloc_table_hashcode(const cesk_store_t* store, uint32_t addr)
+static inline hashval_t _cesk_alloctab_hashcode(const cesk_store_t* store, uint32_t addr)
 {
 	return (((uintptr_t)store) * MH_MULTIPLY + (addr * addr + addr * MH_MULTIPLY)) % CESK_ALLOC_TABLE_NSLOTS;
 }
@@ -52,8 +52,8 @@ static inline hashval_t _cesk_alloc_table_hashcode(const cesk_store_t* store, ui
  * @note We assume the function is always called properly that means, never try to insert a
  *         duplicated element in to the allocation table
  **/
-int cesk_alloc_table_insert(
-		cesk_alloc_table_t* table,
+int cesk_alloctab_insert(
+		cesk_alloctab_t* table,
 		const cesk_store_t* store, 
 		uint32_t key_addr, 
 		uint32_t val_addr)
@@ -81,7 +81,7 @@ int cesk_alloc_table_insert(
 		return -1;
 	}
 	/* we do not check duplication */
-	hashval_t h = _cesk_alloc_table_hashcode(store, key_addr);
+	hashval_t h = _cesk_alloctab_hashcode(store, key_addr);
 	cesk_alloc_node_t* ptr = (cesk_alloc_node_t*)malloc(sizeof(cesk_alloc_node_t));
 	ptr->key = key_addr;
 	ptr->val = val_addr;
@@ -91,12 +91,12 @@ int cesk_alloc_table_insert(
 	return 0;
 }
 
-uint32_t cesk_alloc_table_query(
-		const cesk_alloc_table_t* table,
+uint32_t cesk_alloctab_query(
+		const cesk_alloctab_t* table,
 		const cesk_store_t* store,
 		uint32_t addr)
 {
-	hashval_t h = _cesk_alloc_table_hashcode(store, addr);
+	hashval_t h = _cesk_alloctab_hashcode(store, addr);
 	cesk_alloc_node_t* ptr;
 	for(ptr = table->slot[h]; NULL != ptr; ptr = ptr->next)
 		if(ptr->store == store && ptr->key == addr)

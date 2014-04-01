@@ -10,9 +10,8 @@
 #include <cesk/cesk_set.h>
 #include <cesk/cesk_frame.h>
 #include <cesk/cesk_diff.h>
-#include <cesk/cesk_reloctab.h>
-#include <cesk/cesk_addr_arithmetic.h>
-#include <cesk/cesk_alloc_table.h>
+#include <cesk/cesk_arithmetic.h>
+#include <cesk/cesk_alloctab.h>
 
 /**
  * @file cesk.h

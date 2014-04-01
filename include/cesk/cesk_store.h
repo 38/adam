@@ -89,7 +89,7 @@ typedef struct _cesk_store_t cesk_store_t;
 /** @brief check if or not an address is an object address */
 #define CESK_STORE_ADDR_IS_OBJ(addr) ((addr) < CESK_STORE_ADDR_RELOC_PREFIX)
 
-#include <cesk/cesk_alloc_table.h>
+#include <cesk/cesk_alloctab.h>
 
 
 /** @brief slot in virtual store */
@@ -115,7 +115,7 @@ struct _cesk_store_t {
 	uint32_t            nblocks:31; /*!<number of blocks */
 	uint32_t            num_ent;    /*!<number of entities */
 	hashval_t           hashcode;   /*!<hashcode of content of this store */
-	cesk_alloc_table_t*   alloc_tab;  /*!<the allocation table */
+	cesk_alloctab_t*   alloc_tab;  /*!<the allocation table */
 	cesk_store_block_t* blocks[0];  /*!<block array */
 };
 
@@ -130,7 +130,7 @@ cesk_store_t* cesk_store_empty_store();
  * @param table the allocation table
  * @return < 0 if an error occurred 
  **/
-int cesk_store_set_alloc_table(cesk_store_t* store, cesk_alloc_table_t* table);
+int cesk_store_set_alloc_table(cesk_store_t* store, cesk_alloctab_t* table);
 /** @brief make a copy of a store 
  *  @param store the original store
  *  @return the copy of the store
