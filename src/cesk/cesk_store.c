@@ -308,8 +308,29 @@ ERR:
 	cesk_store_free(ret);
 	return NULL;
 }
+static inline uint32_t _cesk_store_make_object_address(const cesk_store_t* store, uint32_t addr)
+{
+	uint32_t ret;
+	if(CESK_STORE_ADDR_IS_RELOC(addr))
+	{
+		/* if this address is a relocated address */
+		if(NULL == store->alloc_tab)
+		{
+			LOG_ERROR("try to aquire a relocated address without an allocation table");
+			return CESK_STORE_ADDR_NULL;
+		}
+		ret = cesk_alloc_table_query(store->alloc_tab, store, addr);
+		if(CESK_STORE_ADDR_NULL == ret)
+		{
+			LOG_ERROR("there's no record for this store at relocated address @0x%x", addr);
+			return CESK_STORE_ADDR_NULL;
+		}
+	}
+	return ret;
+}
 cesk_value_const_t* cesk_store_get_ro(const cesk_store_t* store, uint32_t addr)
 {
+	if(CESK_STORE_ADDR_NULL == (addr = _cesk_store_make_object_address(store, addr))) return NULL;
     uint32_t block_idx = addr / CESK_STORE_BLOCK_NSLOTS;
     uint32_t offset    = addr % CESK_STORE_BLOCK_NSLOTS;
     if(block_idx >= store->nblocks) 
@@ -327,6 +348,7 @@ cesk_value_const_t* cesk_store_get_ro(const cesk_store_t* store, uint32_t addr)
 }
 int cesk_store_get_reuse(const cesk_store_t* store, uint32_t addr)
 {
+	if(CESK_STORE_ADDR_NULL == (addr = _cesk_store_make_object_address(store, addr))) return -1;
 	uint32_t block_idx = addr / CESK_STORE_BLOCK_NSLOTS;
 	uint32_t offset    = addr % CESK_STORE_BLOCK_NSLOTS;
 	if(block_idx >= store->nblocks)
@@ -344,6 +366,7 @@ int cesk_store_get_reuse(const cesk_store_t* store, uint32_t addr)
 }
 int cesk_store_set_reuse(cesk_store_t* store, uint32_t addr)
 {
+	if(CESK_STORE_ADDR_NULL == (addr = _cesk_store_make_object_address(store, addr))) return -1;
 	uint32_t block_idx = addr / CESK_STORE_BLOCK_NSLOTS;
 	uint32_t offset = addr % CESK_STORE_BLOCK_NSLOTS;
 	if(block_idx >= store->nblocks)
@@ -362,6 +385,7 @@ int cesk_store_set_reuse(cesk_store_t* store, uint32_t addr)
 }
 int cesk_store_clear_reuse(cesk_store_t* store, uint32_t addr)
 {
+	if(CESK_STORE_ADDR_NULL == (addr = _cesk_store_make_object_address(store, addr))) return -1;
 	uint32_t block_idx = addr / CESK_STORE_BLOCK_NSLOTS;
 	uint32_t offset = addr % CESK_STORE_BLOCK_NSLOTS;
 	if(block_idx >= store->nblocks)
@@ -380,6 +404,7 @@ int cesk_store_clear_reuse(cesk_store_t* store, uint32_t addr)
 }
 cesk_value_t* cesk_store_get_rw(cesk_store_t* store, uint32_t addr, int noval)
 {
+	if(CESK_STORE_ADDR_NULL == (addr = _cesk_store_make_object_address(store, addr))) return NULL;
     uint32_t offset    = addr % CESK_STORE_BLOCK_NSLOTS;
 	cesk_store_block_t* block = _cesk_store_getblock_rw(store, addr);
 	cesk_value_t* val = block->slots[offset].value;
@@ -411,6 +436,7 @@ cesk_value_t* cesk_store_get_rw(cesk_store_t* store, uint32_t addr, int noval)
 }
 void cesk_store_release_rw(cesk_store_t* store, uint32_t addr)
 {
+	if(CESK_STORE_ADDR_NULL == (addr = _cesk_store_make_object_address(store, addr))) return;
     uint32_t block_idx = addr / CESK_STORE_BLOCK_NSLOTS;
     uint32_t offset    = addr % CESK_STORE_BLOCK_NSLOTS;
     if(block_idx >= store->nblocks) 
@@ -549,6 +575,7 @@ uint32_t cesk_store_allocate(cesk_store_t** p_store, const dalvik_instruction_t*
 }
 int cesk_store_attach(cesk_store_t* store, uint32_t addr, cesk_value_t* value)
 {
+	//TODO attach an relocated address?
     if(NULL == store || CESK_STORE_ADDR_NULL == addr)
     {
         LOG_ERROR("invalid arguments");

@@ -48,7 +48,7 @@ void cesk_alloc_table_free(cesk_alloc_table_t* mem);
  **/
 int cesk_alloc_table_insert(
 		cesk_alloc_table_t* table,
-		cesk_store_t* store, 
+		const cesk_store_t* store, 
 		uint32_t key_addr, 
 		uint32_t val_addr);
 
@@ -64,8 +64,8 @@ int cesk_alloc_table_insert(
  * 		   the return address is an object address
  **/
 uint32_t cesk_alloc_table_query(
-		cesk_alloc_table_t* table,
-		cesk_store_t* store,
+		const cesk_alloc_table_t* table,
+		const cesk_store_t* store,
 		uint32_t addr);
 
 

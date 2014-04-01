@@ -3,7 +3,7 @@
  * @brief node type of  allocation table
  **/
 typedef struct _cesk_alloc_node_t{
-	cesk_store_t* store;
+	const cesk_store_t* store;
 	uint32_t key;
 	uint32_t val;
 	struct _cesk_alloc_node_t* next;
@@ -43,7 +43,7 @@ void cesk_alloc_table_free(cesk_alloc_table_t* mem)
 /**
  * @brief the hashcode for key <store, address> pair
  **/
-static inline hashval_t _cesk_alloc_table_hashcode(cesk_store_t* store, uint32_t addr)
+static inline hashval_t _cesk_alloc_table_hashcode(const cesk_store_t* store, uint32_t addr)
 {
 	return (((uintptr_t)store) * MH_MULTIPLY + (addr * addr + addr * MH_MULTIPLY)) % CESK_ALLOC_TABLE_NSLOTS;
 }
@@ -53,7 +53,7 @@ static inline hashval_t _cesk_alloc_table_hashcode(cesk_store_t* store, uint32_t
  **/
 int cesk_alloc_table_insert(
 		cesk_alloc_table_t* table,
-		cesk_store_t* store, 
+		const cesk_store_t* store, 
 		uint32_t key_addr, 
 		uint32_t val_addr)
 {
@@ -91,8 +91,8 @@ int cesk_alloc_table_insert(
 }
 
 uint32_t cesk_alloc_table_query(
-		cesk_alloc_table_t* table,
-		cesk_store_t* store,
+		const cesk_alloc_table_t* table,
+		const cesk_store_t* store,
 		uint32_t addr)
 {
 	hashval_t h = _cesk_alloc_table_hashcode(store, addr);
