@@ -7,12 +7,12 @@
  */
 /** @brief class define */
 typedef struct{
-    const char* path;  /*!<class path */
-    const char* super;              /*!<The class path of super class */
-    const char* implements[128];         /*!<The interface path that the class implements, ends with a NULL */
-    int         attrs;	/*!<attribute of this class */
-    int         is_interface; /*!<if this class a interface*/
-    const char* members[0];    /*!<We use variant length structure to represents a class */
+	const char* path;  /*!<class path */
+	const char* super;              /*!<The class path of super class */
+	const char* implements[128];         /*!<The interface path that the class implements, ends with a NULL */
+	int         attrs;	/*!<attribute of this class */
+	int         is_interface; /*!<if this class a interface*/
+	const char* members[0];    /*!<We use variant length structure to represents a class */
 } dalvik_class_t;
 
 /** 

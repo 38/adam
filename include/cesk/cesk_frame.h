@@ -27,12 +27,12 @@ typedef struct _cesk_frame_t cesk_frame_t;
 
 /** @brief A Stack Frame of The Dalvik CESK Machine */
 struct _cesk_frame_t{
-    uint32_t       size;     /*!<the number of registers in this frame */
-    cesk_store_t*  store;    /*!<the store for this frame */ 
+	uint32_t       size;     /*!<the number of registers in this frame */
+	cesk_store_t*  store;    /*!<the store for this frame */ 
 	cesk_set_t*    regs[0];  /*!<array of all registers, include result and exception */
 	cesk_set_t*    reg_result; /*!<result register*/
 	cesk_set_t*    reg_exception;  /*!<exception register*/
-    cesk_set_t*    general_regs[0]; /*!<begin address of gneral registers */
+	cesk_set_t*    general_regs[0]; /*!<begin address of gneral registers */
 };
 
 /** @brief duplicate the frame 

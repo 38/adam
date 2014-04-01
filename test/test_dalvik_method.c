@@ -7,8 +7,8 @@ dalvik_method_t* method;
 
 int main()
 {
-    adam_init();
-    const char* method_code =
+	adam_init();
+	const char* method_code =
 "(method (attrs public ) visit([object antlr/collections/AST] )void\n"
 "  (limit registers 7)\n"
 "  ; this: v5 ([object antlr/DumpASTVisitor])\n"
@@ -120,16 +120,16 @@ int main()
 "  (const-string v3 \"\")\n"
 "  (invoke-virtual {v2 v3} java/io/PrintStream/println [object java/lang/String] )\n"
 "  (goto l36fd6)\n)";
-    assert(NULL != sexp_parse(method_code, &sexp));
-    assert(NULL != (method = dalvik_method_from_sexp(sexp, NULL, NULL)));
-    sexp_free(sexp);
-    dalvik_method_free(method);
-    char input2[] = "(method (attrs public abstract ) beginTree([object antlr/Token] )void (annotation systemVisibility [object dalvik/annotation/Throws] (value [array [object java/lang/String]] [object antlr/SemanticException]) ) )";
-    //TODO: TEST IT. ISSUE : should not be a failure
-    assert(NULL != sexp_parse(input2, &sexp));
-    assert(NULL != (method = dalvik_method_from_sexp(sexp, NULL, NULL)));
-    sexp_free(sexp);
-    dalvik_method_free(method);
-    adam_finalize();
-    return 0;
+	assert(NULL != sexp_parse(method_code, &sexp));
+	assert(NULL != (method = dalvik_method_from_sexp(sexp, NULL, NULL)));
+	sexp_free(sexp);
+	dalvik_method_free(method);
+	char input2[] = "(method (attrs public abstract ) beginTree([object antlr/Token] )void (annotation systemVisibility [object dalvik/annotation/Throws] (value [array [object java/lang/String]] [object antlr/SemanticException]) ) )";
+	//TODO: TEST IT. ISSUE : should not be a failure
+	assert(NULL != sexp_parse(input2, &sexp));
+	assert(NULL != (method = dalvik_method_from_sexp(sexp, NULL, NULL)));
+	sexp_free(sexp);
+	dalvik_method_free(method);
+	adam_finalize();
+	return 0;
 }

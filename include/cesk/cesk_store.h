@@ -94,29 +94,29 @@ typedef struct _cesk_store_t cesk_store_t;
 
 /** @brief slot in virtual store */
 typedef struct {
-    uint32_t        refcnt:31;        /*!<this refcnt is the counter inside this frame */
-    uint8_t         reuse:1;          /*!<if this address is reused, because same insturction should allocate same address */
-    uint32_t        idx;              /*!<instruction index created this object */
+	uint32_t        refcnt:31;        /*!<this refcnt is the counter inside this frame */
+	uint8_t         reuse:1;          /*!<if this address is reused, because same insturction should allocate same address */
+	uint32_t        idx;              /*!<instruction index created this object */
 	uint32_t		parent;			  /*!<the parent address of this slot */
 	uint32_t		field;		      /*!<filed name of the member */
-    cesk_value_t*   value;			  /*!<the data payload */
+	cesk_value_t*   value;			  /*!<the data payload */
 } cesk_store_slot_t;
 /** @brief the store block of virtual store */
 typedef struct {
-    uint32_t       refcnt;     /*!<for Copy-on-Write */
-    uint32_t       num_ent:31;    /*!<number of entities */
+	uint32_t       refcnt;     /*!<for Copy-on-Write */
+	uint32_t       num_ent:31;    /*!<number of entities */
 	uint8_t		   reloc:1;    /*!<wether or not this block contains a reference to relocated address*/
-    cesk_store_slot_t  slots[0];
+	cesk_store_slot_t  slots[0];
 } cesk_store_block_t;
 /** @brief the number of slots in one block */
 #define CESK_STORE_BLOCK_NSLOTS ((CESK_STORE_BLOCK_SIZE - sizeof(cesk_store_block_t))/sizeof(cesk_store_slot_t))
 /** @brief the virtual store object */
 struct _cesk_store_t {
-    uint32_t            nblocks:31; /*!<number of blocks */
-    uint32_t            num_ent;    /*!<number of entities */
-    hashval_t           hashcode;   /*!<hashcode of content of this store */
+	uint32_t            nblocks:31; /*!<number of blocks */
+	uint32_t            num_ent;    /*!<number of entities */
+	hashval_t           hashcode;   /*!<hashcode of content of this store */
 	cesk_alloc_table_t*   alloc_tab;  /*!<the allocation table */
-    cesk_store_block_t* blocks[0];  /*!<block array */
+	cesk_store_block_t* blocks[0];  /*!<block array */
 };
 
 /** 
@@ -238,7 +238,7 @@ int cesk_store_decref(cesk_store_t* store, uint32_t addr);
  */
 static inline hashval_t cesk_store_hashcode(const cesk_store_t* store)
 {
-    return store->hashcode;
+	return store->hashcode;
 }
 
 /** @brief compute the hashcode rather than based on the increamental method, for debug purpose 

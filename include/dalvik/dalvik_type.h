@@ -9,29 +9,29 @@
 struct _dalvik_type_t;
 /** @brief object data */
 typedef struct {
-    const char* path;
+	const char* path;
 } dalvik_type_object_t;
 /** @brief array data */
 typedef struct {
-    struct _dalvik_type_t* elem_type;
+	struct _dalvik_type_t* elem_type;
 } dalvik_type_array_t;
 /** @brief type code */
 enum {
-    DALVIK_TYPECODE_VOID  ,
-    DALVIK_TYPECODE_INT   ,
-    DALVIK_TYPECODE_LONG  ,
-    DALVIK_TYPECODE_SHORT ,
-    DALVIK_TYPECODE_WIDE  ,
-    DALVIK_TYPECODE_FLOAT ,
-    DALVIK_TYPECODE_DOUBLE,
-    DALVIK_TYPECODE_CHAR,
-    DALVIK_TYPECODE_BYTE,
-    DALVIK_TYPECODE_BOOLEAN,
+	DALVIK_TYPECODE_VOID  ,
+	DALVIK_TYPECODE_INT   ,
+	DALVIK_TYPECODE_LONG  ,
+	DALVIK_TYPECODE_SHORT ,
+	DALVIK_TYPECODE_WIDE  ,
+	DALVIK_TYPECODE_FLOAT ,
+	DALVIK_TYPECODE_DOUBLE,
+	DALVIK_TYPECODE_CHAR,
+	DALVIK_TYPECODE_BYTE,
+	DALVIK_TYPECODE_BOOLEAN,
 
-    DALVIK_TYPECODE_NUM_ATOM,
+	DALVIK_TYPECODE_NUM_ATOM,
 
-    DALVIK_TYPECODE_OBJECT= 0x80,
-    DALVIK_TYPECODE_ARRAY = 0x81
+	DALVIK_TYPECODE_OBJECT= 0x80,
+	DALVIK_TYPECODE_ARRAY = 0x81
 };
 
 extern const char* dalvik_type_atom_name[];
@@ -39,11 +39,11 @@ extern const char* dalvik_type_atom_name[];
 #define DALVIK_TYPE_IS_ATOM(typenum) ((~typenum)&0x80)
 /** @brief the type descriptor */
 typedef struct _dalvik_type_t{
-    uint32_t typecode;  /*!< type code */
-    union{
-        dalvik_type_array_t array;  /*!< the array data */
-        dalvik_type_object_t object; /*!< the object data */
-    } data;  /*!< data payload */
+	uint32_t typecode;  /*!< type code */
+	union{
+		dalvik_type_array_t array;  /*!< the array data */
+		dalvik_type_object_t object; /*!< the object data */
+	} data;  /*!< data payload */
 } dalvik_type_t;
 
 extern dalvik_type_t* dalvik_type_atom[DALVIK_TYPECODE_NUM_ATOM];

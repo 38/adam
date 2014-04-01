@@ -155,12 +155,12 @@ const char input[] =
 #include <assert.h>
 int main()
 {
-    adam_init();
-    sexpression_t* sexp;
-    dalvik_class_t* class;
-    assert(sexp_parse(input, &sexp));
-    assert(NULL != (class = dalvik_class_from_sexp(sexp)));
-    sexp_free(sexp);
-    adam_finalize();
-    return 0;
+	adam_init();
+	sexpression_t* sexp;
+	dalvik_class_t* class;
+	assert(sexp_parse(input, &sexp));
+	assert(NULL != (class = dalvik_class_from_sexp(sexp)));
+	sexp_free(sexp);
+	adam_finalize();
+	return 0;
 }

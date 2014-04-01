@@ -19,19 +19,19 @@
  */
 /* log levels */
 enum{
-    /** Use this level when something would stop the program */
+	/** Use this level when something would stop the program */
 	FATAL,
-    /** Error level, the routine can not continue */
+	/** Error level, the routine can not continue */
 	ERROR,
-    /** Warning level, the routine can continue, but something may be wrong */
+	/** Warning level, the routine can continue, but something may be wrong */
 	WARNING,
-    /** Notice level, there's no error, but something you should notice */
+	/** Notice level, there's no error, but something you should notice */
 	NOTICE,
-    /** Info level, provide some information */
+	/** Info level, provide some information */
 	INFO,
-    /** Trace level, trace the program routine and behviours */
+	/** Trace level, trace the program routine and behviours */
 	TRACE,
-    /** Debug level, detail information used for debugging */
+	/** Debug level, detail information used for debugging */
 	DEBUG
 };
 
@@ -57,11 +57,11 @@ void log_write(int level, const char* file, const char* function, int line, cons
 
 /** @brief helper macros for write a log, do not use it directly */
 #define __LOG__(level,fmt,arg...) do{\
-        log_write(level,__FILE__,__FUNCTION__,__LINE__,fmt, ##arg);\
+	    log_write(level,__FILE__,__FUNCTION__,__LINE__,fmt, ##arg);\
 }while(0)
 
 #ifndef LOG_LEVEL
-        #define LOG_LEVEL 6
+	    #define LOG_LEVEL 6
 #endif
 #if LOG_LEVEL >= 0
 /** @brief print a fatal log

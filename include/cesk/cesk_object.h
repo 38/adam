@@ -17,10 +17,10 @@ typedef struct _cesk_object_t cesk_object_t;
  *         list of abstruct object struct(cesk_object_t).
  */
 typedef struct {
-    //const char*              classpath;   /* the class path of this object */
+	//const char*              classpath;   /* the class path of this object */
 	const dalvik_class_t*	 class;		/*!<the class of this object struct*/
-    size_t                   num_members; /*!<the number of members */
-    uint32_t                 valuelist[0];  /*!<the value of the member */
+	size_t                   num_members; /*!<the number of members */
+	uint32_t                 valuelist[0];  /*!<the value of the member */
 } cesk_object_struct_t;  
 /**
  * @brief An abstruct object
@@ -29,9 +29,9 @@ typedef struct {
  * 		   memory that allocate for the superclasses of the object
  */
 struct _cesk_object_t {
-    uint16_t         	  depth;      /*!<the depth in inherence tree */
+	uint16_t         	  depth;      /*!<the depth in inherence tree */
 	size_t				  size; /*!<the size of the object useful when clone an object */
-    cesk_object_struct_t  members[0]; /*!<the length of the tree */
+	cesk_object_struct_t  members[0]; /*!<the length of the tree */
 };
 
 /** 
@@ -105,7 +105,7 @@ int cesk_object_equal(const cesk_object_t* first, const cesk_object_t* second);
  */
 static inline const char* cesk_object_classpath(const cesk_object_t* object)
 {
-    return object->members[0].class->path;
+	return object->members[0].class->path;
 }
 /**
  * @brief print out the data of the object 

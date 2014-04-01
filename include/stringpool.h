@@ -45,10 +45,10 @@ void stringpool_fianlize(void);
  * a string
  */
 typedef struct {
-    int         count; /*!<how many chars recieved before */
-    uint32_t    h[4];  /*!<current hash functions */
-    uint32_t    last;  /*!<the last 4 bytes */
-    const char* begin; /*!<begin of the string */
+	int         count; /*!<how many chars recieved before */
+	uint32_t    h[4];  /*!<current hash functions */
+	uint32_t    last;  /*!<the last 4 bytes */
+	const char* begin; /*!<begin of the string */
 } stringpool_accumulator_t;
 
 /** @brief initialize an accumulator
@@ -64,30 +64,30 @@ void stringpool_accumulator_init(stringpool_accumulator_t* buf, const char* begi
  */
 static inline void stringpool_accumulator_next(stringpool_accumulator_t* acc, char c)
 {
-    uint8_t data = (uint8_t)c;
-    /* TODO: Little endian */
-    if(acc->count%4 == 0 && acc->count != 0)
-    {
-        uint32_t k = acc->last;
-        k *= STRINGPOOL_MURMUR_C1;
-        k  = (k << STRINGPOOL_MURMUR_R1) | (k >> (32 - STRINGPOOL_MURMUR_R1));
-        k *= STRINGPOOL_MURMUR_C2;
+	uint8_t data = (uint8_t)c;
+	/* TODO: Little endian */
+	if(acc->count%4 == 0 && acc->count != 0)
+	{
+		uint32_t k = acc->last;
+		k *= STRINGPOOL_MURMUR_C1;
+		k  = (k << STRINGPOOL_MURMUR_R1) | (k >> (32 - STRINGPOOL_MURMUR_R1));
+		k *= STRINGPOOL_MURMUR_C2;
 
-        acc->h[0] ^= k;
-        acc->h[0] *= (acc->h[0] << STRINGPOOL_MURMUR_R2) | 
-                     (acc->h[0] >> (32 - STRINGPOOL_MURMUR_R2)); 
-        acc->h[0] ^= acc->h[0] * STRINGPOOL_MURMUR_M + STRINGPOOL_MURMUR_N;
-    }
-    
-    acc->last = (acc->last >> 8) | (data<<24);   /* assume big endian */
-    
-    acc->h[1] = (acc->h[1] + data + (data << STRINGPOOL_SUM_R1) + (data >> STRINGPOOL_SUM_R2))%STRINGPOOL_SUM_M;
-    acc->h[2] = (acc->h[2] + data * data);
-    acc->h[3] = (acc->h[3] << 4) + data;
-    uint32_t g = acc->h[3] & STRINGPOOL_ELF_MSK;
-    if(g) acc->h[3] ^= g >> 24;
-    acc->h[3] &= ~g;
-    acc->count ++;
+		acc->h[0] ^= k;
+		acc->h[0] *= (acc->h[0] << STRINGPOOL_MURMUR_R2) | 
+		(acc->h[0] >> (32 - STRINGPOOL_MURMUR_R2)); 
+		acc->h[0] ^= acc->h[0] * STRINGPOOL_MURMUR_M + STRINGPOOL_MURMUR_N;
+	}
+	
+	acc->last = (acc->last >> 8) | (data<<24);   /* assume big endian */
+	
+	acc->h[1] = (acc->h[1] + data + (data << STRINGPOOL_SUM_R1) + (data >> STRINGPOOL_SUM_R2))%STRINGPOOL_SUM_M;
+	acc->h[2] = (acc->h[2] + data * data);
+	acc->h[3] = (acc->h[3] << 4) + data;
+	uint32_t g = acc->h[3] & STRINGPOOL_ELF_MSK;
+	if(g) acc->h[3] ^= g >> 24;
+	acc->h[3] &= ~g;
+	acc->count ++;
 }
 /**@brief query current string
  * @param acc the accumulator to be queried

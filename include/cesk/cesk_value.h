@@ -26,9 +26,9 @@ typedef  struct _cesk_value_const_t cesk_value_const_t;
 
 /** @brief type code of the value */
 enum{
-    CESK_TYPE_OBJECT,	/*!<object type*/
-    CESK_TYPE_ARRAY,	/*!<array type*/
-    CESK_TYPE_SET		/*!<set type*/
+	CESK_TYPE_OBJECT,	/*!<object type*/
+	CESK_TYPE_ARRAY,	/*!<array type*/
+	CESK_TYPE_SET		/*!<set type*/
 };
 
 /** @brief this macro this used to generate the member definition 
@@ -46,22 +46,22 @@ enum{
  * @todo  maintain the reloc bit
  **/
 struct _cesk_value_t {
-    uint8_t     type:6;       /*!<type of this value */
-	uint8_t     reloc:1;      /*!<does the object contains an relocation address? */
-    uint8_t     write_status:1; /*!<this bit check if the value is associated with a writable pointer */
+	uint8_t     type:6;         /*!<type of this value */
+	uint8_t     reloc:1;        /*!<does the object contains an relocation address? */
+	uint8_t     write_status:1; /*!<this bit check if the value is associated with a writable pointer */
 	union {
 		__CESK_POINTER_LIST()
-	} pointer; /*!<actuall data pointer*/
-    uint32_t    refcnt;     /*!<the reference counter */
-    hashval_t   hashcode;   /*!<the hashcode */
-    struct _cesk_value_t 
-                *prev, *next; /*!<the previous and next pointer used by value list */
+	} pointer;              /*!<actuall data pointer*/
+	uint32_t    refcnt;     /*!<the reference counter */
+	hashval_t   hashcode;   /*!<the hashcode */
+	struct _cesk_value_t  *prev, 
+						  *next; /*!<the previous and next pointer used by value list */
 }; 
 
 /** @brief the abstruct value that can not be modified */
 struct _cesk_value_const_t {
-    const uint8_t     type:7;       /*!<type of this value */
-    const uint8_t     write_status:1; /*!<this bit check if the value is associated with a writable pointer */
+	const uint8_t     type:7;       /*!<type of this value */
+	const uint8_t     write_status:1; /*!<this bit check if the value is associated with a writable pointer */
 	const union {
 		__CESK_POINTER_LIST(const)
 	} pointer; /*!<actuall data pointer*/

@@ -4,9 +4,9 @@
 
 int main()
 {
-    adam_init();
-    assert(0 == dalvik_loader_from_directory("test/data"));
-    dalvik_loader_summary();
-    adam_finalize();
-    return 0;
+	adam_init();
+	assert(0 == dalvik_loader_from_directory("test/data"));
+	dalvik_loader_summary();
+	adam_finalize();
+	return 0;
 }

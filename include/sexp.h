@@ -42,9 +42,9 @@
  * is it's actully a singleton, we can use NULL pointer to repr it.
  */
 enum{
-    SEXP_TYPE_LIT,    /*!<A literal */
-    SEXP_TYPE_STR,    /*!<A string */
-    SEXP_TYPE_CONS    /*!<A pair */
+	SEXP_TYPE_LIT,    /*!<A literal */
+	SEXP_TYPE_STR,    /*!<A string */
+	SEXP_TYPE_CONS    /*!<A pair */
 }
 ;
 typedef struct _sexpression_t sexpression_t;
@@ -59,16 +59,16 @@ typedef const char* sexp_lit_t;
 
 /** @brief data structure for a cons */ 
 struct _sexp_cons_t {
-    char seperator;  		/*!<The sperator between first and second, this is useful when parsing instruction */
-    sexpression_t * first;  /*!<The first element of this cons */
-    sexpression_t * second; /*!<The scond element of this cons */
+	char seperator;  		/*!<The sperator between first and second, this is useful when parsing instruction */
+	sexpression_t * first;  /*!<The first element of this cons */
+	sexpression_t * second; /*!<The scond element of this cons */
 };
 
 
 /** @brief header structure of a S-Expression */
 struct _sexpression_t {
 	/** Type of the S-Expression */
-    int type;
+	int type;
 	/** Actuall data */
 	union{
 		sexp_str_t strdata;

@@ -166,7 +166,7 @@ static inline uint32_t cesk_addr_arithmetic_div(uint32_t a, uint32_t b)
 	b &= (CESK_STORE_ADDR_CONST_PREFIX | 
 		 CESK_STORE_ADDR_CONST_SUFFIX(CESK_STORE_ADDR_NEG) |
 		 CESK_STORE_ADDR_CONST_SUFFIX(CESK_STORE_ADDR_POS));
-    if(CESK_STORE_ADDR_CONST_PREFIX == b)
+	if(CESK_STORE_ADDR_CONST_PREFIX == b)
 	{
 		LOG_WARNING("divided by zero");
 	}
@@ -482,7 +482,7 @@ static inline uint32_t cesk_addr_arithmetic_bitwise_neg(uint32_t a)
 	int ret = CESK_STORE_ADDR_CONST_PREFIX;
 	uint32_t sa = cesk_addr_arithmetic_sign_bit(a);
 	uint32_t sr = cesk_addr_arithmetic_not(sa);
-    ret = cesk_addr_arithmetic_sign_bit_to_numeric(sr);
+	ret = cesk_addr_arithmetic_sign_bit_to_numeric(sr);
 	if(CESK_STORE_ADDR_CONST_PREFIX == ret)
 	{
 		LOG_WARNING("an empty constant set returnted, it might be a mistake");

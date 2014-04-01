@@ -17,7 +17,7 @@ typedef struct _cesk_set_iter_t cesk_set_iter_t;
 #include <cesk/cesk_store.h>
 
 struct _cesk_set_iter_t{
-    cesk_set_node_t *next;
+	cesk_set_node_t *next;
 };
 
 /** @brief Create an empty set 

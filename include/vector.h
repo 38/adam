@@ -7,10 +7,10 @@
 #include <constants.h>
 /** @brief data struct for vector */
 typedef struct {
-    size_t  capacity;       /*!<Current Capacity of the vector, used for resize */
-    size_t  size;           /*!<Current used size of vector */
-    size_t  elem_size;      /*!<Indicates the size of element */
-    char*   data;           /*!<The data section */
+	size_t  capacity;       /*!<Current Capacity of the vector, used for resize */
+	size_t  size;           /*!<Current used size of vector */
+	size_t  elem_size;      /*!<Indicates the size of element */
+	char*   data;           /*!<The data section */
 } vector_t;
 /** @brief create a new vector 
  *  @param elem_size the size of each element
@@ -36,10 +36,10 @@ int       vector_pushback(vector_t* vec, void* data);  /* push an element at the
 static inline void* vector_get(vector_t* vec, int idx) 
 {
 #ifdef CHECK_EVERYTHING   /* For performance reason, we DO NOT check the validity of vector. */
-    if(NULL == vec) return NULL; 
-    if(idx >= vec->size) return NULL;
+	if(NULL == vec) return NULL; 
+	if(idx >= vec->size) return NULL;
 #endif
-    return (void*)(vec->data + vec->elem_size * idx);
+	return (void*)(vec->data + vec->elem_size * idx);
 }
 /** @brief return the size(number of elements) of the vector
  *  @param vec vector
@@ -48,8 +48,8 @@ static inline void* vector_get(vector_t* vec, int idx)
 static inline size_t vector_size(vector_t* vec)
 {
 #ifdef CHECK_EVERYTHING
-    if(NULL == vec) return 0;
+	if(NULL == vec) return 0;
 #endif
-    return vec->size;
+	return vec->size;
 }
 #endif /* __VECTOR_H__*/

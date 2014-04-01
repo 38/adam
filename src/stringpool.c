@@ -7,9 +7,9 @@
 #include <debug.h>
 
 typedef struct _stringpool_hashnode_t{
-    uint32_t h[4];
-    char* str;
-    struct _stringpool_hashnode_t* next;
+	uint32_t h[4];
+	char* str;
+	struct _stringpool_hashnode_t* next;
 } stringpool_hashnode_t;
 stringpool_hashnode_t **_stringpool_hash;
 size_t  _stringpool_size;
@@ -27,9 +27,9 @@ static inline int _stringpool_hash_func(const char* str, uint32_t* h)
 		if((i&3) == 0 && i != 0)
 		{
 			uint32_t k = *(uint32_t*)(data + i - 4);
-            k *= STRINGPOOL_MURMUR_C1;
-            k  = (k << STRINGPOOL_MURMUR_R1) | (k >> (32 - STRINGPOOL_MURMUR_R1));
-            k *= STRINGPOOL_MURMUR_C2;
+			k *= STRINGPOOL_MURMUR_C1;
+			k  = (k << STRINGPOOL_MURMUR_R1) | (k >> (32 - STRINGPOOL_MURMUR_R1));
+			k *= STRINGPOOL_MURMUR_C2;
 
 			h[0] ^= k;
 			h[0] *= (h[0] << STRINGPOOL_MURMUR_R2) | (h[0] >> (32 - STRINGPOOL_MURMUR_R2));
@@ -42,68 +42,68 @@ static inline int _stringpool_hash_func(const char* str, uint32_t* h)
 		if(g) h[3]^=g>>24;
 		h[3] &= ~g;
 	}
-    /* process the unprocessed input, and swap endian order */
-    uint32_t remaining = 0;
+	/* process the unprocessed input, and swap endian order */
+	uint32_t remaining = 0;
 	if(i > 0)
-    {
-        switch(i&3)
-        {
-            /* following code assume big endian, for little endian, this is not needed */
-            case 0:
-                remaining |= data[i-4] << 24;
-            case 3:
-                remaining |= data[i-3] << 16;
-            case 2:
-                remaining |= data[i-2] << 8;
-            case 1: 
-                remaining |= data[i-1];
-        }
-        remaining *= STRINGPOOL_MURMUR_C1;
-        remaining  = (remaining << STRINGPOOL_MURMUR_R1) | (remaining >> (32 - STRINGPOOL_MURMUR_R1));
-        remaining *= STRINGPOOL_MURMUR_C2; 
-        h[0] ^= remaining;
-    }
-    /* we are finishing */
-    h[0] ^= i;
-    h[0] ^= h[0] >> 16;
+	{
+		switch(i&3)
+		{
+			/* following code assume big endian, for little endian, this is not needed */
+			case 0:
+				remaining |= data[i-4] << 24;
+			case 3:
+				remaining |= data[i-3] << 16;
+			case 2:
+				remaining |= data[i-2] << 8;
+			case 1: 
+				remaining |= data[i-1];
+		}
+		remaining *= STRINGPOOL_MURMUR_C1;
+		remaining  = (remaining << STRINGPOOL_MURMUR_R1) | (remaining >> (32 - STRINGPOOL_MURMUR_R1));
+		remaining *= STRINGPOOL_MURMUR_C2; 
+		h[0] ^= remaining;
+	}
+	/* we are finishing */
+	h[0] ^= i;
+	h[0] ^= h[0] >> 16;
 	h[0] *= 0x85ebca6b;
 	h[0] ^= h[0]>>13;
 	h[0] *= 0xc2b2ae35;
 	h[0] ^= h[0]>>16;
 
-    /* finally return the length */
+	/* finally return the length */
 
-    return i;
+	return i;
 }
 /* Finishing hash computation */
 static inline void _stringpool_accu_hash(stringpool_accumulator_t* acc)
 {
-    uint32_t remaining = 0;
-    if(acc->count > 0)
-    {
-        switch(acc->count&3)
-        {
-            case 0:
-                remaining |= (acc->last&0x000000fful) << 24;
-            case 3:
-                remaining |= (acc->last&0x0000ff00ul) << 8;
-            case 2:
-                remaining |= (acc->last&0x00ff0000ul) >> 8;
-            case 1:
-                remaining |= (acc->last&0xff000000ul) >> 24;
-        }
-        remaining *= STRINGPOOL_MURMUR_C1;
-        remaining  = (remaining << STRINGPOOL_MURMUR_R1) | (remaining >> (32 - STRINGPOOL_MURMUR_R1));
-        remaining *= STRINGPOOL_MURMUR_C2;
-        acc->h[0] ^= remaining;
-    }
+	uint32_t remaining = 0;
+	if(acc->count > 0)
+	{
+		switch(acc->count&3)
+		{
+			case 0:
+				remaining |= (acc->last&0x000000fful) << 24;
+			case 3:
+				remaining |= (acc->last&0x0000ff00ul) << 8;
+			case 2:
+				remaining |= (acc->last&0x00ff0000ul) >> 8;
+			case 1:
+				remaining |= (acc->last&0xff000000ul) >> 24;
+		}
+		remaining *= STRINGPOOL_MURMUR_C1;
+		remaining  = (remaining << STRINGPOOL_MURMUR_R1) | (remaining >> (32 - STRINGPOOL_MURMUR_R1));
+		remaining *= STRINGPOOL_MURMUR_C2;
+		acc->h[0] ^= remaining;
+	}
 
-    acc->h[0] ^= acc->count;
-    acc->h[0] ^= acc->h[0] >> 16;
-    acc->h[0] *= 0x85ebca6b;
-    acc->h[0] ^= acc->h[0] >> 13;
-    acc->h[0] *= 0xc2b2ae35;
-    acc->h[0] ^= acc->h[0] >> 16;
+	acc->h[0] ^= acc->count;
+	acc->h[0] ^= acc->h[0] >> 16;
+	acc->h[0] *= 0x85ebca6b;
+	acc->h[0] ^= acc->h[0] >> 13;
+	acc->h[0] *= 0xc2b2ae35;
+	acc->h[0] ^= acc->h[0] >> 16;
 }
 /* the implementation of query function 
  * h:   hash function array
@@ -113,125 +113,125 @@ static inline void _stringpool_accu_hash(stringpool_accumulator_t* acc)
  */
 static inline const char* _stringpool_query_imp(uint32_t* h, int len, const char* str) 
 {
-    int idx = h[0]%_stringpool_size;
-    stringpool_hashnode_t* ptr;
+	int idx = h[0]%_stringpool_size;
+	stringpool_hashnode_t* ptr;
 
-    /* first look up the hash table to find if there's a matched string */
+	/* first look up the hash table to find if there's a matched string */
 
-    for(ptr = _stringpool_hash[idx]; NULL != ptr; ptr = ptr->next)
-    {
-        if(ptr->h[0] == h[0] &&
-           ptr->h[1] == h[1] &&
-           ptr->h[2] == h[2] &&
-           ptr->h[3] == h[3] &&
-           strncmp(ptr->str, str, len) == 0 &&
-           ptr->str[len] == 0 ) /* This is safe, because it's reachable only when str is not shorter than len */
-        {
-            //LOG_DEBUG("Find string@0x%x", ptr->str);
-            return ptr->str;
-        }
-    }
+	for(ptr = _stringpool_hash[idx]; NULL != ptr; ptr = ptr->next)
+	{
+		if(ptr->h[0] == h[0] &&
+		   ptr->h[1] == h[1] &&
+		   ptr->h[2] == h[2] &&
+		   ptr->h[3] == h[3] &&
+		   strncmp(ptr->str, str, len) == 0 &&
+		   ptr->str[len] == 0 ) /* This is safe, because it's reachable only when str is not shorter than len */
+		{
+			//LOG_DEBUG("Find string@0x%x", ptr->str);
+			return ptr->str;
+		}
+	}
    
-    /* we are reaching this point, means we can not find the previous address for this string */
+	/* we are reaching this point, means we can not find the previous address for this string */
 
-    ptr = (stringpool_hashnode_t*)malloc(sizeof(stringpool_hashnode_t));
+	ptr = (stringpool_hashnode_t*)malloc(sizeof(stringpool_hashnode_t));
 
-    if(NULL == ptr) goto ERR;
+	if(NULL == ptr) goto ERR;
 
-    ptr->next = _stringpool_hash[idx];
+	ptr->next = _stringpool_hash[idx];
 
-    ptr->h[0] = h[0];
-    ptr->h[1] = h[1];
-    ptr->h[2] = h[2];
-    ptr->h[3] = h[3];
+	ptr->h[0] = h[0];
+	ptr->h[1] = h[1];
+	ptr->h[2] = h[2];
+	ptr->h[3] = h[3];
 
-    ptr->str = (char*)malloc(len + 1);
-    
-    if(NULL == ptr->str) goto ERR;
+	ptr->str = (char*)malloc(len + 1);
+	
+	if(NULL == ptr->str) goto ERR;
 
-    strncpy(ptr->str, str, len);
+	strncpy(ptr->str, str, len);
 
-    ptr->str[len] = 0;
+	ptr->str[len] = 0;
 
-    _stringpool_hash[idx] = ptr;
+	_stringpool_hash[idx] = ptr;
 
-    return ptr->str;
+	return ptr->str;
 
 ERR:
-    LOG_ERROR("can not find address for string");
-    if(NULL != ptr) 
-    {
-        if(NULL != ptr->str)
-            free(ptr->str);
-        free(ptr);
-    }
-    return NULL;
+	LOG_ERROR("can not find address for string");
+	if(NULL != ptr) 
+	{
+		if(NULL != ptr->str)
+			free(ptr->str);
+		free(ptr);
+	}
+	return NULL;
 }
 const char* stringpool_query(const char* str)
 {
-    if(NULL == str) return NULL;
+	if(NULL == str) return NULL;
 
-    uint32_t h[4];
-    int len;
-    len = _stringpool_hash_func(str, h);
-    return _stringpool_query_imp(h, len, str);
+	uint32_t h[4];
+	int len;
+	len = _stringpool_hash_func(str, h);
+	return _stringpool_query_imp(h, len, str);
 }
 
 int stringpool_init(int poolsize)
 {
-    if(_stringpool_hash != NULL)
-    {
-        LOG_WARNING("string pool has been initialized already!");
-        return -1;
-    }
-    _stringpool_size = poolsize;
-    _stringpool_hash = (stringpool_hashnode_t**)malloc(sizeof(stringpool_hashnode_t*) * poolsize);
-    if(NULL == _stringpool_hash) return -1;
-    memset(_stringpool_hash, 0, sizeof(stringpool_hashnode_t*) * _stringpool_size);
-    LOG_DEBUG("String Pool initialized");
-    return 0;
+	if(_stringpool_hash != NULL)
+	{
+		LOG_WARNING("string pool has been initialized already!");
+		return -1;
+	}
+	_stringpool_size = poolsize;
+	_stringpool_hash = (stringpool_hashnode_t**)malloc(sizeof(stringpool_hashnode_t*) * poolsize);
+	if(NULL == _stringpool_hash) return -1;
+	memset(_stringpool_hash, 0, sizeof(stringpool_hashnode_t*) * _stringpool_size);
+	LOG_DEBUG("String Pool initialized");
+	return 0;
 }
 void stringpool_fianlize(void)
 {
-    int i;
+	int i;
 #if LOG_LEVEL >= 6
-    int len;
-    int maxlen = 0;
+	int len;
+	int maxlen = 0;
 #endif
-    for(i = 0; i < _stringpool_size; i ++)
-    {
-        stringpool_hashnode_t* ptr;
+	for(i = 0; i < _stringpool_size; i ++)
+	{
+		stringpool_hashnode_t* ptr;
 #if LOG_LEVEL >= 6
-        len = 0;
+		len = 0;
 #endif
-        for(ptr = _stringpool_hash[i]; ptr;)
-        {
+		for(ptr = _stringpool_hash[i]; ptr;)
+		{
 #if LOG_LEVEL >= 6
-            len ++;
+			len ++;
 #endif
-            stringpool_hashnode_t* cur = ptr;
-            ptr = ptr->next;
-            if(cur->str)
-            {
-                free(cur->str);
-                free(cur);
-            }
-        }
+			stringpool_hashnode_t* cur = ptr;
+			ptr = ptr->next;
+			if(cur->str)
+			{
+				free(cur->str);
+				free(cur);
+			}
+		}
 #if LOG_LEVEL >= 6
-        if(maxlen < len) maxlen = len;
+		if(maxlen < len) maxlen = len;
 #endif
-    }
-    free(_stringpool_hash);
-    _stringpool_hash = NULL;
+	}
+	free(_stringpool_hash);
+	_stringpool_hash = NULL;
 #if LOG_LEVEL >= 6
-    LOG_DEBUG("String pool max chain length = %d", maxlen);
+	LOG_DEBUG("String pool max chain length = %d", maxlen);
 #endif
 }
 void stringpool_accumulator_init(stringpool_accumulator_t* buf, const char* begin)
 {
-    if(NULL == buf) return;
-    buf->begin = begin;
-    buf->count = 0;
+	if(NULL == buf) return;
+	buf->begin = begin;
+	buf->count = 0;
 	buf->h[0] = STRINGPOOL_MURMUR_SEED;
 	buf->h[1] = 0;
 	buf->h[2] = STRINGPOOL_MULTIPLY_SEED; 
@@ -239,21 +239,21 @@ void stringpool_accumulator_init(stringpool_accumulator_t* buf, const char* begi
 }
 const char* stringpool_accumulator_query(stringpool_accumulator_t* acc)
 {
-    if(NULL == acc) return NULL;
-    _stringpool_accu_hash(acc);
-    return _stringpool_query_imp(acc->h, acc->count, acc->begin);
+	if(NULL == acc) return NULL;
+	_stringpool_accu_hash(acc);
+	return _stringpool_query_imp(acc->h, acc->count, acc->begin);
 }
 
 /* only for testing purpose, finishing the computation, and return hashs */
 const uint32_t* stringpool_accumulator_hash(stringpool_accumulator_t* acc)
 {
-    _stringpool_accu_hash(acc);
-    return acc->h;
+	_stringpool_accu_hash(acc);
+	return acc->h;
 }
 /* for testing, compute hash function directly */
 const uint32_t* stringpool_hash(const char* str) 
 {
-    static uint32_t h[4];
-    _stringpool_hash_func(str,h);
-    return h;
+	static uint32_t h[4];
+	_stringpool_hash_func(str,h);
+	return h;
 }
