@@ -1,9 +1,5 @@
-#include <log.h>
-#include <cesk/cesk_frame.h>
-#include <cesk/cesk_store.h>
-
 /**
- * @file frame.c
+ * @file cesk_frame.c
  * @brief operations for one stack frame
  * @todo  ISSUE: because the reuse flag, we can not discard the value that should be discard.
  * 		  e.g:
@@ -19,6 +15,10 @@
  * 		 in this case, in fact v1 = 10 is not a possible value. However in our 
  * 		 program it just keep the value 10.
  */
+#include <log.h>
+#include <cesk/cesk_frame.h>
+#include <cesk/cesk_store.h>
+
 cesk_frame_t* cesk_frame_new(uint16_t size)
 {
 	if(0 == size)

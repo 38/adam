@@ -135,7 +135,8 @@ static inline int _dalvik_instruction_write_annotation(dalvik_instruction_t* ins
  * @brief setup a operand, should be used in a instruction constructor, the operand will be write to
  * 		  variable buf.
  * @param id the index of the operand
- * @param flag the flag of this operand, see definition of dalvik_operand_t for details 
+ * @param flag the flag of this operand, see definition of dalvik_operand_t for details
+ * @param value the value of the operand
  **/
 #define __DI_SETUP_OPERAND(id, flag, value) do{_dalvik_instruction_operand_setup(buf->operands + (id), (flag), (uint64_t)(value));}while(0)
 /**

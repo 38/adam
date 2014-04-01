@@ -1,7 +1,7 @@
 /**
- * @file cesk_reloctable.h
+ * @file cesk_reloctab.h
  * @brief relocation table
- * @detials Since different frame has different memory layout, therefore, it's possible that
+ * @details Since different frame has different memory layout, therefore, it's possible that
  * 			two same object using the same address if the each frame allocate the address 
  * 			independently. It has no problem when there's no merge operations, since the address
  * 			space of each frame are independent. However, when we merge two store contains a 

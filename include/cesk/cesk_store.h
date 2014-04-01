@@ -127,7 +127,7 @@ cesk_store_t* cesk_store_empty_store();
 /**
  * @brief set the allocation table associated to this store
  * @param store 
- * @param alloc_tab the allocation table
+ * @param table the allocation table
  * @return < 0 if an error occurred 
  **/
 int cesk_store_set_alloc_table(cesk_store_t* store, cesk_alloc_table_t* table);

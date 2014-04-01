@@ -181,8 +181,8 @@ int cesk_store_set_alloc_table(cesk_store_t* store, cesk_alloc_table_t* table)
 /**
  * @brief apply the allocation table to the block
  * @param source the source store
- * @param store 
- * @param blk a writable pointer to the block
+ * @param store the result store
+ * @param  base_addr the base address of this block
  * @param base_addr the base address of the block
  * @return < 0 : error
  **/
@@ -240,7 +240,8 @@ static inline int _cesk_store_apply_alloc_tab(const cesk_store_t* source, cesk_s
 						to_addr = cesk_alloc_table_query(store->alloc_tab, source, from_addr);
 						if(CESK_STORE_ADDR_NULL == to_addr)
 						{
-							LOG_WARNING("failed to query the allocation table for relocation address @0x%x", to_addr);
+							LOG_WARNING("failed to query the allocation table for relocation address @0x%x", 
+									    to_addr);
 							continue;
 						}
 						cesk_set_modify(set, from_addr, to_addr);
@@ -260,7 +261,8 @@ static inline int _cesk_store_apply_alloc_tab(const cesk_store_t* source, cesk_s
 							to_addr = cesk_alloc_table_query(store->alloc_tab, source ,from_addr);
 							if(CESK_STORE_ADDR_NULL == to_addr)
 							{
-								LOG_WARNING("failed to query the allocation table for relocated address @0x%x", to_addr);
+								LOG_WARNING("failed to query the allocation table for relocated address @0x%x",
+											to_addr);
 								continue;
 							}
 							object_base->valuelist[j] = to_addr;

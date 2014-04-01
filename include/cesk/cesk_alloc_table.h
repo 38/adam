@@ -56,10 +56,10 @@ int cesk_alloc_table_insert(
  * @brief query an relocation address using object address
  * @param table the allocation table
  * @param store the frame store we want to query
- * @param object_addr the object address
+ * @param addr the object address
  * @return the relocated address in that store, CESK_STORE_ADDR_NULL 
  * 		   means no record in this address
- * @notice if the input is an object address, the return address is an 
+ * @note if the input is an object address, the return address is an 
  * 		   relocated address. If the input address is a relocated address
  * 		   the return address is an object address
  **/

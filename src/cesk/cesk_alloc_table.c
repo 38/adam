@@ -49,7 +49,7 @@ static inline hashval_t _cesk_alloc_table_hashcode(const cesk_store_t* store, ui
 	return (((uintptr_t)store) * MH_MULTIPLY + (addr * addr + addr * MH_MULTIPLY)) % CESK_ALLOC_TABLE_NSLOTS;
 }
 /**
- * @notice We assume the function is always called properly that means, never try to insert a
+ * @note We assume the function is always called properly that means, never try to insert a
  *         duplicated element in to the allocation table
  **/
 int cesk_alloc_table_insert(

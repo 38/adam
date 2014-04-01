@@ -82,9 +82,8 @@ hashval_t cesk_frame_compute_hashcode(const cesk_frame_t* frame);
 /* functions that used for applying diffs */
 /** @brief set the value of the register 
  *  @param frame the frame to operated
+ *  @param reg the register number
  *  @param set   the value set you want to set to the register
- *  @param diffbuf the buffer for diff
- *  @param rdiffbuf the buffer for reverse diff
  *  @return -1 indicates an error */
 int cesk_frame_register_put(
 		cesk_frame_t* frame, 
@@ -93,10 +92,8 @@ int cesk_frame_register_put(
 
 /** @brief put a value at a fresh address
  *  @param frame the frame to operated
- *  @param object the object 
+ *  @param value the value we want to put 
  *  @param inst instruction
- *  @param diffbuf the buffer for diff
- *  @param rdiffbuf the buffer for reverse diff
  *  @return the address of the object */
 uint32_t cesk_frame_store_put(
 		cesk_frame_t* frame, 
@@ -107,8 +104,6 @@ uint32_t cesk_frame_store_put(
  *  @param frame the frame to be oprated
  *  @param addr the address to operated
  *  @param value the reused value to be set
- *  @param diffbuf the buffer for diff
- *  @param rdiffbuf the buffer for reverse diff
  *  @return -1 for error */
 int cesk_frame_store_object_reuse(
 		cesk_frame_t* frame, 
