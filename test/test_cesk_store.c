@@ -21,7 +21,7 @@ int main()
 
     uint32_t    addr = cesk_store_allocate(&store2, ins, 0, 0);
 
-    cesk_store_attach(store2, addr, objval);  //object val
+    cesk_store_attach_oa(store2, addr, objval);  //object val
 	cesk_store_release_rw(store2, addr);
     
     cesk_store_t* store3 = cesk_store_fork(store2);
@@ -68,6 +68,14 @@ int main()
     cesk_store_free(store);
     cesk_store_free(store2);
     cesk_store_free(store3);
+
+	/* now we test store with allocation table */
+	cesk_store_t* store4 = cesk_store_empty_store();
+	cesk_alloc_table_t* alloc_tab = cesk_alloc_table_new();
+	assert(NULL != store4);
+	assert(NULL != alloc_tab);
+	assert(cesk_store_set_alloc_table(store4, alloc_tab) == 0);
+	cesk_store_free(store4);
 
     adam_finalize();
     return 0;

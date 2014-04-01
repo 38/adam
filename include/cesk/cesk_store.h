@@ -196,17 +196,17 @@ uint32_t cesk_store_allocate(cesk_store_t** p_store, const dalvik_instruction_t*
  * writable pointer as aquired from cesk_store_get_rw.
  * So YOU MUST RELEASE THE ADDRESS AFTER YOU DONE
  */
-/** @brief attach a value to an address, 
+/** @brief attach a value to an object address(OA), 
  * 		   this function do not affect the refcnt of the address.
  * 		   And after the function return, the pointer value becomes
  * 		   a writable pointer automaticly. So you should release the value
  * 		   using cesk_store_get_rw after you done
  *  @param store virtual store
- *  @param addr virtual address
+ *  @param addr object address
  *  @param value value
  *  @return the result of the operation >=0 means success 
  */
-int cesk_store_attach(cesk_store_t* store, uint32_t addr,cesk_value_t* value);
+int cesk_store_attach_oa(cesk_store_t* store, uint32_t addr,cesk_value_t* value);
 
 /** @brief release an attached address 
  *  @param store virtual store

@@ -291,7 +291,6 @@ cesk_store_t* cesk_store_fork(const cesk_store_t* store)
 	{
 		ret->blocks[i]->refcnt++;
 		/* if there's some relocated address in the frame */
-		/* TODO: test it */
 		if(NULL != ret->alloc_tab && 
 		   ret->blocks[i]->reloc &&  
 		   _cesk_store_apply_alloc_tab(ret, base_addr) < 0)
@@ -308,15 +307,21 @@ ERR:
 	cesk_store_free(ret);
 	return NULL;
 }
+/**
+ * @brief make the object address from a store address (might be relocated address)
+ * @param store
+ * @param addr the store address
+ * @return the object address converted from the store address, CESK_STORE_ADDR_NULL means error
+ **/
 static inline uint32_t _cesk_store_make_object_address(const cesk_store_t* store, uint32_t addr)
 {
-	uint32_t ret;
+	uint32_t ret = addr;
 	if(CESK_STORE_ADDR_IS_RELOC(addr))
 	{
 		/* if this address is a relocated address */
 		if(NULL == store->alloc_tab)
 		{
-			LOG_ERROR("try to aquire a relocated address without an allocation table");
+			LOG_ERROR("try to aquire a relocated address without an allocation table address=@0x%x", addr);
 			return CESK_STORE_ADDR_NULL;
 		}
 		ret = cesk_alloc_table_query(store->alloc_tab, store, addr);
@@ -573,9 +578,8 @@ uint32_t cesk_store_allocate(cesk_store_t** p_store, const dalvik_instruction_t*
         return equal_block * CESK_STORE_BLOCK_NSLOTS  + equal_offset;
     }
 }
-int cesk_store_attach(cesk_store_t* store, uint32_t addr, cesk_value_t* value)
+int cesk_store_attach_oa(cesk_store_t* store, uint32_t addr, cesk_value_t* value)
 {
-	//TODO attach an relocated address?
     if(NULL == store || CESK_STORE_ADDR_NULL == addr)
     {
         LOG_ERROR("invalid arguments");
@@ -646,6 +650,7 @@ void cesk_store_free(cesk_store_t* store)
 
 int cesk_store_incref(cesk_store_t* store, uint32_t addr)
 {
+	if(CESK_STORE_ADDR_NULL == (addr = _cesk_store_make_object_address(store, addr))) return -1;
 	if(CESK_STORE_ADDR_IS_CONST(addr))
 	{
 		return 0;
@@ -666,6 +671,7 @@ int cesk_store_incref(cesk_store_t* store, uint32_t addr)
 }
 int cesk_store_decref(cesk_store_t* store, uint32_t addr)
 {
+	if(CESK_STORE_ADDR_NULL == (addr = _cesk_store_make_object_address(store, addr))) return -1;
 	if(CESK_STORE_ADDR_IS_CONST(addr))
 	{
 		return 0;
@@ -778,12 +784,14 @@ num:
 }
 uint32_t cesk_store_get_refcnt(const cesk_store_t* store, uint32_t addr)
 {
+	if(CESK_STORE_ADDR_NULL == (addr = _cesk_store_make_object_address(store, addr))) return -1;  /* TODO: is it OK to return -1? */
     uint32_t idx = addr / CESK_STORE_BLOCK_NSLOTS;
     uint32_t ofs = addr % CESK_STORE_BLOCK_NSLOTS;
 	return store->blocks[idx]->slots[ofs].refcnt;
 }
 int cesk_store_clear_refcnt(cesk_store_t* store, uint32_t addr)
 {
+	if(CESK_STORE_ADDR_NULL == (addr = _cesk_store_make_object_address(store, addr))) return -1;
     uint32_t ofs = addr % CESK_STORE_BLOCK_NSLOTS;
 	cesk_store_block_t* block = _cesk_store_getblock_rw(store, addr);
 	if(NULL == block)

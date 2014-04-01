@@ -184,7 +184,7 @@ int cesk_frame_gc(cesk_frame_t* frame)
     {
         if(BITAT(fb,addr) == 0 && cesk_store_get_ro(store, addr) != NULL)
 		{
-            cesk_store_attach(store,addr,NULL);
+            cesk_store_attach_oa(store,addr,NULL);
 			cesk_store_clear_refcnt(store, addr);
 		}
     }
@@ -269,7 +269,7 @@ uint32_t cesk_frame_store_put(cesk_frame_t* frame, cesk_value_t* value, const da
 		LOG_ERROR("can not allocate memory for the object");
 		return CESK_STORE_ADDR_NULL;
 	}
-	if(cesk_store_attach(frame->store, addr, value) < 0)
+	if(cesk_store_attach_oa(frame->store, addr, value) < 0)
 	{
 		LOG_ERROR("can not attach the value to address @0x%x", addr);
 		return CESK_STORE_ADDR_NULL;
