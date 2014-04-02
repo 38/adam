@@ -504,7 +504,7 @@ hashval_t cesk_store_compute_hashcode(const cesk_store_t* store)
 	}
 	return ret;
 }
-uint32_t cesk_store_allocate_oa(cesk_store_t* store, const dalvik_instruction_t* inst, uint32_t parent, uint32_t field_ofs)
+uint32_t cesk_store_allocate(cesk_store_t* store, const dalvik_instruction_t* inst, uint32_t parent, uint32_t field_ofs)
 {
 	uint32_t idx;
 	idx = dalvik_instruction_get_index(inst);
@@ -605,7 +605,7 @@ uint32_t cesk_store_allocate_oa(cesk_store_t* store, const dalvik_instruction_t*
 		return equal_block * CESK_STORE_BLOCK_NSLOTS  + equal_offset;
 	}
 }
-int cesk_store_attach_oa(cesk_store_t* store, uint32_t addr, cesk_value_t* value)
+int cesk_store_attach(cesk_store_t* store, uint32_t addr, cesk_value_t* value)
 {
 	if(NULL == store || CESK_STORE_ADDR_NULL == addr)
 	{
@@ -675,7 +675,6 @@ void cesk_store_free(cesk_store_t* store)
 	if(store->nblocks > 0) free(store->blocks);
 	free(store);
 }
-
 int cesk_store_incref(cesk_store_t* store, uint32_t addr)
 {
 	if(CESK_STORE_ADDR_NULL == (addr = _cesk_store_make_object_address(store, addr))) return -1;

@@ -68,5 +68,17 @@ uint32_t cesk_alloctab_query(
 		const cesk_store_t* store,
 		uint32_t addr);
 
+/**
+ * @brief map a relocated address to an object address
+ * @param table the allocation table
+ * @param store the store 
+ * @param rel_addr relocated_address
+ * @param obj_addr the object address in that store
+ **/
+int cesk_alloctab_map_addr(
+		cesk_alloctab_t*	   table,
+		cesk_store_t*		   store,
+		uint32_t               rel_addr,
+		uint32_t               obj_addr);
 
 #endif

@@ -96,10 +96,45 @@ uint32_t cesk_alloctab_query(
 		const cesk_store_t* store,
 		uint32_t addr)
 {
+	if(NULL == table) return CESK_STORE_ADDR_NULL;
 	hashval_t h = _cesk_alloctab_hashcode(store, addr);
 	cesk_alloc_node_t* ptr;
 	for(ptr = table->slot[h]; NULL != ptr; ptr = ptr->next)
 		if(ptr->store == store && ptr->key == addr)
 			return ptr->val;
 	return CESK_STORE_ADDR_NULL;
+}
+int cesk_alloctab_map_addr(
+		cesk_alloctab_t* table,
+		cesk_store_t*    store,
+		uint32_t               rel_addr,
+		uint32_t               obj_addr)
+{
+	if(!CESK_STORE_ADDR_IS_RELOC(rel_addr)) 
+	{
+		LOG_ERROR("invalid relocated address @0x%x", rel_addr);
+		return -1;
+	}
+	if(!CESK_STORE_ADDR_IS_OBJ(obj_addr))
+	{
+		LOG_ERROR("invalid object address @0x%x", obj_addr);
+		return -1;
+	}
+	if(cesk_alloctab_insert(table, store, rel_addr, obj_addr) < 0)
+	{
+		LOG_ERROR("can not insert record mapping relocated address @0x%x to"
+				  "object address @0x%x", 
+				  rel_addr,
+				  obj_addr);
+		return -1;
+	}
+	if(cesk_alloctab_insert(table, store, obj_addr, rel_addr) < 0)
+	{
+		LOG_ERROR("can not insert record mapping object address @0x%x to"
+				  "object address @0x%x",
+				  obj_addr,
+				  rel_addr);
+		return -1;
+	}
+	return 0;
 }

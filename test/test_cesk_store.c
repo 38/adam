@@ -19,9 +19,9 @@ int main()
 	dalvik_instruction_from_sexp(sexp, ins, 0);
 	sexp_free(sexp);
 
-	uint32_t    addr = cesk_store_allocate_oa(store2, ins, 0, 0);
+	uint32_t    addr = cesk_store_allocate(store2, ins, 0, 0);
 
-	cesk_store_attach_oa(store2, addr, objval);  //object val
+	cesk_store_attach(store2, addr, objval);  //object val
 	cesk_store_release_rw(store2, addr);
 
 	cesk_store_t* store3 = cesk_store_fork(store2);
@@ -77,7 +77,7 @@ int main()
 	assert(cesk_store_set_alloc_table(store4, alloc_tab) == 0);
 	objval = cesk_value_from_classpath(stringpool_query("antlr/ANTLRTokdefParser"));
 
-	uint32_t oa = cesk_store_allocate_oa(store4, ins , 0, 0);
+	uint32_t oa = cesk_store_allocate(store4, ins , 0, 0);
 	assert(oa != CESK_STORE_ADDR_NULL);
 	assert(cesk_alloctab_insert(alloc_tab, store4, CESK_STORE_ADDR_RELOC_PREFIX, oa) == 0);
 	assert(cesk_alloctab_insert(alloc_tab, store4, oa, CESK_STORE_ADDR_RELOC_PREFIX) == 0);
@@ -86,7 +86,7 @@ int main()
 	object->members[0].valuelist[0] = CESK_STORE_ADDR_RELOC_PREFIX + 1;   /* setup an relocated address to it */
 	cesk_value_set_reloc(objval);
 
-	assert(cesk_store_attach_oa(store4, oa, objval) == 0);
+	assert(cesk_store_attach(store4, oa, objval) == 0);
 	cesk_store_release_rw(store4, oa);
 
 	/* test the relocation logic */
@@ -109,8 +109,8 @@ int main()
 	assert(NULL != object);
 	object->members[0].valuelist[0] = CESK_STORE_ADDR_RELOC_PREFIX | 1; // this is the set object
 
-	uint32_t oa1 = cesk_store_allocate_oa(store4, ins, CESK_STORE_ADDR_RELOC_PREFIX, CESK_OBJECT_FIELD_OFS(object, object->members[0].valuelist));
-	uint32_t oa2 = cesk_store_allocate_oa(store4, ins, 0, 12345);
+	uint32_t oa1 = cesk_store_allocate(store4, ins, CESK_STORE_ADDR_RELOC_PREFIX, CESK_OBJECT_FIELD_OFS(object, object->members[0].valuelist));
+	uint32_t oa2 = cesk_store_allocate(store4, ins, 0, 12345);
 
 	assert(CESK_STORE_ADDR_NULL != oa1);
 	assert(CESK_STORE_ADDR_NULL != oa2);
@@ -123,8 +123,8 @@ int main()
 	
 	cesk_value_set_reloc(set_val);
 	
-	assert(0 == cesk_store_attach_oa(store4, oa1, set_val));
-	assert(0 == cesk_store_attach_oa(store4, oa2, new_val));
+	assert(0 == cesk_store_attach(store4, oa1, set_val));
+	assert(0 == cesk_store_attach(store4, oa2, new_val));
 	cesk_store_release_rw(store4, oa1);
 	cesk_store_release_rw(store4, oa2);
 

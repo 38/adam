@@ -188,8 +188,8 @@ int cesk_store_clear_reuse(cesk_store_t* store, uint32_t addr);
  * @param field the field offset
  * @return the fresh address for this value
  */
-uint32_t cesk_store_allocate_oa(cesk_store_t* store, const dalvik_instruction_t* inst, uint32_t parent, uint32_t field);
-//TODO allocate_ra
+uint32_t cesk_store_allocate(cesk_store_t* store, const dalvik_instruction_t* inst, uint32_t parent, uint32_t field);
+
 /* attach a value to an address, >0 means success, <0 error. If the value is NULL, means
  * dettach the address.
  * NOTICE: After the attach function, your parameter value becomes a 
@@ -206,7 +206,7 @@ uint32_t cesk_store_allocate_oa(cesk_store_t* store, const dalvik_instruction_t*
  *  @param value value
  *  @return the result of the operation >=0 means success 
  */
-int cesk_store_attach_oa(cesk_store_t* store, uint32_t addr,cesk_value_t* value);
+int cesk_store_attach(cesk_store_t* store, uint32_t addr,cesk_value_t* value);
 
 /** @brief release an attached address 
  *  @param store virtual store
