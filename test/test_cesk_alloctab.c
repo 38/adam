@@ -24,6 +24,8 @@ int main()
 		assert(cesk_alloctab_query(tab, store, obj_addr) == rel_addr);
 		assert(cesk_alloctab_query(tab, store, rel_addr) == obj_addr);
 	}
+	cesk_alloctab_free(tab);
+	cesk_store_free(store);
 	adam_finalize();
 	return 0;
 }

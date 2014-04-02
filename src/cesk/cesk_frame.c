@@ -277,7 +277,7 @@ uint32_t cesk_frame_store_put(cesk_frame_t* frame, cesk_value_t* value, const da
 		LOG_ERROR("invalid argument");
 		return CESK_STORE_ADDR_NULL;
 	}
-	uint32_t addr = cesk_store_allocate(&frame->store, inst, CESK_STORE_ADDR_NULL, 0);
+	uint32_t addr = cesk_store_allocate_oa(frame->store, inst, CESK_STORE_ADDR_NULL, 0);
 	if(CESK_STORE_ADDR_NULL == addr)
 	{
 		LOG_ERROR("can not allocate memory for the object");

@@ -84,7 +84,7 @@ typedef struct _cesk_store_t cesk_store_t;
 /** @brief check if or not an address is a relocated address */
 #define CESK_STORE_ADDR_IS_RELOC(addr) ((((addr)&CESK_STORE_ADDR_RELOC_PREFIX) == CESK_STORE_ADDR_RELOC_PREFIX) && !CESK_STORE_ADDR_IS_CONST(addr))
 /** @brief get the index of global relocation object table from the address */
-#define CESK_STORE_ADDR_GET_RELOC_IDX(addr) (addr&~CESK_STORE_ADDR_RELOC_PREFIX)
+#define CESK_STORE_ADDR_RELOC_IDX(addr) (addr&~CESK_STORE_ADDR_RELOC_PREFIX)
 
 /** @brief check if or not an address is an object address */
 #define CESK_STORE_ADDR_IS_OBJ(addr) ((addr) < CESK_STORE_ADDR_RELOC_PREFIX)
@@ -116,7 +116,7 @@ struct _cesk_store_t {
 	uint32_t            num_ent;    /*!<number of entities */
 	hashval_t           hashcode;   /*!<hashcode of content of this store */
 	cesk_alloctab_t*   alloc_tab;  /*!<the allocation table */
-	cesk_store_block_t* blocks[0];  /*!<block array */
+	cesk_store_block_t**  blocks;  /*!<block array */
 };
 
 /** 
@@ -182,14 +182,14 @@ int cesk_store_clear_reuse(cesk_store_t* store, uint32_t addr);
  * If the address is for a member of an object. The address is based on the parent address and field name
  * If it's not a object member, parent = CESK_STORE_ADDR_NULL and field = NULL
  *
- * @param p_store the pointer to the pointer of store
+ * @param store the store
  * @param inst current instruction
  * @param parent address of parent object
  * @param field the field offset
  * @return the fresh address for this value
  */
-uint32_t cesk_store_allocate(cesk_store_t** p_store, const dalvik_instruction_t* inst, uint32_t parent, uint32_t field);
-
+uint32_t cesk_store_allocate_oa(cesk_store_t* store, const dalvik_instruction_t* inst, uint32_t parent, uint32_t field);
+//TODO allocate_ra
 /* attach a value to an address, >0 means success, <0 error. If the value is NULL, means
  * dettach the address.
  * NOTICE: After the attach function, your parameter value becomes a 

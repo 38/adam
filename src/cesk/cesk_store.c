@@ -285,7 +285,8 @@ static inline int _cesk_store_apply_alloc_tab(const cesk_store_t* source, cesk_s
 cesk_store_t* cesk_store_fork(const cesk_store_t* store)
 {
 	int i;
-	size_t size = sizeof(cesk_store_t) + sizeof(cesk_store_block_t*) * store->nblocks;
+	size_t size = sizeof(cesk_store_t);
+	size_t block_size = sizeof(cesk_store_block_t*) * store->nblocks;
 	cesk_store_t* ret = (cesk_store_t*)malloc(size);
 	if(NULL == ret)
 	{
@@ -294,6 +295,14 @@ cesk_store_t* cesk_store_fork(const cesk_store_t* store)
 	}
 	/* what we should do is just duplicating the block table in the block */
 	memcpy(ret, store, size);
+	/* if there's some blocks here, allocate memory for it */
+	if(ret->nblocks > 0)
+	{
+		cesk_store_block_t** blocks = (cesk_store_block_t**)malloc(block_size);
+		memcpy(blocks, store->blocks, block_size);
+		ret->blocks = blocks;
+	}
+	/* use the new copy of the block counter */
 	uint32_t base_addr = 0;
 	/* increase refrence counter of all blocks */
 	for(i = 0; i < ret->nblocks; i ++, base_addr += CESK_STORE_BLOCK_NSLOTS)
@@ -495,9 +504,8 @@ hashval_t cesk_store_compute_hashcode(const cesk_store_t* store)
 	}
 	return ret;
 }
-uint32_t cesk_store_allocate(cesk_store_t** p_store, const dalvik_instruction_t* inst, uint32_t parent, uint32_t field_ofs)
+uint32_t cesk_store_allocate_oa(cesk_store_t* store, const dalvik_instruction_t* inst, uint32_t parent, uint32_t field_ofs)
 {
-	cesk_store_t* store = *p_store;
 	uint32_t idx;
 	idx = dalvik_instruction_get_index(inst);
 	uint32_t  init_slot = _cesk_store_address_hashcode(inst, parent, field_ofs)  % CESK_STORE_BLOCK_NSLOTS;
@@ -545,18 +553,24 @@ uint32_t cesk_store_allocate(cesk_store_t** p_store, const dalvik_instruction_t*
 		LOG_DEBUG("can not allocate a store entry for this object,"
 				  "allocate a new block. current_size = %d, num_ent = %d", 
 			      store->nblocks, store->num_ent);
-		store = realloc(store, sizeof(cesk_store_t) + sizeof(cesk_store_block_t*) * (store->nblocks + 1));
-		if(NULL == store)
+		cesk_store_block_t** blocks;
+		if(store->nblocks > 0)
+			blocks = (cesk_store_block_t**)realloc(store->blocks , sizeof(cesk_store_block_t*) * (store->nblocks + 1));
+		else
+			blocks = (cesk_store_block_t**)malloc(sizeof(cesk_store_block_t*));
+		//store = realloc(store, sizeof(cesk_store_t) + sizeof(cesk_store_block_t*) * (store->nblocks + 1));
+		if(NULL == blocks)
 		{
-		LOG_ERROR("can not increase the size of store");
-		return CESK_STORE_ADDR_NULL;
+			LOG_ERROR("can not increase the size of store");
+			return CESK_STORE_ADDR_NULL;
 		}
-		(*p_store) = store;
+		store->blocks = blocks;
+		//(*p_store) = store;
 		store->blocks[store->nblocks] = (cesk_store_block_t*)malloc(CESK_STORE_BLOCK_SIZE);
 		if(NULL ==  store->blocks[store->nblocks])
 		{
-		LOG_ERROR("can not allocate a new page for the block");
-		return CESK_STORE_ADDR_NULL;
+			LOG_ERROR("can not allocate a new page for the block");
+			return CESK_STORE_ADDR_NULL;
 		}
 		memset(store->blocks[store->nblocks], 0, CESK_STORE_BLOCK_SIZE);
 		store->blocks[store->nblocks]->refcnt ++;
@@ -568,18 +582,18 @@ uint32_t cesk_store_allocate(cesk_store_t** p_store, const dalvik_instruction_t*
 	{
 		if(empty_offset != -1)
 		{
-		LOG_DEBUG("allocate %lu (block=%d, offset = %d) for instruction %d", 
-				   empty_block * CESK_STORE_BLOCK_NSLOTS + empty_offset, empty_block, empty_offset, idx);
-		store->blocks[empty_block]->slots[empty_offset].idx = idx;
+			LOG_DEBUG("allocate %lu (block=%d, offset = %d) for instruction %d", 
+						empty_block * CESK_STORE_BLOCK_NSLOTS + empty_offset, empty_block, empty_offset, idx);
+			store->blocks[empty_block]->slots[empty_offset].idx = idx;
 			store->blocks[empty_block]->slots[empty_offset].parent = parent;
 			store->blocks[empty_block]->slots[empty_offset].field = field_ofs;
 			store->blocks[empty_block]->slots[empty_offset].reuse = 0;
-		return empty_block * CESK_STORE_BLOCK_NSLOTS + empty_offset;
+			return empty_block * CESK_STORE_BLOCK_NSLOTS + empty_offset;
 		}
 		else
 		{
-		LOG_ERROR("neither empty slot or equal entry has been found in the store, allocation failed");
-		return CESK_STORE_ADDR_NULL;
+			LOG_ERROR("neither empty slot or equal entry has been found in the store, allocation failed");
+			return CESK_STORE_ADDR_NULL;
 		}
 	}
 	else
@@ -651,13 +665,14 @@ void cesk_store_free(cesk_store_t* store)
 		store->blocks[i]->refcnt --;
 		if(store->blocks[i]->refcnt == 0)
 		{
-		int j;
-		for(j = 0; j < CESK_STORE_BLOCK_NSLOTS; j ++)
-			if(store->blocks[i]->slots[j].value != NULL)
-				cesk_value_decref(store->blocks[i]->slots[j].value);
-		free(store->blocks[i]);
+			int j;
+			for(j = 0; j < CESK_STORE_BLOCK_NSLOTS; j ++)
+				if(store->blocks[i]->slots[j].value != NULL)
+					cesk_value_decref(store->blocks[i]->slots[j].value);
+			free(store->blocks[i]);
 		}
 	}
+	if(store->nblocks > 0) free(store->blocks);
 	free(store);
 }
 
