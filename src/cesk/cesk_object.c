@@ -22,6 +22,12 @@ cesk_object_t* cesk_object_new(const char* classpath)
 		if(NULL == target_class)
 		{
 			/* TODO: handle the built-in classes */
+			if(0 == field_count)
+			{
+				/* if we can't find the first class, this is an error */
+				LOG_ERROR("can not find class %s", classpath);
+				return NULL;
+			}
 			LOG_WARNING("can not find class %s", classpath);
 			LOG_NOTICE("fixme: here we should handle the built-in classes");
 			break;

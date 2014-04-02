@@ -1,3 +1,7 @@
+/**
+ * @file cesks.h
+ * @brief top level header file of CESK module
+ **/
 #ifndef __CESK_H__
 #define __CESK_H__
 
@@ -12,6 +16,7 @@
 #include <cesk/cesk_diff.h>
 #include <cesk/cesk_arithmetic.h>
 #include <cesk/cesk_alloctab.h>
+#include <cesk/cesk_reloc.h>
 
 /**
  * @file cesk.h

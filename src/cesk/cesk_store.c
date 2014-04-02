@@ -612,6 +612,7 @@ int cesk_store_attach(cesk_store_t* store, uint32_t addr, cesk_value_t* value)
 		LOG_ERROR("invalid arguments");
 		return -1;
 	}
+	if(CESK_STORE_ADDR_NULL == (addr = _cesk_store_make_object_address(store, addr))) return -1;
 	uint32_t block = addr / CESK_STORE_BLOCK_NSLOTS;
 	uint32_t offset = addr % CESK_STORE_BLOCK_NSLOTS;
 	if(block >= store->nblocks)

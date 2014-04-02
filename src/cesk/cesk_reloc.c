@@ -1,7 +1,7 @@
 #include <cesk/cesk_reloc.h>
-cesk_reloc_t *cesk_reloc_new()
+cesk_reloc_table_t *cesk_reloc_table_new()
 {
-	cesk_reloc_t* ret = vector_new(sizeof(cesk_reloc_item_t));
+	cesk_reloc_table_t* ret = vector_new(sizeof(cesk_reloc_item_t));
 	if(NULL == ret)
 	{
 		LOG_ERROR("can not create a new vector as the value table");
@@ -9,7 +9,7 @@ cesk_reloc_t *cesk_reloc_new()
 	}
 	return ret;
 }
-void cesk_reloc_free(cesk_reloc_t* mem)
+void cesk_reloc_table_free(cesk_reloc_table_t* mem)
 {
 	if(NULL == mem) return;
 	int i;
@@ -21,8 +21,8 @@ void cesk_reloc_free(cesk_reloc_t* mem)
 	vector_free(mem);
 	return;
 }
-uint32_t cesk_reloc_append(
-		cesk_reloc_t* table, 
+uint32_t cesk_reloc_table_append(
+		cesk_reloc_table_t* table, 
 		const dalvik_instruction_t* inst,
 		uint32_t parent_addr,
 		uint32_t field_offset)
@@ -30,7 +30,7 @@ uint32_t cesk_reloc_append(
 	if(NULL == table)
 	{
 		LOG_ERROR("invalid argument");
-		return -1;
+		return CESK_STORE_ADDR_NULL;
 	}
 	cesk_reloc_item_t buf = {
 		.init_value = NULL,
@@ -39,14 +39,30 @@ uint32_t cesk_reloc_append(
 		.field_offset = field_offset
 	}; 
 	uint32_t ret = vector_size(table);
+	if(0 != (ret & CESK_STORE_ADDR_RELOC_PREFIX))
+	{
+		LOG_ERROR("to many relocated objects, try to adjust "
+				  "CESK_STORE_ADDR_RELOC_PREFIX(currently 0x%lx)", 
+				  CESK_STORE_ADDR_RELOC_PREFIX);
+		return CESK_STORE_ADDR_NULL;
+	}
 	if(vector_pushback(table, &buf) < 0)
 	{
 		LOG_ERROR("can not append the value to the end of the table");
-		return -1;
+		return CESK_STORE_ADDR_NULL;
 	}
-	return ret;
+	ret = CESK_STORE_ADDR_RELOC_PREFIX | ret;
+	if(CESK_STORE_ADDR_IS_RELOC(ret)) 
+		return ret;
+	else
+	{
+		LOG_ERROR("to many relocated objects, try to adjust "
+				  "CESK_STORE_ADDR_RELOC_PREFIX(currently 0x%lx)", 
+				  CESK_STORE_ADDR_RELOC_PREFIX);
+		return CESK_STORE_ADDR_NULL;
+	}
 }
-uint32_t cesk_reloc_addr_init(cesk_reloc_t* table, cesk_store_t* store, uint32_t addr)
+uint32_t cesk_reloc_addr_init(cesk_reloc_table_t* table, cesk_store_t* store, uint32_t addr)
 {
 	if(NULL == table || NULL == store || !CESK_STORE_ADDR_IS_RELOC(addr))
 	{
@@ -97,11 +113,18 @@ uint32_t cesk_reloc_addr_init(cesk_reloc_t* table, cesk_store_t* store, uint32_t
 	}
 	/* do not forget release the writable pointer */
 	cesk_store_release_rw(store, obj_addr);
+	LOG_DEBUG("relocated address is initialized, address map: @0x%x --> @0x%x", addr, obj_addr);
 	return obj_addr;
 }
 
-int cesk_reloc_set_init_value(cesk_reloc_t* table, uint32_t idx, cesk_value_t* value)
+int cesk_reloc_set_init_value(cesk_reloc_table_t* table, uint32_t addr, cesk_value_t* value)
 {
+	if(!CESK_STORE_ADDR_IS_RELOC(addr))
+	{
+		LOG_ERROR("invalid relocated address @0x%x", addr);
+		return -1;
+	}
+	uint32_t idx = CESK_STORE_ADDR_RELOC_IDX(addr);
 	if(NULL == table || idx >= vector_size(table) || NULL == value)
 	{
 		LOG_ERROR("invalid argument");
@@ -113,7 +136,7 @@ int cesk_reloc_set_init_value(cesk_reloc_t* table, uint32_t idx, cesk_value_t* v
 }
 
 uint32_t cesk_reloc_allocate(
-		cesk_reloc_t* value_tab, 
+		cesk_reloc_table_t* value_tab, 
 		cesk_store_t* store, 
 		const dalvik_instruction_t* inst,
 		uint32_t parent,
@@ -148,7 +171,7 @@ uint32_t cesk_reloc_allocate(
 		return rel_addr;
 	}
 	/* otherwise, this address is new to allocation table, so create a new relocation address for it */
-	rel_addr = cesk_reloc_append(value_tab, inst, parent, field);
+	rel_addr = cesk_reloc_table_append(value_tab, inst, parent, field);
 	if(CESK_STORE_ADDR_NULL == rel_addr)
 	{
 		LOG_ERROR("can not create an new relocated address for this object");
@@ -160,6 +183,7 @@ uint32_t cesk_reloc_allocate(
 		LOG_ERROR("can not map address @0x%x --> @0x%x", rel_addr, obj_addr);
 		return CESK_STORE_ADDR_NULL;
 	}
+	LOG_DEBUG("relocated address is initialized, address map: @0x%x --> @0x%x", rel_addr, obj_addr);
 	/* here we done */
 	return rel_addr;
 }
