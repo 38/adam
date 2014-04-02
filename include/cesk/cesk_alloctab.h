@@ -1,5 +1,5 @@
 /**
- * @file cesk_alloc_table.h
+ * @file cesk_alloctab.h
  * @brief The global allocation table, this file is a part of intra-procedure analyzer.
  * 		  In the intra-procedure analyzer, the terminology 'global' means the object is
  * 		  owned by all abstact frames that is involved in this function
