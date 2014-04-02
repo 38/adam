@@ -23,7 +23,7 @@ typedef vector_t cesk_valuetab_t;
  * @brief create a newy value table
  * @return pointer to the newly created value table, NULL indicates error
  **/
-cesk_objtab_t *cesk_valuetab_new();
+cesk_valuetab_t *cesk_valuetab_new();
 
 /**
  * @brief free the memory used by the value table
