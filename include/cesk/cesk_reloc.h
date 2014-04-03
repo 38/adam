@@ -47,7 +47,6 @@ void cesk_reloc_table_free(cesk_reloc_table_t* mem);
 /**
  * @brief append a new value to the value table
  * @param table the value table 
- * @param value  the value to append
  * @param inst  the instruction that allocates this object
  * @param parent_addr the address of parent object
  * @param field_offset the offset of this field

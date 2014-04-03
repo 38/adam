@@ -5,142 +5,125 @@
  **/
 #ifndef __CESK_DIFF_H__
 #define __CESK_DIFF_H__
+/** @brief a diff package */
+typedef struct _cesk_diff_t cesk_diff_t;
+/** @brief an item in the diff package */
 typedef struct _cesk_diff_item_t cesk_diff_item_t;
-#include <adam.h>
-#include <cesk/cesk_frame.h>
-#include <dalvik/dalvik_instruction.h>
-/*
- * TODO: a) a data structure to repr the diff between machine states 
- *       b) a method to merge two diffs
- *		 c) function to apply a diff to the store
- *		 d) keep an object list which needs to relocate in each store
- *		 e) reverse diff
- *
- *		 Problem: reverse diff behavious for new object(this is not a problem, because before
- *		          the diff operates the frame, the object must be converted to the store address)
- */
 
-/** 
- * @brief type of frame diff items
- * @details The opcode actually contains 3 bit. The first bit indicates wether or not
- *          this diff item requires to modifiy the reuse flag. If answer is yes, The 
- *          third bit would be the value of new reuse flag at this address.
- *          If the second bit is set, that means the diff also requires to modify the
- *          value of this address
+#include <cesk/cesk_value.h>
+/**
+ * @brief type of a frame address
  **/
 enum {
-	CESK_DIFF_OPCODE_REUSE = 1,
-	CESK_DIFF_OPCODE_SET   = 2,
-	CESK_DIFF_OPCODE_REUSE_VAL = 4
+	CESK_DIFF_FRAME_STORE,		/*!< refer an address in store */
+	CESK_DIFF_FRAME_REGISTER	/*!< refer a register */
 };
-
-/** @brief type of frame diff object addressing */
-enum {
-	CESK_DIFF_FIXED,
-	CESK_DIFF_RELOCATED
-};
-
-/** @brief an value to patch */
+/**
+ * @brief address in a frame (note: uint32_t is an address in a store, but we also
+ *        wants to refer registers here)
+ **/
 typedef struct {
-	union {
-		uint32_t      id;  /*!< the value id, if it's a relocated value */
-		cesk_value_t* ptr; /*!< the value ptr, if it's a fixed value */
-	} value;					/*!< the value */
-} cesk_diff_value_t;
+	uint8_t  type;	/*!< type of this address store address or register number */
+	uint32_t value; /*!< the actual store address or register number */
+} cesk_diff_frame_addr_t;
 
-/** @brief an patch items */ 
+/** 
+ * @brief type of diff items 
+ **/
+enum {
+	CESK_DIFF_ADDR_ALLOCATE,    /*!< initialize a new address */
+	CESK_DIFF_ADDR_DELOCATE,    /*!< finalize a new address, this action should not be present in the result, just used in the reverse diff */
+	CESK_DIFF_ADDR_REUSE,		/*!< set the reuse flag of this address */
+	CESK_DIFF_SET				/*!< modifiy the set in a given address */
+};
+
+/** 
+ * @brief defination of cesk_diff_item_t 
+ **/
 struct _cesk_diff_item_t {
-	uint8_t opcode:3;			/*!< the type of operation */
-	uint8_t addr_type:1;		/*!< the address type, fixed or relocated */
-	uint8_t val_type:1;			/*!< the value type, fiexed or relocated */
-	uint32_t addr;				/*!< the affected address, if it's CESK_STORE_ADDR_NULL in memory, that means, we should allocate an address for it */
+	uint8_t type;                     /*!< the type of this diff item */
+	cesk_diff_frame_addr_t frame_addr;/*!< the frame address affected */
 	union{
-		uint32_t 		id;		/*!< the value id, if the object is located in the relocation table, aka RELOCATED */
-		cesk_value_t* 	ptr;	/*!< the object pointer, if it's in the store, aka FIXED */
-	}value;    					/*!< the value to be operated */
-	struct _cesk_diff_item_t* next; /*!< next item in the list */
-	struct _cesk_diff_item_t* prev; /*!< previous item in the list */
+		uint8_t reuse:1;			  /*!< the new value of reuse bit */
+		cesk_value_t* value;          /*!< the new value of a set */
+	} data;                           /*!< the diff data */
+	cesk_diff_item_t* next;           /*!< the next item (used in linked lists)*/
 };
 
-/** @brief reprs an diff */
-typedef struct {
-	uint8_t	reduced;        /*!< flag indicate if the diff is reduced, before reduced, the item is sorted by time, but after that the 
-		 items would be sorted by pair <address, time> */
-	cesk_diff_item_t* head; /*!< the content head */
-	cesk_diff_item_t* tail; /*!< the content tail */
-} cesk_diff_t;
 /**
- * @brief initlize the diff pool
- * @return the result of initialization < 0 for error
+ * @brief a diff package
  **/
-int cesk_diff_init();
-/**
- * @brief finalize the diff pool
- * @return the return of finalization < 0 for error
- **/
-int cesk_diff_finalize();
+struct _cesk_diff_t {
+	cesk_diff_item_t* list;           /*!< the diff list */
+};
 
-/** 
- * @brief make an empty diff
- * @return the pointer to the new diff
+/**
+ * @brief allocate a new diff item 
+ * @return the pointer to newly created diff item, NULL for error
+ **/
+cesk_diff_item_t* cesk_diff_item_new();
+
+/**
+ * @brief free the memory used by the given diff item
+ * @param item the diff item to be delocated
+ * @return nothing
+ **/
+void cesk_diff_item_free(cesk_diff_item_t* item);
+
+/**
+ * @brief allocate an empty diff package
+ * @return the pointer to the empty diff package
  **/
 cesk_diff_t* cesk_diff_new();
 
 /**
- * @brief dispose a diff 
- * @param diff the diff
+ * @brief free the memory used by the given diff package
+ * @param diff the diff package to be delocated
  * @return nothing
  **/
 void cesk_diff_free(cesk_diff_t* diff);
 
 /**
- * @brief allocate a new memory for a cesk diff item 
- * @return nothing
+ * @brief append a new item to the diff 
+ * @param diff the diff package
+ * @param item the diff item to be added
+ * @return the result of the operation, < 0 means error
  **/
-cesk_diff_item_t* cesk_diff_item_new();
+int cesk_diff_append(cesk_diff_t* diff, cesk_diff_item_t* item);
 
 /**
- * @brief free a diff item
- * @param item the item
- * @return nothing
+ * @brief apply left diff package to the right diff package (left * right)
+ * @param left the left diff package
+ * @param right the right diff package
+ * @return the pointer to the result diff package, NULL means error
  **/
-void cesk_diff_item_free(cesk_diff_item_t* item);
-
-/** 
- * @brief push next diff item to end of the diff, this is used for gerneating diff
- * @param diff the diff
- * @param item the next item we want to push
- * @return < 0 for error
- **/
-int cesk_diff_push_back(cesk_diff_t* diff, cesk_diff_item_t* item);
+cesk_diff_t* cesk_diff_apply_d(const cesk_diff_t* left, const cesk_diff_t* right);
 
 /**
- * @brief push the next diff item to the begining of the diff list, this is used for generating the reverse of diff
- * @param diff the diff
- * @param item the item to insert
- * @return < 0 for error
+ * @brief apply the diff package to the store
+ * @param diff the diff pacakge to be applied
+ * @param store the store to apply
+ * @return the result of the operation, < 0 means error 
  **/
-int cesk_diff_push_front(cesk_diff_t* diff, cesk_diff_item_t* item);
-
-/** 
- * @brief reduce the diff e.g. {set 1 to 2, set 1 to 3} ==> {set 1 to 3} 
- * @param diff the diff to reduce, the reduced list is sorted by <address, time>
- * @return < 0 for error
- **/
-int cesk_diff_reduce(cesk_diff_t* diff);
+int cesk_diff_apply_s(const cesk_diff_t* diff, cesk_store_t* store);
 
 /**
- * @brief merge two diff, notice that the merge operator is not commutative, that is merge(A,B) != merge(B,A)
- * @param first the first diff
- * @param second the second diff
+ * @brief merge the left diff pacakge and the right diff package 
+ * @param left the left diff package
+ * @param right the right diff pacakge
+ * @return the pointer to the result diff package, NULL means error
  **/
-cesk_diff_t* cesk_diff_merge(cesk_diff_t* first, cesk_diff_t* second);
+cesk_diff_t* cesk_diff_merge(const cesk_diff_t* left, const cesk_diff_t* right);
 
 /**
- * @brief apply the diff to the frame
- * @param frame the frame to operate
- * @param diff 
- * @return <0 for error
+ * @brief find a diff package that convert sum of products to product of sum
+ * 	      that is to find @f$ f = factorize(d_0, S_0, S_1, ... S_N) @f$ such that
+ * 	      @f[ S_0 * d_0 + \sum_{i = 1} S_i = f * (d_0 + \sum{i=1} S_i*d_i) @f]
+ * 	      by using this trick, we can manipulate the diff which is affected by multiply inputs
+ *  @param d0 the diff  d0
+ *  @param S0 the store S0
+ *  @param ... the remaining store, ends with a NULL pointer
+ *  @return the result @f$f@f$, NULL means error
  **/
-int cesk_diff_apply(cesk_frame_t* frame, cesk_diff_t* diff);
+cesk_diff_t* cesk_diff_factorize(const cesk_diff_t* d0, const cesk_store_t* S0, ...);
 #endif

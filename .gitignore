@@ -33,7 +33,6 @@ cmake_install.cmake
 *.cmake
 Makefile
 install_manifest.txt
-glimpse-config
 Testing/*
 
 #config header

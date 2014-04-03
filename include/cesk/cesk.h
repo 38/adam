@@ -1,5 +1,5 @@
 /**
- * @file cesks.h
+ * @file cesk.h
  * @brief top level header file of CESK module
  **/
 #ifndef __CESK_H__

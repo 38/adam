@@ -1,5 +1,1 @@
-alloctab		done
-store reloc address support    (allocate RA)
-cesk_diff
-high level instruction based on cesk_diff
-diff merge
+cesk_diff  finish design, todo implementation
