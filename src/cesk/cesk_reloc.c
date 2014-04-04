@@ -132,6 +132,7 @@ int cesk_reloc_set_init_value(cesk_reloc_table_t* table, uint32_t addr, cesk_val
 	}
 	cesk_reloc_item_t* item = (cesk_reloc_item_t*)vector_get(table, idx);
 	item->init_value = value;
+	cesk_value_incref(value);
 	return 0;
 }
 
