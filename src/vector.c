@@ -63,3 +63,18 @@ int vector_pushback(vector_t* vec, void* data)
 	vec->size ++;
 	return 0;
 }
+int vector_dry_pushback(vector_t* vec)
+{
+	if(NULL == vec) return -1;
+	if(vec->size == vec->capacity)
+	{
+		int rc = _vector_resize(vec);
+		if(rc < 0) 
+		{
+			LOG_ERROR("can not resize vector @%p", vec);
+			return rc;
+		}
+	}
+	vec->size ++;
+	return 0;
+}
