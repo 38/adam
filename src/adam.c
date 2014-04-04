@@ -1,10 +1,26 @@
 #include <adam.h>
-void adam_init(void)
+int adam_init(void)
 {
-	log_init();
-	stringpool_init(STRING_POOL_SIZE);
-	dalvik_init();
-	cesk_init();
+	if(log_init() < 0)
+	{
+		return -1;
+	}
+	if(stringpool_init(STRING_POOL_SIZE) < 0)
+	{
+		LOG_FATAL("failed to initialize string pool");
+		return -1;
+	}
+	if(dalvik_init() < 0)
+	{
+		LOG_FATAL("failed to initialize dalvik loader");
+		return -1;
+	}
+	if(cesk_init() < 0)
+	{
+		LOG_FATAL("failed to initialize analyzer");
+		return -1;
+	}
+	return 0;
 }
 void adam_finalize(void)
 {

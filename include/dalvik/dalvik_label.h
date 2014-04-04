@@ -10,7 +10,7 @@
 extern uint32_t dalvik_label_jump_table[DAVLIK_LABEL_POOL_SIZE];
 
 /**@brief initialization*/
-void dalvik_label_init(void);   /* initialize the label pool */
+int dalvik_label_init(void);   /* initialize the label pool */
 /**@brief finalization*/
 void dalvik_label_finalize(void);   /* finalize the global variables */
 /**@brief free a label */

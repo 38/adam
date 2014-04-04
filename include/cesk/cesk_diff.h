@@ -40,14 +40,14 @@ typedef struct {
  * @todo create empty value set during the creation of new objects 
  **/
 enum {
-	CESK_DIFF_ITEM_TYPE_NOP,			/*!< an empty diff, can not be a part of diff package, only as one possible result of reduction, 
-										 *   should be eliminated when reduction completed */
-	CESK_DIFF_ITEM_TYPE_ALLOCATE,		/*!< initialize a new address */
-	CESK_DIFF_ITEM_TYPE_DEALLOCATE,		/*!< finalize a new address, this action should not be present in the result, just used in the reverse diff */
-	CESK_DIFF_ITEM_TYPE_REUSE,			/*!< set the reuse flag of this address */
-	CESK_DIFF_ITEM_TYPE_ALLOCREUSE,		/*!< allocate & reuse */
-	CESK_DIFF_ITEM_TYPE_SET,			/*!< modifiy the set in a given address */
-	CESK_DIFF_ITEM_TYPE_ALLOCSET,		/*!< allocate a new object and then set a new value */
+	CESK_DIFF_ITEM_TYPE_NOP,        /*!< an empty diff, can not be a part of diff package, only as one possible result of reduction, 
+	                                 *   should be eliminated when reduction completed */
+	CESK_DIFF_ITEM_TYPE_ALLOCATE,   /*!< initialize a new address */
+	CESK_DIFF_ITEM_TYPE_DEALLOCATE, /*!< finalize a new address, this action should not be present in the result, just used in the reverse diff */
+	CESK_DIFF_ITEM_TYPE_REUSE,      /*!< set the reuse flag of this address */
+	CESK_DIFF_ITEM_TYPE_ALLOCREUSE, /*!< allocate & reuse */
+	CESK_DIFF_ITEM_TYPE_SET,        /*!< modifiy the set in a given address */
+	CESK_DIFF_ITEM_TYPE_ALLOCSET,   /*!< allocate a new object and then set a new value */
 };
 
 /** 
@@ -57,8 +57,8 @@ struct _cesk_diff_item_t {
 	uint8_t type;                     /*!< the type of this diff item */
 	cesk_diff_frame_addr_t frame_addr;/*!< the frame address affected */
 	union{
-		uint8_t reuse:1;			  /*!< the new value of reuse bit */
-		cesk_value_t* value;          /*!< the new value of a set */
+		uint8_t reuse:1;          /*!< the new value of reuse bit */
+		cesk_value_t* value;      /*!< the new value of a set */
 	} data;                           /*!< the diff data */
 	cesk_diff_item_t* next;           /*!< the next item (used in linked lists)*/
 };
@@ -71,6 +71,17 @@ struct _cesk_diff_t {
 	cesk_diff_item_t* head;           /*!< head of the diff list */
 	cesk_diff_item_t* tail;           /*!< tail of the diff list */
 };
+/**
+ * @brief initialize this module
+ * @return < 0 for error
+ **/
+int cesk_diff_init();
+
+/**
+ * @brief finalize this module
+ * @return nothing
+ **/
+void cesk_diff_finalize();
 
 /**
  * @brief allocate a new diff item 
@@ -149,8 +160,8 @@ cesk_diff_t* cesk_diff_merge(const cesk_diff_t* left, const cesk_diff_t* right);
 /**
  * @brief find a diff package that convert sum of products to product of sum
  * 	      that is to find @f$ f = factorize(d_0, S_0, S_1, ... S_N) @f$ such that
- * 	      @f[ S_0 * d_0 + \sum_{i = 1} S_i = f * (d_0 + \sum{i=1} S_i*d_i) @f]
- * 	      by using this trick, we can manipulate the diff which is affected by multiply inputs
+ *           @f[ S_0 * d_0 + \sum_{i = 1} S_i = f * (d_0 + \sum{i=1} S_i*d_i) @f]
+ *           by using this trick, we can manipulate the diff which is affected by multiply inputs
  *  @param d0 the diff  d0
  *  @param S0 the store S0
  *  @param ... the remaining store, ends with a NULL pointer

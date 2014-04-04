@@ -6,7 +6,7 @@
 #include <stdlib.h>
 static char _log_path[8][128] = {};
 static FILE* _log_fp[8] = {};
-void log_init()
+int log_init()
 {
 	FILE* default_fp = stderr;
 	FILE* fp = fopen(CONFIG_PATH "/log.cfg", "r");
@@ -97,9 +97,17 @@ void log_init()
 	}
 	int i;
 	for(i = 0; i < 7; i ++)
+	{
 		if(_log_fp[i] == NULL)
 			_log_fp[i] = default_fp;
+		if(NULL == _log_fp[i])
+		{
+			fprintf(stderr, "fatal: can not open file for logging");
+			return -1;
+		}
+	}
 	fclose(fp);
+	return 0;
 }
 void log_finalize()
 {

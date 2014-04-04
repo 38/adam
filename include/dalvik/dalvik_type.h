@@ -49,7 +49,7 @@ typedef struct _dalvik_type_t{
 extern dalvik_type_t* dalvik_type_atom[DALVIK_TYPECODE_NUM_ATOM];
 
 /** @brief Initialize this module */
-void dalvik_type_init(void);
+int dalvik_type_init(void);
 
 /** @brief Finalize this module */ 
 void dalvik_type_finalize(void);

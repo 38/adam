@@ -131,23 +131,24 @@ static inline uint32_t _cesk_set_idx_alloc(cesk_set_info_entry_t** p_entry)
 	return next_idx ++;
 }
 static cesk_set_t* _cesk_empty_set;   /* this is the only empty set in the table */
-void cesk_set_init()
+int cesk_set_init()
 {
 	/* make the constant empty set */
 	_cesk_empty_set = (cesk_set_t*)malloc(sizeof(cesk_set_t));
 	if(NULL == _cesk_empty_set)
 	{
-		LOG_FATAL("can not allocate memory for the constant set {}");
-		return;
+		LOG_ERROR("can not allocate memory for the constant set {}");
+		return -1;
 	}
 	cesk_set_info_entry_t* entry = NULL;
 	_cesk_empty_set->set_idx = _cesk_set_idx_alloc(&entry);
 	if(NULL == entry)
 	{
-		LOG_FATAL("invalid hash info entry");
-		return;
+		LOG_ERROR("invalid hash info entry");
+		return -1;
 	}
 	entry->refcnt ++;
+	return 0;
 }
 void cesk_set_finalize()
 {

@@ -38,7 +38,7 @@ enum{
 /** @brief initlaization 
  *  @return nothing
  */
-void log_init();
+int log_init();
 /** @brief initlaization 
  *  @return nothing
  */

@@ -1,8 +1,65 @@
 /**
  * @file cesk_diff.c
+ * @brief implementation of frame diff package
  **/
 #include <stdio.h>
+
 #include <cesk/cesk_diff.h>
+#include <vector.h>
+/**
+ * @brief data structure used as the node in the hash table for diff pacakge reduction
+ * @detail what the diff reduction actually does is merge all operations in the same address
+ *        into one adddress, so we use a hash table to build the map from address to the 
+ *        reduced operation.
+ **/
+typedef struct _cesk_diff_reduce_hash_node_t {
+	uint32_t                token;             /*!< the allocation token */
+	cesk_diff_frame_addr_t  address;           /*!< the affected address */
+	cesk_diff_item_t*       reduced;           /*!< the reduced diff item in this address */
+	struct _cesk_diff_reduce_hash_node_t* next; /*!< the next element in the slot chain */
+} _cesk_diff_reduce_hash_node_t;
+
+/** @brief the reduction hash table **/
+static _cesk_diff_reduce_hash_node_t* _cesk_diff_reduce_hash[CESK_DIFF_REDUCE_HASH_SIZE];
+/** @brief allocation pointer **/
+static uint32_t _cesk_diff_reduce_alloc_ptr;
+/** @brief allocation token **/
+static uint32_t _cesk_diff_reduce_alloc_token;
+/** @brief memory pool **/
+static vector_t* _cesk_diff_reduce_mem_pool;
+
+int cesk_diff_init()
+{
+	_cesk_diff_reduce_alloc_ptr = 0;
+	_cesk_diff_reduce_alloc_token = 0;
+	_cesk_diff_reduce_mem_pool = vector_new(sizeof(_cesk_diff_reduce_hash_node_t));
+	if(NULL == _cesk_diff_reduce_mem_pool)
+	{
+		LOG_ERROR("can not intialize memory allocator for diff package");
+		return -1;
+	}
+	memset(_cesk_diff_reduce_hash, 0, sizeof(_cesk_diff_reduce_hash));
+	return 0;
+}
+//TODO hash table functions
+void cesk_diff_finalize()
+{
+	vector_free(_cesk_diff_reduce_mem_pool);
+}
+
+/**
+ * @brief the hash code for frame address
+ * @param addr the frame address
+ * @return the hashcode
+ **/
+static inline hashval_t _cesk_diff_frame_addr_hash(cesk_diff_frame_addr_t addr)
+{
+	if(CESK_DIFF_FRAME_STORE == addr.type)
+		return addr.value * MH_MULTIPLY;
+	else
+		return (addr.value * addr.value + 107 * addr.value + 1023) * MH_MULTIPLY;
+}
+
 cesk_diff_item_t* cesk_diff_item_new()
 {
 	cesk_diff_item_t* ret = (cesk_diff_item_t*)malloc(sizeof(cesk_diff_item_t));
@@ -197,7 +254,7 @@ static inline int _cesk_diff_item_merge_allocreuse(cesk_diff_item_t* first, cesk
 			first->data.reuse = second->data.reuse;
 			return 0;
 		case CESK_DIFF_ITEM_TYPE_SET:
-			/* allocation + set ==> impossible */
+			/* allocation-reuse + set ==> impossible */
 			LOG_ERROR("can not combine allocation and set, because type do not match");
 			return -1;
 		case CESK_DIFF_ITEM_TYPE_NOP:
@@ -359,7 +416,7 @@ static inline int _cesk_diff_item_reduce(cesk_diff_item_t* first, cesk_diff_item
 			/* just copy the second item to the first */
 			first->type = second->type;
 			first->data.value = second->data.value;  /* because the reuse flag is smaller than pointer, so we only perform a 
-														pointer assignment instead of do a bit assignment */
+			                                            pointer assignment instead of do a bit assignment */
 			return 0;
 		case CESK_DIFF_ITEM_TYPE_REUSE:
 			return _cesk_diff_item_merge_reuse(first, second);
@@ -369,6 +426,7 @@ static inline int _cesk_diff_item_reduce(cesk_diff_item_t* first, cesk_diff_item
 			return _cesk_diff_item_merge_allocset(first, second);
 		default:
 			LOG_ERROR("invalid diff item type");
+			return -1;
 	}
 }
 int cesk_diff_reduce(cesk_diff_t* diff)

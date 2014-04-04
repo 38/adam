@@ -10,10 +10,16 @@
 
 vector_t *_dalvik_exception_handler_vector     = NULL;
 vector_t *_dalvik_exception_handler_set_vector = NULL;
-void dalvik_exception_init()
+int dalvik_exception_init()
 {
 	_dalvik_exception_handler_vector = vector_new(sizeof(dalvik_exception_handler_t*));
 	_dalvik_exception_handler_set_vector = vector_new(sizeof(dalvik_exception_handler_set_t*));
+	if(NULL == _dalvik_exception_handler_set_vector || NULL == _dalvik_exception_handler_set_vector)
+	{
+		LOG_ERROR("can not create new vector for exception handler");
+		return -1;
+	}
+	return 0;
 }
 void dalvik_exception_finalize()
 {

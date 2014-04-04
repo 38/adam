@@ -23,9 +23,10 @@ dalvik_memberdict_node_t* _dalvik_memberdict_hash_table[DALVIK_MEMBERDICT_SIZE];
 
 
 
-void dalvik_memberdict_init()
+int dalvik_memberdict_init()
 {
 	memset(_dalvik_memberdict_hash_table, 0, sizeof(_dalvik_memberdict_hash_table));
+	return 0;
 }
 void dalvik_memberdict_finalize()
 {

@@ -59,7 +59,7 @@ struct _dalvik_block_t{
 };
 
 /** @brief initialize block cache (function path -> block graph) */
-void dalvik_block_init();
+int dalvik_block_init();
 /** @brief finalize block cache (function path -> block graph) */
 void dalvik_block_finalize();
 

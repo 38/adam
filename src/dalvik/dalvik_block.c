@@ -101,9 +101,10 @@ static inline hashval_t _dalvik_block_hash(const char* class, const char* method
 			~((uintptr_t)class>>((sizeof(uintptr_t)/2))) ^
 			dalvik_type_list_hashcode(typelist);
 }
-void dalvik_block_init()
+int dalvik_block_init()
 {
 	memset(_dalvik_block_cache, 0, sizeof(_dalvik_block_cache));
+	return 0;
 }
 void dalvik_block_finalize()
 {

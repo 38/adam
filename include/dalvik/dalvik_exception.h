@@ -34,7 +34,7 @@ dalvik_exception_handler_set_t* dalvik_exception_new_handler_set(size_t count, d
  * So there's no interface for free
  */
 /** brief initialization */
-void dalvik_exception_init();
+int dalvik_exception_init();
 /** brief finalization */
 void dalvik_exception_finalize();
 

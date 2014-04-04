@@ -103,6 +103,11 @@
 #	define CESK_ALLOC_TABLE_NSLOTS 100007
 #endif
 
+#ifndef CESK_DIFF_REDUCE_HASH_SIZE
+/** @brief the size of the hash table used for diff reduction */
+#	define CESK_DIFF_REDUCE_HASH_SIZE 1023
+#endif
+
 /** @brief the magic number used for Knuth Multiplicative Hash */
 #define MH_MULTIPLY (2654435761ul)
 

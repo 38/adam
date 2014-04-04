@@ -1,19 +1,19 @@
 /**
  * @file cesk_alloctab.h
  * @brief The global allocation table, this file is a part of intra-procedure analyzer.
- * 		  In the intra-procedure analyzer, the terminology 'global' means the object is
- * 		  owned by all abstact frames that is involved in this function
+ *       In the intra-procedure analyzer, the terminology 'global' means the object is
+ *       owned by all abstact frames that is involved in this function
  * @details The allocation table is a table that keeps tracking the newly allocated store
- * 			address in each store. The function of this table is 
- * 			
- * 			1. keep tracking the alloction in each store
+ *       address in each store. The function of this table is 
+ *       
+ *       1. keep tracking the alloction in each store
  *
- * 			2. query the relocated address using an store object address 
+ *       2. query the relocated address using an store object address 
  *
- * 			3. get all newly allocated object in this store
+ *       3. get all newly allocated object in this store
  *
- * 			4. flush relocated address to normal address space, clean the record that is
- * 			   relocated to the store
+ *       4. flush relocated address to normal address space, clean the record that is
+ *          relocated to the store
  *
  * @todo    modify the store fork function, so that each newly forked store contains no relocated address
  */
@@ -58,10 +58,10 @@ int cesk_alloctab_insert(
  * @param store the frame store we want to query
  * @param addr the object address
  * @return the relocated address in that store, CESK_STORE_ADDR_NULL 
- * 		   means no record in this address
+ *        means no record in this address
  * @note if the input is an object address, the return address is an 
- * 		   relocated address. If the input address is a relocated address
- * 		   the return address is an object address
+ *        relocated address. If the input address is a relocated address
+ *        the return address is an object address
  **/
 uint32_t cesk_alloctab_query(
 		const cesk_alloctab_t* table,
@@ -76,8 +76,8 @@ uint32_t cesk_alloctab_query(
  * @param obj_addr the object address in that store
  **/
 int cesk_alloctab_map_addr(
-		cesk_alloctab_t*	   table,
-		cesk_store_t*		   store,
+		cesk_alloctab_t*       table,
+		cesk_store_t*          store,
 		uint32_t               rel_addr,
 		uint32_t               obj_addr);
 

@@ -13,7 +13,7 @@
 /** @brief Intialize libadam
  *  @return nothing
  */
-void adam_init(void);
+int adam_init(void);
 /** @brief Finalize libadam
  *  @return nothing
  */

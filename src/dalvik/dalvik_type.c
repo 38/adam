@@ -37,7 +37,7 @@ static inline dalvik_type_t* _dalvik_type_new(int typecode)
 	if(DALVIK_TYPE_IS_ATOM(typecode)) return dalvik_type_atom[typecode];
 	else return _dalvik_type_alloc(typecode);
 }
-void dalvik_type_init(void)
+int dalvik_type_init(void)
 {
 	int i;
 	for(i = 0; i < DALVIK_TYPECODE_NUM_ATOM; i ++)
@@ -46,8 +46,12 @@ void dalvik_type_init(void)
 		if(NULL != dalvik_type_atom[i])
 			LOG_DEBUG("Assigned memory@%p to atmoic type %d", dalvik_type_atom[i], i);
 		else 
-			LOG_FATAL("Unable to create a new atmoc type");
+		{
+			LOG_ERROR("Unable to create a new atmoc type");
+			return -1;
+		}
 	}
+	return 0;
 }
 
 void dalvik_type_finalize(void)

@@ -18,11 +18,12 @@ typedef struct _dalvik_label_map_t {
 dalvik_label_map_t* _dalvik_label_map_table[DAVLIK_LABEL_POOL_SIZE];
 int _dalvik_label_count;
 
-void dalvik_label_init(void)
+int dalvik_label_init(void)
 {
 	_dalvik_label_count = 0;
 	memset(_dalvik_label_map_table, 0, sizeof(_dalvik_label_map_table));
 	LOG_DEBUG("Dalvik Label Pool initialized");
+	return 0;
 }
 void dalvik_label_finalize(void)
 {

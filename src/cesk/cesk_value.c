@@ -25,9 +25,10 @@ static inline cesk_value_t* _cesk_value_alloc(uint32_t type)
 	ret->pointer._void = NULL;
 	return ret;
 }
-void cesk_value_init()
+int cesk_value_init()
 {
 	_cesk_value_list = NULL;
+	return 0;
 }
 /** @brief deallocate the memory for the value */
 static void _cesk_value_free(cesk_value_t* val)

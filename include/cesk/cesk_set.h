@@ -88,9 +88,9 @@ void cesk_set_free(cesk_set_t* set);
 int cesk_set_contain(const cesk_set_t* set, uint32_t addr);
 
 /** @brief initialize 
- *  @return nothing
+ *  @return < 0 for error
  */
-void cesk_set_init();
+int cesk_set_init();
 /** @brief finalize 
  *  @return nothing
  */

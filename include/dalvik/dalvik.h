@@ -30,7 +30,7 @@
 #include <dalvik/dalvik_loader.h>
 #include <dalvik/dalvik_block.h>
 /** @brief initialization */
-void dalvik_init(void);
+int dalvik_init(void);
 /** @brief finalization */
 void dalvik_finalize(void);
 

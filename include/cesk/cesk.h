@@ -23,9 +23,9 @@
  * @brief cesk analyzer
  */
 /** @brief initialize 
- *  @return nothing
+ *  @return < 0 for error
  */
-void cesk_init(void);
+int cesk_init(void);
 /** @brief finalize 
  *  @return nothing
  */

@@ -75,9 +75,9 @@ struct _cesk_value_const_t {
  *    first
  */
 /** @brief initilize 
- *  @return nothing
+ *  @return < 0 for error
  */
-void cesk_value_init();
+int cesk_value_init();
 /** @brief finalize 
  *  @return nothing
  */

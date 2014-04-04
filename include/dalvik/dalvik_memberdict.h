@@ -18,7 +18,7 @@
  * @brief initialization
  * @return nothing
  */
-void dalvik_memberdict_init();
+int dalvik_memberdict_init();
 /**
  * @brief finalzation
  * @return nothing
