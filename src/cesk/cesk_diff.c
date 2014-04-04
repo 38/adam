@@ -12,75 +12,74 @@
  *        into one adddress, so we use a hash table to build the map from address to the 
  *        reduced operation.
  **/
-typedef struct _cesk_diff_reduce_hash_node_t {
+typedef struct _cesk_diff_hash_node_t {
 	uint32_t                token;                   /*!< the allocation token */
 	cesk_diff_frame_addr_t  address;                 /*!< the affected address */
 	cesk_diff_item_t*       reduced;                 /*!< the reduced diff item in this address */
-	struct _cesk_diff_reduce_hash_node_t* hash_next; /*!< the next element in the slot chain */
-	struct _cesk_diff_reduce_hash_node_t* list_next;
-} _cesk_diff_reduce_hash_node_t;
+	struct _cesk_diff_hash_node_t* hash_next;        /*!< the next element in the slot chain */
+	struct _cesk_diff_hash_node_t* list_next;        /*!< the next element in the node list */
+} _cesk_diff_hash_node_t;
 
 /** @brief the reduction hash table **/
-static _cesk_diff_reduce_hash_node_t* _cesk_diff_reduce_hash[CESK_DIFF_REDUCE_HASH_SIZE];
+static _cesk_diff_hash_node_t* _cesk_diff_hash[CESK_DIFF_HASH_SIZE];
 /** @brief allocation pointer **/
-static uint32_t _cesk_diff_reduce_alloc_ptr;
+static uint32_t _cesk_diff_alloc_ptr;
 /** @brief allocation token **/
-static uint32_t _cesk_diff_reduce_alloc_token;
+static uint32_t _cesk_diff_alloc_token;
 /** @brief memory pool **/
-static vector_t* _cesk_diff_reduce_mem_pool;
+static vector_t* _cesk_diff_mem_pool;
 /** @brief head of the node list */
-static _cesk_diff_reduce_hash_node_t* _cesk_diff_reduce_node_list;
+static _cesk_diff_hash_node_t* _cesk_diff_node_list;
 
 int cesk_diff_init()
 {
-	_cesk_diff_reduce_alloc_ptr = 0;
-	_cesk_diff_reduce_alloc_token = 0;
-	_cesk_diff_reduce_mem_pool = vector_new(sizeof(_cesk_diff_reduce_hash_node_t));
-	if(NULL == _cesk_diff_reduce_mem_pool)
+	_cesk_diff_alloc_ptr = 0;
+	_cesk_diff_alloc_token = 0;
+	_cesk_diff_mem_pool = vector_new(sizeof(_cesk_diff_hash_node_t));
+	if(NULL == _cesk_diff_mem_pool)
 	{
 		LOG_ERROR("can not intialize memory allocator for diff package");
 		return -1;
 	}
-	memset(_cesk_diff_reduce_hash, 0, sizeof(_cesk_diff_reduce_hash));
+	memset(_cesk_diff_hash, 0, sizeof(_cesk_diff_hash));
 	return 0;
 }
 void cesk_diff_finalize()
 {
-	vector_free(_cesk_diff_reduce_mem_pool);
+	vector_free(_cesk_diff_mem_pool);
 }
 //TODO hash table functions
 /**
  * @brief clear the hash table 
  * @return nothing
  **/
-static void _cesk_diff_reduce_hash_clear()
+static void _cesk_diff_hash_clear()
 {
-	_cesk_diff_reduce_alloc_ptr = 0;
-	_cesk_diff_reduce_alloc_token ++;
-	_cesk_diff_reduce_node_list = NULL;
+	_cesk_diff_alloc_ptr = 0;
+	_cesk_diff_alloc_token ++;
+	_cesk_diff_node_list = NULL;
 }
 /**
  * @brief allocate a hash table node
  * @return pointer to the new node
  **/
-static inline _cesk_diff_reduce_hash_node_t* _cesk_diff_reduce_hash_node_alloc()
+static inline _cesk_diff_hash_node_t* _cesk_diff_hash_node_alloc()
 {
-	if(vector_size(_cesk_diff_reduce_mem_pool) < _cesk_diff_reduce_alloc_ptr)
+	if(vector_size(_cesk_diff_mem_pool) < _cesk_diff_alloc_ptr)
 	{
-		if(vector_dry_pushback(_cesk_diff_reduce_mem_pool) < 0)
+		/* if there's no used memory for the new node, just try to allocate a new one */
+		if(vector_dry_pushback(_cesk_diff_mem_pool) < 0)
 		{
-			LOG_ERROR("allocate new node");
+			LOG_ERROR("can not allocate a new node");
 			return NULL;
 		}
 	}
-	_cesk_diff_reduce_hash_node_t* ret
-		= (_cesk_diff_reduce_hash_node_t*)
-		vector_get(_cesk_diff_reduce_mem_pool, _cesk_diff_reduce_alloc_ptr++);
-	ret->token = _cesk_diff_reduce_alloc_token;
+	_cesk_diff_hash_node_t* ret = (_cesk_diff_hash_node_t*)vector_get(_cesk_diff_mem_pool, _cesk_diff_alloc_ptr++);
+	ret->token = _cesk_diff_alloc_token;
 	ret->reduced = NULL;
 	ret->hash_next = NULL;
-	ret->list_next = _cesk_diff_reduce_node_list;
-	_cesk_diff_reduce_node_list = ret;
+	ret->list_next = _cesk_diff_node_list;
+	_cesk_diff_node_list = ret;
 	return ret;
 }
 /**
@@ -88,7 +87,7 @@ static inline _cesk_diff_reduce_hash_node_t* _cesk_diff_reduce_hash_node_alloc()
  * @param addr the frame address
  * @return the hashcode
  **/
-static inline hashval_t _cesk_diff_frame_addr_hash(cesk_diff_frame_addr_t addr)
+static inline hashval_t _cesk_diff_hashcode(cesk_diff_frame_addr_t addr)
 {
 	if(CESK_DIFF_FRAME_STORE == addr.type)
 		return addr.value * MH_MULTIPLY;
@@ -100,20 +99,20 @@ static inline hashval_t _cesk_diff_frame_addr_hash(cesk_diff_frame_addr_t addr)
  * @param addr
  * @return the pointer to the node in given address, NULL when error 
  **/
-static inline _cesk_diff_reduce_hash_node_t* _cesk_diff_reduce_hash_find(cesk_diff_frame_addr_t addr)
+static inline _cesk_diff_hash_node_t* _cesk_diff_hash_find(cesk_diff_frame_addr_t addr)
 {
-	hashval_t h = _cesk_diff_frame_addr_hash(addr);
-	_cesk_diff_reduce_hash_node_t* ptr;
+	hashval_t h = _cesk_diff_hashcode(addr)%CESK_DIFF_HASH_SIZE;
+	_cesk_diff_hash_node_t* ptr;
 	/* try to find the node in the hash */
-	for(ptr = _cesk_diff_reduce_hash[h];
-		NULL != ptr && _cesk_diff_reduce_alloc_token == ptr->token;
+	for(ptr = _cesk_diff_hash[h];
+		NULL != ptr && _cesk_diff_alloc_token == ptr->token;
 		ptr = ptr->hash_next) 
 		if(ptr->address.type == addr.type && ptr->address.value == addr.value)
 			return ptr;
 	/* we didn't find any existing node here */
-	if(NULL != _cesk_diff_reduce_hash[h] && _cesk_diff_reduce_alloc_token != ptr->token)
-		_cesk_diff_reduce_hash[h] = NULL;
-	ptr = _cesk_diff_reduce_hash_node_alloc();
+	if(NULL != _cesk_diff_hash[h] && _cesk_diff_alloc_token != ptr->token)
+		_cesk_diff_hash[h] = NULL;
+	ptr = _cesk_diff_hash_node_alloc();
 	if(NULL == ptr)
 	{
 		LOG_ERROR("can not allocate memory for new reduction hash table node");
@@ -121,8 +120,8 @@ static inline _cesk_diff_reduce_hash_node_t* _cesk_diff_reduce_hash_find(cesk_di
 	}
 	ptr->address.value = addr.value;
 	ptr->address.type  = addr.type;
-	ptr->hash_next = _cesk_diff_reduce_hash[h];
-	_cesk_diff_reduce_hash[h] = ptr;
+	ptr->hash_next = _cesk_diff_hash[h];
+	_cesk_diff_hash[h] = ptr;
 	return ptr;
 }
 cesk_diff_item_t* cesk_diff_item_new()
@@ -169,8 +168,9 @@ void cesk_diff_free(cesk_diff_t* diff)
 		ptr = ptr->next;
 		if(node->type == CESK_DIFF_ITEM_TYPE_SET)
 			cesk_value_decref(node->data.value);
-		free(node);
+		cesk_diff_item_free(node);
 	}
+	free(diff);
 }
 
 int cesk_diff_push_front(cesk_diff_t* diff, cesk_diff_item_t* item)
@@ -205,7 +205,7 @@ int cesk_diff_push_back(cesk_diff_t* diff, cesk_diff_item_t* item)
 		return -1;
 	}
 	item->next = NULL;
-	diff->tail->next = item;
+	if(NULL != diff->tail)diff->tail->next = item;
 	diff->tail = item;
 	if(NULL == diff->head) /* if this is the first element in the list */
 		diff->head = diff->tail;
@@ -508,10 +508,10 @@ int cesk_diff_reduce(cesk_diff_t* diff)
 		cesk_diff_item_t* this = ptr;
 		ptr = ptr->next;
 		/* do merge */
-		_cesk_diff_reduce_hash_node_t* node = _cesk_diff_reduce_hash_find(ptr->frame_addr);
+		_cesk_diff_hash_node_t* node = _cesk_diff_hash_find(this->frame_addr);
 		if(NULL == node)
 		{
-			LOG_ERROR("failed to aquire the node for address <%u,%u>", ptr->frame_addr.type, ptr->frame_addr.value);
+			LOG_ERROR("failed to aquire the node for address <%u,%u>", this->frame_addr.type, this->frame_addr.value);
 			return -1;
 		}
 		else
@@ -528,7 +528,7 @@ int cesk_diff_reduce(cesk_diff_t* diff)
 					LOG_ERROR("can not reduce the diff item");
 					return -1;
 				}
-				free(this);
+				cesk_diff_item_free(this);
 			}
 		}
 	}
@@ -536,8 +536,8 @@ int cesk_diff_reduce(cesk_diff_t* diff)
 	diff->head = NULL;
 	diff->tail = NULL;
 	diff->red  = 1;
-	_cesk_diff_reduce_hash_node_t* np;
-	for(np = _cesk_diff_reduce_node_list; 
+	_cesk_diff_hash_node_t* np;
+	for(np = _cesk_diff_node_list; 
 		np != NULL;
 		np = np->list_next)
 	{
@@ -548,7 +548,7 @@ int cesk_diff_reduce(cesk_diff_t* diff)
 			diff->tail = this;
 	}
 	/* clear the temp hash table */
-	_cesk_diff_reduce_hash_clear();
+	_cesk_diff_hash_clear();
 	return 0;
 }
 #define __PR(fmt, args...) buf += sprintf(buf, fmt, ##args)

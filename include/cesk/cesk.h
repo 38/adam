@@ -18,10 +18,6 @@
 #include <cesk/cesk_alloctab.h>
 #include <cesk/cesk_reloc.h>
 
-/**
- * @file cesk.h
- * @brief cesk analyzer
- */
 /** @brief initialize 
  *  @return < 0 for error
  */

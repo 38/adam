@@ -105,7 +105,7 @@
 
 #ifndef CESK_DIFF_REDUCE_HASH_SIZE
 /** @brief the size of the hash table used for diff reduction */
-#	define CESK_DIFF_REDUCE_HASH_SIZE 1023
+#	define CESK_DIFF_HASH_SIZE 1023
 #endif
 
 /** @brief the magic number used for Knuth Multiplicative Hash */

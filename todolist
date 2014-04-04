@@ -1,1 +1,3 @@
-cesk_diff  doing diff reduction  ( hash tables )
+cesk_diff  doing diff merge
+
+question: make a copy of the diff?
