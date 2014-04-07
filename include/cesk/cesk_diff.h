@@ -134,12 +134,22 @@ int cesk_diff_push_back(cesk_diff_t* diff, cesk_diff_item_t* item);
 int cesk_diff_reduce(cesk_diff_t* diff);
 
 /**
+ * @brief deep copy the diff package
+ * @param diff the diff package to copy
+ * @return the new copy of this diff package NULL for error
+ **/
+cesk_diff_t* cesk_diff_clone(const cesk_diff_t* diff);
+
+/**
  * @brief apply left diff package to the right diff package (left * right)
  * @param left the left diff package
  * @param right the right diff package
- * @return the pointer to the result diff package, NULL means error
+ * @return merge result < 0 means error
+ * @note   the diff `right' will be freed after the application, and `left' will be modified
+ *         so that it will be the diff package that has been merged so if you will use either
+ *         of two input diff, you must provide a copy of the diff package using cesk_diff_clone
  **/
-cesk_diff_t* cesk_diff_apply_d(const cesk_diff_t* left, const cesk_diff_t* right);
+int cesk_diff_apply_d(cesk_diff_t* left, cesk_diff_t* right);
 
 /**
  * @brief apply the diff package to the store
@@ -153,9 +163,10 @@ int cesk_diff_apply_s(const cesk_diff_t* diff, cesk_store_t* store);
  * @brief merge the left diff pacakge and the right diff package 
  * @param left the left diff package
  * @param right the right diff pacakge
- * @return the pointer to the result diff package, NULL means error
+ * @return result < 0 means error
+ * @note the
  **/
-cesk_diff_t* cesk_diff_merge(const cesk_diff_t* left, const cesk_diff_t* right);
+int cesk_diff_merge(cesk_diff_t* left, cesk_diff_t* right);
 
 /**
  * @brief find a diff package that convert sum of products to product of sum

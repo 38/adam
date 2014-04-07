@@ -350,7 +350,7 @@ static inline int _cesk_diff_item_merge_reuse(cesk_diff_item_t* first, cesk_diff
 			return -1;
 		case CESK_DIFF_ITEM_TYPE_DEALLOCATE:
 			/* reuse + deallocation ==> impossible */
-			LOG_ERROR("deallocation must followed by allocation");
+			LOG_ERROR("there's no chance for reuse and allocation occur in the same block at one time");
 			return -1;
 		case CESK_DIFF_ITEM_TYPE_REUSE:
 			/* reuse + reuse ==> reuse */
@@ -389,8 +389,9 @@ static inline int _cesk_diff_item_merge_set(cesk_diff_item_t* first, cesk_diff_i
 			LOG_ERROR("can not allocate after set");
 			return -1;
 		case CESK_DIFF_ITEM_TYPE_DEALLOCATE:
-			/* set + deallocate ==> impossible */
-			LOG_ERROR("can not merge deallocation before set");
+			/* set + deallocate ==> delocation */
+			cesk_value_decref(first->data.value);
+			first->type = CESK_DIFF_ITEM_TYPE_DEALLOCATE;
 			return -1;
 		case CESK_DIFF_ITEM_TYPE_REUSE:
 			/* set + reuse ==> impossible */
@@ -494,6 +495,39 @@ static inline int _cesk_diff_item_reduce(cesk_diff_item_t* first, cesk_diff_item
 			return -1;
 	}
 }
+cesk_diff_t* cesk_diff_clone(const cesk_diff_t* diff)
+{
+	if(NULL == diff)
+	{
+		LOG_ERROR("invalid argument");
+		return NULL;
+	}
+	
+	cesk_diff_t* ret = cesk_diff_new();
+	if(NULL == ret)
+	{
+		LOG_ERROR("can not allocate a new diff package strcuture for the copy");
+		return NULL;
+	}
+	ret->red = diff->red;
+	const cesk_diff_item_t* sour;
+	for(sour = diff->head; NULL != sour; sour = sour->next)
+	{
+		cesk_diff_item_t* dest = cesk_diff_item_new();
+		if(NULL == dest)
+		{
+			LOG_ERROR("can not allocate memory for the copy of diff item %s", cesk_diff_item_to_string(dest, NULL));
+			goto L_ERR;
+		}
+		memcpy(dest, sour, sizeof(cesk_diff_item_t));
+		if(CESK_DIFF_ITEM_TYPE_SET == dest->type)
+			cesk_value_incref(dest->data.value);
+	}
+	return ret;
+L_ERR:
+	cesk_diff_free(ret);
+	return NULL;
+}
 int cesk_diff_reduce(cesk_diff_t* diff)
 {
 	if(NULL == diff)
@@ -548,6 +582,86 @@ int cesk_diff_reduce(cesk_diff_t* diff)
 			diff->tail = this;
 	}
 	/* clear the temp hash table */
+	_cesk_diff_hash_clear();
+	return 0;
+}
+
+int cesk_diff_apply_d(cesk_diff_t* left, cesk_diff_t* right)
+{
+	if(NULL == left || NULL == right)
+	{
+		LOG_ERROR("invalid argument");
+		return -1;
+	}
+	/* first, try to reduce the two input */
+	if(left->red == 0 || right->red == 0)
+	{
+		LOG_ERROR("can not apply an unreduced diff to other diff");
+		return -1;
+	}
+	/* if the first one is empty, return the second one */
+	if(NULL == left->head)
+	{
+		left->head = right->head;
+		left->tail = right->tail;
+		free(right);
+		return 0;
+	}
+	/* otherwise, merge two list and try to reduce it again */
+	left->tail = right->head;
+	left->red = 0;
+	free(right);
+	if(cesk_diff_reduce(left) < 0)
+	{
+		LOG_ERROR("can not reduce the result");
+		cesk_diff_free(left);
+		return -1;
+	}
+	return 0;
+}
+int cesk_diff_apply_s(const cesk_diff_t* diff, cesk_store_t* store)
+{
+	LOG_ERROR("unimplememnted");
+	/* TODO */
+	return -1;
+}
+int cesk_diff_merge(cesk_diff_t* left, cesk_diff_t* right)
+{
+	if(NULL == left || NULL == right)
+	{
+		LOG_ERROR("invalid parameters");
+		return -1;
+	}
+	if(left->red == 0 || right->red == 0)
+	{
+		LOG_ERROR("can not merge unreduced diff packages");
+		return -1;
+	}
+	/* insert all elements in the first diff package first */
+	cesk_diff_item_t *ptr;
+	for(ptr = left->head; ptr != NULL;)
+	{
+		cesk_diff_item_t* this = ptr;
+		ptr = ptr->next;
+		_cesk_diff_hash_node_t* node = _cesk_diff_hash_find(ptr->address);
+		if(NULL == node)
+		{
+			LOG_ERROR("can no aquire the address in the table");
+			return -1;
+		}
+		if(node->reduced != NULL)
+		{
+			LOG_ERROR("there are two diff items that affects the same address");
+			return -1;
+		}
+		else
+		{
+			node->reduced = this;
+		}
+	}
+	/* now merge the second diff package */
+	//TODO
+	/* fianlly clear the hash table */
 	_cesk_diff_hash_clear();
 	return 0;
 }

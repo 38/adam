@@ -12,6 +12,21 @@
  *
  * @note   This table also hold one refcount to make sure that all value in this table is valid
  **/
+/*
+ 	example for allocate an relocated object
+
+	cesk_reloc_allocate();   allocate a new RA
+	cesk_store_attach;       set the new value
+	cesk_store_release_rw;   finalize writing
+	
+	now we should allocate all fields with an empty set
+
+	cesk_reloc_set_init_value; so that we can pass the default value to others
+
+
+	in the diff, if there's a allocation request, just do
+	cesk_reloc_addr_init();
+*/
 #ifndef __CESK_RELOC_H__
 #define __CESK_RELOC_H__
 #include <cesk/cesk_store.h>
