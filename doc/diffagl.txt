@@ -1,0 +1,26 @@
+A	Allocation 
+D	Deallocation
+S	SetValue 
+R	SetReuseFlag
+AS  Allocation then SetValue
+AR	Allocation then SetReuseFlag
+N	Nop
+===========================================
+*	A	D	S	R	AS	AR	N
+A		N	AS	AR			A
+D	N				S	R	D
+S		D	S		AS		S
+R				R		AR	R
+AS			AS				AS
+AR				AR			AR
+N	A	D	S	R	AS	AR	N
+===========================================
++	A	D	S	R	AS	AR	N
+A	A		S	R	AS	AR	A		
+D							
+S	S		S		AS		S
+R	R			R		AR	R
+AS	AS		AS		AS		AS	
+AR	AR			AR		AR	AR
+N	A		S	R	AS	AR	N
+===========================================

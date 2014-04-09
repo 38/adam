@@ -217,7 +217,7 @@ int cesk_diff_push_back(cesk_diff_t* diff, cesk_diff_item_t* item)
  * @param second the second diff item (later one)
  * @return the result of reduction, <0 means error.
  **/
-static inline int _cesk_diff_item_merge_allocation(cesk_diff_item_t* first, cesk_diff_item_t* second)
+static inline int _cesk_diff_item_reduce_allocation(cesk_diff_item_t* first, cesk_diff_item_t* second)
 {
 	switch(second->type)
 	{
@@ -257,7 +257,7 @@ static inline int _cesk_diff_item_merge_allocation(cesk_diff_item_t* first, cesk
  * @param second the second diff item (later one)
  * @return the result of reduction, <0 means error.
  **/
-static inline int _cesk_diff_item_merge_deallocation(cesk_diff_item_t* first, cesk_diff_item_t* second)
+static inline int _cesk_diff_item_reduce_deallocation(cesk_diff_item_t* first, cesk_diff_item_t* second)
 {
 	switch(second->type)
 	{
@@ -296,7 +296,7 @@ static inline int _cesk_diff_item_merge_deallocation(cesk_diff_item_t* first, ce
  * @param second the second diff item (later one)
  * @return the result of reduction, <0 means error.
  **/
-static inline int _cesk_diff_item_merge_allocreuse(cesk_diff_item_t* first, cesk_diff_item_t* second)
+static inline int _cesk_diff_item_reduce_allocreuse(cesk_diff_item_t* first, cesk_diff_item_t* second)
 {
 	switch(second->type)
 	{
@@ -336,7 +336,7 @@ static inline int _cesk_diff_item_merge_allocreuse(cesk_diff_item_t* first, cesk
  * @param second the second diff item (later one)
  * @return the result of reduction, <0 means error.
  **/
-static inline int _cesk_diff_item_merge_reuse(cesk_diff_item_t* first, cesk_diff_item_t* second)
+static inline int _cesk_diff_item_reduce_reuse(cesk_diff_item_t* first, cesk_diff_item_t* second)
 {
 	switch(second->type)
 	{
@@ -376,7 +376,7 @@ static inline int _cesk_diff_item_merge_reuse(cesk_diff_item_t* first, cesk_diff
  * @param second the second diff item (later one)
  * @return the result of reduction, <0 means error.
  **/
-static inline int _cesk_diff_item_merge_set(cesk_diff_item_t* first, cesk_diff_item_t* second)
+static inline int _cesk_diff_item_reduce_set(cesk_diff_item_t* first, cesk_diff_item_t* second)
 {
 	switch(second->type)
 	{
@@ -417,7 +417,7 @@ static inline int _cesk_diff_item_merge_set(cesk_diff_item_t* first, cesk_diff_i
  * @param second the second diff item (later one)
  * @return the result of reduction, <0 means error.
  **/
-static inline int _cesk_diff_item_merge_allocset(cesk_diff_item_t* first, cesk_diff_item_t* second)
+static inline int _cesk_diff_item_reduce_allocset(cesk_diff_item_t* first, cesk_diff_item_t* second)
 {
 	switch(second->type)
 	{
@@ -460,7 +460,7 @@ static inline int _cesk_diff_item_merge_allocset(cesk_diff_item_t* first, cesk_d
 static inline int _cesk_diff_item_reduce(cesk_diff_item_t* first, cesk_diff_item_t* second)
 {
 	/* we do not check the validity of the pointers */
-	LOG_DEBUG("merge two diff item");
+	LOG_DEBUG("applying the second diff to the first one");
 	LOG_DEBUG("first = %s", cesk_diff_item_to_string(first, NULL));
 	LOG_DEBUG("second = %s", cesk_diff_item_to_string(second, NULL));
 	/* verify two items affects the same address */
@@ -473,11 +473,11 @@ static inline int _cesk_diff_item_reduce(cesk_diff_item_t* first, cesk_diff_item
 	switch(first->type)
 	{
 		case CESK_DIFF_ITEM_TYPE_ALLOCATE:
-			return _cesk_diff_item_merge_allocation(first, second);
+			return _cesk_diff_item_reduce_allocation(first, second);
 		case CESK_DIFF_ITEM_TYPE_DEALLOCATE:
-			return _cesk_diff_item_merge_deallocation(first, second);
+			return _cesk_diff_item_reduce_deallocation(first, second);
 		case CESK_DIFF_ITEM_TYPE_ALLOCREUSE:
-			return _cesk_diff_item_merge_allocreuse(first, second);
+			return _cesk_diff_item_reduce_allocreuse(first, second);
 		case CESK_DIFF_ITEM_TYPE_NOP:
 			/* just copy the second item to the first */
 			first->type = second->type;
@@ -485,11 +485,11 @@ static inline int _cesk_diff_item_reduce(cesk_diff_item_t* first, cesk_diff_item
 			                                            pointer assignment instead of do a bit assignment */
 			return 0;
 		case CESK_DIFF_ITEM_TYPE_REUSE:
-			return _cesk_diff_item_merge_reuse(first, second);
+			return _cesk_diff_item_reduce_reuse(first, second);
 		case CESK_DIFF_ITEM_TYPE_SET:
-			return _cesk_diff_item_merge_set(first, second);
+			return _cesk_diff_item_reduce_set(first, second);
 		case CESK_DIFF_ITEM_TYPE_ALLOCSET:
-			return _cesk_diff_item_merge_allocset(first, second);
+			return _cesk_diff_item_reduce_allocset(first, second);
 		default:
 			LOG_ERROR("invalid diff item type");
 			return -1;
@@ -625,6 +625,69 @@ int cesk_diff_apply_s(const cesk_diff_t* diff, cesk_store_t* store)
 	/* TODO */
 	return -1;
 }
+/**
+ * @brief merge two diff item (perform an add operation left + right)
+ * @param left the left operand
+ * @param right the right operand
+ * @return the result of the merge
+ * @note the caller is responsible for cleaning the second operand after successfully merged
+ *       two items 
+ **/
+static inline int _cesk_diff_item_merge(cesk_diff_item_t* left, cesk_diff_item_t* right)
+{
+	/* won't check the validity of the pointer */
+	LOG_DEBUG("we are going to merge two diff items");
+	LOG_DEBUG("first = %s", cesk_diff_item_to_string(left, NULL));
+	LOG_DEBUG("second = %s", cesk_diff_item_to_string(right, NULL));
+	/* check the comptibility of two diff item */
+	if(left->frame_addr.type != right->frame_addr.type ||
+	   left->frame_addr.value != right->frame_addr.value)
+	{
+		LOG_ERROR("can not merge two diff item which does not affect the same address");
+		return -1;
+	}
+	/* because the merge operation is symmetric, so we can enumerate only 7 * (7 + 1) / 2 = 28 cases
+	 * To do this, we should assume that the opcode of te first item is numerally larger than that of 
+	 * the second. If this condition is not satisified, we need to swap the two pointer.
+	 * But this can cause problems, because the caller is responsible for call free function to the 
+	 * second diff item. So if we swapped two pointer, the caller can not clean up the unused memory 
+	 * properly. 
+	 * So we need to swap the value rather than the opinter
+	 */
+	if(left->type > right->type)
+	{
+		/* swap two value */
+		char buf[sizeof(cesk_diff_item_t)];
+		memcpy(buf, left, sizeof(cesk_diff_item_t));
+		memcpy(left, right, sizeof(cesk_diff_item_t));
+		memcpy(right, buf, sizeof(cesk_diff_item_t));
+	}
+	/* ok, now we start to enumerate the cases */
+	switch(left->type)
+	{
+		case CESK_DIFF_ITEM_TYPE_NOP:
+			/* just copy the second item to the first */
+			left->type = right->type;
+			left->data.value = right->data.value; 
+			return 0;
+			//TODO
+		/*case CESK_DIFF_ITEM_TYPE_ALLOCATE:
+			return _cesk_diff_item_merge_allocation(first, second);
+		case CESK_DIFF_ITEM_TYPE_DEALLOCATE:
+			return _cesk_diff_item_merge_deallocation(first, second);
+		case CESK_DIFF_ITEM_TYPE_REUSE:
+			return _cesk_diff_item_merge_reuse(first, second);
+		case CESK_DIFF_ITEM_TYPE_ALLOCREUSE:
+			return _cesk_diff_item_merge_allocreuse(first, second);
+		case CESK_DIFF_ITEM_TYPE_SET:
+			return _cesk_diff_item_merge_set(first, second);
+		case CESK_DIFF_ITEM_TYPE_ALLOCSET:
+			return _cesk_diff_item_merge_allocset(first, second);*/
+		default:
+			LOG_ERROR("invalid diff item type");
+			return -1;
+	}
+}
 int cesk_diff_merge(cesk_diff_t* left, cesk_diff_t* right)
 {
 	if(NULL == left || NULL == right)
@@ -643,7 +706,7 @@ int cesk_diff_merge(cesk_diff_t* left, cesk_diff_t* right)
 	{
 		cesk_diff_item_t* this = ptr;
 		ptr = ptr->next;
-		_cesk_diff_hash_node_t* node = _cesk_diff_hash_find(ptr->address);
+		_cesk_diff_hash_node_t* node = _cesk_diff_hash_find(ptr->frame_addr);
 		if(NULL == node)
 		{
 			LOG_ERROR("can no aquire the address in the table");
@@ -660,7 +723,41 @@ int cesk_diff_merge(cesk_diff_t* left, cesk_diff_t* right)
 		}
 	}
 	/* now merge the second diff package */
-	//TODO
+	for(ptr = right->head; ptr != NULL; )
+	{
+		cesk_diff_item_t* this = ptr;
+		ptr = ptr->next;
+		_cesk_diff_hash_node_t* node = _cesk_diff_hash_find(ptr->frame_addr);
+		if(NULL == node)
+		{
+			LOG_ERROR("can not find the address in the table");
+			return -1;
+		}
+		if(node->reduced != NULL)
+		{
+			/* a diff item is already there, merge the value */
+			//TODO
+		}
+		else
+		{
+			/* this is totally new, just add it to the table */
+			node->reduced = this;
+		}
+	}
+	/* reconstruct the list in the first diff package */
+	_cesk_diff_hash_node_t* np;
+	left->red = 0;
+	left->head = NULL;
+	left->tail = NULL;
+
+	for(np = _cesk_diff_node_list; NULL != np; np = np->list_next)
+	{
+		cesk_diff_item_t* this = np->reduced;
+		this->next = left->head;
+		left->head = this;
+		if(left->tail == NULL)
+			left->tail = left->head;
+	}
 	/* fianlly clear the hash table */
 	_cesk_diff_hash_clear();
 	return 0;
