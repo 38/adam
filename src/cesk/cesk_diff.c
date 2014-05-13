@@ -1,6 +1,7 @@
 /**
  * @file cesk_diff.c
  * @brief implementation of frame diff package
+ * @todo review the code, and the idea of diff
  **/
 #include <stdio.h>
 
@@ -626,6 +627,58 @@ int cesk_diff_apply_s(const cesk_diff_t* diff, cesk_store_t* store)
 	return -1;
 }
 /**
+ * @brief merge a allocation operation with anoterh operation
+ * @param left the allocation operation
+ * @param right the other opration 
+ * @return < 0 for error 
+ **/
+static inline int _cesk_diff_item_merge_allocation(cesk_diff_item_t* left, cesk_diff_item_t* right)
+{
+	switch(right->type)
+	{
+		case CESK_DIFF_ITEM_TYPE_ALLOCATE:
+			/* allocation + allocation ==> allocation */
+			return 0;
+		case CESK_DIFF_ITEM_TYPE_DEALLOCATE:
+			/* allocation + delocation ==> impossible */
+			LOG_ERROR("can not merge a diff pakcage with deallocation");
+			return 0;
+		case CESK_DIFF_ITEM_TYPE_ALLOCSET:
+			/* allocation + allocation-set = allocation-set */
+			left->type = CESK_DIFF_ITEM_TYPE_ALLOCSET;
+			left->data.value = right->data.value;
+			return 0;
+		case CESK_DIFF_ITEM_TYPE_ALLOCREUSE:
+			/* allocation + allocation-reuse = allocation-reuse */
+			left->type = CESK_DIFF_ITEM_TYPE_ALLOCREUSE;
+			return 0;
+		case CESK_DIFF_ITEM_TYPE_REUSE:
+			/* allocation + reuse = reuse */
+			left->type = CESK_DIFF_ITEM_TYPE_REUSE;
+			left->data.reuse = right->data.reuse;
+			return 0;
+		case CESK_DIFF_ITEM_TYPE_SET:
+			/* allocation + set = set */
+			left->type = CESK_DIFF_ITEM_TYPE_SET;
+			left->data.value = right->data.value;
+			return 0;
+		default:
+			LOG_ERROR("invalid second operand");
+			return -1;
+	}
+}
+/**
+ * @brief merge the deallocation operation with another operation
+ * @param first the deallocation operation
+ * @param second the other operation
+ **/
+static inline int _cesk_diff_item_merge_deallocation(cesk_diff_item_t* first, cesk_diff_item_t* second)
+{
+	LOG_ERROR("can not merge a delocation with other operations");
+	return -1;
+}
+
+/**
  * @brief merge two diff item (perform an add operation left + right)
  * @param left the left operand
  * @param right the right operand
@@ -670,11 +723,11 @@ static inline int _cesk_diff_item_merge(cesk_diff_item_t* left, cesk_diff_item_t
 			left->type = right->type;
 			left->data.value = right->data.value; 
 			return 0;
-			//TODO
-		/*case CESK_DIFF_ITEM_TYPE_ALLOCATE:
-			return _cesk_diff_item_merge_allocation(first, second);
+		case CESK_DIFF_ITEM_TYPE_ALLOCATE:
+			return _cesk_diff_item_merge_allocation(left, right);
 		case CESK_DIFF_ITEM_TYPE_DEALLOCATE:
-			return _cesk_diff_item_merge_deallocation(first, second);
+			return _cesk_diff_item_merge_deallocation(left, right);
+		/*
 		case CESK_DIFF_ITEM_TYPE_REUSE:
 			return _cesk_diff_item_merge_reuse(first, second);
 		case CESK_DIFF_ITEM_TYPE_ALLOCREUSE:

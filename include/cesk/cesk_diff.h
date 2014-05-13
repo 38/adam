@@ -171,7 +171,7 @@ int cesk_diff_merge(cesk_diff_t* left, cesk_diff_t* right);
 /**
  * @brief find a diff package that convert sum of products to product of sum
  * 	      that is to find @f$ f = factorize(d_0, S_0, S_1, ... S_N) @f$ such that
- *           @f[ S_0 * d_0 + \sum_{i = 1} S_i = f * (d_0 + \sum{i=1} S_i*d_i) @f]
+ *           @f[ S_0 * d_0 + \sum_{i = 1} S_i = f * (d_0 + \sum_{i=1} S_i*d_i) @f]
  *           by using this trick, we can manipulate the diff which is affected by multiply inputs
  *  @param d0 the diff  d0
  *  @param S0 the store S0
