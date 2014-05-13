@@ -5,6 +5,7 @@
  */
 #include <stdint.h>
 
+/* previous defininitions */
 /** @brief data structure for an dalvik bytecode */
 typedef struct _dalvik_instruction_t dalvik_instruction_t;
 
@@ -18,6 +19,9 @@ typedef struct _dalvik_instruction_t dalvik_instruction_t;
 #include <constants.h>
 
 #include <string.h>
+
+#include <const_assertion.h>
+
 /** @brief Define all opcodes for Dalvik Virtual Machine */
 enum {
 	/** No Operation */
@@ -56,6 +60,7 @@ enum {
 	DVM_NUM_OF_OPCODE    /* How many items in the enumerate */
 };
 
+
 /**@brief Size specifier */
 enum{
 	DVM_OPERAND_SIZE_32, /*!<32 bit*/
@@ -75,15 +80,16 @@ enum {
 	DVM_OPERAND_TYPE_FLOAT,
 	DVM_OPERAND_TYPE_OBJECT,
 	DVM_OPERAND_TYPE_STRING,
-	DVM_OPERAND_TYPE_CLASS,     /*!<class path */
+	DVM_OPERAND_TYPE_CLASS,       /*!<class path */
 	DVM_OPERAND_TYPE_VOID,
-	DVM_OPERAND_TYPE_LABEL,
-	DVM_OPERAND_TYPE_LABELVECTOR,
-	DVM_OPERAND_TYPE_SPARSE,
-	DVM_OPERAND_TYPE_TYPEDESC,
-	DVM_OPERAND_TYPE_TYPELIST,
+	DVM_OPERAND_TYPE_LABEL,       /*!<This indicates that the data is a label, which represents by a label ID */
+	DVM_OPERAND_TYPE_LABELVECTOR, /*!< A bounch of label */
+	DVM_OPERAND_TYPE_SPARSE,      /*!< Sparse label vector */
+	DVM_OPERAND_TYPE_TYPEDESC,    /*!< Type descriptor */
+	DVM_OPERAND_TYPE_TYPELIST,    /*!< list of type descriptor */
 	DVM_OPERAND_TYPE_FIELD,
-	DVM_OPERAND_TYPE_EXCEPTION     /*!<If a operand is this type, that means the operand won't use the payload, this means data is in exception register*/
+	DVM_OPERAND_TYPE_EXCEPTION,    /*!<If a operand is this type, that means the operand won't use the payload, data stored is in exception register*/
+	DVM_OPERAND_NUM_TYPES          /*!<Number of types */
 };
 /** @brief convert a type to flag
  *  @param what the type we want to convert
@@ -94,6 +100,9 @@ enum {
 #define DVM_OPERAND_FLAG_CONST      0x40
 /** @brief result bit */
 #define DVM_OPERAND_FLAG_RESULT     0x80
+
+CONST_ASSERTION_LE(DVM_OPERAND_NUM_TYPES, 32)     /* only 5 bits for a type code */
+
 /** @brief the header of the operand*/
 typedef union {
 	uint8_t    flags;  /*!<flag byte*/
@@ -109,18 +118,18 @@ typedef union {
 struct _dalvik_instruction_t;
 
 /**@brief this structure is used for reprsenting 
- * a conditonal brach.
+ * a conditonal branch.
  * if the register euqals the `cond'
  * then the instruction makes the DVM
  * jump to labelid 
  */
 typedef struct {
-	int32_t     cond;	/*!<condition*/
+	int32_t     cond;	     /*!<condition*/
 	uint8_t     is_default:1;/*!<is default breanch?*/
-	int32_t     labelid:31; /*!<the label id*/
+	int32_t     labelid:31;  /*!<the label id*/
 } dalvik_sparse_switch_branch_t; 
 
-/** @brief General operand type */
+/** @brief generic operand type */
 typedef struct {
 	dalvik_operand_header header;   /*!<the header of this operand*/
 	union{
@@ -141,11 +150,13 @@ typedef struct {
 		vector_t*          sparse;              /*!<a sparse-switch oprand */
 		dalvik_type_t*     type;                /*!<this operand is a type, if the type code is DVM_OPERAND_TYPE_TYPEDESC */
 		const dalvik_type_t *const*    typelist;/*!<if the type code is DVM_OPERAND_TYPE_TYPELIST, the pointer points an array of 
-		 * points, which ends with a null pointer
-		 */
+		                                         * points, which ends with a null pointer
+		                                         */
 		const char*        field;               /*!<The field we what to operate */
 	} payload;
 } dalvik_operand_t;
+
+CONST_ASSERTION_LE(DVM_NUM_OF_OPCODE, 16)   /* because the type requires a 4 bit opcode */
 
 /** @brief the DVM instruction */
 struct _dalvik_instruction_t{
@@ -282,6 +293,7 @@ static inline const dalvik_instruction_t* dalvik_instruction_get(uint32_t offset
 	extern dalvik_instruction_t* dalvik_instruction_pool;
 	return dalvik_instruction_pool + offset;
 }
+/** @brief set the next instruction of currently last instruction */
 static inline void dalvik_instruction_set_next(uint32_t last, const dalvik_instruction_t* inst)
 {
 	extern dalvik_instruction_t* dalvik_instruction_pool;

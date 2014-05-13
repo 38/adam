@@ -39,7 +39,12 @@ static int _dalvik_instruction_pool_resize()
 	LOG_DEBUG("resize dalvik instruction pool from %zu to %zu", _dalvik_instruction_pool_capacity, 
 															  _dalvik_instruction_pool_capacity *2);
 	dalvik_instruction_t* old_pool;
-	assert(dalvik_instruction_pool != NULL);
+	//assert(dalvik_instruction_pool != NULL);
+	if(NULL == dalvik_instruction_pool) 
+	{
+		LOG_ERROR("can not resize an uninitialized pool");
+		return -1;
+	}
 	
 	old_pool = dalvik_instruction_pool;
 	
@@ -77,6 +82,10 @@ int dalvik_instruction_finalize( void )
 	int i;
 	if(NULL != dalvik_instruction_pool)
 	{
+		/* Although all instruction can be freed by freeing the instruction pool,
+		 * But before this we should free the additional data attached to each instruction
+		 * first
+		 */
 		for(i = 0; i < _dalvik_instruction_pool_size; i ++)
 			dalvik_instruction_free(dalvik_instruction_pool + i);
 
@@ -97,8 +106,9 @@ dalvik_instruction_t* dalvik_instruction_new( void )
 	}
 	dalvik_instruction_t* val = dalvik_instruction_pool + (_dalvik_instruction_pool_size ++);
 	memset(val, 0, sizeof(dalvik_instruction_t));
-	/* TODO: because we assume the next instruction is the following instruction in the pool, so 
-	 * is this field a meaningful one?
+	/* 
+	 * TODO: because we assume the next instruction is the following instruction in the pool, so 
+	 * is this field a useless one? 
 	 */
 	val->next = DALVIK_INSTRUCTION_INVALID;   
 	return val;
@@ -116,7 +126,7 @@ static inline void _dalvik_instruction_operand_setup(dalvik_operand_t* operand, 
 static inline int _dalvik_instruction_write_annotation(dalvik_instruction_t* inst, const void* value, size_t size)
 {
 	char* mem_start = (char*)(inst->annotation_begin + inst->num_operands);
-	if(mem_start + size < inst->annotation_end)
+	if(mem_start < inst->annotation_end && mem_start + size < inst->annotation_end)
 	{
 		memcpy(mem_start, value, size);
 		return 0;
@@ -125,7 +135,9 @@ static inline int _dalvik_instruction_write_annotation(dalvik_instruction_t* ins
 		LOG_WARNING("no space for annotation for instruction(opcode = 0x%x, flags = 0x%x)", inst->opcode, inst->flags);
 	return -1;
 }
-#pragma GCC diagnostic ignored "-Wpointer-to-int-cast"  /* turn off the annoying warning options */
+
+//#pragma GCC diagnostic ignored "-Wpointer-to-int-cast"  /* turn off the annoying warning options */
+
 /** 
  * @brief this macro is used to define a function that is used to initialize a instruction. 
  * 		  `next' is the S-Expression that has not been parsed yet, `buf' is the output buffer
@@ -258,7 +270,7 @@ __DI_CONSTRUCTOR(RETURN)
 	{
 		__DI_SETUP_OPERAND(0, DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_VOID), 0);
 	}
-	else if(curlit == DALVIK_TOKEN_WIDE) /* return wide */
+	else if(curlit == DALVIK_TOKEN_WIDE) /* return-wide */
 	{
 		if(sexp_match(next, "(L?", &dest))
 			__DI_SETUP_OPERAND(0, DVM_OPERAND_FLAG_WIDE, __DI_REGNUM(dest));
@@ -290,7 +302,7 @@ __DI_CONSTRUCTOR(CONST)
 	buf->num_operands = 2;
 	const char* curlit, *dest, *sour;
 	int rc;
-	next = sexp_strip(next, DALVIK_TOKEN_4, DALVIK_TOKEN_16, NULL);     /* We don't care the size of instance number */
+	next = sexp_strip(next, DALVIK_TOKEN_4, DALVIK_TOKEN_16, NULL);     /* We don't care the size of register number */
 	rc = sexp_match(next, "(L?A", &curlit, &next);
 	if(0 == rc) 
 	{
@@ -476,7 +488,7 @@ __DI_CONSTRUCTOR(PACKED)
 	buf->num_operands = 3;
 	buf->flags = DVM_FLAG_SWITCH_PACKED;
 	const char *reg, *begin;
-	if(sexp_match(next, "(L=L?L?A", DALVIK_TOKEN_SWITCH, &reg, &begin, &next))/*(packed-switch reg begin label1..label N)*/
+	if(sexp_match(next, "(L=L?L?A", DALVIK_TOKEN_SWITCH, &reg, &begin, &next))/*(packed-switch reg begin label1..labelN)*/
 	{
 		const char* label;
 		vector_t*   jump_table;
@@ -623,7 +635,7 @@ __DI_CONSTRUCTOR(IF)
 	rc = sexp_match(next, "(L?L?A", &how, &sourA ,&next);
 	if(!rc) 
 	{
-		LOG_ERROR("can not peek the first literal");
+		LOG_ERROR("can not peek literals");
 		return -1;
 	}
 	/* setup the first operand */
@@ -683,14 +695,14 @@ __DI_CONSTRUCTOR(IF)
 static inline int _dalvik_instruction_setup_object_operations(
 		int opcode,                 /* opcode we what to set */
 		int flags,                  /* opcode flags */
-		const sexpression_t* next,        /* the sexpression */
+		const sexpression_t* next,  /* the sexpression */
 		dalvik_instruction_t* buf   /* the output */
 		)
 {
 	int ins_kind = 0;        /* Indicates what kind of instruction we have 
 							  * 0: 3 operands <dest, obj, idx>
-							  * 1: 3 operands <dest, path, type>
-							  * 2: 4 operands <dest, obj, path, type>
+							  * 1: 4 operands <dest, path, field,type>
+							  * 2: 5 operands <dest, obj, path, field ,type>
 							  */
 	buf->opcode = opcode;
 	if(opcode == DVM_ARRAY)
@@ -1344,7 +1356,7 @@ __DI_CONSTRUCTOR(NEW)
 }
 __DI_CONSTRUCTOR(FILLED)
 {
-	//TODO
+	//TODO filled array instruction
 	return 0;
 }
 #undef __DI_CONSTRUCTOR
