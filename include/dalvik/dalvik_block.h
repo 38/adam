@@ -17,6 +17,7 @@
  *
  */
 #include <constants.h>
+#include <const_assertion.h>
 
 #include <dalvik/dalvik_instruction.h>
 #include <dalvik/dalvik_method.h>
@@ -48,6 +49,12 @@ typedef struct {
 	uint8_t             disabled:1; /*!<if this bit is set, the branch is disabled */
 	uint8_t            left_inst:1; /*!<use ileft field ? */ 
 } dalvik_block_branch_t;
+CONST_ASSERTION_FOLLOWS(dalvik_block_branch_t, block_id, block);
+CONST_ASSERTION_FOLLOWS(dalvik_block_branch_t, ileft, left);
+CONST_ASSERTION_SIZE(dalvik_block_branch_t, block_id, 0);
+CONST_ASSERTION_SIZE(dalvik_block_branch_t, ileft, 0);
+CONST_ASSERTION_SIZE(dalvik_block_branch_t, flags, 0);
+
 /** @brief the block structure */
 struct _dalvik_block_t{ 
 	uint32_t   index;    /*!<the index of the block with the method, we do assume that a function is not large*/
@@ -57,6 +64,8 @@ struct _dalvik_block_t{
 	uint16_t   nregs;     /*!<number of registers the block can use */
 	dalvik_block_branch_t branches[0]; /*!<all possible executing path */
 };
+CONST_ASSERTION_LAST(dalvik_block_t, branches);
+CONST_ASSERTION_SIZE(dalvik_block_t, branches, 0);
 
 /** @brief initialize block cache (function path -> block graph) */
 int dalvik_block_init();

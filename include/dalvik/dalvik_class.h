@@ -2,6 +2,7 @@
 #define __DALVIK_CLASS_H__
 #include <sexp.h>
 #include <dalvik/dalvik_attrs.h>
+#include <const_assertion.h>
 /** @file dalvik_class.h
  *  @brief defination of a class
  */
@@ -14,7 +15,7 @@ typedef struct{
 	int         is_interface; /*!<if this class a interface*/
 	const char* members[0];    /*!<We use variant length structure to represents a class */
 } dalvik_class_t;
-
+CONST_ASSERTION_LAST(dalvik_class_t, members);
 /** 
  * @brief
  * Build a new class from a S-Expression

@@ -155,8 +155,7 @@ typedef struct {
 		const char*        field;               /*!<The field we what to operate */
 	} payload;
 } dalvik_operand_t;
-
-CONST_ASSERTION_LE(DVM_NUM_OF_OPCODE, 16)   /* because the type requires a 4 bit opcode */
+CONST_ASSERTION_LE(DVM_NUM_OF_OPCODE, 16);   /* because the type requires a 4 bit opcode */
 
 /** @brief the DVM instruction */
 struct _dalvik_instruction_t{
@@ -172,6 +171,11 @@ struct _dalvik_instruction_t{
 	dalvik_operand_t   operands[16];        /*!<Operand array */
 	char               annotation_end[0];   /*!<the limit address of this insturction */
 };
+CONST_ASSERTION_FOLLOWS(dalvik_instruction_t, annotation_begin, operands);
+CONST_ASSERTION_FOLLOWS(dalvik_instruction_t, operands, annotation_end);
+CONST_ASSERTION_LAST(dalvik_instruction_t, annotation_end);
+CONST_ASSERTION_SIZE(dalvik_instruction_t, annotation_begin, 0);
+CONST_ASSERTION_SIZE(dalvik_instruction_t, annotation_end, 0);
 
 /** @brief flags for monitor instruction */
 enum {
