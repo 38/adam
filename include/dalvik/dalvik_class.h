@@ -16,6 +16,7 @@ typedef struct{
 	const char* members[0];    /*!<We use variant length structure to represents a class */
 } dalvik_class_t;
 CONST_ASSERTION_LAST(dalvik_class_t, members);
+CONST_ASSERTION_SIZE(dalvik_class_t, members, 0);
 /** 
  * @brief
  * Build a new class from a S-Expression

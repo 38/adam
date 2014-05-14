@@ -5,6 +5,7 @@
  */
 #include <stdint.h>
 
+#include <const_assertion.h>
 #include <log.h>
 #include <sexp.h>
 #include <dalvik/dalvik_instruction.h>
@@ -24,6 +25,8 @@ typedef struct {
 	const dalvik_type_t*       args_type[0];   /*!<the type list contains a null tail */
 	/* DO NOT ADD DEFINITION AFTER args_type */
 } dalvik_method_t;
+CONST_ASSERTION_LAST(dalvik_method_t, args_type);
+CONST_ASSERTION_SIZE(dalvik_method_t, args_type, 0);
 
 /**@brief create a new method defination from a s-expression
  * @param sexp s-expression
