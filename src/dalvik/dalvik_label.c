@@ -15,13 +15,14 @@ typedef struct _dalvik_label_map_t {
 	struct _dalvik_label_map_t* next;
 } dalvik_label_map_t;
 
-dalvik_label_map_t* _dalvik_label_map_table[DAVLIK_LABEL_POOL_SIZE];
-int _dalvik_label_count;
+static dalvik_label_map_t* _dalvik_label_map_table[DAVLIK_LABEL_POOL_SIZE];
+static int _dalvik_label_count;
 
 int dalvik_label_init(void)
 {
 	_dalvik_label_count = 0;
 	memset(_dalvik_label_map_table, 0, sizeof(_dalvik_label_map_table));
+	memset(dalvik_label_jump_table, -1, sizeof(dalvik_label_jump_table)); 
 	LOG_DEBUG("Dalvik Label Pool initialized");
 	return 0;
 }
@@ -38,6 +39,14 @@ void dalvik_label_finalize(void)
 			free(this);
 		}
 	}
+}
+int dalvik_label_exists(const char* label)
+{
+	int idx = ((uintptr_t)label * MH_MULTIPLY)%DAVLIK_LABEL_POOL_SIZE;
+	dalvik_label_map_t* ptr;
+	for(ptr = _dalvik_label_map_table[idx]; ptr; ptr = ptr->next)
+		if(ptr->label == label) return 1;
+	return 0;
 }
 int dalvik_label_get_label_id(const char* label)
 {

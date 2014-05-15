@@ -113,7 +113,7 @@ typedef union {
 		uint8_t is_const:1;        /*!<Wether or not the oprand a constant */
 		uint8_t is_result:1;       /*!move-result instruction actually take 2 args, but one is a result */
 	} info;
-} dalvik_operand_header;
+} dalvik_operand_header_t;
 
 struct _dalvik_instruction_t;
 
@@ -131,7 +131,7 @@ typedef struct {
 
 /** @brief generic operand type */
 typedef struct {
-	dalvik_operand_header header;   /*!<the header of this operand*/
+	dalvik_operand_header_t header;   /*!<the header of this operand*/
 	union{
 		const char*        string;  /*!<for a string constant */
 		const char*        methpath; /*!<for a method path */

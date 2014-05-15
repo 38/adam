@@ -1,0 +1,53 @@
+(class (attrs public) TestClass
+	(super java/lang/object)
+	(method (attrs public) case1() void
+		(limit registers 10)
+		;this case is only a single block
+		; + 0
+		(const v1 100)
+		(const v2 200)
+		(add-int v3 v1 v2)
+		; + 3
+		(return-void)
+	)
+	(method (attrs public) case2() void
+		(limit registers 10)
+		;this case is to test a if branch
+		;block0 start entry + 0
+		(const v1 2)
+		(const v2 3)
+		;block0 end entry + 2
+		(if-eq v1 v2 L1)
+		;block1 start entry + 3
+		(add-int v3 v1 v2)
+		;block1 end entry+ 4
+		(goto L2)
+		(label L1)
+		;block2 start entry + 5
+		(sub-int v3 v2 v1)
+		;block2 end entry + 6
+		(label L2)
+		;block3 start entry + 6
+		(return v1)
+		;block3 start entry + 7
+	)
+	(method (attrs public) case3() void
+	    (limit registers 10)
+		;test case for unreachable branches
+		;;;;;;;;;;;;;;;;Block 0;;;;;;;;;;;;;;;;;;;;;
+		(const v1 2) ; + 0
+		(const v2 2) ; + 1
+		;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+		(goto L3)    ; + 2
+		;;;;;;;;;;;;;;;;;Block 1;;;;;;;;;;;;;;;;;;;;
+		(const v3 2) ; + 3
+		(const v4 3) ; + 4
+		(const v5 5) ; + 5
+		;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+		(label L3)   ; + 6
+		;;;;;;;;;;;;;;;;;;Block 2;;;;;;;;;;;;;;;;;;;
+		(const v7 7) ; + 7
+		;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+		(return-void); + 8
+	)
+)

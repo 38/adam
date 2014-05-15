@@ -25,6 +25,7 @@ typedef struct {
 	const dalvik_type_t*       args_type[0];   /*!<the type list contains a null tail */
 	/* DO NOT ADD DEFINITION AFTER args_type */
 } dalvik_method_t;
+CONST_ASSERTION_FIRST(dalvik_method_t, name);
 CONST_ASSERTION_LAST(dalvik_method_t, args_type);
 CONST_ASSERTION_SIZE(dalvik_method_t, args_type, 0);
 

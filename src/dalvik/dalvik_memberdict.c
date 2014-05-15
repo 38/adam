@@ -91,7 +91,10 @@ static inline int _dalvik_memberdict_register_object(const char* class_path, con
 	ptr->type = type;
 	ptr->next = _dalvik_memberdict_hash_table[idx];
 	_dalvik_memberdict_hash_table[idx] = ptr;
-	LOG_DEBUG("class member %s.%s is registered", ptr->class_path, ptr->member_name);
+	if(NULL == ptr->member_name)
+		LOG_DEBUG("class definition for %s is registered", ptr->class_path);
+	else
+		LOG_DEBUG("class member %s.%s is registered", ptr->class_path, ptr->member_name);
 	return 0;
 }
 

@@ -39,6 +39,10 @@
 		(offsetof(type, A) - offsetof(type, B)))
 
 /** @brief check if the member is the last member */
+#define CONST_ASSERTION_FIRST(type, A) __CONST_ASSERTION_POSITIVE__(last_##type##_##A,\
+		-offsetof(type, A))
+
+/** @brief check if the member is the last member */
 #define CONST_ASSERTION_LAST(type, A) __CONST_ASSERTION_POSITIVE__(last_##type##_##A,\
 		(offsetof(type, A) + sizeof(((type*)0)->A) - sizeof(type)) * \
 		(sizeof(type) - offsetof(type, A) - sizeof(((type*)0)->A)))

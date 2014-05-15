@@ -66,33 +66,42 @@ void _sexp_parse_comment(const char** str)
 		_sexp_parse_comment(str);
 	}
 }
-/* parse the list from str  .... ), the first '(' is already eatten */
+/**
+ * @brief parse the list from str  .... ), the first '(' is already eatten 
+ * @notes this function is a tail recursion in the original version, now it's a loop
+ **/
 static inline const char* _sexp_parse_list(const char* str, sexpression_t** buf)
 {
-	/* strip the leading white spaces */
-	_sexp_parse_ws(&str);
-	_sexp_parse_comment(&str);
-	/* If it's an empty list, then return NIL */
-	if(*str == ')' || *str == ']' || *str == '}') 
+	sexpression_t* head = NULL;
+	for(;;)
 	{
-		*buf = SEXP_NIL;
-		return str + 1;
-	}
-	else
-	{
-		/* The list has at least one element */
-		*buf = _sexp_alloc(SEXP_TYPE_CONS);
-		sexp_cons_t* data = (sexp_cons_t*)((*buf)->data);
-		if(NULL == *buf) goto ERR;
-		str = sexp_parse(str, &data->first);
-		if(NULL == str) goto ERR;
-		data->seperator = *str;
-		str = _sexp_parse_list(str, &data->second);
-		if(NULL == str) goto ERR;
-		return str;
+		/* strip the leading white spaces */
+		_sexp_parse_ws(&str);
+		_sexp_parse_comment(&str);
+		/* If it's an empty list, then return NIL */
+		if(*str == ')' || *str == ']' || *str == '}') 
+		{
+			*buf = SEXP_NIL;
+			return str + 1;
+		}
+		else
+		{
+			/* The list has at least one element */
+			*buf = _sexp_alloc(SEXP_TYPE_CONS);
+			sexp_cons_t* data = (sexp_cons_t*)((*buf)->data);
+			if(NULL == *buf) goto ERR;
+			str = sexp_parse(str, &data->first);
+			if(NULL == str) goto ERR;
+			data->seperator = *str;
+			//str = _sexp_parse_list(str, &data->second);
+			if(NULL == str) goto ERR;
+			if(NULL == head) head = *buf;
+			//return str;
+			buf = &data->second;
+		}
 	}
 ERR:
-	sexp_free(*buf);
+	sexp_free(head);
 	return NULL;
 }
 /* parse a string */

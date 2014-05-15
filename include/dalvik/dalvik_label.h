@@ -15,7 +15,13 @@ int dalvik_label_init(void);   /* initialize the label pool */
 void dalvik_label_finalize(void);   /* finalize the global variables */
 /**@brief free a label */
 void dalvik_label_free(void);   
-
+/**
+ * @brief look for the label table to figure out wether or not the label is existed in the label table
+ *        this is useful to find the redefined label which is not allowed
+ * @param label the label name
+ * @return 1 indicates the label is found otherwise means the label is not found here
+ **/
+int dalvik_label_exists(const char* label);
 /** @brief this function is used look for the label table,
  * converting a label to a label id.
  * If the label is not existed, the function will create a 

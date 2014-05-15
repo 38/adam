@@ -128,7 +128,18 @@ dalvik_method_t* dalvik_method_from_sexp(const sexpression_t* sexp, const char* 
 		else if(sexp_match(this_smt, "(L=L?", DALVIK_TOKEN_LABEL, &arg))
 		{
 			/* (label arg) */
-			int lid = dalvik_label_get_label_id(arg);
+			int lid;
+			if(dalvik_label_exists(arg))
+			{
+				lid = dalvik_label_get_label_id(arg);
+				if(0xfffffffful != dalvik_label_jump_table[lid]) 
+				{
+					LOG_ERROR("redefine an existed label %s", arg);
+					goto ERR;
+				}
+			}
+			else 
+				lid = dalvik_label_get_label_id(arg);
 			int i;
 			if(lid == -1) 
 			{

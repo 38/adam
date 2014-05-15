@@ -47,7 +47,8 @@ typedef struct {
 	uint8_t             gt:1;       /*!<enter this branch if left > right */
 	uint8_t             linked:1;   /*!<this bit indicates if the link parse is finished, useless for other function */ 
 	uint8_t             disabled:1; /*!<if this bit is set, the branch is disabled */
-	uint8_t            left_inst:1; /*!<use ileft field ? */ 
+	uint8_t             left_inst:1; /*!<use ileft field ? */
+	uint8_t             ret:1;       /*!<if this branch a function return? if yes, the program should return with the left operand */
 } dalvik_block_branch_t;
 CONST_ASSERTION_FOLLOWS(dalvik_block_branch_t, block_id, block);
 CONST_ASSERTION_FOLLOWS(dalvik_block_branch_t, ileft, left);
@@ -58,9 +59,9 @@ CONST_ASSERTION_SIZE(dalvik_block_branch_t, flags, 0);
 /** @brief the block structure */
 struct _dalvik_block_t{ 
 	uint32_t   index;    /*!<the index of the block with the method, we do assume that a function is not large*/
-	uint16_t   begin;    /*!<the first instruction of this block */
-	uint16_t   end;      /*!<the last instruction of this block  + 1. The range of the block is [begin,end) */
-	size_t     nbranches;                 /*!<how many possible executing path after this block is done */
+	uint32_t   begin;    /*!<the first instruction of this block */
+	uint32_t   end;      /*!<the last instruction of this block  + 1. The range of the block is [begin,end) */
+	size_t     nbranches; /*!<how many possible executing path after this block is done */
 	uint16_t   nregs;     /*!<number of registers the block can use */
 	dalvik_block_branch_t branches[0]; /*!<all possible executing path */
 };
