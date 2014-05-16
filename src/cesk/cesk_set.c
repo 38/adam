@@ -3,6 +3,7 @@
  */
 #include <string.h>
 #include <log.h>
+#include <const_assertion.h>
 #include <cesk/cesk_set.h>
 /** @brief invalid set id */
 #define CESK_SET_INVALID (~0u)
@@ -40,6 +41,12 @@ struct _cesk_set_node_t {
 	cesk_set_data_entry_t data_entry[0];   /*!<this is valid for a data entry node */
 	cesk_set_info_entry_t info_entry[0];   /*!<this is valid for an info entry node */
 };
+CONST_ASSERTION_LAST(cesk_set_node_t, data_section);
+CONST_ASSERTION_LAST(cesk_set_node_t, data_entry);
+CONST_ASSERTION_LAST(cesk_set_node_t, info_entry);
+CONST_ASSERTION_SIZE(cesk_set_node_t, data_section, 0);
+CONST_ASSERTION_SIZE(cesk_set_node_t, data_entry, 0);
+CONST_ASSERTION_SIZE(cesk_set_node_t, info_entry, 0);
 
 static cesk_set_node_t* _cesk_set_hash[CESK_SET_HASH_SIZE];
 
@@ -113,7 +120,7 @@ static inline void* _cesk_set_hash_find(uint32_t setidx, uint32_t addr)
 	LOG_TRACE("can not find the set hash entry (%d, @%x)", setidx, addr);
 	return NULL;
 }
-/* allocate a fresh set index, and append the info entry to hash table */
+/** @brief allocate a fresh set index, and append the info entry to hash table */
 static inline uint32_t _cesk_set_idx_alloc(cesk_set_info_entry_t** p_entry)
 {
 	static uint32_t next_idx = 0;
@@ -203,7 +210,7 @@ void cesk_set_free(cesk_set_t* set)
 	if(NULL == set) return;
 	cesk_set_info_entry_t* info = (cesk_set_info_entry_t*)_cesk_set_hash_find(set->set_idx, CESK_STORE_ADDR_NULL);
 	if(NULL == info) return;
-	/* the reference counter is reduced to zero, no one is using this */
+	/* the reference counter is reduced to zero, nobody is using this */
 	if(0 == --info->refcnt)
 	{
 		/* get the info node of this */

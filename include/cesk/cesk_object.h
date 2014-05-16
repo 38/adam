@@ -6,7 +6,7 @@
  **/
 
 typedef struct _cesk_object_t cesk_object_t;
-
+#include <const_assertion.h>
 #include <constants.h>
 #include <cesk/cesk_value.h>
 #include <dalvik/dalvik_class.h>
@@ -23,7 +23,9 @@ typedef struct {
 	const dalvik_class_t*	 class;		/*!<the class of this object struct*/
 	size_t                   num_members; /*!<the number of members */
 	uint32_t                 valuelist[0];  /*!<the value of the member */
-} cesk_object_struct_t;  
+} cesk_object_struct_t; 
+CONST_ASSERTION_SIZE(cesk_object_struct_t, valuelist, 0);
+CONST_ASSERTION_LAST(cesk_object_struct_t, valuelist);
 /**
  * @brief An abstruct object
  *
@@ -35,7 +37,8 @@ struct _cesk_object_t {
 	size_t				  size;       /*!<the size of the object useful when clone an object */
 	cesk_object_struct_t  members[0]; /*!<the length of the tree */
 };
-
+CONST_ASSERTION_LAST(cesk_object_t, members);
+CONST_ASSERTION_SIZE(cesk_object_t, members, 0);
 /** 
  * @brief this macro return the offset of a given field pointer to the 
  *        beginging of the object, it's used when allocating a new field
@@ -65,7 +68,7 @@ cesk_object_t* cesk_object_new(const char* classpath);
  * @param object the object
  * @param classpath the class path
  * @param field the field name
- * @return the pointer constains set address
+ * @return the pointer constains set address in the store
  */
 uint32_t* cesk_object_get(cesk_object_t* object, const char* classpath, const char* field);
 

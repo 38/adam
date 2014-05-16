@@ -27,7 +27,9 @@ typedef  struct _cesk_value_const_t cesk_value_const_t;
 /** @brief type code of the value */
 enum{
 	CESK_TYPE_OBJECT,	/*!<object type*/
+#if 0
 	CESK_TYPE_ARRAY,	/*!<array type*/
+#endif /* We do not support array type any more, because we can use built-in object to represent it  */
 	CESK_TYPE_SET		/*!<set type*/
 };
 
@@ -69,11 +71,6 @@ struct _cesk_value_const_t {
 
 #undef __CESK_POINTER_LIST
 
-/* 
- * What initilize function does :
- * 1. for numeric / string / boolean value, create all possible value
- *    first
- */
 /** @brief initilize 
  *  @return < 0 for error
  */
@@ -83,51 +80,45 @@ int cesk_value_init();
  */
 void cesk_value_finalize();
 
-#if 0
-/* We calculate the hash function and cache it in frame store */
-hashval_t cesk_value_hashcode(cesk_value_t* value);
-#endif 
-/** @brief create a new value using the class 
- *  @param classpath the class path of the class
- *  @return the value contains new object
- */
+/** 
+ * @brief create a new value using the class 
+ * @param classpath the class path of the class
+ * @return the value contains new object
+ **/
 cesk_value_t* cesk_value_from_classpath(const char* classpath);
-#if 0
-/* because we use special store address to represent the 
- * values, so, we don't need the singleton for atom values
- * any more 
- */
-/* create a new value from a constant operand */
-cesk_value_t* cesk_value_from_operand(dalvik_operand_t* operand);
-#endif
-/** @brief create an empty-set value 
- *  @return the new empty set
- */
+/** 
+ * @brief create an empty-set value 
+ * @return the new empty set
+ **/
 cesk_value_t* cesk_value_empty_set();
-/** @brief fork the value, inorder to modify 
- *  @return the copy of the store
- */
+/** 
+ * @brief fork the value, inorder to modify 
+ * @return the copy of the store
+ **/
 cesk_value_t* cesk_value_fork(const cesk_value_t* value);
-/** @brief increase the reference counter 
- *	@return nothing
- * */
+/** 
+ * @brief increase the reference counter 
+ * @return nothing
+ **/
 void cesk_value_incref(cesk_value_t* value);
-/** @brief decrease the reference counter */
+/** 
+ * @brief decrease the reference counter 
+ **/
 void cesk_value_decref(cesk_value_t* value);
 
-/** @brief The address based hashcode. Obviously, if every cell in a same are equal to the conresponding cell in
- * Another store, the frame is equal acutally. However, there are some cases, e.g. allocate the same value
+/** 
+ * @brief The address based hashcode. Obviously, if every cell in a store are equal to the conresponding cell in
+ * another store, the frame is equal obviously. However, there are some cases, e.g. allocate the same value
  * by different instruction ( this leading a different address ), the comparse function returns false, but
  * the store is actually the same.
- *
  * But because the number of address is finite, the function will terminate using this method.
- *
  * @return hash code
  */
 hashval_t cesk_value_hashcode(const cesk_value_t* value);
-/** @brief non-inremental style hash code
- *  @return hash code
- */
+/**
+ * @brief non-inremental style hash code
+ * @return hash code
+ **/
 hashval_t cesk_value_compute_hashcode(const cesk_value_t* value);
 
 /**

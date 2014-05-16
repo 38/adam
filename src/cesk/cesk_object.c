@@ -14,14 +14,14 @@ cesk_object_t* cesk_object_new(const char* classpath)
 	int field_count = 0;
 	int class_count = 0;
 	dalvik_class_t* classes[1024]; 
-	/* find classes inhernt relationship, and determin the memory layout */
+	/* find classes inherent relationship, and determine its memory layout */
 	for(;;)
 	{
 		LOG_NOTICE("try to find class %s", classpath);
 		dalvik_class_t* target_class = dalvik_memberdict_get_class(classpath);
 		if(NULL == target_class)
 		{
-			/* TODO: handle the built-in classes */
+			/* TODO: built-in classes support here*/
 			if(0 == field_count)
 			{
 				/* if we can't find the first class, this is an error */
@@ -95,10 +95,7 @@ uint32_t* cesk_object_get(cesk_object_t* object, const char* classpath, const ch
 	cesk_object_struct_t* this = object->members;
 	for(i = 0; i < object->depth; i ++)
 	{
-		if(this->class->path == classpath) 
-		{
-			break;
-		}
+		if(this->class->path == classpath) break;
 		/* move to next object struct */
 		CESK_OBJECT_STRUCT_ADVANCE(this);
 	}
@@ -122,7 +119,7 @@ uint32_t* cesk_object_get(cesk_object_t* object, const char* classpath, const ch
 void cesk_object_free(cesk_object_t* object)
 {
 	if(NULL == object) return;
-	free(object);   /* the object occupies consequence memory */
+	free(object);   /* the object is just an array */
 }
 cesk_object_t* cesk_object_fork(const cesk_object_t* object)
 {
@@ -243,6 +240,7 @@ int cesk_object_instance_of(const cesk_object_t* object, const char* classpath)
 		{
 			if(classpath == this->class->implements[i]) return 1;
 		}
+		CESK_OBJECT_STRUCT_ADVANCE(this);
 	}
 	return 0;
 }

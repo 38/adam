@@ -35,6 +35,7 @@
  * writing, user must call cesk_store_release_rw function to release the
  * pointer
  */
+#include <const_assertion.h>
 #include <constants.h>
 
 /* previous defs */
@@ -108,6 +109,8 @@ typedef struct {
 	uint8_t		   reloc:1;    /*!<wether or not this block contains a reference to relocated address*/
 	cesk_store_slot_t  slots[0];
 } cesk_store_block_t;
+CONST_ASSERTION_LAST(cesk_store_block_t, slots);
+CONST_ASSERTION_SIZE(cesk_store_block_t, slots, 0);
 /** @brief the number of slots in one block */
 #define CESK_STORE_BLOCK_NSLOTS ((CESK_STORE_BLOCK_SIZE - sizeof(cesk_store_block_t))/sizeof(cesk_store_slot_t))
 /** @brief the virtual store object */
@@ -131,7 +134,15 @@ cesk_store_t* cesk_store_empty_store();
  * @return < 0 if an error occurred 
  **/
 int cesk_store_set_alloc_table(cesk_store_t* store, cesk_alloctab_t* table);
-/** @brief make a copy of a store 
+/** 
+ * @brief make a copy of a store
+ * @details if the store contains an allocation table, 
+ *          the function will apply the allocation table to the newly forked 
+ *          store, and set the alloc_table for the newly created store to 
+ *          NULL. 
+ *          But we also need another function which fix relocated address with
+ *          a single store(which is useful when makeing a function call )
+ *  @todo   a function that can apply the relocation table to a signle object
  *  @param store the original store
  *  @return the copy of the store
  */

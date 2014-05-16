@@ -6,7 +6,10 @@
 
 #define HASH_INC(addr,val) (addr * MH_MULTIPLY + cesk_value_hashcode(val))
 #define HASH_CMP(addr,val) (addr * MH_MULTIPLY + cesk_value_compute_hashcode(val))
-/** @brief make a copy of a store block, but *do not set store-block refcnt* */
+/** 
+ * @brief make a copy of a store block, but *do not touch store-block refcnt*
+ * @note caller is responsible for update the ref-counts
+ **/
 static inline cesk_store_block_t* _cesk_store_block_fork(cesk_store_block_t* block)
 {
 	/* copy the store block */
@@ -25,7 +28,9 @@ static inline cesk_store_block_t* _cesk_store_block_fork(cesk_store_block_t* blo
 		cesk_value_incref(new_block->slots[i].value);
 	return new_block;
 }
-/** @brief set refcnt befofe actual deletion , intra-store decref all members of the set before free it */
+/** 
+ * @brief touch refcnt befofe actual deletion , decrease intra-frame refcnt for all members of the set before free it 
+ **/
 static inline int _cesk_store_free_set(cesk_store_t* store, cesk_set_t* set)
 {
 	cesk_set_iter_t iter;
@@ -45,7 +50,9 @@ static inline int _cesk_store_free_set(cesk_store_t* store, cesk_set_t* set)
 	}
 	return 0;
 }
-/** @brief decref all members of the object before free it */
+/** 
+ * @brief decrease intra-frame refcnt for all members of the object before free it 
+ **/
 static inline int _cesk_store_free_object(cesk_store_t* store, cesk_object_t* object)
 {
 	if(NULL == object)
@@ -66,12 +73,11 @@ static inline int _cesk_store_free_object(cesk_store_t* store, cesk_object_t* ob
 				LOG_WARNING("can not decref at address %x", this->valuelist[j]);
 			}
 		}
-		//this = (cesk_object_struct_t*)(this->valuelist + this->num_members);
 		CESK_OBJECT_STRUCT_ADVANCE(this);
 	}
 	return 0;
 }
-/* make an address empty, but do not affect the intra-frame refcnt */
+/** @brief make an address empty, but do not affect the intra-frame refcnt for this address */
 static inline int _cesk_store_swipe(cesk_store_t* store, cesk_store_block_t* block, uint32_t addr)
 {
 	uint32_t ofs = addr % CESK_STORE_BLOCK_NSLOTS;
@@ -92,8 +98,10 @@ static inline int _cesk_store_swipe(cesk_store_t* store, cesk_store_block_t* blo
 		case CESK_TYPE_SET:
 			rc = _cesk_store_free_set(store, value->pointer.set);
 			break;
+#if 0
 		case CESK_TYPE_ARRAY:
 			LOG_TRACE("fixme: array support: decref of its reference here");
+#endif   /* array is a built-in class */
 	}
 	if(rc < 0)
 	{
@@ -107,12 +115,6 @@ static inline int _cesk_store_swipe(cesk_store_t* store, cesk_store_block_t* blo
 static inline hashval_t _cesk_store_address_hashcode(const dalvik_instruction_t* inst, uint32_t parent, uint32_t field_ofs)
 {
 	uint32_t idx;
-	
-	if(NULL == inst)
-	{
-		LOG_ERROR("invalid instruction address");
-		return 0;
-	}
 	
 	/* read the instruction annotation for index */
 	//dalvik_instruction_read_annotation(inst, &idx, sizeof(idx));
@@ -136,16 +138,16 @@ static inline cesk_store_block_t* _cesk_store_getblock_rw(cesk_store_t* store, u
 		return NULL;
 	}
 	cesk_store_block_t* block = store->blocks[b_idx];
-	/* if the block is used by more than one store, the block is not writable, so make a copy of 
-	 * the block and replace the old block with new  copy */
+	/* if the block is used by more than one store so it is not writable, so make a copy of 
+	 * it and replace the old block with new  copy */
 	if(block->refcnt > 1)
 	{
 		LOG_DEBUG("more than one store are using this block, fork it");
 		cesk_store_block_t* newblock = _cesk_store_block_fork(block);
 		if(NULL == newblock)
 		{
-		LOG_ERROR("can not fork the block");
-		return NULL;
+			LOG_ERROR("can not fork the block");
+			return NULL;
 		}
 		newblock->refcnt = 1;
 		block->refcnt --;   /* this is block-store ref count */
@@ -188,8 +190,6 @@ int cesk_store_set_alloc_table(cesk_store_t* store, cesk_alloctab_t* table)
  **/
 static inline int _cesk_store_apply_alloc_tab(const cesk_store_t* source, cesk_store_t* store, uint32_t base_addr)
 {
-	/* we have to flush it (because fork frame only called before the
-	 * guest function called other function) */
 	cesk_store_block_t* blk = _cesk_store_getblock_rw(store, base_addr);
 	if(NULL == blk)
 	{
@@ -224,9 +224,11 @@ static inline int _cesk_store_apply_alloc_tab(const cesk_store_t* source, cesk_s
 		/* switch for each type */
 		switch(value->type)
 		{
+#if 0
 			case CESK_TYPE_ARRAY:
 				LOG_NOTICE("fixme: array support here");
 				break;
+#endif 
 			case CESK_TYPE_SET:
 				set = value->pointer.set;
 				if(NULL == cesk_set_iter(set, &iter))
@@ -452,8 +454,7 @@ cesk_value_t* cesk_store_get_rw(cesk_store_t* store, uint32_t addr, int noval)
 	}
 	/* when a rw pointer is auquired, the hashcode is ready to update.
 	 * After finish updating, you should call the function release the 
-	 * value and update the hashcode 
-	 */
+	 * value and update the hashcode */
 	store->hashcode ^= HASH_INC(addr, val);
 	val->write_status = 1;
 	return val;
@@ -526,22 +527,22 @@ uint32_t cesk_store_allocate(cesk_store_t* store, const dalvik_instruction_t* in
 		LOG_DEBUG("attempt #%d : slot @%d for instruction %d", attempt, slot, idx);
 		for(block = 0; block < store->nblocks; block ++)
 		{
-		if(store->blocks[block]->slots[slot].value == NULL && empty_offset == -1)
-		{
-			LOG_DEBUG("find an empty slot @(block = %d, offset = %d)", block, slot);
-			empty_block = block;
-			empty_offset = slot;
-		}
-		if(store->blocks[block]->slots[slot].value != NULL && 
-		   store->blocks[block]->slots[slot].idx == idx && 
+			if(store->blocks[block]->slots[slot].value == NULL && empty_offset == -1)
+			{
+				LOG_DEBUG("find an empty slot @(block = %d, offset = %d)", block, slot);
+				empty_block = block;
+				empty_offset = slot;
+			}
+			if(store->blocks[block]->slots[slot].value != NULL && 
+			   store->blocks[block]->slots[slot].idx == idx && 
 			   store->blocks[block]->slots[slot].parent == parent &&
 			   store->blocks[block]->slots[slot].field == field_ofs)
-		{
-			LOG_DEBUG("find the equal slot @(block = %d, offset = %d)", block, slot);
-			equal_block = block;
-			equal_offset = slot;
-		}
-		if(equal_offset != -1) break;
+			{
+				LOG_DEBUG("find the equal slot @(block = %d, offset = %d)", block, slot);
+				equal_block = block;
+				equal_offset = slot;
+			}
+			if(equal_offset != -1) break;
 		}
 		if(equal_offset != -1) break;
 		slot = (slot * slot * MH_MULTIPLY + 100007 * slot + 634567) % CESK_STORE_BLOCK_NSLOTS;
@@ -693,7 +694,7 @@ int cesk_store_incref(cesk_store_t* store, uint32_t addr)
 	}
 	else
 	{
-		LOG_ERROR("the object @%xS is alread dead", addr);
+		LOG_ERROR("the object @%x is alread dead", addr);
 		return -1;
 	}
 }

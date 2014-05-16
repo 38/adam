@@ -127,9 +127,11 @@ cesk_value_t* cesk_value_fork(const cesk_value_t* value)
 			if(NULL == newset) goto ERROR;
 			newval->pointer.set = newset;
 			break;
+#if 0
 		case CESK_TYPE_ARRAY:
 			LOG_INFO("fixme: array support");
 			/* TODO: array support */
+#endif 
 		default:
 			LOG_ERROR("unsupported type");
 			goto ERROR;
@@ -147,14 +149,16 @@ hashval_t cesk_value_hashcode(const cesk_value_t* value)
 	switch(value->type)
 	{
 		case CESK_TYPE_OBJECT:
-			/* object */
 			return cesk_object_hashcode(value->pointer.object);
 		case CESK_TYPE_SET:
 			return cesk_set_hashcode(value->pointer.set);
+#if 0
+		/* TODO we can use a built-in class to represent an array */
 		case CESK_TYPE_ARRAY:
 			/* array */
 			LOG_INFO("fixme: array type support");
 			//return cesk_set_hashcode((*(cesk_value_array_t**)value->data)->values);
+#endif
 		default:
 			return 0;
 	}
@@ -165,13 +169,15 @@ hashval_t cesk_value_compute_hashcode(const cesk_value_t* value)
 	switch(value->type)
 	{
 		case CESK_TYPE_OBJECT:
-			/* object */
 			return cesk_object_compute_hashcode(value->pointer.object);
 		case CESK_TYPE_SET:
 			return cesk_set_compute_hashcode(value->pointer.set);
+#if 0
+		/* TODO we can use a built-in class to represent an array */
 		case CESK_TYPE_ARRAY:
 			/* array */
 			LOG_INFO("fixme: array type support");
+#endif
 		default:
 			return 0;
 	}
@@ -186,8 +192,10 @@ int cesk_value_equal(const cesk_value_t* first, const cesk_value_t* second)
 			return cesk_object_equal(first->pointer.object, second->pointer.object);
 		case CESK_TYPE_SET:
 			return cesk_set_equal(first->pointer.set, second->pointer.set);
+#if 0
 		case CESK_TYPE_ARRAY:
 			LOG_INFO("fixme : array type support");
+#endif
 		default:
 			LOG_WARNING("can not compare value type %d", first->type);
 			return 1;

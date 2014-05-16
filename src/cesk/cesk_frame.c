@@ -169,8 +169,10 @@ static inline void _cesk_frame_store_dfs(uint32_t addr,cesk_store_t* store, uint
 				CESK_OBJECT_STRUCT_ADVANCE(this);
 			}
 			break;
+#if 0
 		case CESK_TYPE_ARRAY:
 			LOG_INFO("fixme : array support");
+#endif
 	}
 }
 int cesk_frame_gc(cesk_frame_t* frame)
