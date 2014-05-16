@@ -127,7 +127,7 @@ dalvik_method_t* dalvik_method_from_sexp(const sexpression_t* sexp, const char* 
 		else if(sexp_match(this_smt, "(L=L?", DALVIK_TOKEN_LABEL, &arg))
 		{
 			/* (label arg) */
-			int lid;
+			int lid, i;
 			if(dalvik_label_exists(arg))
 			{
 				lid = dalvik_label_get_label_id(arg);
@@ -139,13 +139,11 @@ dalvik_method_t* dalvik_method_from_sexp(const sexpression_t* sexp, const char* 
 			}
 			else 
 				lid = dalvik_label_get_label_id(arg);
-			int i;
 			if(lid == -1) 
 			{
 				LOG_ERROR("can not create label for %s", arg);
 				goto ERR;
 			}
-			//last_label = lid;
 			if(label_sp < DALVIK_METHOD_LABEL_STACK_SIZE)
 				label_stack[label_sp++] = lid;
 			else
@@ -194,8 +192,7 @@ dalvik_method_t* dalvik_method_from_sexp(const sexpression_t* sexp, const char* 
 			LOG_DEBUG("exception %s is handlered in label #%d", 
 					  excepthandler[number_of_exception_handler]->exception, 
 					  excepthandler[number_of_exception_handler]->handler_label);
-					  //label_st[number_of_exception_handler] = 0;   /* TODO: verify this is a bug */
-					  number_of_exception_handler ++;
+			number_of_exception_handler ++;
 		}
 		else if(sexp_match(this_smt, "(L=A", DALVIK_TOKEN_FILL, &arg))
 		{
@@ -220,7 +217,7 @@ dalvik_method_t* dalvik_method_from_sexp(const sexpression_t* sexp, const char* 
 			else
 				dalvik_instruction_set_next(last, inst);
 			last = dalvik_instruction_get_index(inst);
-			inst->handler_set = current_ehset; 
+			inst->handler_set = current_ehset;
 			if(label_sp > 0)
 			{
 				int i;

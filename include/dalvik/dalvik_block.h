@@ -27,6 +27,40 @@
 /** @brief invalid block index */
 #define DALVIK_BLOCK_INDEX_INVALID 0xfffffffful
 typedef struct _dalvik_block_t dalvik_block_t;
+/**
+ * @brief unconditional branch type cods
+ **/
+enum {
+	DALVIK_BLOCK_BRANCH_UNCOND_JUMP,     /*!< this is a unconditional jump */
+	DALVIK_BLOCK_BRANCH_UNCOND_RETURN,   /*!< this is a return branch, if the branch is this type, the block field of the 
+	                                      *   branch will be set to NULL, and the return value is in the left operand,
+										  */
+	DALVIK_BLOCK_BRANCH_UNCOND_EXCEPTION /*!< this is an exception branch */
+};
+/** @brief the mask for the unconditional type code */
+#define DALVIK_BLOCK_BRANCH_UNCOND_TYPE_MSK 0x6
+/** @brief get the type code in a unconditional branch */
+#define DALVIK_BLOCK_BRANCH_UNCOND_TYPE_GET(branch) ((((branch).flags[0] & DALVIK_BLOCK_BRANCH_UNCOND_TYPE_MSK) >> 1) && (branch).conditional == 0)
+/** @brief check this branch an unconditional jump */
+#define DALVIK_BLOCK_BRANCH_UNCOND_TYPE_IS_JUMP(b) (DALVIK_BLOCK_BRANCH_UNCOND_TYPE_GET(b) == DALVIK_BLOCK_BRANCH_UNCOND_JUMP)
+/** @brief check this branch an unconditional return */
+#define DALVIK_BLOCK_BRANCH_UNCOND_TYPE_IS_RETURN(b) (DALVIK_BLOCK_BRANCH_UNCOND_TYPE_GET(b) == DALVIK_BLOCK_BRANCH_UNCOND_RETURN)
+/** @brief check this branch an unconditional exception */
+#define DALVIK_BLOCK_BRANCH_UNCOND_TYPE_IS_EXCEPTION(b) (DALVIK_BLOCK_BRANCH_UNCOND_TYPE_GET(b) == DALVIK_BLOCK_BRANCH_UNCOND_EXCEPTION)
+/** @brief set type code of unconditional branch */
+#define DALVIK_BLOCK_BRANCH_UNCOND_TYPE_SET(branch,type) do{\
+	if((branch).conditional == 1) \
+		LOG_WARNING("try to set unconditional type code in a conditional branch, looks like a mistake");\
+	(branch).flags[0] &= ~DALVIK_BLOCK_BRANCH_UNCOND_TYPE_MSK;\
+	(branch).flags[0] |= (type<<1);\
+}while(0)
+/** @breif set type code to unconditional jump */
+#define DALVIK_BLOCK_BRANCH_UNCOND_TYPE_SET_JUMP(b) DALVIK_BLOCK_BRANCH_UNCOND_TYPE_SET(b, DALVIK_BLOCK_BRANCH_UNCOND_JUMP)
+/** @breif set type code to unconditional return */
+#define DALVIK_BLOCK_BRANCH_UNCOND_TYPE_SET_RETURN(b) DALVIK_BLOCK_BRANCH_UNCOND_TYPE_SET(b, DALVIK_BLOCK_BRANCH_UNCOND_RETURN)
+/** @breif set type code to unconditional exception */
+#define DALVIK_BLOCK_BRANCH_UNCOND_TYPE_SET_EXCEPTION(b) DALVIK_BLOCK_BRANCH_UNCOND_TYPE_SET(b, DALVIK_BLOCK_BRANCH_UNCOND_EXCEPTION)
+
 /* because all branches are based on value comparasion to 
  * determine wether or not the control flow will goes into
  * the branch */
@@ -39,7 +73,14 @@ typedef struct {
 	const dalvik_operand_t*   left;      /*!<the left operand */
 	const dalvik_operand_t*   right;     /*!<the right operand */
 
+
 	/* flags */
+	/* because when conditional == 0, the eq lt gt flag is useless, 
+	 * so we reuse the bit for other purpose to specify the type of 
+	 * a unconditional branch 
+	 * use macro DALVIK_BLOCK_BRANCH_UNCOND_TYPE_GET to pull the type code
+	 * use macro DALVIK_BLOCK_BRANCH_UNCOND_TYPE_SET to set the type code
+	 */
 	uint8_t             flags[0];   /*!<the flags array*/
 	uint8_t             conditional:1;/*!<if this branch a conditional branch */
 	uint8_t             eq:1;       /*!<enter this branch if left == right */
@@ -48,7 +89,6 @@ typedef struct {
 	uint8_t             linked:1;   /*!<this bit indicates if the link parse is finished, useless for other function */ 
 	uint8_t             disabled:1; /*!<if this bit is set, the branch is disabled */
 	uint8_t             left_inst:1; /*!<use ileft field ? */
-	uint8_t             ret:1;       /*!<if this branch a function return? if yes, the program should return with the left operand */
 } dalvik_block_branch_t;
 CONST_ASSERTION_FOLLOWS(dalvik_block_branch_t, block_id, block);
 CONST_ASSERTION_FOLLOWS(dalvik_block_branch_t, ileft, left);

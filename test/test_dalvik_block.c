@@ -32,7 +32,7 @@ int main()
 	assert(block->begin == method->entry);
 	assert(block->end == method->entry + 3);
 	assert(block->nbranches == 1);
-	assert(block->branches[0].ret == 1);
+	assert(DALVIK_BLOCK_BRANCH_UNCOND_TYPE_IS_RETURN(block->branches[0]));
 	assert(block->branches[0].block == NULL);
 	assert(block->branches[0].left->header.info.type == DVM_OPERAND_TYPE_VOID);
 
@@ -86,7 +86,7 @@ int main()
 	assert(block3->begin == method->entry + 6);
 	assert(block3->end == method->entry + 6);
 	assert(block3->nbranches == 1);
-	assert(block3->branches[0].ret == 1);
+	assert(DALVIK_BLOCK_BRANCH_UNCOND_TYPE_IS_RETURN(block3->branches[0]));
 	assert(block3->branches[0].block == NULL);
 	assert(block3->branches[0].left->header.flags == 0);
 	assert(block3->branches[0].left->payload.uint16 == 1);
@@ -113,7 +113,7 @@ int main()
 	assert(block3->nbranches == 1);
 	assert(block3->branches[0].linked == 1);
 	assert(block3->branches[0].disabled == 0);
-	assert(block3->branches[0].ret == 1);
+	assert(DALVIK_BLOCK_BRANCH_UNCOND_TYPE_IS_RETURN(block3->branches[0]));
 	assert(block3->branches[0].left->header.flags == 0);
 	assert(block3->branches[0].left->payload.uint16 == 9);
 	assert(block3->branches[0].block == NULL);
@@ -149,8 +149,15 @@ int main()
 	assert(block3->branches[0].linked == 1);
 	assert(block3->branches[0].conditional == 0);
 	assert(block3->branches[0].disabled == 0);
-	assert(block3->branches[0].ret == 1);
+	assert(DALVIK_BLOCK_BRANCH_UNCOND_TYPE_IS_RETURN(block3->branches[0]));
 	assert(block3->branches[0].block == NULL);
+
+	/* Case 5 */
+	methodname = stringpool_query("case5");
+	block = dalvik_block_from_method(classname, methodname, (const dalvik_type_t**) arglist);
+	method = dalvik_memberdict_get_method(classname, methodname, (const dalvik_type_t**) arglist);
+	assert(NULL != block);
+	assert(NULL != method);
 
 	adam_finalize();
 	return 0;

@@ -104,27 +104,27 @@ dalvik_exception_handler_t* dalvik_exception_handler_from_sexp(const sexpression
 			LOG_DEBUG("the exception handler is %s", sexp_to_string(sexp,NULL));
 			return NULL;
 		}
+		
+		LOG_DEBUG("the exception handler is %s", sexp_to_string(sexp,NULL));
+		
 		int lid1, lid2, lid3;
 
 		lid1 = dalvik_label_get_label_id(label1);
 		if(lid1 < 0) 
 		{
 			LOG_ERROR("invalid label");
-			LOG_DEBUG("the exception handler is %s", sexp_to_string(sexp,NULL));
 			return NULL;
 		}
 		lid2 = dalvik_label_get_label_id(label2);
 		if(lid2 < 0) 
 		{
 			LOG_ERROR("invalid label");
-			LOG_DEBUG("the exception handler is %s", sexp_to_string(sexp,NULL));
 			return NULL;
 		}
-		lid3 = dalvik_label_get_label_id(label2);
+		lid3 = dalvik_label_get_label_id(label3);
 		if(lid3 < 0) 
 		{
 			LOG_ERROR("invalid label");
-			LOG_DEBUG("the exception handler is %s", sexp_to_string(sexp,NULL));
 			return NULL;
 		}
 		(*from) = lid1;
@@ -151,22 +151,24 @@ dalvik_exception_handler_t* dalvik_exception_handler_from_sexp(const sexpression
 			return NULL;
 		}
 		int lid1, lid2, lid3;
+		LOG_DEBUG("the exception handler is %s", sexp_to_string(sexp,NULL));
 
 		lid1 = dalvik_label_get_label_id(label1);
 		if(lid1 < 0) 
 		{
+			LOG_ERROR("invalid label %s", label1);
 			return NULL;
 		}
 		lid2 = dalvik_label_get_label_id(label2);
 		if(lid2 < 0) 
 		{
+			LOG_ERROR("invalid label %s", label2);
 			return NULL;
 		}
-		lid3 = dalvik_label_get_label_id(label2);
+		lid3 = dalvik_label_get_label_id(label3);
 		if(lid3 < 0) 
 		{
-			LOG_ERROR("invalid label");
-			LOG_DEBUG("the exception handler is %s", sexp_to_string(sexp,NULL));
+			LOG_ERROR("invalid label %s", label3);
 			return NULL;
 		}
 		(*from) = lid1;

@@ -274,15 +274,26 @@ static inline int _dalvik_block_get_key_instruction_list(uint32_t entry_point, u
 					 LOG_ERROR("invalid instruction switch(flags = %d)", current_inst->flags);
 				 break;
 			 case DVM_INVOKE:
-				 __PUSH(inst-1);   /* because invoke itself forms a block, so it's previous instruction is also a key instruction */
+				 if(inst != entry_point)
+				 	__PUSH(inst-1);   /* because invoke itself forms a block, so it's previous instruction is also a key instruction */
 				 __PUSH(inst);
 				 break;
-			 /* TODO: exception jumpping support */
 			 case DVM_RETURN:
 				 __PUSH(inst);
 				 break;
+			 default:
+				 /* TODO how to handle exceptions */
+				 if(current_inst->handler_set != NULL)
+				 {
+					 /* if there's an exception handler that means the instruction itself can 
+					  * affect the control flow. So that we have to make it a signle block. 
+					  * So that it's a key instruction here
+					  */
+					 if(inst != entry_point)
+					 	__PUSH(inst - 1);
+					 __PUSH(inst);
+				 }
 		 }
-
 	}
 	/* the last instruction of the method is also a key instruction */
 	if(last_instruction != DALVIK_INSTRUCTION_INVALID)
@@ -534,9 +545,9 @@ static inline dalvik_block_t* _dalvik_block_setup_return(const dalvik_instructio
 	dalvik_block_t* block = _dalvik_block_new(1);  /* there's an special branch which is actually a dead end, however, left operand is set
 	                                                  indicates what to return */
 	block->index = index;
-	block->branches[0].ret = 1;
 	block->branches[0].left_inst = 0;
 	block->branches[0].conditional = 0;
+	DALVIK_BLOCK_BRANCH_UNCOND_TYPE_SET_RETURN(block->branches[0]);
 	block->branches[0].left = inst->operands + 0;
 	return block;
 }
@@ -623,7 +634,7 @@ static void inline _dalvik_block_graph_dfs(const dalvik_block_t * block, uint32_
 	visit_status[block->index] = 1;
 	int i;
 	for(i = 0; i < block->nbranches; i ++)
-		if(!block->branches[i].disabled && !block->branches[i].ret)
+		if(!block->branches[i].disabled && !DALVIK_BLOCK_BRANCH_UNCOND_TYPE_IS_RETURN(block->branches[i]))
 			_dalvik_block_graph_dfs(block->branches[i].block, visit_status);  
 }
 /**
@@ -690,7 +701,7 @@ dalvik_block_t* dalvik_block_from_method(const char* classpath, const char* meth
 			for(j = 0; j < blocks[i]->nbranches; j ++)
 			{
 				if(blocks[i]->branches[j].disabled) continue;
-				if(0 == blocks[i]->branches[j].ret)
+				if(!DALVIK_BLOCK_BRANCH_UNCOND_TYPE_IS_RETURN(blocks[i]->branches[j]))
 					blocks[i]->branches[j].block = blocks[blocks[i]->branches[j].block_id[0]];
 				else
 					blocks[i]->branches[j].block = NULL;
