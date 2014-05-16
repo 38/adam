@@ -83,7 +83,6 @@ dalvik_method_t* dalvik_method_from_sexp(const sexpression_t* sexp, const char* 
 
 	/* Now fetch the body */
 	
-	//TODO: process other parts of a method
 	int current_line_number = 0;    /* Current Line Number */
 	uint32_t last = DALVIK_INSTRUCTION_INVALID;
 	//int last_label = -1;

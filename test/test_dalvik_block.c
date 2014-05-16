@@ -90,6 +90,7 @@ int main()
 	assert(block3->branches[0].block == NULL);
 	assert(block3->branches[0].left->header.flags == 0);
 	assert(block3->branches[0].left->payload.uint16 == 1);
+	assert(block3->branches[0].block == NULL);
 
 	/* Case 3 */
 	methodname = stringpool_query("case3");
@@ -97,9 +98,60 @@ int main()
 	method = dalvik_memberdict_get_method(classname, methodname, (const dalvik_type_t**)arglist);
 	assert(NULL != block);
 	assert(NULL != method);
-	//TODO
+	/* verify block 1 */
+	assert(block->begin == method->entry + 0);
+	assert(block->end == method->entry + 2);
+	assert(block->nbranches == 1);
+	assert(block->branches[0].linked == 1);
+	assert(block->branches[0].disabled == 0);
+	assert(block->branches[0].conditional == 0);
+	assert(block->branches[0].block != NULL);
+	/* verify block 3*/
+	block3 = block->branches[0].block;
+	assert(block3->begin == method->entry + 6);
+	assert(block3->end == method->entry + 7);
+	assert(block3->nbranches == 1);
+	assert(block3->branches[0].linked == 1);
+	assert(block3->branches[0].disabled == 0);
+	assert(block3->branches[0].ret == 1);
+	assert(block3->branches[0].left->header.flags == 0);
+	assert(block3->branches[0].left->payload.uint16 == 9);
+	assert(block3->branches[0].block == NULL);
 
-	
+	/* Case 4 */
+	methodname = stringpool_query("case4");
+	block = dalvik_block_from_method(classname, methodname, (const dalvik_type_t**) arglist);
+	method = dalvik_memberdict_get_method(classname, methodname, (const dalvik_type_t**) arglist);
+	assert(NULL != block);
+	assert(NULL != method);
+	/* verify block 1 */
+	assert(block->begin == method->entry + 0);
+	assert(block->end == method->entry + 1);
+	assert(block->nbranches == 1);
+	assert(block->branches[0].linked == 1);
+	assert(block->branches[0].disabled == 0);
+	assert(block->branches[0].conditional == 0);
+	assert(block->branches[0].block != NULL);
+	/* verify block 2 */
+	block2 = block->branches[0].block;
+	assert(block2->begin == method->entry + 1);
+	assert(block2->end == method->entry + 2);
+	assert(block2->nbranches == 1);
+	assert(block2->branches[0].linked == 1);
+	assert(block2->branches[0].conditional == 0);
+	assert(block2->branches[0].disabled == 0);
+	assert(block2->branches[0].block != NULL);
+	/* verify block3 */
+	block3 = block2->branches[0].block;
+	assert(block3->begin == method->entry + 2);
+	assert(block3->end == method->entry + 3);
+	assert(block3->nbranches == 1);
+	assert(block3->branches[0].linked == 1);
+	assert(block3->branches[0].conditional == 0);
+	assert(block3->branches[0].disabled == 0);
+	assert(block3->branches[0].ret == 1);
+	assert(block3->branches[0].block == NULL);
+
 	adam_finalize();
 	return 0;
 }

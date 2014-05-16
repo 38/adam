@@ -10,18 +10,19 @@
 #define _TYPE_METHOD 0
 #define _TYPE_FIELD 1
 #define _TYPE_CLASS 2
+/**
+ * @brief the node of hash table for member dictionary
+ **/
 typedef struct _dalvik_memberdict_node_t {
-	const char* class_path;             /* the class path */
-	const char* member_name;            /* the name of the member */
-	const dalvik_type_t* const * args;        /* the type list (only valid for method, otherwise set to NULL */
-	int         type;                   /* type of the object method, field or class */
-	void*       object;                 /* the storage of the object */
-	struct _dalvik_memberdict_node_t* next; 
+	const char* class_path;             /*!< the class path */
+	const char* member_name;            /*!< the name of the member */
+	const dalvik_type_t* const * args;  /*!< the type list (only valid for method, otherwise set to NULL */
+	int         type;                   /*!< type of the object method, field or class */
+	void*       object;                 /*!< the storage of the object */
+	struct _dalvik_memberdict_node_t* next;  /*!< the next node */
 } dalvik_memberdict_node_t;
 
 dalvik_memberdict_node_t* _dalvik_memberdict_hash_table[DALVIK_MEMBERDICT_SIZE];
-
-
 
 int dalvik_memberdict_init()
 {
@@ -52,7 +53,8 @@ void dalvik_memberdict_finalize()
 					free(old->object); 
 					break;
 				default:
-					LOG_ERROR("unknown node type in member dict, do not know how to free it");
+					LOG_WARNING("unknown node type in member dict, do not know how to free it, try to free it directly");
+					free(old->object);
 			}
 			free(old);
 		}
@@ -68,7 +70,15 @@ static inline hashval_t _dalvik_memberdict_hash(const char* class_path, const ch
 	hashval_t c = dalvik_type_list_hashcode(args);
 	return (a * a * 100003 * MH_MULTIPLY + b * MH_MULTIPLY + c)^typeid[type];
 }
-
+/**
+ * @brief register a new member dictionary object
+ * @param class_path the class path
+ * @param object_name the object name of this object
+ * @param args the argument list
+ * @param type the type of this object (class, method, field)
+ * @param obj  the actuall object address
+ * @return < 0 indicates error
+ **/
 static inline int _dalvik_memberdict_register_object(const char* class_path, const char* object_name, const dalvik_type_t * const * args ,int type, void* obj)
 {
 	uint32_t idx = _dalvik_memberdict_hash(class_path, object_name, args,type)%DALVIK_MEMBERDICT_SIZE;
@@ -111,9 +121,7 @@ int dalvik_memberdict_register_field(const char* class_path, dalvik_field_t* fie
 	return _dalvik_memberdict_register_object(class_path, field->name, NULL,_TYPE_FIELD, field);
 }
 
-int dalvik_memberdict_register_class(
-		const char*     class_path,
-		dalvik_class_t* class)
+int dalvik_memberdict_register_class(const char* class_path, dalvik_class_t* class)
 {
 	if(NULL == class) return -1;
 	return _dalvik_memberdict_register_object(class_path, NULL, NULL,_TYPE_CLASS, class);

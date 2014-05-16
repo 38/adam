@@ -44,10 +44,18 @@
 		(const v4 3) ; + 4
 		(const v5 5) ; + 5
 		;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-		(label L3)   ; + 6
+		(label L3)   ; + 5
 		;;;;;;;;;;;;;;;;;;Block 2;;;;;;;;;;;;;;;;;;;
-		(const v7 7) ; + 7
+		(const v7 7) ; + 6
 		;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-		(return-void); + 8
+		(return v9); + 7
+	)
+	(method (attrs public) case4() void
+		(limit registers 10)
+		;test case for invoke instruction
+		(const v1 3) ; + 0
+		(invoke-static {v1} java/lang/Object/<init>) ; + 1
+		(const v1 2) ; + 2
+		(return-void) ; + 3
 	)
 )

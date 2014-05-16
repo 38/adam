@@ -33,9 +33,9 @@ dalvik_exception_handler_set_t* dalvik_exception_new_handler_set(size_t count, d
 /* The memory for exception handler is managed by dalvik_exception.c,
  * So there's no interface for free
  */
-/** brief initialization */
+/** @brief initialization */
 int dalvik_exception_init();
-/** brief finalization */
+/** @brief finalization */
 void dalvik_exception_finalize();
 
 #endif

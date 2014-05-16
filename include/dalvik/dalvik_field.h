@@ -3,6 +3,7 @@
 /** @file dalvik_field.h
  *  @brief the field defination
  */
+#include <const_assertion.h>
 #include <log.h>
 #include <stringpool.h>
 #include <sexp.h>
@@ -19,6 +20,7 @@ typedef struct {
 	sexpression_t* defualt_value;   /*!<default value */
 	int            offset;          /*!<the offest of the field */
 } dalvik_field_t;
+CONST_ASSERTION_FIRST(dalvik_field_t, name);
 
 /** @brief build a field defination from an s-sepxression
  *  @param sexp S-Expression

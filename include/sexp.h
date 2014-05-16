@@ -2,6 +2,8 @@
 #define __SEXP_H__
 #include <stdint.h>
 #include <stdlib.h>
+
+#include <const_assertion.h>
 /**
  * @file sexp.h
  * @brief Utils for maintanance of S-Expression.
@@ -76,6 +78,7 @@ struct _sexpression_t {
 		sexp_cons_t consdata;
 	} data[0];
 };
+CONST_ASSERTION_LAST(sexpression_t, data);
 
 /**@brief Parse a string into sexpression. 
  * @param str String to parse
