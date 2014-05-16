@@ -40,13 +40,13 @@ enum {
 /** @brief the mask for the unconditional type code */
 #define DALVIK_BLOCK_BRANCH_UNCOND_TYPE_MSK 0x6
 /** @brief get the type code in a unconditional branch */
-#define DALVIK_BLOCK_BRANCH_UNCOND_TYPE_GET(branch) ((((branch).flags[0] & DALVIK_BLOCK_BRANCH_UNCOND_TYPE_MSK) >> 1) && (branch).conditional == 0)
+#define DALVIK_BLOCK_BRANCH_UNCOND_TYPE_GET(branch) ((((branch).flags[0] & DALVIK_BLOCK_BRANCH_UNCOND_TYPE_MSK) >> 1))
 /** @brief check this branch an unconditional jump */
-#define DALVIK_BLOCK_BRANCH_UNCOND_TYPE_IS_JUMP(b) (DALVIK_BLOCK_BRANCH_UNCOND_TYPE_GET(b) == DALVIK_BLOCK_BRANCH_UNCOND_JUMP)
+#define DALVIK_BLOCK_BRANCH_UNCOND_TYPE_IS_JUMP(b) (DALVIK_BLOCK_BRANCH_UNCOND_TYPE_GET(b) == DALVIK_BLOCK_BRANCH_UNCOND_JUMP && (b).conditional == 0)
 /** @brief check this branch an unconditional return */
-#define DALVIK_BLOCK_BRANCH_UNCOND_TYPE_IS_RETURN(b) (DALVIK_BLOCK_BRANCH_UNCOND_TYPE_GET(b) == DALVIK_BLOCK_BRANCH_UNCOND_RETURN)
+#define DALVIK_BLOCK_BRANCH_UNCOND_TYPE_IS_RETURN(b) (DALVIK_BLOCK_BRANCH_UNCOND_TYPE_GET(b) == DALVIK_BLOCK_BRANCH_UNCOND_RETURN && (b).conditional == 0)
 /** @brief check this branch an unconditional exception */
-#define DALVIK_BLOCK_BRANCH_UNCOND_TYPE_IS_EXCEPTION(b) (DALVIK_BLOCK_BRANCH_UNCOND_TYPE_GET(b) == DALVIK_BLOCK_BRANCH_UNCOND_EXCEPTION)
+#define DALVIK_BLOCK_BRANCH_UNCOND_TYPE_IS_EXCEPTION(b) (DALVIK_BLOCK_BRANCH_UNCOND_TYPE_GET(b) == DALVIK_BLOCK_BRANCH_UNCOND_EXCEPTION && (b).conditional == 0)
 /** @brief set type code of unconditional branch */
 #define DALVIK_BLOCK_BRANCH_UNCOND_TYPE_SET(branch,type) do{\
 	if((branch).conditional == 1) \
@@ -70,7 +70,9 @@ typedef struct {
 	/* DO NOT ADD ANYTHING HERE */
 	dalvik_block_t*     block;     /*!<the code block of this branch */
 	int32_t             ileft[0];  /*!<A instant number as left operand. if left_inst is set, value is stored in ileft[0] */
+	int32_t             handler[0]; /*!< the exception handler */
 	const dalvik_operand_t*   left;      /*!<the left operand */
+	const char*         exception[0];  /*!<A exception class path operand */
 	const dalvik_operand_t*   right;     /*!<the right operand */
 
 
@@ -92,9 +94,13 @@ typedef struct {
 } dalvik_block_branch_t;
 CONST_ASSERTION_FOLLOWS(dalvik_block_branch_t, block_id, block);
 CONST_ASSERTION_FOLLOWS(dalvik_block_branch_t, ileft, left);
+CONST_ASSERTION_FOLLOWS(dalvik_block_branch_t, handler, left);
+CONST_ASSERTION_FOLLOWS(dalvik_block_branch_t, exception, right);
 CONST_ASSERTION_SIZE(dalvik_block_branch_t, block_id, 0);
 CONST_ASSERTION_SIZE(dalvik_block_branch_t, ileft, 0);
 CONST_ASSERTION_SIZE(dalvik_block_branch_t, flags, 0);
+CONST_ASSERTION_SIZE(dalvik_block_branch_t, handler, 0);
+CONST_ASSERTION_SIZE(dalvik_block_branch_t, exception, 0);
 
 /** @brief the block structure */
 struct _dalvik_block_t{ 

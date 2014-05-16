@@ -522,7 +522,12 @@ static inline dalvik_block_t* _dalvik_block_setup_keyinst_switch(const dalvik_in
 }
 static inline dalvik_block_t* _dalvik_block_setup_keyinst(const dalvik_instruction_t* inst, const uint32_t *key, size_t kcnt, uint32_t index)
 {
-	dalvik_block_t* block = _dalvik_block_new(1);  /* only 1 path is possible */
+	int branch_count = 1, i;   /* normal execution path */
+
+	dalvik_exception_handler_set_t* hptr;
+	for(hptr = inst->handler_set; NULL != hptr; hptr = hptr->next, branch_count ++);
+
+	dalvik_block_t* block = _dalvik_block_new(branch_count);  /* only 1 path is possible */
 	if(NULL == block)
 	{
 		LOG_ERROR("can not allocate memory for the instruction");
@@ -538,6 +543,21 @@ static inline dalvik_block_t* _dalvik_block_setup_keyinst(const dalvik_instructi
 		block->branches[0].disabled = 1;
 	}
 	LOG_DEBUG("possible path block %d --> %"PRIu64, index, block->branches[0].block_id[0]);
+
+	for(hptr = inst->handler_set, i = 1; NULL != hptr; hptr = hptr->next, i ++)
+	{
+		int32_t target = _dalvik_block_find_blockid_by_instruction(dalvik_label_jump_table[hptr->handler->handler_label], key, kcnt);
+		if(target < 0)
+		{
+			LOG_ERROR("can not find the exception handler for exception %s", hptr->handler->exception);
+			block->branches[i].disabled = 1;
+			break;
+		}
+		block->branches[i].block_id[0] = target;
+		block->branches[i].exception[0] = hptr->handler->exception;
+		block->branches[i].handler[0] = hptr->handler->handler_label;
+		DALVIK_BLOCK_BRANCH_UNCOND_TYPE_SET_EXCEPTION(block->branches[i]);
+	}
 	return block;
 }
 static inline dalvik_block_t* _dalvik_block_setup_return(const dalvik_instruction_t* inst, const uint32_t *key, size_t kcnt, uint32_t index)

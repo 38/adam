@@ -162,7 +162,17 @@ dalvik_method_t* dalvik_method_from_sexp(const sexpression_t* sexp, const char* 
 					LOG_WARNING("to label is before from label, it might be a mistake");
 				
 				if(label_st[i] == 1)
+				{
+					if(enbaled_count >= DALVIK_MAX_CATCH_BLOCK)
+					{
+						LOG_ERROR("too many catch blocks, try to adjust constant DALVIK_MAX_CATCH_BLOCK");
+						goto ERR;
+					}
 					exceptionset[enbaled_count++] = excepthandler[i];
+					LOG_DEBUG("exception %s is catched by handler at label #%d", 
+					           excepthandler[i]->exception,
+							   excepthandler[i]->handler_label);
+				}
 			}
 			current_ehset = dalvik_exception_new_handler_set(enbaled_count, exceptionset);
 		}

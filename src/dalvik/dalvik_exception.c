@@ -199,6 +199,7 @@ dalvik_exception_handler_set_t* dalvik_exception_new_handler_set(size_t count, d
 			goto ERR;
 		}
 		this->next = ret;
+		this->handler = set[i];
 		ret = this;
 	}
 	vector_pushback(_dalvik_exception_handler_set_vector, &ret);
