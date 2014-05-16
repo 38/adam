@@ -54,7 +54,7 @@ static inline size_t vector_size(vector_t* vec)
 }
 /**
  * @brief init the next empty cell, but do not perform assignment
- * @param vec the vector
+ * @param vector the vector
  * @return < 0 for error
  **/
 int vector_dry_pushback(vector_t* vector);

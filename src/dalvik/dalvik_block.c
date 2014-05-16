@@ -78,7 +78,7 @@ static inline void _dalvik_block_cache_node_free(dalvik_block_cache_node_t* bloc
 }
 /**
  * @brief DFS the block graph, and store all nodes has seen in the result
- * @notes This function will modify the data of the block graph, so it should ONLY USED IN DESTRUCTOR
+ * @note This function will modify the data of the block graph, so it should ONLY USED IN DESTRUCTOR
  * @param node the beginning node of this DFS
  * @param result a vector that used to store the result of DFS
  * @return nothing
@@ -328,7 +328,7 @@ static inline int _dalvik_block_get_key_instruction_list(uint32_t entry_point, u
 	return kcnt;
 }
 /**
- * @biref allocate a new code block with nbranches 
+ * @brief allocate a new code block with nbranches 
  * @param nbranches the number of branches that this block have
  **/
 static inline dalvik_block_t* _dalvik_block_new(size_t nbranches)
@@ -389,7 +389,7 @@ static inline dalvik_block_t* _dalvik_block_setup_keyinst_goto(const dalvik_inst
  * 		  2. the conditional jump branch
  *  @param inst the if instruction
  *  @param key the key array
- *  @param number of keys
+ *  @param kcnt number of keys
  *  @param index the index of this block
  *  @return the newly created block, NULL indicates errors
  **/
@@ -579,6 +579,7 @@ static inline dalvik_block_t* _dalvik_block_setup_return(const dalvik_instructio
  *        block_id which indicates another inside this array)
  * @param key the key array
  * @param kcnt the number of keys
+ * @param sz the size of the buffer
  * @return the result of the operation
  * @todo exception handler support
  **/
@@ -657,13 +658,6 @@ static void inline _dalvik_block_graph_dfs(const dalvik_block_t * block, uint32_
 		if(!block->branches[i].disabled && !DALVIK_BLOCK_BRANCH_UNCOND_TYPE_IS_RETURN(block->branches[i]))
 			_dalvik_block_graph_dfs(block->branches[i].block, visit_status);  
 }
-/**
- * @brief the top level wrap of the block analyzer, it takes a method and return an block graph 
- * @param classpath the class path contains this method
- * @param methodname the name of this method
- * @param typelist the type list of this method (to distinguish the overloaded functions)
- * @return the block graph, NULL indicates errors 
- **/
 dalvik_block_t* dalvik_block_from_method(const char* classpath, const char* methodname, const dalvik_type_t * const * typelist)
 {
 	if(NULL == classpath || NULL == methodname)

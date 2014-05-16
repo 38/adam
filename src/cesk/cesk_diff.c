@@ -9,7 +9,7 @@
 #include <vector.h>
 /**
  * @brief data structure used as the node in the hash table for diff pacakge reduction
- * @detail what the diff reduction actually does is merge all operations in the same address
+ * @details what the diff reduction actually does is merge all operations in the same address
  *        into one adddress, so we use a hash table to build the map from address to the 
  *        reduced operation.
  **/

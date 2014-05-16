@@ -54,11 +54,11 @@ enum {
 	(branch).flags[0] &= ~DALVIK_BLOCK_BRANCH_UNCOND_TYPE_MSK;\
 	(branch).flags[0] |= (type<<1);\
 }while(0)
-/** @breif set type code to unconditional jump */
+/** @brief set type code to unconditional jump */
 #define DALVIK_BLOCK_BRANCH_UNCOND_TYPE_SET_JUMP(b) DALVIK_BLOCK_BRANCH_UNCOND_TYPE_SET(b, DALVIK_BLOCK_BRANCH_UNCOND_JUMP)
-/** @breif set type code to unconditional return */
+/** @brief set type code to unconditional return */
 #define DALVIK_BLOCK_BRANCH_UNCOND_TYPE_SET_RETURN(b) DALVIK_BLOCK_BRANCH_UNCOND_TYPE_SET(b, DALVIK_BLOCK_BRANCH_UNCOND_RETURN)
-/** @breif set type code to unconditional exception */
+/** @brief set type code to unconditional exception */
 #define DALVIK_BLOCK_BRANCH_UNCOND_TYPE_SET_EXCEPTION(b) DALVIK_BLOCK_BRANCH_UNCOND_TYPE_SET(b, DALVIK_BLOCK_BRANCH_UNCOND_EXCEPTION)
 
 /* because all branches are based on value comparasion to 
@@ -119,12 +119,13 @@ int dalvik_block_init();
 /** @brief finalize block cache (function path -> block graph) */
 void dalvik_block_finalize();
 
-/** @brief construct a block graph from a function 
+/** 
+ *  @brief construct a block graph from a function 
  *  @param classpath the class path contains the method from which we want to build the code block graph
  *  @param methodname the name of the function
  *  @param args the argument table. This is because of the function can be overloaded, so the only way to distingush a method is use argument type list
  *  @return the entry point of the code block 
- */
+ **/
 dalvik_block_t* dalvik_block_from_method(const char* classpath, const char* methodname, const dalvik_type_t * const * args);
 
 #endif

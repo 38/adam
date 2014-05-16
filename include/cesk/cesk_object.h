@@ -134,7 +134,7 @@ hashval_t cesk_object_compute_hashcode(const cesk_object_t* object);
 /**
  * @brief get set address of the field, this function like 
  *        cesk_object_get, but instead of returning the pointer
- *        to the store address, it returns the address directly
+ *        to the store address, it returns the store address directly
  * @param object the object
  * @param classpath the class path
  * @param field_name the field name of the class
