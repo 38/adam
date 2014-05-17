@@ -345,7 +345,7 @@ int cesk_set_modify(cesk_set_t* dest, uint32_t from, uint32_t to)
 		LOG_DEBUG("set #%d is used by %d set objects, duplicate before writing",
 				  dest->set_idx,
 				  info->refcnt);
-		cesk_set_info_entry_t *new;
+		cesk_set_info_entry_t *new = NULL;
 		uint32_t idx = _cesk_set_duplicate(info, &new);
 		dest->set_idx = idx;
 		info = new;
