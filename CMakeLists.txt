@@ -22,7 +22,7 @@ set(tools_DIR "tools")
 
 set(LOG     0)  # log level can be 0 to 6, 0 means no log, 6 means the most enable debug log 
 #set(CFLAGS -O0\ -Werror\ -Wall\ -g\ -DLOG_LEVEL=${LOG}\ -DPARSER_COUNT)
-set(CFLAGS -O3\ -Wall\ -Werror\ -g\ -DLOG_LEVEL=${LOG}\ -DPARSER_COUNT)
+set(CFLAGS -O0\ -Wall\ -Werror\ -g\ -DLOG_LEVEL=${LOG}\ -DPARSER_COUNT)
 set(LDFLAGS \ )
 
 

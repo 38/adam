@@ -1,26 +1,69 @@
-A	Allocation 
-D	Deallocation
-S	SetValue 
-R	SetReuseFlag
-AS  Allocation then SetValue
-AR	Allocation then SetReuseFlag
-N	Nop
-===========================================
-*	A	D	S	R	AS	AR	N
-A		N	AS	AR			A
-D	N				S	R	D
-S		D	S		AS		S
-R				R		AR	R
-AS			AS				AS
-AR				AR			AR
-N	A	D	S	R	AS	AR	N
-===========================================
-+	A	D	S	R	AS	AR	N
-A	A		S	R	AS	AR	A		
-D							
-S	S		S		AS		S
-R	R			R		AR	R
-AS	AS		AS		AS		AS	
-AR	AR			AR		AR	AR
-N	A		S	R	AS	AR	N
-===========================================
+The intra-procedural analyzer only need to dealing with much fewer of
+instructions, because the control intruction is converted to the block graph
+so that there's no need to consider them when we do the analyze. 
+In addition, we treat strings and arrays as normal object, that means we
+should convert that instruction in to invoke (but those instruction do
+not modify the result instruction, so the inter-procedural interface should be
+able to make the result be stored in a caller specified register rather than
+the result register only).
+For the static fields in the class, the store address for it should be
+allocate only after this field has been used. And the modification on the
+static fields should be in the return diff package of the analysis result of
+this function.
+
+The categories of instruction that we are interested are:
+	1) write to a register (from another register or from inst num)
+	   move & const & arithmitic instructions
+	   possible effect:
+	   		change the value of register
+	   diff: <set-reg reg# new-val>
+	   inv : <set-reg reg# old-val>
+	2) allocation
+		new
+		possible effect: 
+			1. execute this instruction first time: allocate a relc-addr
+			2. otherwise: set the reuse flag
+		diff: <init-addr reloc-addr>
+		inv : <set-reuse old-reuse> (for reused addresses)
+		      <remove-addr reloc-addr> (for the address not reused)
+	3) read from store
+		get
+		possible effetc:
+			change the value of register
+		diff: <set-reg new-addr>
+		inv : <set-reg old-addr>
+	4) write to store
+		put
+		possible effect:
+			change the value of value set
+		diff: <set-store addr new-val>
+		diff  <set-store addr old-val>
+	5) call functions
+		invoke
+		possible effect:
+			call inter-procedural analyzer
+		diff: a package return from ...
+		note: we might be to compuate the inverse after the subroutine returns
+
+Structure of diff (different segment):
+	1) Allocation Segment:		A list of relocated address that is newly allocated
+	2) Register Ops Segment: 	A list of pair of new value and Registers #
+	3) Store Ops Segment:		A list of pair of new value and Store Address
+	4) Reuse Segment:			A list of pair of new reuse flag value & addr
+	5) Deallocation Segment:	A list of address that should be deallocated
+
+* All new value holds by the diff package should use 1 ref count, and this ref
+* count should return when the diff package is on longer used
+
+Note that because deallocation operation is only occurs in the inversion of a
+diff, and the inversion can never be applied to any store, so that if the
+program is trying to apply a deallocation record to a store, this must be a
+mistake. So that we can simply ignore the problem of how to implement the
+deallocation operation.
+
+When a diff package is to apply to the store, the allocation segment always
+applys first so that we can make all address involve in the diff package
+valid. Then we modify the value of the register and the store. After this we
+can set the reuse flag
+
+TODO: rewrite cesk_diff module (segment based)
