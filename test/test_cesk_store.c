@@ -129,6 +129,7 @@ int main()
 	cesk_store_release_rw(store4, oa2);
 
 	cesk_store_t* store5 = cesk_store_fork(store4);
+	assert(0 == cesk_store_apply_alloctab(store5));
 
 	assert(NULL != store5);
 

@@ -40,7 +40,6 @@ typedef vector_t cesk_reloc_table_t;
  * @note  see the documentation of cesk_store_allocate for details
  **/
 typedef struct {
-	cesk_value_t* init_value;					/*!< the value of this item*/
 	const dalvik_instruction_t* instruction;	/*!< the instruction that allocate this item */
 	uint32_t      parent_addr;					/*!< the parent address */
 	uint32_t      field_offset;					/*!< the field offset */ 
@@ -72,25 +71,6 @@ uint32_t cesk_reloc_table_append(
 		const dalvik_instruction_t* inst,
 		uint32_t parent_addr,
 		uint32_t field_offset);
-/**
- * @brief set the initial value object of a given value table entry
- * @param table the value table
- * @param addr  the relocated address to this entry
- * @param value the value to set
- * @return <0 if error
- **/
-int cesk_reloc_set_init_value(cesk_reloc_table_t* table, uint32_t addr, cesk_value_t* value);
-
-/**
- * @brief initialize relocated value in a store
- * @param table the realocated value table
- * @param store the store
- * @param addr  the relocated address
- * @return the object address for this relocated value, CESK_STORE_ADDR_NULL means error
- * @note this function is used when the diff requires to allocate a new object, rather than a instruction does this
- **/
-uint32_t cesk_reloc_addr_init(cesk_reloc_table_t* table, cesk_store_t* store, uint32_t addr);
-
 /**
  * @brief allocate a `fresh' relocated address and attach it to the global relocate allocate table
  * 		  (but do not install the value in the store if it's new) useful when creating new object

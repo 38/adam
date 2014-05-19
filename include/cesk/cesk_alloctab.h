@@ -46,11 +46,7 @@ void cesk_alloctab_free(cesk_alloctab_t* mem);
  * @param key_addr  the val address
  * @return the result of insertion <0 means error
  **/
-int cesk_alloctab_insert(
-		cesk_alloctab_t* table,
-		const cesk_store_t* store, 
-		uint32_t key_addr, 
-		uint32_t val_addr);
+int cesk_alloctab_insert(cesk_alloctab_t* table, const cesk_store_t* store, uint32_t key_addr, uint32_t val_addr);
 
 /**
  * @brief query an relocation address using object address
@@ -63,10 +59,7 @@ int cesk_alloctab_insert(
  *        relocated address. If the input address is a relocated address
  *        the return address is an object address
  **/
-uint32_t cesk_alloctab_query(
-		const cesk_alloctab_t* table,
-		const cesk_store_t* store,
-		uint32_t addr);
+uint32_t cesk_alloctab_query(const cesk_alloctab_t* table, const cesk_store_t* store, uint32_t addr);
 
 /**
  * @brief map a relocated address to an object address
@@ -75,10 +68,11 @@ uint32_t cesk_alloctab_query(
  * @param rel_addr relocated_address
  * @param obj_addr the object address in that store
  **/
-int cesk_alloctab_map_addr(
-		cesk_alloctab_t*       table,
-		cesk_store_t*          store,
-		uint32_t               rel_addr,
-		uint32_t               obj_addr);
-
+int cesk_alloctab_map_addr(cesk_alloctab_t* table, cesk_store_t* store, uint32_t rel_addr, uint32_t obj_addr);
+/**
+ * @brief allocate a new token in this allocation table
+ * @param table the allocation table
+ * @return the newly allocated token
+ **/
+uint32_t cesk_alloctab_get_token(cesk_alloctab_t* table);
 #endif
