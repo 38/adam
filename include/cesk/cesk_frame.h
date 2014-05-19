@@ -4,6 +4,7 @@ typedef struct _cesk_frame_t cesk_frame_t;
 #include <cesk/cesk_set.h>
 #include <dalvik/dalvik_instruction.h>
 #include <cesk/cesk_diff.h>
+#include <const_assertion.h>
 /** @file cesk_frame.h
  *  @brief A stack frame of the virtual machine
  *
@@ -34,6 +35,11 @@ struct _cesk_frame_t{
 	cesk_set_t*    reg_exception;  /*!<exception register*/
 	cesk_set_t*    general_regs[0]; /*!<begin address of gneral registers */
 };
+CONST_ASSERTION_FOLLOWS(cesk_frame_t, regs, reg_result);
+CONST_ASSERTION_FOLLOWS(cesk_frame_t, reg_result, reg_exception);
+CONST_ASSERTION_FOLLOWS(cesk_frame_t, reg_exception, general_regs);
+CONST_ASSERTION_SIZE(cesk_frame_t, regs, 0);
+CONST_ASSERTION_SIZE(cesk_frame_t, general_regs, 0);
 
 /** @brief duplicate the frame 
  *  @param frame input frame

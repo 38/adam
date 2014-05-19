@@ -30,8 +30,8 @@ The categories of instruction that we are interested are:
 		get
 		possible effetc:
 			change the value of register
-		diff: <set-reg new-addr>
-		inv : <set-reg old-addr>
+		diff: <set-reg reg# new-addr>
+		inv : <set-reg reg# old-addr>
 	4) write to store
 		put
 		possible effect:
