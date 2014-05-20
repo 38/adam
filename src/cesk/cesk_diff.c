@@ -23,7 +23,7 @@ struct _cesk_diff_node_t{
  * @note the diff items is sorted so that we can merge it by a signle scan
  **/
 struct _cesk_diff_t{
-	int size[CESK_DIFF_NTYPES];   /*!< the size of each segment */
+	int offset[CESK_DIFF_NTYPES + 1];   /*!< the size of each segment */
 	_cesk_diff_node_t data[0]; /*!< the data section */
 };
 CONST_ASSERTION_LAST(cesk_diff_t, data);
@@ -63,11 +63,22 @@ int cesk_diff_buffer_add(cesk_diff_buffer_t* buffer, int type, uint32_t addr, ce
 		LOG_ERROR("invalid argument");
 		return -1;
 	}
+	if(CESK_DIFF_STORE != type && CESK_DIFF_REG != type)
+	{
+		if(NULL != value) LOG_WARNING("invalid value field, suppose to be NULL");
+		value = NULL;
+	}
+	else
+	{
+		if(NULL == value) LOG_ERROR("invalid value field, suppose to be non-NULL");
+		return -1;
+	}
 	_cesk_diff_node_t node = {
 		.type = type,
 		.addr = addr,
 		.value = value
 	};
+	if(NULL != value) cesk_value_incref(value);
 	return vector_pushback(buffer->buffer, &node);
 }
 /**
@@ -96,11 +107,12 @@ cesk_diff_t* cesk_diff_from_buffer(cesk_diff_buffer_t* buffer)
 		LOG_ERROR("can not allocate memory for the diff");
 		return NULL;
 	}
-	memset(ret->size, 0, sizeof(ret->size));
+	memset(ret->offset, 0, sizeof(ret->offset));
 	qsort(buffer->buffer->data, sz, buffer->buffer->size, _cesk_diff_buffer_cmp);
 	int prev_type = 0;
 	int prev_addr = CESK_STORE_ADDR_NULL;
 	int i, diff_size = -1;  /* because of the first dumb buffer, we should skip that */
+	int size[CESK_DIFF_NTYPES] = {};
 	for(i = 0; i < sz; i ++)
 	{
 		_cesk_diff_node_t* node = (_cesk_diff_node_t*)vector_get(buffer->buffer, i);
@@ -113,7 +125,7 @@ cesk_diff_t* cesk_diff_from_buffer(cesk_diff_buffer_t* buffer)
 		{
 			/* we are moving to the next, so flush the buffer */
 			diff_size ++;
-			ret->size[prev_type] ++;
+			size[prev_type] ++;
 			/* prepare the next buffer */
 			ret->data[diff_size].type = node->type;
 			ret->data[diff_size].addr = node->addr;
@@ -153,10 +165,66 @@ cesk_diff_t* cesk_diff_from_buffer(cesk_diff_buffer_t* buffer)
 	}
 	/* ok, we need to flush the last item */
 	diff_size ++;
-	ret->size[prev_type] ++;
+	size[prev_type] ++;
 	buffer->converted = i;
+	ret->offset[0] = 0;
+	for(i = 1; i <= CESK_DIFF_NTYPES; i ++)
+		ret->offset[i] = ret->offset[i-1] + size[i-1];
 	return ret;
 ERR:
 	if(NULL != ret) free(ret);
 	return NULL;
+}
+void cesk_diff_free(cesk_diff_t* diff)
+{
+	if(NULL == diff) return;
+	int sec, ofs = 0;
+	for(sec = 0; sec < CESK_DIFF_NTYPES; sec ++)
+	{
+		for(ofs = diff->offset[sec]; ofs < diff->offset[sec + 1]; ofs ++)
+		{
+			if(NULL != diff->data[ofs].value)
+			{
+				/* the diff occupies one reference count, so release it */
+				cesk_value_decref(diff->data[ofs].value);
+			}
+		}
+	}
+	free(diff);
+}
+cesk_diff_t* _cesk_diff_allocate_result(int N, const cesk_diff_t* args[])
+{
+	size_t size = 0;
+	int i;
+	for(i = 0; i < N; i ++)
+	{
+		const cesk_diff_t* diff = args[i];
+		size += diff->offset[CESK_DIFF_NTYPES];
+	}
+	cesk_diff_t* ret = (cesk_diff_t*) malloc(sizeof(cesk_diff_t) + size * sizeof(_cesk_diff_node_t));
+	if(NULL == ret)
+	{
+		LOG_ERROR("can not allocate memory for the result diff");
+		return NULL;
+	}
+	memset(ret->offset, 0, sizeof(ret->offset));
+	return ret;
+}
+static void _cesk_diff_heap_heapify(const cesk_diff_t* heap, int N, int type)
+{
+	//TODO: heap adjustment
+}
+cesk_diff_t* cesk_diff_union(int N, const cesk_diff_t* args[])
+{
+	cesk_diff_t* ret = _cesk_diff_allocate_result(N, args);
+	if(NULL == ret)
+	{
+		LOG_ERROR("can not allocate memory for the result");
+		return NULL;
+	}
+	int section, offset;
+	for(offset = section = 0; section < CESK_DIFF_NTYPES; section ++)
+	{
+		//TODO: merge N diffs
+	}
 }
