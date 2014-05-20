@@ -205,27 +205,12 @@ void cesk_diff_free(cesk_diff_t* diff)
 	free(diff);
 }
 /**
- * @brief compare two heap node, if the type do not match the value of this node is infinity
- * @param this the first node
- * @param that the second node
- * @return the result of comparasion >0 means this > that, = 0 means this = that, < 0 means this < that
- **/
-static inline int _cesk_diff_heap_node_cmp(const cesk_diff_t* this, const cesk_diff_t* that)
-{
-	const _cesk_diff_node_t* thisnode = this->data + this->_index;
-	const _cesk_diff_node_t* thatnode = that->data + that->_index;
-	if(this->offset[CESK_DIFF_NTYPES] <= this->_index) return 1;
-	if(that->offset[CESK_DIFF_NTYPES] <= that->_index) return -1;
-	if(thisnode->type != thatnode->type) return thisnode->type - thatnode->type;    /* any order is ok */
-	return thisnode->addr - thatnode->addr;
-}
-/**
  * @brief allocate a memory for the result
  * @param N how many inputs
  * @param args the arguments
  * @return the newly created memory, NULL indcates error
  **/
-cesk_diff_t* _cesk_diff_allocate_result(int N, cesk_diff_t* args[])
+static inline cesk_diff_t* _cesk_diff_allocate_result(int N, cesk_diff_t* args[])
 {
 	size_t size = 0;
 	int i;
@@ -266,138 +251,6 @@ cesk_diff_t* _cesk_diff_allocate_result(int N, cesk_diff_t* args[])
 	}
 	memset(ret->offset, 0, sizeof(ret->offset));
 	return ret;
-}
-/**
- * @brief maintain the binary heap property for heap rooted in node R 
- * @param heap binary heap
- * @param R root node
- * @param N the heap size
- * @return nothing
- **/
-static inline void _cesk_diff_heap_heapify(cesk_diff_t** heap, int R, int N)
-{
-	for(;R < N;)
-	{
-		int M = R;
-		if(R * 2 + 1 < N && _cesk_diff_heap_node_cmp(heap[R * 2 + 1], heap[M]) < 0) 
-			M = R * 2 + 1;
-		if(R * 2 + 2 < N && _cesk_diff_heap_node_cmp(heap[R * 2 + 2], heap[M]) < 0) 
-			M = R * 2 + 2;
-		if(M == R) break;
-		cesk_diff_t* tmp = heap[M];
-		heap[M] = heap[R];
-		heap[R] = tmp;
-		R = M;
-	}
-}
-/**
- * @brief peek the smallest element in the heap
- * @param heap the binary heap
- * @param type the expceted type
- * @param type the expected type for this operation (e.g. if currently merging 
- *        allocation section, that means we should treat the node with non-allocation
- *        type as infitity
- * @return the smallest address
- **/
-static inline uint32_t _cesk_diff_heap_peek(cesk_diff_t** heap, int type)
-{
-	if(heap[0]->_index >= heap[0]->offset[CESK_DIFF_NTYPES] || 
-	   heap[0]->data[heap[0]->_index].type != type) return CESK_STORE_ADDR_NULL;
-	return heap[0]->data[heap[0]->_index].addr;
-}
-/**
- * @brief pop the first element in the heap
- * @param N the size of the heap
- * @param heap the binary heap
- * @return the pointer to the deleted node
- **/
-static inline _cesk_diff_node_t* _cesk_diff_heap_pop(int N, cesk_diff_t** heap)
-{
-	if(heap[0]->_index >= heap[0]->offset[CESK_DIFF_NTYPES]) return NULL;
-	_cesk_diff_node_t* ret = heap[0]->data + heap[0]->_index;
-	heap[0]->_index ++;
-	_cesk_diff_heap_heapify(heap, 0, N);
-	return ret;
-}
-cesk_diff_t* cesk_diff_union(int N, cesk_diff_t** args)
-{
-	int i;
-	cesk_diff_t* ret = _cesk_diff_allocate_result(N, args);
-	if(NULL == ret)
-	{
-		LOG_ERROR("can not allocate memory for the result");
-		return NULL;
-	}
-	/* init the index */
-	for(i = 0; i < N; i ++)
-		args[i]->_index = args[i]->offset[0];
-	/* we build heap first */
-	for(i = N/2; i >= 0; i --)
-		_cesk_diff_heap_heapify(args, i , N);
-	/* then we do a merge sort */
-	int section;
-	uint32_t prev_addr = CESK_STORE_ADDR_NULL;
-	ret->offset[0] = 0;
-	/* for each section */
-	for(section = 0; section < CESK_DIFF_NTYPES; section ++)
-	{
-		uint32_t addr;
-		for(;(addr = _cesk_diff_heap_peek(args, section)) != CESK_STORE_ADDR_NULL;)
-		{
-			_cesk_diff_node_t* node = _cesk_diff_heap_pop(N, args);
-			if(addr != prev_addr)
-				ret->data[ret->offset[section + 1]++].value = NULL;
-			if(NULL == ret->data[ret->offset[section + 1] - 1].value)
-			{
-				ret->data[ret->offset[section + 1] - 1].value = node->value;
-				ret->data[ret->offset[section + 1] - 1].type  = node->type;
-				ret->data[ret->offset[section + 1] - 1].addr  = node->addr;
-				cesk_value_incref(node->value);
-			}
-			else
-			{
-				switch(section)
-				{
-					case CESK_DIFF_ALLOC:
-					case CESK_DIFF_DEALLOC:
-						break;  /* double deallocation, just ingore that */
-					case CESK_DIFF_STORE:
-					case CESK_DIFF_REG:
-						/* in this case what we need to do is to merge the two value */
-						if(CESK_TYPE_OBJECT == ret->data[ret->offset[section + 1] - 1].value->type)
-						{
-							LOG_WARNING("ignored merge request for two object");
-						} 
-						else if(CESK_TYPE_SET == ret->data[ret->offset[section + 1] -1].value->type)
-						{
-							/* if this value is used by many user, we can not perform a merge operation directly on it */
-							if(ret->data[ret->offset[section + 1] - 1].value->refcnt > 1)
-							{
-								cesk_value_t* newval = cesk_value_fork(ret->data[ret->offset[section + 1] - 1].value);
-								if(NULL == newval)
-								{
-									LOG_ERROR("failed to fork the newval, this is a mistake");
-									goto ERR;
-								}
-								ret->data[ret->offset[section + 1] - 1].value = newval;
-							}
-							cesk_set_t* this_set = ret->data[ret->offset[section + 1] - 1].value->pointer.set;
-							cesk_set_t* that_set = node->value->pointer.set;
-							if(cesk_set_merge(this_set, that_set) < 0)
-							{
-								LOG_ERROR("can not merge set");
-								goto ERR;
-							}
-						}
-				}
-			}
-			prev_addr = addr;
-		}
-	}
-	return ret;
-ERR:
-	free(ret);
-	return NULL;
 }
 cesk_diff_t* cesk_diff_apply(int N, cesk_diff_t** args)
 {
@@ -460,11 +313,35 @@ cesk_diff_t* cesk_diff_apply(int N, cesk_diff_t** args)
 
 						}
 					}
+					args[i]->_index ++;
 				}
 		}
 	}
 	/* now we eliminate allocation-deallocation pairs */
-
+	int alloc_begin = ret->offset[CESK_DIFF_ALLOC];
+	int alloc_end   = ret->offset[CESK_DIFF_ALLOC + 1];
+	int dealloc_begin = ret->offset[CESK_DIFF_DEALLOC];
+	int dealloc_end = ret->offset[CESK_DIFF_DEALLOC + 1];
+	int alloc_ptr, dealloc_ptr, alloc_free = alloc_end, dealloc_free = dealloc_end;
+	int matches = 0;
+	for(alloc_ptr = alloc_end - 1, dealloc_ptr = dealloc_end - 1; alloc_ptr >= alloc_begin; alloc_ptr --)
+	{
+		for(;dealloc_ptr >= dealloc_begin && ret->data[dealloc_ptr].addr > ret->data[alloc_ptr].addr; dealloc_ptr --)
+		{
+			if(!matches) 
+				ret->data[--dealloc_free] = ret->data[dealloc_ptr];
+			matches = 0;
+		}
+		if(ret->data[dealloc_ptr].addr != ret->data[alloc_ptr].addr)
+		{
+			ret->data[--alloc_free] = ret->data[alloc_ptr];
+			matches = 1;
+		}
+	}
+	for(dealloc_ptr = dealloc_free; dealloc_ptr < dealloc_end; dealloc_ptr ++)
+		ret->data[dealloc_ptr] = ret->data[dealloc_ptr - dealloc_free + dealloc_begin];
+	ret->offset[0] = alloc_free;
+	ret->offset[CESK_DIFF_NTYPES] = dealloc_ptr;
 	return ret;
 }
 cesk_diff_t* cesk_diff_factorize(int N, cesk_diff_t** diffs, const cesk_frame_t** current_frame, const cesk_frame_t** previous_frame)
@@ -475,7 +352,7 @@ cesk_diff_t* cesk_diff_factorize(int N, cesk_diff_t** diffs, const cesk_frame_t*
 		LOG_ERROR("can not allocate memory for the result");
 		return NULL;
 	}
-	
+	//TODO
 	return ret;
 }
 
