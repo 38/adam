@@ -17,7 +17,6 @@ typedef struct _cesk_diff_t cesk_diff_t;
  **/
 enum{
 	CESK_DIFF_ALLOC,   /*!<Allocate a new object in relocated address <allocate reloc_addr>*/
-	CESK_DIFF_REUSE,   /*!<Only for Clear the reuse flag, because set reuse flag it done by allocator <clear-reuse reloc_addr> */
 	CESK_DIFF_REG,     /*!<Set a value to a register <set-reg reg-id new-value> */
 	CESK_DIFF_STORE,   /*!<Set a value to a store cell <set-store address new-value> */
 	CESK_DIFF_DEALLOC, /*!<Deallocate the object (must not apply to a store) <deallocate reloc_addr> */
@@ -88,8 +87,9 @@ cesk_diff_t* cesk_diff_apply(int N, cesk_diff_t** args);
  * @brief factorize the sum expression
  * @detail make D1*S1 + ... + Dn*Sn = D * (S1 + S2 + ... + Sn) 
  * @param N the number of terms
- * @note call this using cesk_diff_fractorize(N, diff1, const_sotre1, diff2, const_store2, .....);
+ * @param current_frame Sn*Dn
+ * @param previous_frame Sn
  * @return the result diff
  **/
-cesk_diff_t* cesk_diff_factorize(int N, cesk_diff_t** diffs, const cesk_frame_t* frames[]);
+cesk_diff_t* cesk_diff_factorize(int N, cesk_diff_t** diffs, const cesk_frame_t** current_frame, const cesk_frame_t** previous_frame);
 #endif
