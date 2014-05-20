@@ -30,7 +30,7 @@ enum{
  *        cesk_diff_from_buffer to make a cesk_diff_t type
  **/
 typedef struct {
-	int converted;   /*!< indicates if this buffer is convertd to a  cesk_diff_t, if yes, the refcnt should keep when buffer is to be freed */
+	int converted;   /*!< indicates how many items are converted */
 	vector_t* buffer;/*!< the actual buffer */
 } cesk_diff_buffer_t;
 
