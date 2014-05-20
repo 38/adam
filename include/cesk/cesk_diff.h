@@ -75,14 +75,14 @@ void cesk_diff_free(cesk_diff_t* diff);
  * @param N the number of diffs that want to merge
  * @return the newly created diff, NULL indicates error
  **/
-cesk_diff_t* cesk_diff_union(int N, const cesk_diff_t* args[]);
+cesk_diff_t* cesk_diff_union(int N, cesk_diff_t** args);
 
 /**
  * @brief make a new diff that is the result to apply N input diff into one
  * @param N the number of diffs that want to apply
  * @return the newly create diff, NULL indicates error
  */
-cesk_diff_t* cesk_diff_apply(int N, const cesk_diff_t* args[]);
+cesk_diff_t* cesk_diff_apply(int N, cesk_diff_t** args);
 
 /**
  * @brief factorize the sum expression
@@ -91,5 +91,5 @@ cesk_diff_t* cesk_diff_apply(int N, const cesk_diff_t* args[]);
  * @note call this using cesk_diff_fractorize(N, diff1, const_sotre1, diff2, const_store2, .....);
  * @return the result diff
  **/
-cesk_diff_t* cesk_diff_factorize(int N, const cesk_diff_t* diffs[], const cesk_frame_t* frames[]);
+cesk_diff_t* cesk_diff_factorize(int N, cesk_diff_t** diffs, const cesk_frame_t* frames[]);
 #endif

@@ -23,8 +23,9 @@ struct _cesk_diff_node_t{
  * @note the diff items is sorted so that we can merge it by a signle scan
  **/
 struct _cesk_diff_t{
+	int _index;                         /*!< the index of current element, used for heap manipulation */ 
 	int offset[CESK_DIFF_NTYPES + 1];   /*!< the size of each segment */
-	_cesk_diff_node_t data[0]; /*!< the data section */
+	_cesk_diff_node_t data[0];          /*!< the data section */
 };
 CONST_ASSERTION_LAST(cesk_diff_t, data);
 CONST_ASSERTION_SIZE(cesk_diff_t, data, 0);
@@ -108,6 +109,7 @@ cesk_diff_t* cesk_diff_from_buffer(cesk_diff_buffer_t* buffer)
 		return NULL;
 	}
 	memset(ret->offset, 0, sizeof(ret->offset));
+	ret->_index = 0;
 	qsort(buffer->buffer->data, sz, buffer->buffer->size, _cesk_diff_buffer_cmp);
 	int prev_type = 0;
 	int prev_addr = CESK_STORE_ADDR_NULL;
@@ -192,7 +194,7 @@ void cesk_diff_free(cesk_diff_t* diff)
 	}
 	free(diff);
 }
-cesk_diff_t* _cesk_diff_allocate_result(int N, const cesk_diff_t* args[])
+cesk_diff_t* _cesk_diff_allocate_result(int N, cesk_diff_t* args[])
 {
 	size_t size = 0;
 	int i;
@@ -210,11 +212,47 @@ cesk_diff_t* _cesk_diff_allocate_result(int N, const cesk_diff_t* args[])
 	memset(ret->offset, 0, sizeof(ret->offset));
 	return ret;
 }
-static void _cesk_diff_heap_heapify(const cesk_diff_t* heap, int N, int type)
+/**
+ * @brief compare two heap node, if the type do not match the value of this node is infinity
+ * @param this the first node
+ * @param that the second node
+ * @return the result of comparasion >0 means this > that, = 0 means this = that, < 0 means this < that
+ **/
+static inline int _cesk_diff_heap_node_cmp(const cesk_diff_t* this, const cesk_diff_t* that, int type)
 {
-	//TODO: heap adjustment
+	const _cesk_diff_node_t* thisnode = this->data + this->_index;
+	const _cesk_diff_node_t* thatnode = that->data + that->_index;
+	if(thisnode->type != type) return 1;    /* any order is ok */
+	if(thatnode->type != type) return -1;   /* for the same reason */
+	return thisnode->addr - thatnode->addr;
 }
-cesk_diff_t* cesk_diff_union(int N, const cesk_diff_t* args[])
+/**
+ * @brief maintain the binary heap property for heap rooted in node R 
+ * @param heap binary heap
+ * @param R root node
+ * @param N the heap size
+ * @param type the expected type for this operation (e.g. if currently merging 
+ *        allocation section, that means we should treat the node with non-allocation
+ *        type as infitity
+ * @return nothing
+ **/
+static inline void _cesk_diff_heap_heapify(const cesk_diff_t* heap[], int R, int N, int type)
+{
+	for(;R < N;)
+	{
+		int M = R;
+		if(R * 2 + 1 < N && _cesk_diff_heap_node_cmp(heap[R * 2 + 1], heap[M], type) < 0) 
+			M = R * 2 + 1;
+		if(R * 2 + 2 < N && _cesk_diff_heap_node_cmp(heap[R * 2 + 2], heap[M], type) < 0) 
+			M = R * 2 + 2;
+		if(M == R) break;
+		const cesk_diff_t* tmp = heap[M];
+		heap[M] = heap[R];
+		heap[R] = tmp;
+		R = M;
+	}
+}
+cesk_diff_t* cesk_diff_union(int N, cesk_diff_t* args[])
 {
 	cesk_diff_t* ret = _cesk_diff_allocate_result(N, args);
 	if(NULL == ret)
@@ -225,6 +263,7 @@ cesk_diff_t* cesk_diff_union(int N, const cesk_diff_t* args[])
 	int section, offset;
 	for(offset = section = 0; section < CESK_DIFF_NTYPES; section ++)
 	{
-		//TODO: merge N diffs
 	}
+	//TODO
+	return NULL + offset;
 }
