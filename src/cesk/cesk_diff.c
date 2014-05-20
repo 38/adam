@@ -1,6 +1,12 @@
 /**
  * @file cesk_diff.c
  * @brief implementation of frame diff package
+ * @details the layout of diff
+ * 		Allocation Section:   <addr, init_value>
+ *		Reuse Section     :   <addr>
+ *		Register Section  :   <regid, value>
+ *		Store Section     :   <addr, id>
+ *		Deallocate Section:   <addr>
  * @todo review the code, and the idea of diff
  **/
 #include <const_assertion.h>
@@ -218,12 +224,13 @@ cesk_diff_t* _cesk_diff_allocate_result(int N, cesk_diff_t* args[])
  * @param that the second node
  * @return the result of comparasion >0 means this > that, = 0 means this = that, < 0 means this < that
  **/
-static inline int _cesk_diff_heap_node_cmp(const cesk_diff_t* this, const cesk_diff_t* that, int type)
+static inline int _cesk_diff_heap_node_cmp(const cesk_diff_t* this, const cesk_diff_t* that)
 {
 	const _cesk_diff_node_t* thisnode = this->data + this->_index;
 	const _cesk_diff_node_t* thatnode = that->data + that->_index;
-	if(thisnode->type != type) return 1;    /* any order is ok */
-	if(thatnode->type != type) return -1;   /* for the same reason */
+	if(this->offset[CESK_DIFF_NTYPES] <= this->_index) return 1;
+	if(that->offset[CESK_DIFF_NTYPES] <= that->_index) return -1;
+	if(thisnode->type != thatnode->type) return thisnode->type - thatnode->type;    /* any order is ok */
 	return thisnode->addr - thatnode->addr;
 }
 /**
@@ -231,28 +238,54 @@ static inline int _cesk_diff_heap_node_cmp(const cesk_diff_t* this, const cesk_d
  * @param heap binary heap
  * @param R root node
  * @param N the heap size
- * @param type the expected type for this operation (e.g. if currently merging 
- *        allocation section, that means we should treat the node with non-allocation
- *        type as infitity
  * @return nothing
  **/
-static inline void _cesk_diff_heap_heapify(const cesk_diff_t* heap[], int R, int N, int type)
+static inline void _cesk_diff_heap_heapify(cesk_diff_t** heap, int R, int N)
 {
 	for(;R < N;)
 	{
 		int M = R;
-		if(R * 2 + 1 < N && _cesk_diff_heap_node_cmp(heap[R * 2 + 1], heap[M], type) < 0) 
+		if(R * 2 + 1 < N && _cesk_diff_heap_node_cmp(heap[R * 2 + 1], heap[M]) < 0) 
 			M = R * 2 + 1;
-		if(R * 2 + 2 < N && _cesk_diff_heap_node_cmp(heap[R * 2 + 2], heap[M], type) < 0) 
+		if(R * 2 + 2 < N && _cesk_diff_heap_node_cmp(heap[R * 2 + 2], heap[M]) < 0) 
 			M = R * 2 + 2;
 		if(M == R) break;
-		const cesk_diff_t* tmp = heap[M];
+		cesk_diff_t* tmp = heap[M];
 		heap[M] = heap[R];
 		heap[R] = tmp;
 		R = M;
 	}
 }
-cesk_diff_t* cesk_diff_union(int N, cesk_diff_t* args[])
+/**
+ * @brief peek the smallest element in the heap
+ * @param heap the binary heap
+ * @param type the expceted type
+ * @param type the expected type for this operation (e.g. if currently merging 
+ *        allocation section, that means we should treat the node with non-allocation
+ *        type as infitity
+ * @return the smallest address
+ **/
+static inline uint32_t _cesk_diff_heap_peek(cesk_diff_t** heap, int type)
+{
+	if(heap[0]->_index >= heap[0]->offset[CESK_DIFF_NTYPES] || 
+	   heap[0]->data[heap[0]->_index].type != type) return CESK_STORE_ADDR_NULL;
+	return heap[0]->data[heap[0]->_index].addr;
+}
+/**
+ * @brief pop the first element in the heap
+ * @param N the size of the heap
+ * @param heap the binary heap
+ * @return the pointer to the deleted node
+ **/
+static inline _cesk_diff_node_t* _cesk_diff_heap_pop(int N, cesk_diff_t** heap)
+{
+	if(heap[0]->_index >= heap[0]->offset[CESK_DIFF_NTYPES]) return NULL;
+	_cesk_diff_node_t* ret = heap[0]->data + heap[0]->_index;
+	heap[0]->_index ++;
+	_cesk_diff_heap_heapify(heap, 0, N);
+	return ret;
+}
+cesk_diff_t* cesk_diff_union(int N, cesk_diff_t** args)
 {
 	cesk_diff_t* ret = _cesk_diff_allocate_result(N, args);
 	if(NULL == ret)
@@ -260,10 +293,73 @@ cesk_diff_t* cesk_diff_union(int N, cesk_diff_t* args[])
 		LOG_ERROR("can not allocate memory for the result");
 		return NULL;
 	}
-	int section, offset;
-	for(offset = section = 0; section < CESK_DIFF_NTYPES; section ++)
+	/* we build heap first */
+	int i;
+	for(i = N/2; i >= 0; i --)
+		_cesk_diff_heap_heapify(args, i , N);
+	/* then we do a merge sort */
+	int section, nelement = 0;
+	uint32_t prev_addr = CESK_STORE_ADDR_NULL;
+	/* for each section */
+	for(section = 0; section < CESK_DIFF_NTYPES; section ++)
 	{
+		uint32_t addr;
+		for(;(addr = _cesk_diff_heap_peek(args, section)) != CESK_STORE_ADDR_NULL;)
+		{
+			_cesk_diff_node_t* node = _cesk_diff_heap_pop(N, args);
+			if(addr != prev_addr)
+				ret->data[nelement ++].value = NULL;
+			if(NULL == ret->data[nelement - 1].value)
+			{
+				ret->data[nelement - 1].value = node->value;
+				ret->data[nelement - 1].type  = node->type;
+				ret->data[nelement - 1].addr  = node->addr;
+				cesk_value_incref(node->value);
+			}
+			else
+			{
+				switch(section)
+				{
+					case CESK_DIFF_ALLOC:
+					case CESK_DIFF_DEALLOC:
+					case CESK_DIFF_REUSE:
+						break;  /* double deallocation, just ingore that */
+					case CESK_DIFF_STORE:
+					case CESK_DIFF_REG:
+						/* in this case what we need to do is to merge the two value */
+						if(CESK_TYPE_OBJECT == ret->data[nelement-1].value->type)
+						{
+							LOG_WARNING("ignored merge request for two object");
+						} 
+						else if(CESK_TYPE_SET == ret->data[nelement-1].value->type)
+						{
+							/* if this value is used by many user, we can not perform a merge operation directly on it */
+							if(ret->data[nelement-1].value->refcnt > 1)
+							{
+								cesk_value_t* newval = cesk_value_fork(ret->data[nelement-1].value);
+								if(NULL == newval)
+								{
+									LOG_ERROR("failed to fork the newval, this is a mistake");
+									goto ERR;
+								}
+								ret->data[nelement-1].value = newval;
+							}
+							cesk_set_t* this_set = ret->data[nelement-1].value->pointer.set;
+							cesk_set_t* that_set = node->value->pointer.set;
+							if(cesk_set_merge(this_set, that_set) < 0)
+							{
+								LOG_ERROR("can not merge set");
+								goto ERR;
+							}
+						}
+				}
+			}
+			prev_addr = addr;
+		}
+		ret->offset[section + 1] = nelement; 
 	}
-	//TODO
-	return NULL + offset;
+	return ret;
+ERR:
+	free(ret);
+	return NULL;
 }
