@@ -30,7 +30,8 @@ enum{
  *        cesk_diff_from_buffer to make a cesk_diff_t type
  **/
 typedef struct {
-	vector_t* buffer;
+	int converted;   /*!< indicates if this buffer is convertd to a  cesk_diff_t, if yes, the refcnt should keep when buffer is to be freed */
+	vector_t* buffer;/*!< the actual buffer */
 } cesk_diff_buffer_t;
 
 /**
@@ -46,11 +47,12 @@ void cesk_diff_buffer_free(cesk_diff_buffer_t* buffer);
 /**
  * @brief add a diff item to the buffer
  * @param buffer the diff buffer
+ * @param type 
  * @param addr the address that this item operates
  * @param value the value if there's one
  * @return < 0 indicates an error
  **/
-int cesk_diff_buffer_add(cesk_diff_buffer_t* buffer, uint32_t addr, cesk_value_t* value);
+int cesk_diff_buffer_add(cesk_diff_buffer_t* buffer,int type, uint32_t addr, cesk_value_t* value);
 /**
  * @brief construct a new cesk_diff_t according to a given diff buffer
  * @param buffer the diff buffer
