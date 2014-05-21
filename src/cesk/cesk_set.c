@@ -572,6 +572,7 @@ const char* cesk_set_to_string(const cesk_set_t* set, char* buf)
 			__PR(",%u", this);
 		first = 0;
 	}
+	if(first) __PR("{");
 	__PR("}");
 #undef __PR
 	return buf;

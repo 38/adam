@@ -64,6 +64,29 @@ void cesk_diff_buffer_free(cesk_diff_buffer_t* mem)
 	vector_free(mem->buffer);
 	free(mem);
 }
+static inline void _cesk_diff_print_record(int type, int addr, void* value)
+{
+	switch(type)
+	{
+		case CESK_DIFF_ALLOC:
+			LOG_DEBUG("(allocate @%x %s)", addr, cesk_value_to_string((cesk_value_t*)value, NULL));
+			break;
+		case CESK_DIFF_DEALLOC:
+			LOG_DEBUG("(deallocate @%x)", addr);
+			break;
+		case CESK_DIFF_REG:
+			LOG_DEBUG("(register v%d %s)", addr, cesk_set_to_string((cesk_set_t*)value, NULL));
+			break;
+		case CESK_DIFF_STORE:
+			LOG_DEBUG("(store @%x %s)", addr, cesk_value_to_string((cesk_value_t*)value, NULL));
+			break;
+		case CESK_DIFF_REUSE:
+			LOG_DEBUG("(reuse @%x %d)", addr, (value != NULL));
+			break;
+		default:
+			LOG_DEBUG("(unknown-record)");
+	}
+}
 int cesk_diff_buffer_append(cesk_diff_buffer_t* buffer, int type, uint32_t addr, void* value)
 {
 	if(NULL == buffer) 
@@ -76,9 +99,9 @@ int cesk_diff_buffer_append(cesk_diff_buffer_t* buffer, int type, uint32_t addr,
 		if(NULL != value) LOG_WARNING("invalid value field, suppose to be NULL");
 		value = NULL;
 	}
-	else if(CESK_DIFF_REUSE != type)
+	else if(CESK_DIFF_REUSE != type && NULL == value)
 	{
-		if(NULL == value) LOG_ERROR("invalid value field, suppose to be non-NULL");
+		LOG_ERROR("invalid value field, suppose to be non-NULL");
 		return -1;
 	}
 	_cesk_diff_node_t node = {
@@ -90,6 +113,8 @@ int cesk_diff_buffer_append(cesk_diff_buffer_t* buffer, int type, uint32_t addr,
 	if(buffer->reverse) node.time = -node.time;  /* so we reverse the time order */
 	if(CESK_DIFF_STORE == type || CESK_DIFF_ALLOC == type) cesk_value_incref((cesk_value_t*)value);
 	else if(CESK_DIFF_REG == type) node.value = cesk_set_fork((cesk_set_t*)value);
+	LOG_DEBUG("append a new record to the buffer");
+	_cesk_diff_print_record(type, addr, value);
 	return vector_pushback(buffer->buffer, &node);
 }
 /**
@@ -105,6 +130,7 @@ static int _cesk_diff_buffer_cmp(const void* left, const void* right)
 }
 cesk_diff_t* cesk_diff_from_buffer(cesk_diff_buffer_t* buffer)
 {
+	LOG_DEBUG("construct diff package from a buffer");
 	if(NULL == buffer)
 	{
 		LOG_ERROR("invalid argument");
@@ -118,7 +144,7 @@ cesk_diff_t* cesk_diff_from_buffer(cesk_diff_buffer_t* buffer)
 	
 	/* first we need to sort the buffer */
 	size_t sz = vector_size(buffer->buffer);
-	qsort(buffer->buffer->data, sz, buffer->buffer->size, _cesk_diff_buffer_cmp);
+	qsort(buffer->buffer->data, sz, buffer->buffer->elem_size, _cesk_diff_buffer_cmp);
 
 	/* then we determine the size of the diff */
 	size_t size = 0;
@@ -127,6 +153,9 @@ cesk_diff_t* cesk_diff_from_buffer(cesk_diff_buffer_t* buffer)
 	for(i = 0; i < sz; i ++)
 	{
 		_cesk_diff_node_t* node = (_cesk_diff_node_t*)vector_get(buffer->buffer, i);
+
+		_cesk_diff_print_record(node->type, node->addr, node->value);
+
 		if(prev_type != node->type || prev_addr != node->addr)
 			size ++;
 		prev_type = node->type;
@@ -136,7 +165,7 @@ cesk_diff_t* cesk_diff_from_buffer(cesk_diff_buffer_t* buffer)
 
 	/* allocate memory for the result */
 	cesk_diff_t* ret;
-	ret = (cesk_diff_t*)malloc(sizeof(cesk_diff_t) + sizeof(_cesk_diff_node_t) * sz);
+	ret = (cesk_diff_t*)malloc(sizeof(cesk_diff_t) + sizeof(_cesk_diff_node_t) * size);
 	if(NULL == ret)
 	{
 		LOG_ERROR("can not allocate memory for the diff");
@@ -145,6 +174,7 @@ cesk_diff_t* cesk_diff_from_buffer(cesk_diff_buffer_t* buffer)
 	memset(ret->offset, 0, sizeof(ret->offset));
 	ret->_index = 0;
 
+	LOG_DEBUG("constructing the diff package");
 	/* then we start to scan the buffer, and build our result */
 	int section;
 	for(i = 0, section = 0; section < CESK_DIFF_NTYPES && i < sz; section ++)
@@ -166,6 +196,9 @@ cesk_diff_t* cesk_diff_from_buffer(cesk_diff_buffer_t* buffer)
 				if(prev_addr != node->addr)
 				{
 					/* we flush the the previous record, and start another one */
+					_cesk_diff_print_record(section, 
+					                        ret->data[ret->offset[section + 1]].addr, 
+											ret->data[ret->offset[section + 1]].arg.generic);
 					ret->offset[section + 1] ++;
 					ret->data[ret->offset[section + 1]].addr = node->addr;
 					ret->data[ret->offset[section + 1]].arg.generic = node->value;
@@ -204,7 +237,12 @@ cesk_diff_t* cesk_diff_from_buffer(cesk_diff_buffer_t* buffer)
 			first = 0;
 		}
 		if(!first)
+		{
+			_cesk_diff_print_record(section, 
+									ret->data[ret->offset[section + 1]].addr, 
+									ret->data[ret->offset[section + 1]].arg.generic);
 			ret->offset[section + 1] ++;
+		}
 	}
 	return ret;
 }
@@ -262,7 +300,7 @@ static inline cesk_diff_t* _cesk_diff_allocate_result(int N, cesk_diff_t* args[]
 		}
 	}
 	cesk_diff_t* ret = (cesk_diff_t*) malloc(sizeof(cesk_diff_t) + size * sizeof(_cesk_diff_node_t));
-	LOG_DEBUG("created a new diff struct with %d slots", size);
+	LOG_DEBUG("created a new diff struct with %zu slots", size);
 	if(NULL == ret)
 	{
 		LOG_ERROR("can not allocate memory for the result diff");
@@ -285,6 +323,7 @@ cesk_diff_t* cesk_diff_apply(int N, cesk_diff_t** args)
 		args[i]->_index = args[i]->offset[0];
 	/* ok, let's go */
 	int section;
+	LOG_DEBUG("build diff package from applying existing package");
 	/* for each section */
 	for(section = 0; section < CESK_DIFF_NTYPES; section ++)
 	{
@@ -312,6 +351,7 @@ cesk_diff_t* cesk_diff_apply(int N, cesk_diff_t** args)
 						case CESK_DIFF_REUSE:
 							ret->data[ret->offset[section + 1]].arg.generic = node->arg.generic;
 						case CESK_DIFF_DEALLOC:
+							ret->data[ret->offset[section + 1]].addr = cur_addr;
 							break;
 						default:
 							LOG_WARNING("unknown diff type");
@@ -331,6 +371,10 @@ cesk_diff_t* cesk_diff_apply(int N, cesk_diff_t** args)
 						cesk_set_fork(ret->data[ret->offset[section + 1]].arg.set);
 					break;
 			}
+			_cesk_diff_print_record(section, 
+									ret->data[ret->offset[section + 1]].addr, 
+									ret->data[ret->offset[section + 1]].arg.generic);
+		
 			ret->offset[section + 1] ++;
 		}
 	}
@@ -345,12 +389,16 @@ cesk_diff_t* cesk_diff_apply(int N, cesk_diff_t** args)
 	{
 		for(;dealloc_ptr >= dealloc_begin && ret->data[dealloc_ptr].addr > ret->data[alloc_ptr].addr; dealloc_ptr --)
 		{
-			if(!matches) 
+			if(!matches)
+			{
+				LOG_DEBUG("elimiate allocation record %d", dealloc_ptr);
 				ret->data[--dealloc_free] = ret->data[dealloc_ptr];
+			}
 			matches = 0;
 		}
 		if(ret->data[dealloc_ptr].addr != ret->data[alloc_ptr].addr)
 		{
+			LOG_DEBUG("elimiate allocation record %d", alloc_ptr);
 			ret->data[--alloc_free] = ret->data[alloc_ptr];
 			matches = 1;
 		}
