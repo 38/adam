@@ -210,7 +210,7 @@ const char* cesk_object_to_string(const cesk_object_t* object, char* buf, size_t
 		buf = _buf;
 		sz = sizeof(_buf);
 	}
-	char* p = _buf;
+	char* p = buf;
 #define __PR(fmt, args...) do{p += snprintf(p, buf + sz - p, fmt, ##args);}while(0)
 	const cesk_object_struct_t* this = object->members;
 	int i;
@@ -220,7 +220,7 @@ const char* cesk_object_to_string(const cesk_object_t* object, char* buf, size_t
 		int j;
 		for(j = 0; j < this->num_members; j ++)
 		{
-			__PR("%d ", this->valuelist[j]);
+			__PR("(%s, %d) ", this->class->members[j] ,this->valuelist[j]);
 		}
 		__PR(")]");
 		CESK_OBJECT_STRUCT_ADVANCE(this);

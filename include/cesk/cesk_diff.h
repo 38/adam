@@ -12,11 +12,22 @@ typedef struct _cesk_diff_t cesk_diff_t;
 
 #include <cesk/cesk_value.h>
 #include <cesk/cesk_frame.h>
+
+/**
+ * @brief convert the reuse value to a value pointer
+ * @param val the value to convert
+ * @return the converted pointer
+ **/
+#define CESK_DIFF_REUSE_VALUE(val) ((cesk_vlaue_t*)val)
 /**
  * @brief define the segmentations in a diff pacakge 
  **/
 enum{
 	CESK_DIFF_ALLOC,   /*!<Allocate a new object in relocated address <allocate reloc_addr>*/
+	CESK_DIFF_REUSE,   /*!<Set the reuse flag, we can use the value pointer as a interger value, and this
+	                       will be emitted when an allocation instruction cause the reuse bit changes. 
+	                       In this situation, we do not need this alloc record any more, we use an reuse
+	                       record to show that this is not the first time we allocate the object */
 	CESK_DIFF_REG,     /*!<Set a value to a register <set-reg reg-id new-value> */
 	CESK_DIFF_STORE,   /*!<Set a value to a store cell <set-store address new-value> */
 	CESK_DIFF_DEALLOC, /*!<Deallocate the object (must not apply to a store) <deallocate reloc_addr> */
@@ -33,27 +44,28 @@ enum{
 typedef struct {
 	int converted;   /*!< indicates how many items are converted */
 	vector_t* buffer;/*!< the actual buffer */
+	uint8_t reverse; /*!< this buffer is in reverse time order */
 } cesk_diff_buffer_t;
 
 /**
  * @brief create a new diff buffer 
  * @return the created diff buffer, NULL indicates an error
  **/
-cesk_diff_buffer_t* cesk_diff_buffer_new();
+cesk_diff_buffer_t* cesk_diff_buffer_new(uint8_t reverse);
 /**
  * @brief free the memory for diff buffer
  * @return nothing
  **/
 void cesk_diff_buffer_free(cesk_diff_buffer_t* buffer);
 /**
- * @brief add a diff item to the buffer
+ * @brief append a diff record to the buffer
  * @param buffer the diff buffer
  * @param type 
  * @param addr the address that this item operates
  * @param value the value if there's one
  * @return < 0 indicates an error
  **/
-int cesk_diff_buffer_add(cesk_diff_buffer_t* buffer,int type, uint32_t addr, cesk_value_t* value);
+int cesk_diff_buffer_append(cesk_diff_buffer_t* buffer,int type, uint32_t addr, cesk_value_t* value);
 /**
  * @brief construct a new cesk_diff_t according to a given diff buffer
  * @param buffer the diff buffer
@@ -81,8 +93,8 @@ cesk_diff_t* cesk_diff_apply(int N, cesk_diff_t** args);
  * @detail make D1*S1 + ... + Dn*Sn = D * (S1 + S2 + ... + Sn) 
  * @param N the number of terms
  * @param current_frame Sn*Dn
- * @param previous_frame Sn
+ * @param diffs Dn
  * @return the result diff
  **/
-cesk_diff_t* cesk_diff_factorize(int N, cesk_diff_t** diffs, const cesk_frame_t** current_frame, const cesk_frame_t** previous_frame);
+cesk_diff_t* cesk_diff_factorize(int N, cesk_diff_t** diffs, const cesk_frame_t** current_frame);
 #endif

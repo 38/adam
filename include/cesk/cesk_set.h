@@ -115,4 +115,11 @@ int cesk_set_equal(const cesk_set_t* first, const cesk_set_t* second);
  */
 hashval_t cesk_set_compute_hashcode(const cesk_set_t* set);
 
+/**
+ * @brief convert the set to string
+ * @param set
+ * @param buffer if it's NULL means use the default buffer
+ **/
+const char* cesk_set_to_string(const cesk_set_t* set, char* buffer);
+
 #endif /* __CESK_SET_H__ */

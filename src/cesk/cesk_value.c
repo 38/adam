@@ -1,6 +1,7 @@
 /** 
  * @file cesk_value.c
  * @brief the implementation of abstract value */
+#include <stdio.h>
 #include <log.h>
 #include <cesk/cesk_value.h>
 #include <dalvik/dalvik_instruction.h>
@@ -200,4 +201,29 @@ int cesk_value_equal(const cesk_value_t* first, const cesk_value_t* second)
 			LOG_WARNING("can not compare value type %d", first->type);
 			return 1;
 	}
+}
+const char* cesk_value_to_string(const cesk_value_t* value, char* buf)
+{
+	static char _buf[1024];
+	if(NULL == value) 
+	{
+		return "(nothing)";
+	}
+	if(NULL == buf) buf = _buf;
+	int sz = sizeof(_buf);
+	char *p = buf;
+#define __PR(fmt, args...) do{p += snprintf(p, buf + sz - p, fmt, ##args);}while(0)
+	switch(value->type)
+	{
+		case CESK_TYPE_OBJECT:
+			__PR("(objval (refcnt %d) %s)", value->refcnt ,cesk_object_to_string(value->pointer.object, NULL, 0));
+			break;
+		case CESK_TYPE_SET:
+			__PR("(setval (refcnt %d) %s)", value->refcnt, cesk_set_to_string(value->pointer.set, NULL));
+			break;
+		default:
+			__PR("(unknown-val)");
+	}
+#undef __PR
+	return buf;
 }

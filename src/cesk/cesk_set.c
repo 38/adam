@@ -1,6 +1,7 @@
 /** @file cesk_set.h
  *  @brief implementation of CESK address set
  */
+#include <stdio.h>
 #include <string.h>
 #include <log.h>
 #include <const_assertion.h>
@@ -542,4 +543,36 @@ hashval_t cesk_set_compute_hashcode(const cesk_set_t* set)
 		ret ^= (this * MH_MULTIPLY);
 	}
 	return ret;
+}
+const char* cesk_set_to_string(const cesk_set_t* set, char* buf)
+{
+	if(NULL == set)
+	{
+		LOG_ERROR("invalid argument");
+		return NULL;
+	}
+	static char _buf[1024];
+	int sz = sizeof(_buf);
+	if(NULL == buf) buf = _buf;
+	char* p = buf;
+#define __PR(fmt, args...) do{p += snprintf(p, buf + sz - p, fmt, ##args);}while(0)
+	cesk_set_iter_t iter;
+	if(cesk_set_iter(set, &iter) < 0)
+	{
+		LOG_ERROR("can not aquire interator for the set %d", set->set_idx);
+		return NULL;
+	}
+	uint32_t this;
+	int first = 1;
+	while(CESK_STORE_ADDR_NULL != (this = cesk_set_iter_next(&iter)))
+	{
+		if(first)
+			__PR("{%u", this);
+		else
+			__PR(",%u", this);
+		first = 0;
+	}
+	__PR("}");
+#undef __PR
+	return buf;
 }

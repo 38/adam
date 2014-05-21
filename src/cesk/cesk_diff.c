@@ -3,7 +3,7 @@
  * @brief implementation of frame diff package
  * @details the layout of diff
  * 		Allocation Section:   <addr, init_value>
- *		Reuse Section     :   <addr>
+ *		Reuse Section     :   <addr, new_bit>
  *		Register Section  :   <regid, value>
  *		Store Section     :   <addr, id>
  *		Deallocate Section:   <addr>
@@ -36,7 +36,7 @@ struct _cesk_diff_t{
 CONST_ASSERTION_LAST(cesk_diff_t, data);
 CONST_ASSERTION_SIZE(cesk_diff_t, data, 0);
 
-cesk_diff_buffer_t* cesk_diff_buffer_new()
+cesk_diff_buffer_t* cesk_diff_buffer_new(uint8_t reverse)
 {
 	cesk_diff_buffer_t* ret = (cesk_diff_buffer_t*)malloc(sizeof(cesk_diff_buffer_t*));
 	if(NULL == ret)
@@ -45,6 +45,7 @@ cesk_diff_buffer_t* cesk_diff_buffer_new()
 		return NULL;
 	}
 	ret->converted = 0;
+	ret->reverse = reverse; 
 	ret->buffer = vector_new(sizeof(_cesk_diff_node_t));
 	return ret;
 }
@@ -54,16 +55,20 @@ void cesk_diff_buffer_free(cesk_diff_buffer_t* mem)
 	if(NULL == mem) return;
 	int i, sz;
 	sz = vector_size(mem->buffer);
-	LOG_DEBUG("this buffer is dead before it has been converted, so return the reference count");
 	for(i = mem->converted; i < sz; i ++)
 	{
+		int ofs = i;
+		if(mem->reverse)
+			ofs = (sz - 1) - i;
 		_cesk_diff_node_t* node;
-		node = (_cesk_diff_node_t*)vector_get(mem->buffer, i);
+		node = (_cesk_diff_node_t*)vector_get(mem->buffer, ofs);
 		if(NULL == node || NULL == node->value) continue;
 		cesk_value_decref(node->value);
 	}
+	vector_free(mem->buffer);
+	free(mem);
 }
-int cesk_diff_buffer_add(cesk_diff_buffer_t* buffer, int type, uint32_t addr, cesk_value_t* value)
+int cesk_diff_buffer_append(cesk_diff_buffer_t* buffer, int type, uint32_t addr, cesk_value_t* value)
 {
 	if(NULL == buffer) 
 	{
@@ -75,7 +80,7 @@ int cesk_diff_buffer_add(cesk_diff_buffer_t* buffer, int type, uint32_t addr, ce
 		if(NULL != value) LOG_WARNING("invalid value field, suppose to be NULL");
 		value = NULL;
 	}
-	else
+	else if(CESK_DIFF_REUSE != type)
 	{
 		if(NULL == value) LOG_ERROR("invalid value field, suppose to be non-NULL");
 		return -1;
@@ -85,7 +90,7 @@ int cesk_diff_buffer_add(cesk_diff_buffer_t* buffer, int type, uint32_t addr, ce
 		.addr = addr,
 		.value = value
 	};
-	if(NULL != value) cesk_value_incref(value);
+	if(NULL != value && CESK_DIFF_REUSE != type) cesk_value_incref(value);
 	return vector_pushback(buffer->buffer, &node);
 }
 /**
@@ -126,9 +131,10 @@ cesk_diff_t* cesk_diff_from_buffer(cesk_diff_buffer_t* buffer)
 	int prev_addr = CESK_STORE_ADDR_NULL;
 	int i, diff_size = -1;  /* because of the first dumb buffer, we should skip that */
 	int size[CESK_DIFF_NTYPES] = {};
+	size[0] = -1;
 	for(i = 0; i < sz; i ++)
 	{
-		_cesk_diff_node_t* node = (_cesk_diff_node_t*)vector_get(buffer->buffer, i);
+		_cesk_diff_node_t* node = (_cesk_diff_node_t*)vector_get(buffer->buffer, (buffer->reverse)?(sz - 1 - i):(i));
 		if(NULL == node)
 		{
 			LOG_ERROR("can not fetch element #%d from the diff buffer", i);
@@ -136,6 +142,11 @@ cesk_diff_t* cesk_diff_from_buffer(cesk_diff_buffer_t* buffer)
 		}
 		if(prev_type != node->type || prev_addr != node->addr)
 		{
+			LOG_DEBUG("new diff record id = %d, type = %d, addr = @%x, value = %p",
+					  diff_size,
+					  ret->data[diff_size].type, 
+					  ret->data[diff_size].addr,
+					  ret->data[diff_size].value);
 			/* we are moving to the next, so flush the buffer */
 			diff_size ++;
 			size[prev_type] ++;
@@ -157,6 +168,9 @@ cesk_diff_t* cesk_diff_from_buffer(cesk_diff_buffer_t* buffer)
 				case CESK_DIFF_DEALLOC:
 					LOG_WARNING("deallocate the same address twice during a signle execution of a block might be a mistake");
 					break;
+				case CESK_DIFF_REUSE:
+					ret->data[diff_size].value = node->value;
+					break;
 				case CESK_DIFF_REG:
 				case CESK_DIFF_STORE:
 					/* don't forget release the reference count for the old value */
@@ -173,12 +187,16 @@ cesk_diff_t* cesk_diff_from_buffer(cesk_diff_buffer_t* buffer)
 		}
 		prev_type = node->type;
 		prev_addr = node->addr;
-		buffer->converted = i;
+		buffer->converted ++;
 	}
 	/* ok, we need to flush the last item */
+	LOG_DEBUG("new diff record id = %d, type = %d, addr = @%x, value = %p",
+			  diff_size,
+			  ret->data[diff_size].type, 
+			  ret->data[diff_size].addr,
+			  ret->data[diff_size].value);
 	diff_size ++;
 	size[prev_type] ++;
-	buffer->converted = i;
 	ret->offset[0] = 0;
 	for(i = 1; i <= CESK_DIFF_NTYPES; i ++)
 		ret->offset[i] = ret->offset[i-1] + size[i-1];
@@ -195,7 +213,7 @@ void cesk_diff_free(cesk_diff_t* diff)
 	{
 		for(ofs = diff->offset[sec]; ofs < diff->offset[sec + 1]; ofs ++)
 		{
-			if(NULL != diff->data[ofs].value)
+			if(NULL != diff->data[ofs].value && diff->data[ofs].type != CESK_DIFF_REUSE)
 			{
 				/* the diff occupies one reference count, so release it */
 				cesk_value_decref(diff->data[ofs].value);
@@ -212,16 +230,17 @@ void cesk_diff_free(cesk_diff_t* diff)
  **/
 static inline cesk_diff_t* _cesk_diff_allocate_result(int N, cesk_diff_t* args[])
 {
-	size_t size = 0;
+	size_t size = -1;
 	int i;
 	for(i = 0; i < N; i ++)
-		args[i]->_index = 0;
+		args[i]->_index = args[i]->offset[0];
 	int prev_type = -1;
 	uint32_t prev_addr = CESK_STORE_ADDR_NULL;
 	for(;;)
 	{
 		uint32_t cur_addr = CESK_STORE_ADDR_NULL;
 		int cur_type = CESK_DIFF_NTYPES;
+		int cur_idx = 0;
 		for(i = 0; i < N; i ++)
 		{
 			if(args[i]->_index >= args[i]->offset[CESK_DIFF_NTYPES]) 
@@ -230,20 +249,24 @@ static inline cesk_diff_t* _cesk_diff_allocate_result(int N, cesk_diff_t* args[]
 			{
 				cur_type = args[i]->data[args[i]->_index].type;
 				cur_addr = args[i]->data[args[i]->_index].addr;
+				cur_idx = i;
 			}
 			else if(args[i]->data[args[i]->_index].type == cur_type && 
 					args[i]->data[args[i]->_index].addr < cur_addr)
 			{
 				cur_addr = args[i]->data[args[i]->_index].addr;
+				cur_idx = i;
 			}
-			if(prev_type != cur_type || prev_addr != cur_addr)
-				size ++;
-			prev_type = cur_type;
-			prev_addr = cur_addr;
-			args[i]->_index ++;
 		}
+		if(prev_type != cur_type || prev_addr != cur_addr)
+			size ++;
+		prev_type = cur_type;
+		prev_addr = cur_addr;
+		args[cur_idx]->_index ++;
 	}
+	size ++;
 	cesk_diff_t* ret = (cesk_diff_t*) malloc(sizeof(cesk_diff_t) + size * sizeof(_cesk_diff_node_t));
+	LOG_DEBUG("created a new diff struct with %d slots", size);
 	if(NULL == ret)
 	{
 		LOG_ERROR("can not allocate memory for the result diff");
@@ -288,9 +311,7 @@ cesk_diff_t* cesk_diff_apply(int N, cesk_diff_t** args)
 					_cesk_diff_node_t* node = args[i]->data + args[i]->_index;
 					if(ret->data[ret->offset[section + 1] - 1].value == NULL)
 					{
-						ret->data[ret->offset[section + 1] - 1].value = node->value;
-						ret->data[ret->offset[section + 1] - 1].type  = node->type;
-						ret->data[ret->offset[section + 1] - 1].addr  = node->addr;
+						ret->data[ret->offset[section + 1] - 1] = *node;
 						cesk_value_incref(node->value);
 					}
 					else
@@ -303,11 +324,15 @@ cesk_diff_t* cesk_diff_apply(int N, cesk_diff_t** args)
 							case CESK_DIFF_DEALLOC:
 								LOG_WARNING("deallocate the same address twice during a signle execution of a block might be a mistake");
 								break;
+							case CESK_DIFF_REUSE:
+								ret->data[ret->offset[section + 1] - 1].value = node->value;
+								break;
 							case CESK_DIFF_REG:
 							case CESK_DIFF_STORE:
 								cesk_value_decref(ret->data[ret->offset[section + 1] - 1].value);
 								ret->data[ret->offset[section + 1] -1].value = node->value;
 								cesk_value_incref(node->value);
+								break;
 							default:
 								LOG_WARNING("unknown diff type");
 
@@ -339,12 +364,12 @@ cesk_diff_t* cesk_diff_apply(int N, cesk_diff_t** args)
 		}
 	}
 	for(dealloc_ptr = dealloc_free; dealloc_ptr < dealloc_end; dealloc_ptr ++)
-		ret->data[dealloc_ptr] = ret->data[dealloc_ptr - dealloc_free + dealloc_begin];
+		ret->data[dealloc_ptr - dealloc_free + dealloc_begin] = ret->data[dealloc_ptr];
 	ret->offset[0] = alloc_free;
 	ret->offset[CESK_DIFF_NTYPES] = dealloc_ptr;
 	return ret;
 }
-cesk_diff_t* cesk_diff_factorize(int N, cesk_diff_t** diffs, const cesk_frame_t** current_frame, const cesk_frame_t** previous_frame)
+cesk_diff_t* cesk_diff_factorize(int N, cesk_diff_t** diffs, const cesk_frame_t** current_frame)
 {
 	cesk_diff_t* ret = _cesk_diff_allocate_result(N, diffs);
 	if(NULL == ret)
@@ -352,7 +377,7 @@ cesk_diff_t* cesk_diff_factorize(int N, cesk_diff_t** diffs, const cesk_frame_t*
 		LOG_ERROR("can not allocate memory for the result");
 		return NULL;
 	}
-	//TODO
+
 	return ret;
 }
 
