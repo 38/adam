@@ -18,7 +18,7 @@ typedef struct _cesk_diff_t cesk_diff_t;
  * @param val the value to convert
  * @return the converted pointer
  **/
-#define CESK_DIFF_REUSE_VALUE(val) ((cesk_vlaue_t*)val)
+#define CESK_DIFF_REUSE_VALUE(val) ((void*)val)
 /**
  * @brief define the segmentations in a diff pacakge 
  **/
@@ -48,6 +48,30 @@ typedef struct {
 } cesk_diff_buffer_t;
 
 /**
+ * @brief a diff record in a diff package 
+ **/
+typedef struct {
+	uint32_t addr;   /*!< address that this record operates */
+	union{
+		cesk_value_t* value;    /*!< the cesk_value_t type argument (used in allocation section and store section) */
+		cesk_set_t*   set;      /*!< the cesk_set_t type argument   (used in register section) */
+		uint8_t       boolean;  /*!< the boolean argument      (used in reuse section) */
+		void*         generic;  /*!< the generic pointer */
+	} arg;           /*!< the argument of this records */
+} cesk_diff_rec_t;
+/**
+ * @brief the diff package
+ * @note the diff items is sorted so that we can merge it by a signle scan
+ **/
+struct _cesk_diff_t{
+	int _index;                         /*!< the index of current element, used for heap manipulation */ 
+	int offset[CESK_DIFF_NTYPES + 1];   /*!< the size of each segment */
+	cesk_diff_rec_t data[0];          /*!< the data section */
+};
+CONST_ASSERTION_LAST(cesk_diff_t, data);
+CONST_ASSERTION_SIZE(cesk_diff_t, data, 0);
+
+/**
  * @brief create a new diff buffer 
  * @return the created diff buffer, NULL indicates an error
  **/
@@ -65,7 +89,7 @@ void cesk_diff_buffer_free(cesk_diff_buffer_t* buffer);
  * @param value the value if there's one
  * @return < 0 indicates an error
  **/
-int cesk_diff_buffer_append(cesk_diff_buffer_t* buffer,int type, uint32_t addr, cesk_value_t* value);
+int cesk_diff_buffer_append(cesk_diff_buffer_t* buffer,int type, uint32_t addr, void* value);
 /**
  * @brief construct a new cesk_diff_t according to a given diff buffer
  * @param buffer the diff buffer

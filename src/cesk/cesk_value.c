@@ -93,6 +93,12 @@ cesk_value_t* cesk_value_from_classpath(const char* classpath)
 cesk_value_t* cesk_value_empty_set()
 {
 	cesk_value_t* ret = _cesk_value_alloc(CESK_TYPE_SET);
+
+	if(NULL == ret)
+	{
+		LOG_ERROR("can not allocate memory for the new value");
+		return NULL;
+	}
 	
 	cesk_set_t* empty_set = cesk_set_empty_set();
 
@@ -105,7 +111,25 @@ cesk_value_t* cesk_value_empty_set()
 	ret->pointer.set = empty_set;
 	return ret;
 }
+cesk_value_t* cesk_value_from_set(cesk_set_t* set)
+{
+	if(NULL == set) 
+	{
+		LOG_ERROR("invalid set pointer");
+		return NULL;
+	}
 
+	cesk_value_t* ret = _cesk_value_alloc(CESK_TYPE_SET);
+
+	if(NULL == ret)
+	{
+		LOG_ERROR("can not allocate memory for the new value");
+		return NULL;
+	}
+
+	ret->pointer.set = set;
+	return ret;
+}
 cesk_value_t* cesk_value_fork(const cesk_value_t* value)
 {
 	cesk_value_t* newval = _cesk_value_alloc(value->type);
