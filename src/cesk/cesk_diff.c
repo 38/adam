@@ -235,6 +235,7 @@ cesk_diff_t* cesk_diff_from_buffer(cesk_diff_buffer_t* buffer)
 			}
 			prev_addr = node->addr;
 			first = 0;
+			buffer->converted ++;
 		}
 		if(!first)
 		{

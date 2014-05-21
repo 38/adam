@@ -33,9 +33,6 @@ int main()
 	/* ok, let convert it to a actuall diff */
 	cesk_diff_t* diff0 = cesk_diff_from_buffer(buf);
 	cesk_diff_buffer_free(buf);
-	cesk_set_free(set0);
-	cesk_set_free(set1);
-	cesk_set_free(set2);
 	assert(NULL != diff0);
 	assert(diff0->offset[CESK_DIFF_NTYPES] == 4); 
 
@@ -43,6 +40,14 @@ int main()
 	cesk_diff_t* input[10] = {diff0};
 	cesk_diff_t* diff1 = cesk_diff_apply(1, input);
 	assert(diff1 != NULL);
+
+	/* create another diff */
+	//TODO
+
+	cesk_set_free(set0);
+	cesk_set_free(set1);
+	cesk_set_free(set2);
+	
 	adam_finalize();
 	return 0;
 }
