@@ -34,19 +34,44 @@ int main()
 	cesk_diff_t* diff0 = cesk_diff_from_buffer(buf);
 	cesk_diff_buffer_free(buf);
 	assert(NULL != diff0);
-	assert(diff0->offset[CESK_DIFF_NTYPES] == 4); 
+	assert(diff0->offset[CESK_DIFF_NTYPES] == 4);
+	assert(1 == cesk_set_contain(diff0->data[2].arg.set, 2));
+	assert(1 == cesk_set_contain(diff0->data[2].arg.set, 3));
+
 
 	/* now we test the apply function */
 	cesk_diff_t* input[10] = {diff0};
 	cesk_diff_t* diff1 = cesk_diff_apply(1, input);
 	assert(diff1 != NULL);
+	assert(diff1->offset[CESK_DIFF_NTYPES] - diff1->offset[0] == 2);
 
 	/* create another diff */
-	//TODO
+	buf = cesk_diff_buffer_new(0);
+	assert(NULL != buf);
+	assert(0 == cesk_diff_buffer_append(buf, CESK_DIFF_REG, 3, set1));
+	assert(0 == cesk_diff_buffer_append(buf, CESK_DIFF_STORE, 0x123, cesk_value_empty_set()));
+	cesk_diff_t* diff2 = cesk_diff_from_buffer(buf);
+	assert(NULL != diff2);
+	assert(diff2->offset[CESK_DIFF_NTYPES] == 2);
+
+	/*apply them */
+	input[0] = diff0;
+	input[1] = diff2;
+	cesk_diff_t* diff3 = cesk_diff_apply(2, input);
+	assert(diff3->offset[CESK_DIFF_NTYPES] - diff3->offset[0] == 3);
+
+	cesk_diff_free(diff0);
+	cesk_diff_free(diff1);
+	cesk_diff_free(diff2);
+	cesk_diff_free(diff3);
+
+	assert(NULL != diff3);
 
 	cesk_set_free(set0);
 	cesk_set_free(set1);
 	cesk_set_free(set2);
+
+	//TODO test fractorize
 	
 	adam_finalize();
 	return 0;

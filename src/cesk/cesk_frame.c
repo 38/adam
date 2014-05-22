@@ -233,3 +233,36 @@ hashval_t cesk_frame_compute_hashcode(const cesk_frame_t* frame)
 	ret ^= cesk_store_compute_hashcode(frame->store);
 	return ret;
 }
+int cesk_frame_apply_diff(cesk_frame_t* frame, const cesk_diff_t* diff, const cesk_reloc_table_t* reloctab)
+{
+	if(NULL == frame || NULL == diff)
+	{
+		LOG_ERROR("invalid argument");
+		return -1;
+	}
+	int section;
+	for(section = 0; section < CESK_DIFF_NTYPES; section ++)
+	{
+		int offset;
+		for(offset = diff->offset[section]; offset < diff->offset[section + 1]; offset ++)
+		{
+			const cesk_diff_rec_t* rec = diff->data + offset;
+			switch(section)
+			{
+				case CESK_DIFF_ALLOC:
+					if(cesk_reloc_addr_init(reloctab, frame->store, rec->addr, rec->arg.value) == CESK_STORE_ADDR_NULL)
+						LOG_WARNING("can not initialize relocated address @%x in store %p", rec->addr, frame->store);
+					break;
+				case CESK_DIFF_REUSE:
+					if(cesk_store_set_reuse(frame->store, rec->arg.boolean) < 0)
+						LOG_WARNING("can not set reuse bit for @%x in store %p", rec->addr, frame->store);
+					break;
+				case CESK_DIFF_REG:
+					//TODO
+					break;
+					
+			}
+		}
+	}
+	return 0;
+}

@@ -89,4 +89,13 @@ uint32_t cesk_reloc_allocate(
 		uint32_t parent,
 		uint32_t field);
 
+/**
+ * @brief init a relocated address in one store, this is used by the allocation diff items
+ * @param table the relocation table
+ * @param store the store where the address to init
+ * @param addr the address
+ * @param init_val the initial value
+ * @return the object address in store, CESK_STORE_ADDR_NULL indicates an error
+ **/
+uint32_t cesk_reloc_addr_init(const cesk_reloc_table_t* table, cesk_store_t* store, uint32_t addr, cesk_value_t* init_val);
 #endif /*__CESK_RELOC_H__*/

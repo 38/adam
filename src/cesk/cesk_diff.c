@@ -177,7 +177,7 @@ cesk_diff_t* cesk_diff_from_buffer(cesk_diff_buffer_t* buffer)
 	LOG_DEBUG("constructing the diff package");
 	/* then we start to scan the buffer, and build our result */
 	int section;
-	for(i = 0, section = 0; section < CESK_DIFF_NTYPES && i < sz; section ++)
+	for(i = 0, section = 0; section < CESK_DIFF_NTYPES; section ++)
 	{
 		ret->offset[section + 1] = ret->offset[section];
 		/* for each record in this buffer which should be in current section*/
@@ -391,18 +391,28 @@ cesk_diff_t* cesk_diff_apply(int N, cesk_diff_t** args)
 		for(;dealloc_ptr >= dealloc_begin && ret->data[dealloc_ptr].addr > ret->data[alloc_ptr].addr; dealloc_ptr --)
 		{
 			if(!matches)
-			{
-				LOG_DEBUG("elimiate allocation record %d", dealloc_ptr);
 				ret->data[--dealloc_free] = ret->data[dealloc_ptr];
-			}
+			else
+				LOG_DEBUG("elimiate allocation record %d", dealloc_ptr);
 			matches = 0;
 		}
 		if(ret->data[dealloc_ptr].addr != ret->data[alloc_ptr].addr)
 		{
-			LOG_DEBUG("elimiate allocation record %d", alloc_ptr);
 			ret->data[--alloc_free] = ret->data[alloc_ptr];
+		}
+		else
+		{
+			LOG_DEBUG("elimiate allocation record %d", alloc_ptr);
 			matches = 1;
 		}
+	}
+	for(;dealloc_ptr >= dealloc_begin && ret->data[dealloc_ptr].addr > ret->data[alloc_ptr].addr; dealloc_ptr --)
+	{
+		if(!matches)
+			ret->data[--dealloc_free] = ret->data[dealloc_ptr];
+		else
+			LOG_DEBUG("elimiate allocation record %d", dealloc_ptr);
+		matches = 0;
 	}
 	for(dealloc_ptr = dealloc_free; dealloc_ptr < dealloc_end; dealloc_ptr ++)
 		ret->data[dealloc_ptr - dealloc_free + dealloc_begin] = ret->data[dealloc_ptr];
@@ -458,10 +468,7 @@ cesk_diff_t* cesk_diff_factorize(int N, cesk_diff_t** diffs, const cesk_frame_t*
 					cesk_value_incref(ret->data[ret->offset[section + 1]].arg.value);
 					break;
 				case CESK_DIFF_REUSE:
-					for(i = 0; i < N; i ++)
-						if(diffs[i]->_index < diffs[i]->offset[section + 1] &&
-						   diffs[i]->data[diffs[i]->_index].addr == cur_addr)
-							ret->data[ret->offset[section + 1]].arg.boolean = diffs[i]->data[diffs[i]->_index].arg.boolean;
+					ret->data[ret->offset[section + 1]].arg.boolean = diffs[cur_i]->data[diffs[cur_i]->_index].arg.boolean;
 					break;
 				case CESK_DIFF_REG:
 					if(1 == count)
@@ -512,7 +519,10 @@ cesk_diff_t* cesk_diff_factorize(int N, cesk_diff_t** diffs, const cesk_frame_t*
 				default:
 					LOG_WARNING("unknown type of diff record");
 			}
-
+			for(i = 0; i < N; i ++)
+				if(diffs[i]->_index < diffs[i]->offset[section + 1] &&
+				   diffs[i]->data[diffs[i]->_index].addr == cur_addr)
+					diffs[i]->_index ++;
 			ret->offset[section + 1]++;
 		}
 	}

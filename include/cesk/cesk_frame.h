@@ -2,6 +2,7 @@
 #define __CESK_FRAME_H__
 typedef struct _cesk_frame_t cesk_frame_t;
 #include <cesk/cesk_set.h>
+#include <cesk/cesk_reloc.h>
 #include <dalvik/dalvik_instruction.h>
 #include <cesk/cesk_diff.h>
 #include <const_assertion.h>
@@ -88,7 +89,8 @@ hashval_t cesk_frame_compute_hashcode(const cesk_frame_t* frame);
  * @todo implmentation
  * @param frame
  * @param diff
+ * @param reloctable the relocation table
  * @return the result of operation <0 indicates error
  **/
-int cesk_frame_apply_diff(cesk_frame_t* frame, cesk_diff_t* diff);
+int cesk_frame_apply_diff(cesk_frame_t* frame, const cesk_diff_t* diff, const cesk_reloc_table_t* reloctab);
 #endif /* __CESK_FRAME_H__ */
