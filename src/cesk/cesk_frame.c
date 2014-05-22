@@ -344,7 +344,13 @@ int cesk_frame_apply_diff(cesk_frame_t* frame, const cesk_diff_t* diff, const ce
 	}
 	return 0;
 }
-
+#define _SNAPSHOT(var, type, addr, value) do{\
+	if(NULL != var && cesk_diff_buffer_append(var, type, addr, value) < 0)\
+	{\
+		LOG_ERROR("can not append diff record to diff buffer %s", #var);\
+		return -1;\
+	}\
+}while(0)
 int cesk_frame_register_move(
 		cesk_frame_t* frame, 
 		uint32_t dst_reg, 
@@ -352,21 +358,14 @@ int cesk_frame_register_move(
 		cesk_diff_buffer_t* diff_buf, 
 		cesk_diff_buffer_t* inv_buf)
 {
-	if(NULL == frame || dst_reg >= frame->size || src_reg >= frame->size || NULL == diff_buf || NULL == inv_buf) 
+	if(NULL == frame || dst_reg >= frame->size || src_reg >= frame->size) 
 	{
 		LOG_WARNING("invalid instruction, invalid register reference");
 		return -1;
 	}
-	if(cesk_diff_buffer_append(diff_buf, CESK_DIFF_REG, dst_reg, frame->regs[src_reg]) < 0)
-	{
-		LOG_ERROR("can not append diff record to the diff buffer");
-		return -1;
-	}
-	if(cesk_diff_buffer_append(inv_buf, CESK_DIFF_REG, dst_reg, frame->regs[dst_reg]) < 0)
-	{
-		LOG_ERROR("can not append diff record to the diff buffer");
-		return -1;
-	}
+	
+	_SNAPSHOT(inv_buf, CESK_DIFF_REG, dst_reg, frame->regs[dst_reg]);
+	
 	/* as once we write one register, the previous infomation store in the register is lost */
 	if(_cesk_frame_free_reg(frame, dst_reg) < 0)
 	{
@@ -381,6 +380,9 @@ int cesk_frame_register_move(
 		LOG_ERROR("can not incref for the new register value");
 		return -1;
 	}
+
+	_SNAPSHOT(diff_buf, CESK_DIFF_REG, dst_reg, frame->regs[dst_reg]);
+
 	return 0;
 }
 int cesk_frame_register_clear(
@@ -399,11 +401,9 @@ int cesk_frame_register_clear(
 	{
 		return 0;
 	}
-	if(cesk_diff_buffer_append(inv_buf, CESK_DIFF_REG, dst_reg, frame->regs[dst_reg]) < 0)
-	{
-		LOG_ERROR("can not append the diff to the inverse diff buffer");
-		return -1;
-	}
+	
+	_SNAPSHOT(inv_buf, CESK_DIFF_REG, dst_reg, frame->regs[dst_reg]);
+	
 	if(_cesk_frame_free_reg(frame,dst_reg) < 0)
 	{
 		LOG_ERROR("can not free the old value of register %d", dst_reg);
@@ -416,11 +416,43 @@ int cesk_frame_register_clear(
 		LOG_ERROR("can not create an empty set for register %d", dst_reg);
 		return -1;
 	}
-	if(cesk_diff_buffer_append(diff_buf, CESK_DIFF_REG, dst_reg, frame->regs[dst_reg]) < 0)
+	
+	_SNAPSHOT(diff_buf, CESK_DIFF_REG, dst_reg, frame->regs[dst_reg]);
+	
+	return 0;
+}
+
+int cesk_frame_register_push(
+		cesk_frame_t* frame,
+		uint32_t dst_reg,
+		uint32_t src_addr,
+		cesk_diff_buffer_t* diff_buf,
+		cesk_diff_buffer_t* inv_buf)
+{
+
+	if(NULL == frame || dst_reg >= frame->size)
 	{
-		LOG_ERROR("can not append the diff to the diff buffer");
+		LOG_WARNING("bad instruction, invalid register number");
 		return -1;
 	}
+	
+	if(cesk_set_contain(frame->regs[dst_reg], src_addr) == 1)
+	{
+		return 0;
+	}
+
+	_SNAPSHOT(inv_buf, CESK_DIFF_REG, dst_reg, frame->regs[dst_reg]);
+
+	if(cesk_set_push(frame->regs[dst_reg], src_addr) < 0)
+	{
+		LOG_ERROR("can not push value @ %x to register %d", src_addr, dst_reg);
+		return -1;
+	}
+
+	cesk_store_incref(frame->store, src_addr);
+
+	_SNAPSHOT(diff_buf, CESK_DIFF_REG, dst_reg, frame->regs[dst_reg]);
+
 	return 0;
 }
 
@@ -436,13 +468,16 @@ int cesk_frame_register_load(
 		LOG_WARNING("invalid argument");
 		return -1;
 	}
+
+	_SNAPSHOT(inv_buf, CESK_DIFF_REG, dst_reg, frame->regs[dst_reg]);
+
 	if(cesk_diff_buffer_append(inv_buf, CESK_DIFF_REG, dst_reg, frame->regs[dst_reg]) < 0)
 	{
 		LOG_ERROR("can not append the diff to the inverse diff buffer");
 		return -1;
 	}
 	/* clear the register first */
-	if(cesk_frame_register_clear(frame, dst_reg, diff_buf, inv_buf) < 0)
+	if(cesk_frame_register_clear(frame, dst_reg, NULL, NULL) < 0)
 	{
 		LOG_ERROR("can not clear the value in register %d", dst_reg);
 		return -1;
@@ -459,12 +494,128 @@ int cesk_frame_register_load(
 		LOG_ERROR("can not decref for the cell @%x", src_addr);
 		return -1;
 	}
-	if(cesk_diff_buffer_append(diff_buf, CESK_DIFF_REG, dst_reg, frame->regs[dst_reg]) < 0)
-	{
-		LOG_ERROR("can not append the diff to the diff buffer");
-		return -1;
-	}
+
+	_SNAPSHOT(diff_buf, CESK_DIFF_REG, dst_reg, frame->regs[dst_reg]);
+
 	return 0;
 }
+int cesk_frame_register_append_from_store(
+		cesk_frame_t* frame,
+		uint32_t dst_reg,
+		uint32_t src_addr,
+		cesk_diff_buffer_t* diff_buf,
+		cesk_diff_buffer_t* inv_buf)
+{
+	if(NULL == frame || dst_reg >= frame->size)
+	{
+		LOG_WARNING("invalid argument");
+		return -1;
+	}
 
-//TODO frame operation
+	_SNAPSHOT(inv_buf, CESK_DIFF_REG, dst_reg, frame->regs[dst_reg]);
+
+	cesk_value_const_t* value = cesk_store_get_ro(frame->store, src_addr);
+	
+	if(NULL == value)
+	{
+		LOG_ERROR("can not aquire the value @ %x", src_addr);
+		return -1;
+	}
+	if(CESK_TYPE_SET != value->type)
+	{
+		LOG_ERROR("can not load a non-set value to a register");
+		return -1;
+	}
+	/* get the set object */
+	const cesk_set_t* set = value->pointer.set;
+
+	cesk_set_iter_t iter;
+
+	if(NULL == cesk_set_iter(set, &iter))
+	{
+		LOG_ERROR("can not aquire iterator for set @ %x", src_addr);
+		return -1;
+	}
+
+	uint32_t addr;
+	while(CESK_STORE_ADDR_NULL != (addr = cesk_set_iter_next(&iter)))
+	{
+		if(cesk_frame_register_push(frame, dst_reg, addr, NULL, NULL) < 0)
+		{
+			LOG_WARNING("can not push value %x to register %d", addr, dst_reg);
+		}
+	}
+
+	_SNAPSHOT(diff_buf, CESK_DIFF_REG, dst_reg, frame->regs[dst_reg]);
+
+	return 0;
+
+}
+int cesk_frame_register_load_from_object(
+		cesk_frame_t* frame,
+		uint32_t dst_reg,
+		uint32_t src_reg,
+		const char* clspath,
+		const char* fldname,
+		cesk_diff_buffer_t* diff_buf,
+		cesk_diff_buffer_t* inv_buf)
+{
+	if(NULL == frame || dst_reg >= frame->size || src_reg >= frame->size)
+	{
+		LOG_ERROR("invalid argument");
+		return -1;
+	}
+
+	_SNAPSHOT(inv_buf, CESK_DIFF_REG, dst_reg, frame->regs[dst_reg]);
+
+	const cesk_set_t* src_set = frame->regs[src_reg];
+	cesk_set_iter_t iter;
+
+	if(NULL == cesk_set_iter(src_set, &iter))
+	{
+		LOG_ERROR("can not aquire iterator for register %d", src_reg);
+		return -1;
+	}
+
+	if(cesk_frame_register_clear(frame, dst_reg, NULL, NULL) < 0)
+	{
+		LOG_ERROR("can not erase the destination register #%d before we start", dst_reg);
+		return -1;
+	}
+
+	uint32_t obj_addr;
+	while(CESK_STORE_ADDR_NULL != (obj_addr = cesk_set_iter_next(&iter)))
+	{
+		cesk_value_const_t* obj_val = cesk_store_get_ro(frame->store, obj_addr);
+		if(NULL == obj_val)
+		{
+			LOG_WARNING("can not aquire readonly pointer to store address @%x", obj_addr);
+			continue;
+		}
+		const cesk_object_t* object = obj_val->pointer.object;
+		if(NULL == object)
+		{
+			LOG_WARNING("ignore NULL object pointer at store address @%x", obj_addr);
+			continue;
+		}
+		uint32_t fld_addr;
+		if(cesk_object_get_addr(object, clspath, fldname, &fld_addr) < 0)
+		{
+			LOG_WARNING("failed to fetch field %s/%s at store address @%x, ignoring this object",
+			            clspath,
+						fldname,
+						obj_addr);
+			continue;
+		}
+		if(cesk_frame_register_append_from_store(frame, dst_reg, fld_addr, NULL, NULL) < 0)
+		{
+			LOG_WARNING("can not append field value in %s/%s at store address @%x", 
+			            clspath,
+						fldname,
+						obj_addr);
+		}
+	}
+	_SNAPSHOT(diff_buf, CESK_DIFF_REG, dst_reg, frame->regs[dst_reg]);
+
+	return 0;
+}

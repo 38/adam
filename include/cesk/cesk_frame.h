@@ -136,4 +136,57 @@ int cesk_frame_register_load(
 		uint32_t src_addr,
 		cesk_diff_buffer_t* diff_buf,
 		cesk_diff_buffer_t* inv_buf);
+/**
+ * @brief push a value to the register
+ * @param frame
+ * @param dst_reg destination register
+ * @param src_addr the source constant
+ * @param diff_buff the diff buffer
+ * @param inv_buf the inverse diff buffer
+ * @return < 0 indicates errors
+ **/
+int cesk_frame_register_push(
+		cesk_frame_t* frame,
+		uint32_t dst_reg,
+		uint32_t src_addr,
+		cesk_diff_buffer_t* diff_buf,
+		cesk_diff_buffer_t* inv_buf);
+
+/** 
+ * @brief append a value to store
+ * @param frame
+ * @param dst_reg destination
+ * @param src_addr source store address
+ * @param diff_buf
+ * @param inv_buf
+ * @return < 0 indicates error
+ **/
+int cesk_frame_register_append_from_store(
+		cesk_frame_t* frame,
+		uint32_t dst_reg,
+		uint32_t src_addr,
+		cesk_diff_buffer_t* diff_buf,
+		cesk_diff_buffer_t* inv_buf);
+
+/**
+ * @brief load a object field from object bearing register to destiniation register
+ * @param frame
+ * @param dst_reg destination register
+ * @param src_reg source boject bearing register
+ * @param clspath the class path
+ * @param fldname the field name
+ * @param diff_buf
+ * @param inv_buf
+ * @return < 0 indicates error
+ **/
+int cesk_frame_register_load_from_object(
+		cesk_frame_t* frame,
+		uint32_t dst_reg,
+		uint32_t src_reg,
+		const char* clspath,
+		const char* fldname,
+		cesk_diff_buffer_t* diff_buf,
+		cesk_diff_buffer_t* inv_buf);
+
+		
 #endif /* __CESK_FRAME_H__ */
