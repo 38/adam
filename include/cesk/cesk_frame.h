@@ -83,7 +83,16 @@ hashval_t cesk_frame_hashcode(const cesk_frame_t* frame);
  *  @param frame
  *  @return the hash code of the frame */
 hashval_t cesk_frame_compute_hashcode(const cesk_frame_t* frame);
-
+/**
+ * @brief set the allocation table for this store
+ * @param frame
+ * @param alloctab
+ * @return < 0 indicates an error
+ **/
+static inline int cesk_frame_set_alloctab(cesk_frame_t* frame, cesk_alloctab_t* alloctab)
+{
+	return cesk_store_set_alloc_table(frame->store, alloctab);
+}
 /**
  * @brief apply a diff to this frame
  * @todo implmentation
@@ -226,4 +235,28 @@ int cesk_frame_store_put_field(
 		const char* fldname,
 		cesk_diff_buffer_t* diff_buf,
 		cesk_diff_buffer_t* inv_buf);
+
+/** 
+ *  @brief return all possible values of a register in an array (for debugging)
+ *  @param frame the frame object
+ *  @param regid register index
+ *  @param buf   output buffer
+ *  @param size	 buffer size
+ *  @return the number of values returned, <0 when error 
+ */
+int cesk_frame_register_peek(const cesk_frame_t* frame, uint32_t regid, uint32_t* buf, size_t size);
+/** 
+ *  @brief get all possible value of a class member in store
+ *  @param frame frame object
+ *  @param addr store address
+ *  @param classpath class path of the object
+ *  @param fieldname name of the field
+ *  @param buf output buffer
+ *  @param size buffer size
+ *  @return the number of value in result, < 0 error
+ */
+int cesk_frame_store_peek_field(const cesk_frame_t* frame, 
+		uint32_t addr, 
+		const char* classpath, const char* fieldname, 
+		uint32_t* buf, size_t size);
 #endif /* __CESK_FRAME_H__ */
