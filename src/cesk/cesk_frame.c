@@ -344,3 +344,127 @@ int cesk_frame_apply_diff(cesk_frame_t* frame, const cesk_diff_t* diff, const ce
 	}
 	return 0;
 }
+
+int cesk_frame_register_move(
+		cesk_frame_t* frame, 
+		uint32_t dst_reg, 
+		uint32_t src_reg, 
+		cesk_diff_buffer_t* diff_buf, 
+		cesk_diff_buffer_t* inv_buf)
+{
+	if(NULL == frame || dst_reg >= frame->size || src_reg >= frame->size || NULL == diff_buf || NULL == inv_buf) 
+	{
+		LOG_WARNING("invalid instruction, invalid register reference");
+		return -1;
+	}
+	if(cesk_diff_buffer_append(diff_buf, CESK_DIFF_REG, dst_reg, frame->regs[src_reg]) < 0)
+	{
+		LOG_ERROR("can not append diff record to the diff buffer");
+		return -1;
+	}
+	if(cesk_diff_buffer_append(inv_buf, CESK_DIFF_REG, dst_reg, frame->regs[dst_reg]) < 0)
+	{
+		LOG_ERROR("can not append diff record to the diff buffer");
+		return -1;
+	}
+	/* as once we write one register, the previous infomation store in the register is lost */
+	if(_cesk_frame_free_reg(frame, dst_reg) < 0)
+	{
+		LOG_ERROR("can not free the old value of register %d", dst_reg);
+		return -1;
+	}
+	/* and then we just fork the vlaue of source */
+	frame->regs[dst_reg] = cesk_set_fork(frame->regs[src_reg]);
+
+	if(_cesk_frame_init_reg(frame, dst_reg) < 0)
+	{
+		LOG_ERROR("can not incref for the new register value");
+		return -1;
+	}
+	return 0;
+}
+int cesk_frame_register_clear(
+		cesk_frame_t* frame,
+		uint32_t dst_reg,
+		cesk_diff_buffer_t* diff_buf,
+		cesk_diff_buffer_t* inv_buf)
+{
+	if(NULL == frame || dst_reg >= frame->size || NULL == diff_buf || NULL == inv_buf)
+	{
+		LOG_WARNING("invalid argument");
+		return -1;
+	}
+	/* the register is empty ? */
+	if(cesk_set_size(frame->regs[dst_reg]) == 0)
+	{
+		return 0;
+	}
+	if(cesk_diff_buffer_append(inv_buf, CESK_DIFF_REG, dst_reg, frame->regs[dst_reg]) < 0)
+	{
+		LOG_ERROR("can not append the diff to the inverse diff buffer");
+		return -1;
+	}
+	if(_cesk_frame_free_reg(frame,dst_reg) < 0)
+	{
+		LOG_ERROR("can not free the old value of register %d", dst_reg);
+		return -1;
+	}
+
+	frame->regs[dst_reg] = cesk_set_empty_set();
+	if(frame->regs[dst_reg] == NULL)
+	{
+		LOG_ERROR("can not create an empty set for register %d", dst_reg);
+		return -1;
+	}
+	if(cesk_diff_buffer_append(diff_buf, CESK_DIFF_REG, dst_reg, frame->regs[dst_reg]) < 0)
+	{
+		LOG_ERROR("can not append the diff to the diff buffer");
+		return -1;
+	}
+	return 0;
+}
+
+int cesk_frame_register_load(
+		cesk_frame_t* frame,
+		uint32_t dst_reg,
+		uint32_t src_addr,
+		cesk_diff_buffer_t* diff_buf,
+		cesk_diff_buffer_t* inv_buf)
+{
+	if(NULL == frame || dst_reg >= frame->size || NULL == diff_buf || NULL == inv_buf)
+	{
+		LOG_WARNING("invalid argument");
+		return -1;
+	}
+	if(cesk_diff_buffer_append(inv_buf, CESK_DIFF_REG, dst_reg, frame->regs[dst_reg]) < 0)
+	{
+		LOG_ERROR("can not append the diff to the inverse diff buffer");
+		return -1;
+	}
+	/* clear the register first */
+	if(cesk_frame_register_clear(frame, dst_reg, diff_buf, inv_buf) < 0)
+	{
+		LOG_ERROR("can not clear the value in register %d", dst_reg);
+		return -1;
+	}
+
+	if(cesk_set_push(frame->regs[dst_reg], src_addr) < 0)
+	{
+		LOG_ERROR("can not push address @%x to register %d", src_addr, dst_reg);
+		return -1;
+	}
+
+	if(cesk_store_incref(frame->store, src_addr) < 0)
+	{
+		LOG_ERROR("can not decref for the cell @%x", src_addr);
+		return -1;
+	}
+	if(cesk_diff_buffer_append(diff_buf, CESK_DIFF_REG, dst_reg, frame->regs[dst_reg]) < 0)
+	{
+		LOG_ERROR("can not append the diff to the diff buffer");
+		return -1;
+	}
+	return 0;
+}
+
+//TODO frame operations

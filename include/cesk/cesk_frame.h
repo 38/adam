@@ -93,4 +93,47 @@ hashval_t cesk_frame_compute_hashcode(const cesk_frame_t* frame);
  * @return the result of operation <0 indicates error
  **/
 int cesk_frame_apply_diff(cesk_frame_t* frame, const cesk_diff_t* diff, const cesk_reloc_table_t* reloctab);
+/**
+ * @brief move the content in source register to the destination register
+ * @param frame 
+ * @param dst_reg destination register
+ * @param src_reg source register
+ * @param diff_buf the the diff buffer
+ * @param inv_buf the inverse diff buffer
+ * @return < 0 indicates errors
+ **/
+int cesk_frame_register_move(
+		cesk_frame_t* frame, 
+		uint32_t dst_reg, 
+		uint32_t src_reg, 
+		cesk_diff_buffer_t* diff_buf, 
+		cesk_diff_buffer_t* inv_buf);
+/**
+ * @brief clear the register, make the value set of the register is empty 
+ * @param frame
+ * @param dst_reg destination register
+ * @param diff_buf the diff buffer
+ * @param inv_buf  the inverse diff buffer
+ * @return < 0 indicates errors 
+ **/
+int cesk_frame_register_clear(
+		cesk_frame_t* frame,
+		uint32_t dst_reg,
+		cesk_diff_buffer_t* diff_buf,
+		cesk_diff_buffer_t* inv_buf);
+/**
+ * @brief load a constant to the register
+ * @param frame
+ * @param dst_reg destination register
+ * @param src_addr source instant number address
+ * @param diff_buf the diff buffer
+ * @param inv_buf the inverse diff buffer
+ * @return < 0 indicates errors
+ **/
+int cesk_frame_register_load(
+		cesk_frame_t* frame,
+		uint32_t dst_reg,
+		uint32_t src_addr,
+		cesk_diff_buffer_t* diff_buf,
+		cesk_diff_buffer_t* inv_buf);
 #endif /* __CESK_FRAME_H__ */

@@ -7,6 +7,7 @@
 #define __CESK_DIFF_H__
 /** @brief a diff package */
 typedef struct _cesk_diff_t cesk_diff_t;
+typedef struct _cesk_diff_buffer_t cesk_diff_buffer_t;
 #include <vector.h>
 #include <const_assertion.h>
 
@@ -41,16 +42,16 @@ enum{
  *        after finish interpret the block, we can call 
  *        cesk_diff_from_buffer to make a cesk_diff_t type
  **/
-typedef struct {
+struct _cesk_diff_buffer_t{
 	int converted;   /*!< indicates how many items are converted */
 	vector_t* buffer;/*!< the actual buffer */
 	uint8_t reverse; /*!< this buffer is in reverse time order */
-} cesk_diff_buffer_t;
+};
 
 /**
  * @brief a diff record in a diff package 
  **/
-typedef struct {
+typedef struct _cesk_diff_rec_t{
 	uint32_t addr;   /*!< address that this record operates */
 	union{
 		cesk_value_t* value;    /*!< the cesk_value_t type argument (used in allocation section and store section) */
