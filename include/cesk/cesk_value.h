@@ -1,7 +1,7 @@
 #ifndef __CESK_VALUE_T__
 #define __CESK_VALUE_T__
 #include <constants.h>
-
+#include <const_assertion.h>
 /**
  * @file cesk_value.h
  * @brief Abstract value of Davlik CESK Virtual Machine
@@ -49,8 +49,8 @@ enum{
  **/
 struct _cesk_value_t {
 	uint8_t     type:6;         /*!<type of this value */
-	uint8_t     reloc:1;        /*!<does the object contains an relocation address? */
 	uint8_t     write_status:1; /*!<this bit check if the value is associated with a writable pointer */
+	uint8_t     reloc:1;        /*!<does the object contains an relocation address? */
 	union {
 		__CESK_POINTER_LIST()
 	} pointer;              /*!<actuall data pointer*/
@@ -62,12 +62,16 @@ struct _cesk_value_t {
 
 /** @brief the abstruct value that can not be modified */
 struct _cesk_value_const_t {
-	const uint8_t     type:7;       /*!<type of this value */
+	const uint8_t     type:6;       /*!<type of this value */
 	const uint8_t     write_status:1; /*!<this bit check if the value is associated with a writable pointer */
 	const union {
 		__CESK_POINTER_LIST(const)
 	} pointer; /*!<actuall data pointer*/
-};
+} ;
+
+CONST_ASSERTION_LAST(cesk_value_const_t, pointer); /* we don't want refcount is visible with readonly premission */
+
+CONST_ASSERTION_OFFSET_EQ(cesk_value_t, pointer, cesk_value_const_t, pointer); /* make sure two struct is compitable */
 
 #undef __CESK_POINTER_LIST
 

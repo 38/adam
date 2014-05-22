@@ -188,5 +188,22 @@ int cesk_frame_register_load_from_object(
 		cesk_diff_buffer_t* diff_buf,
 		cesk_diff_buffer_t* inv_buf);
 
-		
+/**
+ * @brief allocate a new object in the frame store
+ * @param frame
+ * @param reloctab the relocation table
+ * @param inst current instruction
+ * @param clspath the class path
+ * @param diff_buf
+ * @param inv_buf
+ * @return the address of newly created object , CESK_STORE_ADDR_NULL indicates an error
+ **/
+int cesk_frame_store_new_object(
+		cesk_frame_t* frame,
+		cesk_reloc_table_t* reloctab,
+		const dalvik_instruction_t* inst,
+		const char* clspath,
+		cesk_diff_buffer_t* diff_buf,
+		cesk_diff_buffer_t* inv_buf);
+
 #endif /* __CESK_FRAME_H__ */

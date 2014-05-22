@@ -30,6 +30,10 @@
 		(offsetof(type,B) - offsetof(type,A) - sizeof(((type*)0)->A)) * \
 		(offsetof(type,A) + sizeof(((type*)0)->A) - offsetof(type, B)))
 
+/** @brief assert A.F and B.G has the same offset */
+#define CONST_ASSERTION_OFFSET_EQ(A, F, B, G) __CONST_ASSERTION_POSITIVE__(offset_##type##_##A_##F##_##B_##G, \
+		(offsetof(A,F) - offsetof(B,G)) * (offsetof(B,G) - offsetof(A,F)))
+
 /** @brief check if the member A is before member B */
 #define CONST_ASSERTION_BEFORE(type, A, B) __CONST_ASSERTION_POSITIVE__(before_##type##_##A##_##B, \
 		(offsetof(type, B) - offsetof(type, A)))

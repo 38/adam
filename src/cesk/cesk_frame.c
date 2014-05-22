@@ -299,8 +299,16 @@ int cesk_frame_apply_diff(cesk_frame_t* frame, const cesk_diff_t* diff, const ce
 						LOG_WARNING("can not initialize relocated address @%x in store %p", rec->addr, frame->store);
 					break;
 				case CESK_DIFF_REUSE:
-					if(cesk_store_set_reuse(frame->store, rec->arg.boolean) < 0)
-						LOG_WARNING("can not set reuse bit for @%x in store %p", rec->addr, frame->store);
+					if(rec->arg.boolean)
+					{
+						if(cesk_store_set_reuse(frame->store, rec->addr) < 0)
+							LOG_WARNING("can not set reuse bit for @%x in store %p", rec->addr, frame->store);
+					}
+					else
+					{
+						if(cesk_store_clear_reuse(frame->store, rec->addr) < 0)
+							LOG_WARNING("can not clear reuse bit for @%x in store %p", rec->addr, frame->store);
+					}
 					break;
 				case CESK_DIFF_REG:
 					if(_cesk_frame_free_reg(frame, rec->addr) < 0)
@@ -613,9 +621,139 @@ int cesk_frame_register_load_from_object(
 			            clspath,
 						fldname,
 						obj_addr);
+			continue;
 		}
 	}
 	_SNAPSHOT(diff_buf, CESK_DIFF_REG, dst_reg, frame->regs[dst_reg]);
 
 	return 0;
+}
+int cesk_frame_store_new_object(
+		cesk_frame_t* frame,
+		cesk_reloc_table_t* reloctab,
+		const dalvik_instruction_t* inst,
+		const char* clspath,
+		cesk_diff_buffer_t* diff_buf,
+		cesk_diff_buffer_t* inv_buf)
+{
+	if(NULL == frame || NULL == inst || NULL == clspath || NULL == reloctab)
+	{
+		LOG_ERROR("invalid argument");
+		return CESK_STORE_ADDR_NULL;
+	}
+
+	LOG_DEBUG("creat new object from class %s", clspath);
+	/* allocate address */
+	uint32_t addr = cesk_reloc_allocate(reloctab, frame->store, inst, CESK_STORE_ADDR_NULL, 0); 
+
+	if(CESK_STORE_ADDR_NULL == addr)
+	{
+		LOG_ERROR("can not allocate store address for object");
+		return CESK_STORE_ADDR_NULL;
+	}
+	
+	cesk_value_const_t* value;
+
+	/* if there's some value already there */
+	if((value = cesk_store_get_ro(frame->store, addr)) != NULL)
+	{
+		/* check validity of the address */
+		if(value->type != CESK_TYPE_OBJECT)
+		{
+			LOG_ERROR("can not attach an object to a non-object address");
+			return CESK_STORE_ADDR_NULL;
+		}
+
+		const cesk_object_t* object = value->pointer.object;
+		if(NULL == object)
+		{
+			LOG_ERROR("invalid value");
+			return CESK_STORE_ADDR_NULL; 
+		}
+		if(cesk_object_classpath(object) != clspath)
+		{
+			LOG_ERROR("address %x is for class %s but the new object is a instance of %s", 
+					  addr, 
+					  cesk_object_classpath(object), 
+					  clspath);
+			return CESK_STORE_ADDR_NULL;
+		}
+		/* reuse */
+		_SNAPSHOT(inv_buf, CESK_DIFF_REUSE, addr, CESK_DIFF_REUSE_VALUE((uintptr_t)cesk_store_get_reuse(frame->store, addr)));
+
+		if(cesk_store_set_reuse(frame->store, addr) < 0)
+		{
+			LOG_ERROR("can not reuse the address @ %x", addr);
+			return CESK_STORE_ADDR_NULL;
+		}
+
+		_SNAPSHOT(diff_buf, CESK_DIFF_REUSE, addr, CESK_DIFF_REUSE_VALUE(1));
+	}
+	else
+	{
+		/* a fresh address, use it */
+		cesk_value_t* new_val = cesk_value_from_classpath(clspath);
+		if(NULL == new_val)
+		{	
+			LOG_ERROR("can not create new object from class %s", clspath);
+			return CESK_STORE_ADDR_NULL;
+		}
+		if(cesk_store_attach(frame->store, addr, new_val) < 0)
+		{
+			LOG_ERROR("failed to attach new object to address %x", addr);
+			return CESK_STORE_ADDR_NULL;
+		}
+		/* allocate the value set */
+		cesk_object_t* object = new_val->pointer.object;
+		cesk_object_struct_t* this = object->members;
+		int i;
+		for(i = 0; i < object->depth; i ++)
+		{
+			int j;
+			for(j = 0; j < this->num_members; j ++)
+			{
+				uint32_t faddr = cesk_reloc_allocate(
+						reloctab, 
+						frame->store, 
+						inst, 
+						CESK_STORE_ADDR_NULL, 
+						CESK_OBJECT_FIELD_OFS(object, this->valuelist + j));
+				if(CESK_STORE_ADDR_NULL == faddr)
+				{
+					LOG_ERROR("can not allocate value set for field %s/%s", this->class->path, this->class->members[j]);
+					return -1;
+				}
+				/* this must be a fresh address, make a new value for it */
+				cesk_value_t* fvalue = cesk_value_empty_set();
+				if(NULL == fvalue)
+				{
+					LOG_ERROR("can not construct init value for a field");
+					return -1;
+				}
+				if(cesk_store_attach(frame->store, faddr, fvalue) < 0)
+				{
+					LOG_ERROR("can not attach the new value to store");
+					return -1;
+				}
+				this->valuelist[j] = faddr;
+				if(cesk_store_incref(frame->store, faddr) < 0)
+				{
+					LOG_ERROR("can not maniuplate the reference counter at store address @%x", faddr);
+					return -1;
+				}
+				cesk_store_release_rw(frame->store, faddr);
+				_SNAPSHOT(diff_buf, CESK_DIFF_ALLOC, faddr, fvalue);
+				_SNAPSHOT(inv_buf, CESK_DIFF_DEALLOC, faddr, NULL);
+
+			}
+			CESK_OBJECT_STRUCT_ADVANCE(this);
+		}
+		/* because the attach function auqire a writable pointer automaticly, 
+		 * Therefore, you should release the address first
+		 */
+		cesk_store_release_rw(frame->store, addr);
+		_SNAPSHOT(diff_buf, CESK_DIFF_ALLOC, addr, new_val);
+		_SNAPSHOT(inv_buf, CESK_DIFF_DEALLOC, addr, NULL);
+	}
+	return addr;
 }

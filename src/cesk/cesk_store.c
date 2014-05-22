@@ -514,6 +514,9 @@ hashval_t cesk_store_compute_hashcode(const cesk_store_t* store)
 	}
 	return ret;
 }
+/**
+ * @note caller should update the reuse flag manually 
+ **/
 uint32_t cesk_store_allocate(cesk_store_t* store, const dalvik_instruction_t* inst, uint32_t parent, uint32_t field_ofs)
 {
 	uint32_t idx;
@@ -611,7 +614,8 @@ uint32_t cesk_store_allocate(cesk_store_t* store, const dalvik_instruction_t* in
 		/* some equal entry */
 		LOG_DEBUG("reuse %lu (block = %d, offset = %d for instruction %d",
 			   equal_block * CESK_STORE_BLOCK_NSLOTS + equal_offset, equal_block, equal_offset, idx);
-		store->blocks[equal_block]->slots[equal_offset].reuse = 1;   
+		/* do not set the reuse bit here */
+		//store->blocks[equal_block]->slots[equal_offset].reuse = 1;   
 		return equal_block * CESK_STORE_BLOCK_NSLOTS  + equal_offset;
 	}
 }

@@ -1,3 +1,5 @@
-cesk_diff  doing diff merge
 
-question: make a copy of the diff?
+1. add age to set, so that we can distinguish the old value and new value. so that if we can make sure this refernce is acutally to newly created one, 
+we can override.
+2. int as an object & constant pool
+
