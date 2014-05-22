@@ -33,7 +33,7 @@ int       vector_pushback(vector_t* vec, void* data);  /* push an element at the
  *  @param idx index 
  *  @return a pointer to the element, NULL means error
  */
-static inline void* vector_get(vector_t* vec, int idx) 
+static inline void* vector_get(const vector_t* vec, int idx) 
 {
 #ifdef CHECK_EVERYTHING   /* For performance reason, we DO NOT check the validity of vector. */
 	if(NULL == vec) return NULL; 
@@ -45,7 +45,7 @@ static inline void* vector_get(vector_t* vec, int idx)
  *  @param vec vector
  *  @return size of vector
  */
-static inline size_t vector_size(vector_t* vec)
+static inline size_t vector_size(const vector_t* vec)
 {
 #ifdef CHECK_EVERYTHING
 	if(NULL == vec) return 0;

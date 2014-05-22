@@ -118,8 +118,9 @@ struct _cesk_store_t {
 	uint32_t            nblocks:31; /*!<number of blocks */
 	uint32_t            num_ent;    /*!<number of entities */
 	hashval_t           hashcode;   /*!<hashcode of content of this store */
-	cesk_alloctab_t*   alloc_tab;  /*!<the allocation table */
-	cesk_store_block_t**  blocks;  /*!<block array */
+	cesk_alloctab_t*   alloc_tab;   /*!<the allocation table */
+	uint32_t            alloc_token;/*!<the token for allocation table use */
+	cesk_store_block_t**  blocks;   /*!<block array */
 };
 
 /** 
@@ -136,18 +137,18 @@ cesk_store_t* cesk_store_empty_store();
 int cesk_store_set_alloc_table(cesk_store_t* store, cesk_alloctab_t* table);
 /** 
  * @brief make a copy of a store
- * @details if the store contains an allocation table, 
- *          the function will apply the allocation table to the newly forked 
- *          store, and set the alloc_table for the newly created store to 
- *          NULL. 
- *          But we also need another function which fix relocated address with
- *          a single store(which is useful when makeing a function call )
- *  @todo   a function that can apply the relocation table to a signle object
- *  @param store the original store
- *  @return the copy of the store
+ * @param store the original store
+ * @return the copy of the store
  */
 cesk_store_t* cesk_store_fork(const cesk_store_t* store);
-
+/**
+ * @brief apply the allocation table attach to the store, that means substitude all
+ *        relocated address using object address
+ * @todo   a function that can apply the relocation table to a signle object
+ * @param  store the store
+ * @return the result of the operation <0 indicate error
+ **/
+int cesk_store_apply_alloctab(cesk_store_t* store);
 /**
  * @brief get a writable pointer, you must release the adress when you are done
  * @param store the virtual store

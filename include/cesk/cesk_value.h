@@ -91,6 +91,12 @@ cesk_value_t* cesk_value_from_classpath(const char* classpath);
  * @return the new empty set
  **/
 cesk_value_t* cesk_value_empty_set();
+/**
+ * @brief create a new value of set from an exsiting set 
+ * @param set the set that to wrap
+ * @return the new created value, NULL indicates erros 
+ **/
+cesk_value_t* cesk_value_from_set(cesk_set_t* set);
 /** 
  * @brief fork the value, inorder to modify 
  * @return the copy of the store
@@ -154,4 +160,12 @@ static inline void cesk_value_clear_reloc(cesk_value_t* value)
 {
 	value->reloc = 0;
 }
+/**
+ * @breif convert the value to string
+ * @param value
+ * @param buffer if the buffer is NULL, use the defualt buffer
+ * @return the converted string
+ **/
+const char* cesk_value_to_string(const cesk_value_t* value, char* buffer);
+
 #endif /* __CESK_VALUE_T__ */

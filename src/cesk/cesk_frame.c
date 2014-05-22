@@ -233,10 +233,12 @@ hashval_t cesk_frame_compute_hashcode(const cesk_frame_t* frame)
 	ret ^= cesk_store_compute_hashcode(frame->store);
 	return ret;
 }
-/** @brief  this function is used for other function to do following things:
- * 		1. derefer all address this function refered 
- * 		2. free the set 
- */
+/**
+ * @brief free the register, this function should be called before modifying the value of register to a new set
+ * @param frame 
+ * @param reg the register number
+ * @return < 0 indicates error
+ **/
 static inline int _cesk_frame_free_reg(cesk_frame_t* frame, uint32_t reg)
 {
 	cesk_set_iter_t iter;
@@ -256,72 +258,213 @@ static inline int _cesk_frame_free_reg(cesk_frame_t* frame, uint32_t reg)
 
 	return 0;
 }
+/**
+ * @brief make the new value in the register referencing to the store
+ * @param frame 
+ * @param reg
+ * @return < 0 indicates error 
+ **/
+static inline int _cesk_frame_init_reg(cesk_frame_t* frame, uint32_t reg)
+{
+	cesk_set_iter_t iter;
+	if(NULL == cesk_set_iter(frame->regs[reg], &iter))
+	{
+		LOG_ERROR("can not aquire iterator for the register %d", reg);
+		return -1;
+	}
+	
+	uint32_t addr;
+	while(CESK_STORE_ADDR_NULL != (addr = cesk_set_iter_next(&iter)))
+		cesk_store_incref(frame->store, addr);
+	return 0;
+}
+int cesk_frame_apply_diff(cesk_frame_t* frame, const cesk_diff_t* diff, const cesk_reloc_table_t* reloctab)
+{
+	if(NULL == frame || NULL == diff)
+	{
+		LOG_ERROR("invalid argument");
+		return -1;
+	}
+	int section;
+	for(section = 0; section < CESK_DIFF_NTYPES; section ++)
+	{
+		int offset;
+		for(offset = diff->offset[section]; offset < diff->offset[section + 1]; offset ++)
+		{
+			const cesk_diff_rec_t* rec = diff->data + offset;
+			switch(section)
+			{
+				case CESK_DIFF_ALLOC:
+					if(cesk_reloc_addr_init(reloctab, frame->store, rec->addr, rec->arg.value) == CESK_STORE_ADDR_NULL)
+						LOG_WARNING("can not initialize relocated address @%x in store %p", rec->addr, frame->store);
+					break;
+				case CESK_DIFF_REUSE:
+					if(cesk_store_set_reuse(frame->store, rec->arg.boolean) < 0)
+						LOG_WARNING("can not set reuse bit for @%x in store %p", rec->addr, frame->store);
+					break;
+				case CESK_DIFF_REG:
+					if(_cesk_frame_free_reg(frame, rec->addr) < 0)
+					{
+						LOG_WARNING("can not clean the old value in the register %d", rec->addr);
+						break;
+					}
+					if(NULL == (frame->regs[rec->addr] = cesk_set_fork(rec->arg.set)))
+					{
+						LOG_WARNING("can not set the new value for register %d", rec->addr);
+						break;
+					}
+					if(_cesk_frame_init_reg(frame, rec->addr) < 0)
+					{
+						LOG_WARNING("can not make reference from the register %d", rec->addr);
+						break;
+					}
+					break;
+				case CESK_DIFF_STORE:
+					if(cesk_store_attach(frame->store, rec->addr, rec->arg.value) < 0)
+					{
+						LOG_WARNING("can not attach value to store address @%x in store %p", rec->addr, frame->store);
+						break;
+					}
+					/* update the refcnt */
+					cesk_set_iter_t iter;
+					if(cesk_set_iter(rec->arg.value->pointer.set, &iter) < 0)
+					{
+						LOG_WARNING("can not aquire the iterator for set");
+						break;
+					}
+					uint32_t addr;
+					while(CESK_STORE_ADDR_NULL != (addr = cesk_set_iter_next(&iter)))
+						cesk_store_incref(frame->store, addr);
+					break;
+				case CESK_DIFF_DEALLOC:
+					LOG_WARNING("no way to apply a deallocation to a store !");
+					break;
+			}
+		}
+	}
+	return 0;
+}
 
-int cesk_frame_register_put(cesk_frame_t* frame, uint32_t reg, cesk_set_t* set)
+int cesk_frame_register_move(
+		cesk_frame_t* frame, 
+		uint32_t dst_reg, 
+		uint32_t src_reg, 
+		cesk_diff_buffer_t* diff_buf, 
+		cesk_diff_buffer_t* inv_buf)
 {
-	if(NULL == frame && NULL == set)
+	if(NULL == frame || dst_reg >= frame->size || src_reg >= frame->size || NULL == diff_buf || NULL == inv_buf) 
 	{
-		LOG_ERROR("invalid argument");
+		LOG_WARNING("invalid instruction, invalid register reference");
 		return -1;
 	}
-	if(_cesk_frame_free_reg(frame, reg) < 0)
+	if(cesk_diff_buffer_append(diff_buf, CESK_DIFF_REG, dst_reg, frame->regs[src_reg]) < 0)
 	{
-		LOG_ERROR("can not free the old value of register %d", reg);
+		LOG_ERROR("can not append diff record to the diff buffer");
 		return -1;
 	}
-	frame->regs[reg] = set;
-	return 0;
-}
-uint32_t cesk_frame_store_put(cesk_frame_t* frame, cesk_value_t* value, const dalvik_instruction_t* inst)
-{
-	if(NULL == frame || NULL == inst)
+	if(cesk_diff_buffer_append(inv_buf, CESK_DIFF_REG, dst_reg, frame->regs[dst_reg]) < 0)
 	{
-		LOG_ERROR("invalid argument");
-		return CESK_STORE_ADDR_NULL;
-	}
-	uint32_t addr = cesk_store_allocate(frame->store, inst, CESK_STORE_ADDR_NULL, 0);
-	if(CESK_STORE_ADDR_NULL == addr)
-	{
-		LOG_ERROR("can not allocate memory for the object");
-		return CESK_STORE_ADDR_NULL;
-	}
-	if(cesk_store_attach(frame->store, addr, value) < 0)
-	{
-		LOG_ERROR("can not attach the value to address @0x%x", addr);
-		return CESK_STORE_ADDR_NULL;
-	}
-	return addr; 
-}
-int cesk_frame_store_object_reuse(cesk_frame_t* frame, uint32_t addr, uint8_t value)
-{
-	if(NULL == frame || CESK_STORE_ADDR_NULL == addr) 
-	{
-		LOG_ERROR("invalid argument");
+		LOG_ERROR("can not append diff record to the diff buffer");
 		return -1;
 	}
-	int oldval = cesk_store_get_reuse(frame->store, addr);
-	if(oldval < 0)
+	/* as once we write one register, the previous infomation store in the register is lost */
+	if(_cesk_frame_free_reg(frame, dst_reg) < 0)
 	{
-		LOG_ERROR("can not get the old value of reuse bit");
+		LOG_ERROR("can not free the old value of register %d", dst_reg);
 		return -1;
 	}
-	int newval = (value != 0);
-	if(oldval == newval) return 0;
-	if(newval)
+	/* and then we just fork the vlaue of source */
+	frame->regs[dst_reg] = cesk_set_fork(frame->regs[src_reg]);
+
+	if(_cesk_frame_init_reg(frame, dst_reg) < 0)
 	{
-		if(cesk_store_set_reuse(frame->store, addr) < 0)
-		{
-			LOG_ERROR("can not change the value of reuse bit");
-			return -1;
-		}
-	}
-	else
-	{
-		if(cesk_store_clear_reuse(frame->store, addr) < 0)
-		{
-			LOG_ERROR("can not change the value of reuse bit");
-			return -1;
-		}
+		LOG_ERROR("can not incref for the new register value");
+		return -1;
 	}
 	return 0;
 }
+int cesk_frame_register_clear(
+		cesk_frame_t* frame,
+		uint32_t dst_reg,
+		cesk_diff_buffer_t* diff_buf,
+		cesk_diff_buffer_t* inv_buf)
+{
+	if(NULL == frame || dst_reg >= frame->size || NULL == diff_buf || NULL == inv_buf)
+	{
+		LOG_WARNING("invalid argument");
+		return -1;
+	}
+	/* the register is empty ? */
+	if(cesk_set_size(frame->regs[dst_reg]) == 0)
+	{
+		return 0;
+	}
+	if(cesk_diff_buffer_append(inv_buf, CESK_DIFF_REG, dst_reg, frame->regs[dst_reg]) < 0)
+	{
+		LOG_ERROR("can not append the diff to the inverse diff buffer");
+		return -1;
+	}
+	if(_cesk_frame_free_reg(frame,dst_reg) < 0)
+	{
+		LOG_ERROR("can not free the old value of register %d", dst_reg);
+		return -1;
+	}
+
+	frame->regs[dst_reg] = cesk_set_empty_set();
+	if(frame->regs[dst_reg] == NULL)
+	{
+		LOG_ERROR("can not create an empty set for register %d", dst_reg);
+		return -1;
+	}
+	if(cesk_diff_buffer_append(diff_buf, CESK_DIFF_REG, dst_reg, frame->regs[dst_reg]) < 0)
+	{
+		LOG_ERROR("can not append the diff to the diff buffer");
+		return -1;
+	}
+	return 0;
+}
+
+int cesk_frame_register_load(
+		cesk_frame_t* frame,
+		uint32_t dst_reg,
+		uint32_t src_addr,
+		cesk_diff_buffer_t* diff_buf,
+		cesk_diff_buffer_t* inv_buf)
+{
+	if(NULL == frame || dst_reg >= frame->size || NULL == diff_buf || NULL == inv_buf)
+	{
+		LOG_WARNING("invalid argument");
+		return -1;
+	}
+	if(cesk_diff_buffer_append(inv_buf, CESK_DIFF_REG, dst_reg, frame->regs[dst_reg]) < 0)
+	{
+		LOG_ERROR("can not append the diff to the inverse diff buffer");
+		return -1;
+	}
+	/* clear the register first */
+	if(cesk_frame_register_clear(frame, dst_reg, diff_buf, inv_buf) < 0)
+	{
+		LOG_ERROR("can not clear the value in register %d", dst_reg);
+		return -1;
+	}
+
+	if(cesk_set_push(frame->regs[dst_reg], src_addr) < 0)
+	{
+		LOG_ERROR("can not push address @%x to register %d", src_addr, dst_reg);
+		return -1;
+	}
+
+	if(cesk_store_incref(frame->store, src_addr) < 0)
+	{
+		LOG_ERROR("can not decref for the cell @%x", src_addr);
+		return -1;
+	}
+	if(cesk_diff_buffer_append(diff_buf, CESK_DIFF_REG, dst_reg, frame->regs[dst_reg]) < 0)
+	{
+		LOG_ERROR("can not append the diff to the diff buffer");
+		return -1;
+	}
+	return 0;
+}
+
+//TODO frame operation

@@ -178,6 +178,11 @@ int cesk_store_set_alloc_table(cesk_store_t* store, cesk_alloctab_t* table)
 		return -1;
 	}
 	store->alloc_tab = table;
+	if(NULL != table) 
+	{
+		store->alloc_token = cesk_alloctab_get_token(table);
+		LOG_DEBUG("allocate new token #%d", store->alloc_token);
+	}
 	return 0;
 }
 /**
@@ -188,7 +193,7 @@ int cesk_store_set_alloc_table(cesk_store_t* store, cesk_alloctab_t* table)
  * @param base_addr the base address of the block
  * @return < 0 : error
  **/
-static inline int _cesk_store_apply_alloc_tab(const cesk_store_t* source, cesk_store_t* store, uint32_t base_addr)
+static inline int _cesk_store_apply_alloc_tab(cesk_store_t* store, uint32_t base_addr)
 {
 	cesk_store_block_t* blk = _cesk_store_getblock_rw(store, base_addr);
 	if(NULL == blk)
@@ -239,7 +244,7 @@ static inline int _cesk_store_apply_alloc_tab(const cesk_store_t* source, cesk_s
 				for(;(from_addr = cesk_set_iter_next(&iter)) != CESK_STORE_ADDR_NULL;)
 					if(CESK_STORE_ADDR_IS_RELOC(from_addr))
 					{
-						to_addr = cesk_alloctab_query(store->alloc_tab, source, from_addr);
+						to_addr = cesk_alloctab_query(store->alloc_tab, store, from_addr);
 						if(CESK_STORE_ADDR_NULL == to_addr)
 						{
 							LOG_WARNING("failed to query the allocation table for relocation address @0x%x", 
@@ -260,7 +265,7 @@ static inline int _cesk_store_apply_alloc_tab(const cesk_store_t* source, cesk_s
 						from_addr = object_base->valuelist[j];
 						if(CESK_STORE_ADDR_IS_RELOC(from_addr))
 						{
-							to_addr = cesk_alloctab_query(store->alloc_tab, source ,from_addr);
+							to_addr = cesk_alloctab_query(store->alloc_tab, store ,from_addr);
 							if(CESK_STORE_ADDR_NULL == to_addr)
 							{
 								LOG_WARNING("failed to query the allocation table for relocated address @0x%x",
@@ -282,6 +287,26 @@ static inline int _cesk_store_apply_alloc_tab(const cesk_store_t* source, cesk_s
 		cesk_store_release_rw(store, base_addr + ofs);
 	}
 	blk->reloc = 0;
+	return 0;
+}
+int cesk_store_apply_alloctab(cesk_store_t* store)
+{
+	if(NULL == store->alloc_tab) return 0;   /* no allocation table availible, so just return success */
+	uint32_t base_addr;
+	int i;
+	for(i = 0, base_addr = 0; i < store->nblocks; i ++, base_addr += CESK_STORE_BLOCK_SIZE)
+	{
+		if(store->blocks[i]->reloc)
+		{
+			/* there's some relocated address here */
+			if(_cesk_store_apply_alloc_tab(store, base_addr) < 0)
+			{
+				LOG_ERROR("can not apply allocation table to the store");
+				return -1;
+			}
+		}
+	}
+	store->alloc_tab = NULL;
 	return 0;
 }
 cesk_store_t* cesk_store_fork(const cesk_store_t* store)
@@ -308,25 +333,9 @@ cesk_store_t* cesk_store_fork(const cesk_store_t* store)
 	uint32_t base_addr = 0;
 	/* increase refrence counter of all blocks */
 	for(i = 0; i < ret->nblocks; i ++, base_addr += CESK_STORE_BLOCK_NSLOTS)
-	{
 		ret->blocks[i]->refcnt++;
-		/* if there's some relocated address in the frame */
-		if(NULL != ret->alloc_tab && 
-		   ret->blocks[i]->reloc &&  
-		   _cesk_store_apply_alloc_tab(store, ret, base_addr) < 0)
-		{
-			LOG_ERROR("can not allocate allocation table to new store");
-			goto ERR;
-		}
-	}
-	ret->alloc_tab = NULL;
 	LOG_DEBUG("a store of %d entities is being forked, %zu bytes copied", ret->num_ent, size);
 	return ret;
-ERR:
-	for(; i < ret->nblocks; i ++)
-		ret->blocks[i]->refcnt ++;
-	cesk_store_free(ret);
-	return NULL;
 }
 /**
  * @brief make the object address from a store address (might be relocated address)

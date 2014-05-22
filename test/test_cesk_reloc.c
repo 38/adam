@@ -38,7 +38,6 @@ int main()
 	/* assign this value */
 	cesk_value_t* objval = cesk_value_from_classpath(stringpool_query("antlr/ANTLRTokdefParser"));
 	assert(NULL != objval);
-	assert(0 == cesk_reloc_set_init_value(reloc_tab, ra1, objval));
 	assert(0 == cesk_store_attach(store1, ra1, objval));
 	cesk_store_release_rw(store1, ra1);
 
@@ -56,11 +55,6 @@ int main()
 	/* setup the store */
 	assert(0 == cesk_store_set_alloc_table(store2, alloc_tab));
 
-	/* test addr initialization */
-	assert(CESK_STORE_ADDR_NULL != cesk_reloc_addr_init(reloc_tab, store2, ra1));
-
-
-	
 	cesk_store_free(store1);
 	cesk_store_free(store2);
 	cesk_alloctab_free(alloc_tab);

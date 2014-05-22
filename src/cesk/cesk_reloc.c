@@ -33,7 +33,6 @@ uint32_t cesk_reloc_table_append(
 		return CESK_STORE_ADDR_NULL;
 	}
 	cesk_reloc_item_t buf = {
-		.init_value = NULL,
 		.instruction = inst,
 		.parent_addr = parent_addr,
 		.field_offset = field_offset
@@ -62,80 +61,6 @@ uint32_t cesk_reloc_table_append(
 		return CESK_STORE_ADDR_NULL;
 	}
 }
-uint32_t cesk_reloc_addr_init(cesk_reloc_table_t* table, cesk_store_t* store, uint32_t addr)
-{
-	if(NULL == table || NULL == store || !CESK_STORE_ADDR_IS_RELOC(addr))
-	{
-		LOG_ERROR("invalid arguments");
-		return CESK_STORE_ADDR_NULL;
-	}
-	/* get value using address */
-	uint32_t value_idx = CESK_STORE_ADDR_RELOC_IDX(addr);
-	if(value_idx >= vector_size(table))
-	{
-		LOG_ERROR("there's no entry #%d in the relocation table", value_idx);
-		return CESK_STORE_ADDR_NULL;
-	}
-	cesk_reloc_item_t* item = vector_get(table, value_idx);
-	if(NULL == item)
-	{
-		LOG_ERROR("can not aquire the pointer to value table item #%d", value_idx);
-		return CESK_STORE_ADDR_NULL;
-	}
-	if(NULL == item->init_value)
-	{
-		LOG_ERROR("can not place an value with uninitialized value to store (item #%d)", value_idx);
-		return CESK_STORE_ADDR_NULL;
-	}
-	/* try to allocate a OA for the value */
-	uint32_t obj_addr = cesk_store_allocate(store, item->instruction, item->parent_addr, item->field_offset);
-	if(CESK_STORE_ADDR_NULL == obj_addr)
-	{
-		LOG_ERROR("can not allocate OA for the relocated object #%d", value_idx);
-		return CESK_STORE_ADDR_NULL;
-	}
-	/* check if there's a object in the object */
-	if(cesk_alloctab_query(store->alloc_tab, store, obj_addr) != CESK_STORE_ADDR_NULL)
-	{
-		LOG_ERROR("can not place value in store");
-		return CESK_STORE_ADDR_NULL;
-	}
-	/* if it's new, insert it to allocation table */
-	if(cesk_alloctab_map_addr(store->alloc_tab, store, addr, obj_addr) < 0)
-	{
-		LOG_ERROR("can not map address @0x%x --> @0x%x", addr, obj_addr);
-		return CESK_STORE_ADDR_NULL;
-	}
-	if(cesk_store_attach(store, obj_addr, item->init_value) < 0)
-	{
-		LOG_ERROR("can not assign value to OA @0x%x", obj_addr);
-		return CESK_STORE_ADDR_NULL;
-	}
-	/* do not forget release the writable pointer */
-	cesk_store_release_rw(store, obj_addr);
-	LOG_DEBUG("relocated address is initialized, address map: @0x%x --> @0x%x", addr, obj_addr);
-	return obj_addr;
-}
-
-int cesk_reloc_set_init_value(cesk_reloc_table_t* table, uint32_t addr, cesk_value_t* value)
-{
-	if(!CESK_STORE_ADDR_IS_RELOC(addr))
-	{
-		LOG_ERROR("invalid relocated address @0x%x", addr);
-		return -1;
-	}
-	uint32_t idx = CESK_STORE_ADDR_RELOC_IDX(addr);
-	if(NULL == table || idx >= vector_size(table) || NULL == value)
-	{
-		LOG_ERROR("invalid argument");
-		return -1;
-	}
-	cesk_reloc_item_t* item = (cesk_reloc_item_t*)vector_get(table, idx);
-	item->init_value = value;
-	cesk_value_incref(value);
-	return 0;
-}
-
 uint32_t cesk_reloc_allocate(
 		cesk_reloc_table_t* value_tab, 
 		cesk_store_t* store, 
@@ -187,4 +112,58 @@ uint32_t cesk_reloc_allocate(
 	LOG_DEBUG("relocated address is initialized, address map: @0x%x --> @0x%x", rel_addr, obj_addr);
 	/* here we done */
 	return rel_addr;
+}
+uint32_t cesk_reloc_addr_init(const cesk_reloc_table_t* table, cesk_store_t* store, uint32_t addr, cesk_value_t* init_val)
+{
+	if(NULL == table || NULL == store || !CESK_STORE_ADDR_IS_RELOC(addr))
+	{
+		LOG_ERROR("invalid arguments");
+		return CESK_STORE_ADDR_NULL;
+	}
+	/* get value using address */
+	uint32_t value_idx = CESK_STORE_ADDR_RELOC_IDX(addr);
+	if(value_idx >= vector_size(table))
+	{
+		LOG_ERROR("there's no entry #%d in the relocation table", value_idx);
+		return CESK_STORE_ADDR_NULL;
+	}
+	cesk_reloc_item_t* item = vector_get(table, value_idx);
+	if(NULL == item)
+	{
+		LOG_ERROR("can not aquire the pointer to value table item #%d", value_idx);
+		return CESK_STORE_ADDR_NULL;
+	}
+	if(NULL == init_val)
+	{
+		LOG_ERROR("can not place an value with uninitialized value to store (item #%d)", value_idx);
+		return CESK_STORE_ADDR_NULL;
+	}
+	/* try to allocate a OA for the value */
+	uint32_t obj_addr = cesk_store_allocate(store, item->instruction, item->parent_addr, item->field_offset);
+	if(CESK_STORE_ADDR_NULL == obj_addr)
+	{
+		LOG_ERROR("can not allocate OA for the relocated object #%d", value_idx);
+		return CESK_STORE_ADDR_NULL;
+	}
+	/* check if there's a object already there */
+	if(cesk_alloctab_query(store->alloc_tab, store, obj_addr) != CESK_STORE_ADDR_NULL)
+	{
+		LOG_ERROR("can not place value in store");
+		return CESK_STORE_ADDR_NULL;
+	}
+	/* if it's new, insert it to allocation table */
+	if(cesk_alloctab_map_addr(store->alloc_tab, store, addr, obj_addr) < 0)
+	{
+		LOG_ERROR("can not map address @0x%x --> @0x%x", addr, obj_addr);
+		return CESK_STORE_ADDR_NULL;
+	}
+	if(cesk_store_attach(store, obj_addr, init_val) < 0)
+	{
+		LOG_ERROR("can not assign value to OA @0x%x", obj_addr);
+		return CESK_STORE_ADDR_NULL;
+	}
+	/* do not forget release the writable pointer */
+	cesk_store_release_rw(store, obj_addr);
+	LOG_DEBUG("relocated address is initialized, address map: @0x%x --> @0x%x", addr, obj_addr);
+	return obj_addr;
 }

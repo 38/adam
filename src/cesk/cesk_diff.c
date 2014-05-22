@@ -1,875 +1,531 @@
 /**
  * @file cesk_diff.c
  * @brief implementation of frame diff package
+ * @details the layout of diff
+ * 		Allocation Section:   <addr, init_value>
+ *		Reuse Section     :   <addr, new_bit>
+ *		Register Section  :   <regid, set>
+ *		Store Section     :   <addr,  value>
+ *		Deallocate Section:   <addr>
  * @todo review the code, and the idea of diff
  **/
-#include <stdio.h>
+#include <const_assertion.h>
+#include <vector.h>
 
 #include <cesk/cesk_diff.h>
-#include <vector.h>
+#include <cesk/cesk_value.h>
+/* previous defs */
+typedef struct _cesk_diff_node_t _cesk_diff_node_t;
 /**
- * @brief data structure used as the node in the hash table for diff pacakge reduction
- * @details what the diff reduction actually does is merge all operations in the same address
- *        into one adddress, so we use a hash table to build the map from address to the 
- *        reduced operation.
+ * @brief a node in the diff segment
  **/
-typedef struct _cesk_diff_hash_node_t {
-	uint32_t                token;                   /*!< the allocation token */
-	cesk_diff_frame_addr_t  address;                 /*!< the affected address */
-	cesk_diff_item_t*       reduced;                 /*!< the reduced diff item in this address */
-	struct _cesk_diff_hash_node_t* hash_next;        /*!< the next element in the slot chain */
-	struct _cesk_diff_hash_node_t* list_next;        /*!< the next element in the node list */
-} _cesk_diff_hash_node_t;
+struct _cesk_diff_node_t{
+	int type;           /*!< which type this diff item is, useful when sorting */
+	int addr;           /*!< the address to operate, in the Register Segment, this means the register number */
+	int time;           /*!< the time stamp of this node */
+	void* value;        /*!< the value of this node */
+};
 
-/** @brief the reduction hash table **/
-static _cesk_diff_hash_node_t* _cesk_diff_hash[CESK_DIFF_HASH_SIZE];
-/** @brief allocation pointer **/
-static uint32_t _cesk_diff_alloc_ptr;
-/** @brief allocation token **/
-static uint32_t _cesk_diff_alloc_token;
-/** @brief memory pool **/
-static vector_t* _cesk_diff_mem_pool;
-/** @brief head of the node list */
-static _cesk_diff_hash_node_t* _cesk_diff_node_list;
-
-int cesk_diff_init()
+cesk_diff_buffer_t* cesk_diff_buffer_new(uint8_t reverse)
 {
-	_cesk_diff_alloc_ptr = 0;
-	_cesk_diff_alloc_token = 0;
-	_cesk_diff_mem_pool = vector_new(sizeof(_cesk_diff_hash_node_t));
-	if(NULL == _cesk_diff_mem_pool)
-	{
-		LOG_ERROR("can not intialize memory allocator for diff package");
-		return -1;
-	}
-	memset(_cesk_diff_hash, 0, sizeof(_cesk_diff_hash));
-	return 0;
-}
-void cesk_diff_finalize()
-{
-	vector_free(_cesk_diff_mem_pool);
-}
-//TODO hash table functions
-/**
- * @brief clear the hash table 
- * @return nothing
- **/
-static void _cesk_diff_hash_clear()
-{
-	_cesk_diff_alloc_ptr = 0;
-	_cesk_diff_alloc_token ++;
-	_cesk_diff_node_list = NULL;
-}
-/**
- * @brief allocate a hash table node
- * @return pointer to the new node
- **/
-static inline _cesk_diff_hash_node_t* _cesk_diff_hash_node_alloc()
-{
-	if(vector_size(_cesk_diff_mem_pool) < _cesk_diff_alloc_ptr)
-	{
-		/* if there's no used memory for the new node, just try to allocate a new one */
-		if(vector_dry_pushback(_cesk_diff_mem_pool) < 0)
-		{
-			LOG_ERROR("can not allocate a new node");
-			return NULL;
-		}
-	}
-	_cesk_diff_hash_node_t* ret = (_cesk_diff_hash_node_t*)vector_get(_cesk_diff_mem_pool, _cesk_diff_alloc_ptr++);
-	ret->token = _cesk_diff_alloc_token;
-	ret->reduced = NULL;
-	ret->hash_next = NULL;
-	ret->list_next = _cesk_diff_node_list;
-	_cesk_diff_node_list = ret;
-	return ret;
-}
-/**
- * @brief the hash code for frame address
- * @param addr the frame address
- * @return the hashcode
- **/
-static inline hashval_t _cesk_diff_hashcode(cesk_diff_frame_addr_t addr)
-{
-	if(CESK_DIFF_FRAME_STORE == addr.type)
-		return addr.value * MH_MULTIPLY;
-	else
-		return (addr.value * addr.value + 107 * addr.value + 1023) * MH_MULTIPLY;
-}
-/**
- * @brief find hash node by address, if node does not in the table, insert a new node 
- * @param addr
- * @return the pointer to the node in given address, NULL when error 
- **/
-static inline _cesk_diff_hash_node_t* _cesk_diff_hash_find(cesk_diff_frame_addr_t addr)
-{
-	hashval_t h = _cesk_diff_hashcode(addr)%CESK_DIFF_HASH_SIZE;
-	_cesk_diff_hash_node_t* ptr;
-	/* try to find the node in the hash */
-	for(ptr = _cesk_diff_hash[h];
-		NULL != ptr && _cesk_diff_alloc_token == ptr->token;
-		ptr = ptr->hash_next) 
-		if(ptr->address.type == addr.type && ptr->address.value == addr.value)
-			return ptr;
-	/* we didn't find any existing node here */
-	if(NULL != _cesk_diff_hash[h] && _cesk_diff_alloc_token != ptr->token)
-		_cesk_diff_hash[h] = NULL;
-	ptr = _cesk_diff_hash_node_alloc();
-	if(NULL == ptr)
-	{
-		LOG_ERROR("can not allocate memory for new reduction hash table node");
-		return NULL;
-	}
-	ptr->address.value = addr.value;
-	ptr->address.type  = addr.type;
-	ptr->hash_next = _cesk_diff_hash[h];
-	_cesk_diff_hash[h] = ptr;
-	return ptr;
-}
-cesk_diff_item_t* cesk_diff_item_new()
-{
-	cesk_diff_item_t* ret = (cesk_diff_item_t*)malloc(sizeof(cesk_diff_item_t));
+	cesk_diff_buffer_t* ret = (cesk_diff_buffer_t*)malloc(sizeof(cesk_diff_buffer_t*));
 	if(NULL == ret)
 	{
-		LOG_ERROR("can not allocate diff item");
+		LOG_ERROR("can not allocate memory for this buffer");
 		return NULL;
 	}
-	memset(ret, 0, sizeof(cesk_diff_item_t));
+	ret->converted = 0;
+	ret->reverse = reverse; 
+	ret->buffer = vector_new(sizeof(_cesk_diff_node_t));
 	return ret;
 }
 
-void cesk_diff_item_free(cesk_diff_item_t* item)
+void cesk_diff_buffer_free(cesk_diff_buffer_t* mem)
 {
-	if(NULL == item) return;
-	free(item);
-}
-
-cesk_diff_t* cesk_diff_new()
-{
-	cesk_diff_t* ret = (cesk_diff_t*)malloc(sizeof(cesk_diff_t));
-	if(NULL == ret) 
+	if(NULL == mem) return;
+	int i, sz;
+	sz = vector_size(mem->buffer);
+	for(i = mem->converted; i < sz; i ++)
 	{
-		LOG_ERROR("can not allocate new diff package");
-		return NULL;
+		_cesk_diff_node_t* node;
+		node = (_cesk_diff_node_t*)vector_get(mem->buffer, i);
+		if(NULL == node || NULL == node->value) continue;
+		switch(node->type)
+		{
+			case CESK_DIFF_ALLOC:
+			case CESK_DIFF_STORE:
+				cesk_value_decref((cesk_value_t*)node->value);
+				break;
+			case CESK_DIFF_REG:
+				cesk_set_free((cesk_set_t*)node->value);
+				break;
+		}
 	}
-
-	ret->head = NULL;
-	ret->tail = NULL;
-	/* the diff have never been reduced */
-	ret->red = 0;
-	return ret;
+	vector_free(mem->buffer);
+	free(mem);
 }
-
-void cesk_diff_free(cesk_diff_t* diff)
+static inline void _cesk_diff_print_record(int type, int addr, void* value)
 {
-	if(NULL == diff) return;
-	cesk_diff_item_t* ptr;
-	for(ptr = diff->head; NULL != ptr;)
+	switch(type)
 	{
-		cesk_diff_item_t* node = ptr;
-		ptr = ptr->next;
-		if(node->type == CESK_DIFF_ITEM_TYPE_SET)
-			cesk_value_decref(node->data.value);
-		cesk_diff_item_free(node);
+		case CESK_DIFF_ALLOC:
+			LOG_DEBUG("(allocate @%x %s)", addr, cesk_value_to_string((cesk_value_t*)value, NULL));
+			break;
+		case CESK_DIFF_DEALLOC:
+			LOG_DEBUG("(deallocate @%x)", addr);
+			break;
+		case CESK_DIFF_REG:
+			LOG_DEBUG("(register v%d %s)", addr, cesk_set_to_string((cesk_set_t*)value, NULL));
+			break;
+		case CESK_DIFF_STORE:
+			LOG_DEBUG("(store @%x %s)", addr, cesk_value_to_string((cesk_value_t*)value, NULL));
+			break;
+		case CESK_DIFF_REUSE:
+			LOG_DEBUG("(reuse @%x %d)", addr, (value != NULL));
+			break;
+		default:
+			LOG_DEBUG("(unknown-record)");
 	}
-	free(diff);
 }
-
-int cesk_diff_push_front(cesk_diff_t* diff, cesk_diff_item_t* item)
+int cesk_diff_buffer_append(cesk_diff_buffer_t* buffer, int type, uint32_t addr, void* value)
 {
-	if(NULL == diff || NULL == item)
+	if(NULL == buffer) 
 	{
 		LOG_ERROR("invalid argument");
 		return -1;
 	}
-	if(diff->red)
+	if(CESK_DIFF_DEALLOC == type)
 	{
-		LOG_ERROR("can not modify a reduced diff package");
+		if(NULL != value) LOG_WARNING("invalid value field, suppose to be NULL");
+		value = NULL;
+	}
+	else if(CESK_DIFF_REUSE != type && NULL == value)
+	{
+		LOG_ERROR("invalid value field, suppose to be non-NULL");
 		return -1;
 	}
-	item->next = diff->head;
-	diff->head = item;
-	if(NULL == diff->tail) 
-		diff->tail = diff->head;  /* if this is the first element in the list */
-	return 0;
-}
-
-int cesk_diff_push_back(cesk_diff_t* diff, cesk_diff_item_t* item)
-{
-	if(NULL == diff || NULL == item)
-	{
-		LOG_ERROR("invalid arguments");
-		return -1;
-	}
-	if(diff->red)
-	{
-		LOG_ERROR("can not modofiy a reduced diff package");
-		return -1;
-	}
-	item->next = NULL;
-	if(NULL != diff->tail)diff->tail->next = item;
-	diff->tail = item;
-	if(NULL == diff->head) /* if this is the first element in the list */
-		diff->head = diff->tail;
-	return 0;
+	_cesk_diff_node_t node = {
+		.type = type,
+		.addr = addr,
+		.value = value,
+		.time = vector_size(buffer->buffer)
+	};
+	if(buffer->reverse) node.time = -node.time;  /* so we reverse the time order */
+	if(CESK_DIFF_STORE == type || CESK_DIFF_ALLOC == type) cesk_value_incref((cesk_value_t*)value);
+	else if(CESK_DIFF_REG == type) node.value = cesk_set_fork((cesk_set_t*)value);
+	LOG_DEBUG("append a new record to the buffer");
+	_cesk_diff_print_record(type, addr, value);
+	return vector_pushback(buffer->buffer, &node);
 }
 /**
- * @brief merge allocation with a diff item
- * @param first the first diff item (ealier one)
- * @param second the second diff item (later one)
- * @return the result of reduction, <0 means error.
+ * @todo use faster sorting algorihtm
  **/
-static inline int _cesk_diff_item_reduce_allocation(cesk_diff_item_t* first, cesk_diff_item_t* second)
+static int _cesk_diff_buffer_cmp(const void* left, const void* right)
 {
-	switch(second->type)
-	{
-		case CESK_DIFF_ITEM_TYPE_ALLOCSET:
-			/* allocation + allocation-set ==> impossible */
-		case CESK_DIFF_ITEM_TYPE_ALLOCREUSE:
-			/* allocation + allocation-reuse ==> impossible */
-		case CESK_DIFF_ITEM_TYPE_ALLOCATE:
-			/* allocation + allocation ==> impossible */
-			LOG_ERROR("can not allocate same address in same store twice");
-			return -1;
-		case CESK_DIFF_ITEM_TYPE_DEALLOCATE:
-			/* allocation + deallocation ==> nop */
-			first->type = CESK_DIFF_ITEM_TYPE_NOP;
-			return 0;
-		case CESK_DIFF_ITEM_TYPE_REUSE:
-			/* allocation + reuse ==> allocation & reuse */
-			first->type = CESK_DIFF_ITEM_TYPE_ALLOCREUSE;
-			first->data.reuse = second->data.reuse;
-			return 0;
-		case CESK_DIFF_ITEM_TYPE_SET:
-			/* allocation + set ==> allocatoin-set */
-			first->type = CESK_DIFF_ITEM_TYPE_ALLOCSET;
-			first->data.value = second->data.value;
-			return -1;
-		case CESK_DIFF_ITEM_TYPE_NOP:
-			/* allocation + nop = allocation */
-			return 0;
-		default:
-			LOG_ERROR("invalid diff item type");
-			return -1;
-	}
+	const _cesk_diff_node_t* lnode = (const _cesk_diff_node_t*)left;
+	const _cesk_diff_node_t* rnode = (const _cesk_diff_node_t*)right;
+	if(lnode->type != rnode->type) return lnode->type - rnode->type;
+	if(lnode->addr != rnode->addr) return lnode->addr - rnode->addr;
+	return lnode->time - rnode->time;
 }
-/**
- * @brief merge deallocation with a diff item
- * @param first the first diff item (ealier one)
- * @param second the second diff item (later one)
- * @return the result of reduction, <0 means error.
- **/
-static inline int _cesk_diff_item_reduce_deallocation(cesk_diff_item_t* first, cesk_diff_item_t* second)
+cesk_diff_t* cesk_diff_from_buffer(cesk_diff_buffer_t* buffer)
 {
-	switch(second->type)
-	{
-		case CESK_DIFF_ITEM_TYPE_ALLOCREUSE:
-			/* deallocation + allocation-reuse ==> reuse */
-			first->type = CESK_DIFF_ITEM_TYPE_REUSE;
-			first->data.reuse = second->data.reuse;
-			return 0;
-		case CESK_DIFF_ITEM_TYPE_ALLOCSET:
-			/* deallocation + allocation-set ==> set */
-			first->type = CESK_DIFF_ITEM_TYPE_SET;
-			first->data.value = second->data.value;
-			return 0;
-		case CESK_DIFF_ITEM_TYPE_ALLOCATE:
-			/* deallocation + allocation ==> nop */
-			first->type = CESK_DIFF_ITEM_TYPE_NOP;
-			return 0;
-		case CESK_DIFF_ITEM_TYPE_DEALLOCATE:
-			/* deallocation + deallocation ==> impossible */
-		case CESK_DIFF_ITEM_TYPE_REUSE:
-			/* deallocation + reuse ==> impossible */
-		case CESK_DIFF_ITEM_TYPE_SET:
-			/* deallocation + set ==> impossible */
-			LOG_ERROR("can not merge, becuase the object is already dead");
-			return -1;
-		case CESK_DIFF_ITEM_TYPE_NOP:
-			return 0;
-		default:
-			LOG_ERROR("invalid diff item type");
-			return -1;
-	}
-}
-/**
- * @brief merge allocation-reuse with a diff item
- * @param first the first diff item (ealier one)
- * @param second the second diff item (later one)
- * @return the result of reduction, <0 means error.
- **/
-static inline int _cesk_diff_item_reduce_allocreuse(cesk_diff_item_t* first, cesk_diff_item_t* second)
-{
-	switch(second->type)
-	{
-		case CESK_DIFF_ITEM_TYPE_ALLOCSET:
-			/* allocation-set + allocation-reuse ==> impossible */
-		case CESK_DIFF_ITEM_TYPE_ALLOCREUSE:
-			/* allocation-reuse + allocation-reuse ==> impossible */
-		case CESK_DIFF_ITEM_TYPE_ALLOCATE:
-			/* allocation-reuse + allocation ==> impossible */
-			LOG_ERROR("can not allocate same address in same store twice");
-			return -1;
-		case CESK_DIFF_ITEM_TYPE_DEALLOCATE:
-			/* allocation-reuse + deallocation ==> impossible*/
-			//TODO verify this case
-			LOG_ERROR("because the same address is only allocated by the same instruction, so this is impossible");
-			return -1;
-		case CESK_DIFF_ITEM_TYPE_REUSE:
-			/* allocation-reuse + reuse ==> allocation & reuse */
-			first->type = CESK_DIFF_ITEM_TYPE_ALLOCREUSE;
-			first->data.reuse = second->data.reuse;
-			return 0;
-		case CESK_DIFF_ITEM_TYPE_SET:
-			/* allocation-reuse + set ==> impossible */
-			LOG_ERROR("can not combine allocation and set, because type do not match");
-			return -1;
-		case CESK_DIFF_ITEM_TYPE_NOP:
-			/* allocation + nop = allocation */
-			return 0;
-		default:
-			LOG_ERROR("invalid diff item type");
-			return -1;
-	}
-}
-/**
- * @brief merge reuse with a diff item
- * @param first the first diff item (ealier one)
- * @param second the second diff item (later one)
- * @return the result of reduction, <0 means error.
- **/
-static inline int _cesk_diff_item_reduce_reuse(cesk_diff_item_t* first, cesk_diff_item_t* second)
-{
-	switch(second->type)
-	{
-		case CESK_DIFF_ITEM_TYPE_ALLOCSET:
-			/* reuse + allocation-set ==> impossible */
-		case CESK_DIFF_ITEM_TYPE_ALLOCATE:
-			/* reuse + allocation ==> impossible */
-		case CESK_DIFF_ITEM_TYPE_ALLOCREUSE:
-			/* reuse + allocation-reuse => impossible */
-			LOG_ERROR("can not merge allocation before reuse, because it's not possible");
-			return -1;
-		case CESK_DIFF_ITEM_TYPE_DEALLOCATE:
-			/* reuse + deallocation ==> impossible */
-			LOG_ERROR("there's no chance for reuse and allocation occur in the same block at one time");
-			return -1;
-		case CESK_DIFF_ITEM_TYPE_REUSE:
-			/* reuse + reuse ==> reuse */
-			first->type = CESK_DIFF_ITEM_TYPE_REUSE;
-			first->data.reuse = second->data.reuse;
-			return 0;
-		case CESK_DIFF_ITEM_TYPE_SET:
-			/* reuse + set == impossible */
-			LOG_ERROR("can not merge reuse and set, type do not match");
-			return -1;
-		case CESK_DIFF_ITEM_TYPE_NOP:
-			/* reuse + nop ==> reuse */
-			return 0;
-		default:
-			LOG_ERROR("invalid diff item type");
-			return -1;
-			
-	}
-}
-/**
- * @brief merge set with a diff item
- * @param first the first diff item (ealier one)
- * @param second the second diff item (later one)
- * @return the result of reduction, <0 means error.
- **/
-static inline int _cesk_diff_item_reduce_set(cesk_diff_item_t* first, cesk_diff_item_t* second)
-{
-	switch(second->type)
-	{
-		case CESK_DIFF_ITEM_TYPE_ALLOCSET:
-			/* set + allocation-set ==> impossible */
-		case CESK_DIFF_ITEM_TYPE_ALLOCATE:
-			/* set + allocation ==> impossible */
-		case CESK_DIFF_ITEM_TYPE_ALLOCREUSE:
-			/* set + allocation-reuse ==> impossible */
-			LOG_ERROR("can not allocate after set");
-			return -1;
-		case CESK_DIFF_ITEM_TYPE_DEALLOCATE:
-			/* set + deallocate ==> delocation */
-			cesk_value_decref(first->data.value);
-			first->type = CESK_DIFF_ITEM_TYPE_DEALLOCATE;
-			return -1;
-		case CESK_DIFF_ITEM_TYPE_REUSE:
-			/* set + reuse ==> impossible */
-			LOG_ERROR("type mismatch");
-			return -1;
-		case CESK_DIFF_ITEM_TYPE_SET:
-			/* set + set ==> set */
-			first->type = CESK_DIFF_ITEM_TYPE_SET;
-			cesk_value_decref(first->data.value);
-			first->data.value = second->data.value;
-			return 0;
-		case CESK_DIFF_ITEM_TYPE_NOP:
-			/* set + nop ==> set */
-			return 0;
-		default:
-			LOG_ERROR("invalid diff item type");
-			return -1;
-	}
-}
-/**
- * @brief merge allocation-set with a diff item
- * @param first the first diff item (ealier one)
- * @param second the second diff item (later one)
- * @return the result of reduction, <0 means error.
- **/
-static inline int _cesk_diff_item_reduce_allocset(cesk_diff_item_t* first, cesk_diff_item_t* second)
-{
-	switch(second->type)
-	{
-		case CESK_DIFF_ITEM_TYPE_ALLOCSET:
-		case CESK_DIFF_ITEM_TYPE_ALLOCREUSE:
-		case CESK_DIFF_ITEM_TYPE_ALLOCATE:
-			/* allocate-set + alloc* ==> impossible */
-			LOG_ERROR("can not allocate twice");
-			return -1;
-		case CESK_DIFF_ITEM_TYPE_DEALLOCATE:
-			/* allocate-set + deallocate ==>impossible */
-			LOG_ERROR("can not merge allocation-set an deallocate, not possible");
-			return -1;
-		case CESK_DIFF_ITEM_TYPE_REUSE:
-			/* allocate-set + reuse ==> impossible */
-			LOG_ERROR("type mismatch");
-			return -1;
-		case CESK_DIFF_ITEM_TYPE_SET:
-			/* allocation-set + set ==> allocation-set */
-			first->type = CESK_DIFF_ITEM_TYPE_ALLOCSET;
-			cesk_value_decref(first->data.value);
-			first->data.value = second->data.value;
-			return 0;
-		case CESK_DIFF_ITEM_TYPE_NOP:
-			/* allocation-set + nop ==> allocation-set */
-			return 0;
-		default:
-			LOG_ERROR("invalid diff item type");
-			return -1;
-	}
-}
-/**
- * @brief reduce two diff item into one, and store the result in the first item
- * @param first the first diff item (ealier one)
- * @param second the second diff item (later one)
- * @return the result of reduction, <0 means error
- * @note   this function do not free the second diff item, so if the function returns
- *         a success value, caller should free the second diff item
- **/
-static inline int _cesk_diff_item_reduce(cesk_diff_item_t* first, cesk_diff_item_t* second)
-{
-	/* we do not check the validity of the pointers */
-	LOG_DEBUG("applying the second diff to the first one");
-	LOG_DEBUG("first = %s", cesk_diff_item_to_string(first, NULL));
-	LOG_DEBUG("second = %s", cesk_diff_item_to_string(second, NULL));
-	/* verify two items affects the same address */
-	if(first->frame_addr.type != second->frame_addr.type ||
-	   first->frame_addr.value != second->frame_addr.value)
-	{
-		LOG_ERROR("can not reduce two diff items affets different addresses to one");
-		return -1;
-	}
-	switch(first->type)
-	{
-		case CESK_DIFF_ITEM_TYPE_ALLOCATE:
-			return _cesk_diff_item_reduce_allocation(first, second);
-		case CESK_DIFF_ITEM_TYPE_DEALLOCATE:
-			return _cesk_diff_item_reduce_deallocation(first, second);
-		case CESK_DIFF_ITEM_TYPE_ALLOCREUSE:
-			return _cesk_diff_item_reduce_allocreuse(first, second);
-		case CESK_DIFF_ITEM_TYPE_NOP:
-			/* just copy the second item to the first */
-			first->type = second->type;
-			first->data.value = second->data.value;  /* because the reuse flag is smaller than pointer, so we only perform a 
-			                                            pointer assignment instead of do a bit assignment */
-			return 0;
-		case CESK_DIFF_ITEM_TYPE_REUSE:
-			return _cesk_diff_item_reduce_reuse(first, second);
-		case CESK_DIFF_ITEM_TYPE_SET:
-			return _cesk_diff_item_reduce_set(first, second);
-		case CESK_DIFF_ITEM_TYPE_ALLOCSET:
-			return _cesk_diff_item_reduce_allocset(first, second);
-		default:
-			LOG_ERROR("invalid diff item type");
-			return -1;
-	}
-}
-cesk_diff_t* cesk_diff_clone(const cesk_diff_t* diff)
-{
-	if(NULL == diff)
+	LOG_DEBUG("construct diff package from a buffer");
+	if(NULL == buffer)
 	{
 		LOG_ERROR("invalid argument");
+		return NULL;
+	}
+	if(0 != buffer->converted)
+	{
+		LOG_ERROR("this buffer is already convered to the diff type, aborting");
 		return NULL;
 	}
 	
-	cesk_diff_t* ret = cesk_diff_new();
+	/* first we need to sort the buffer */
+	size_t sz = vector_size(buffer->buffer);
+	qsort(buffer->buffer->data, sz, buffer->buffer->elem_size, _cesk_diff_buffer_cmp);
+
+	/* then we determine the size of the diff */
+	size_t size = 0;
+	int i, prev_type = 0;
+	uint32_t prev_addr = CESK_STORE_ADDR_NULL;
+	for(i = 0; i < sz; i ++)
+	{
+		_cesk_diff_node_t* node = (_cesk_diff_node_t*)vector_get(buffer->buffer, i);
+
+		_cesk_diff_print_record(node->type, node->addr, node->value);
+
+		if(prev_type != node->type || prev_addr != node->addr)
+			size ++;
+		prev_type = node->type;
+		prev_addr = node->addr;
+	}
+	LOG_DEBUG("maximum %zu slots for result", size);
+
+	/* allocate memory for the result */
+	cesk_diff_t* ret;
+	ret = (cesk_diff_t*)malloc(sizeof(cesk_diff_t) + sizeof(_cesk_diff_node_t) * size);
 	if(NULL == ret)
 	{
-		LOG_ERROR("can not allocate a new diff package strcuture for the copy");
+		LOG_ERROR("can not allocate memory for the diff");
 		return NULL;
 	}
-	ret->red = diff->red;
-	const cesk_diff_item_t* sour;
-	for(sour = diff->head; NULL != sour; sour = sour->next)
+	memset(ret->offset, 0, sizeof(ret->offset));
+	ret->_index = 0;
+
+	LOG_DEBUG("constructing the diff package");
+	/* then we start to scan the buffer, and build our result */
+	int section;
+	for(i = 0, section = 0; section < CESK_DIFF_NTYPES; section ++)
 	{
-		cesk_diff_item_t* dest = cesk_diff_item_new();
-		if(NULL == dest)
+		ret->offset[section + 1] = ret->offset[section];
+		/* for each record in this buffer which should be in current section*/
+		int first = 1;
+		for(;i < sz;i ++)
 		{
-			LOG_ERROR("can not allocate memory for the copy of diff item %s", cesk_diff_item_to_string(dest, NULL));
-			goto L_ERR;
-		}
-		memcpy(dest, sour, sizeof(cesk_diff_item_t));
-		if(CESK_DIFF_ITEM_TYPE_SET == dest->type)
-			cesk_value_incref(dest->data.value);
-	}
-	return ret;
-L_ERR:
-	cesk_diff_free(ret);
-	return NULL;
-}
-int cesk_diff_reduce(cesk_diff_t* diff)
-{
-	if(NULL == diff)
-	{
-		LOG_ERROR("invalid argument");
-		return -1;
-	}
-	if(diff->red) return 0;
-	cesk_diff_item_t* ptr;
-	for(ptr = diff->head; NULL != ptr;)
-	{
-		cesk_diff_item_t* this = ptr;
-		ptr = ptr->next;
-		/* do merge */
-		_cesk_diff_hash_node_t* node = _cesk_diff_hash_find(this->frame_addr);
-		if(NULL == node)
-		{
-			LOG_ERROR("failed to aquire the node for address <%u,%u>", this->frame_addr.type, this->frame_addr.value);
-			return -1;
-		}
-		else
-		{
-			if(NULL == node->reduced)
+			_cesk_diff_node_t* node = vector_get(buffer->buffer, i);
+			if(node->type != section) break;
+			if(first)
 			{
-				/* if this node is newly created, just assign current diff item to the reduced one */
-				node->reduced = this;
+				ret->data[ret->offset[section + 1]].addr = node->addr;
+				ret->data[ret->offset[section + 1]].arg.generic = node->value;
 			}
 			else
 			{
-				if(_cesk_diff_item_reduce(node->reduced, this) < 0)
+				if(prev_addr != node->addr)
 				{
-					LOG_ERROR("can not reduce the diff item");
-					return -1;
+					/* we flush the the previous record, and start another one */
+					_cesk_diff_print_record(section, 
+					                        ret->data[ret->offset[section + 1]].addr, 
+											ret->data[ret->offset[section + 1]].arg.generic);
+					ret->offset[section + 1] ++;
+					ret->data[ret->offset[section + 1]].addr = node->addr;
+					ret->data[ret->offset[section + 1]].arg.generic = node->value;
 				}
-				cesk_diff_item_free(this);
+				else
+				{
+					switch(section)
+					{
+						case CESK_DIFF_ALLOC:
+							LOG_WARNING("ignore the duplicated allocation record at the same store address @%x", prev_addr);
+							/* we have to drop the reference */
+							cesk_value_decref(node->value);
+							break;
+						case CESK_DIFF_DEALLOC:
+							LOG_WARNING("ignore the dumplicated deallocation record at the same store address @%x", prev_addr);
+							break;
+						case CESK_DIFF_REUSE:
+							ret->data[ret->offset[section + 1]].arg.boolean = (node->value != NULL);
+							break;
+						case CESK_DIFF_REG:
+							if(NULL != ret->data[ret->offset[section + 1]].arg.set)
+								cesk_set_free(ret->data[ret->offset[section + 1]].arg.set);
+							ret->data[ret->offset[section + 1]].arg.set = (cesk_set_t*)node->value;
+							break;
+						case CESK_DIFF_STORE:
+							if(NULL != ret->data[ret->offset[section + 1]].arg.value)
+								cesk_value_decref(ret->data[ret->offset[section + 1]].arg.value);
+							ret->data[ret->offset[section + 1]].arg.value = (cesk_value_t*) node->value;
+							break;
+						default:
+							LOG_WARNING("unknown type of record");
+					}
+				}
 			}
+			prev_addr = node->addr;
+			first = 0;
+			buffer->converted ++;
 		}
-	}
-	/* rebuild the reduced diff */
-	diff->head = NULL;
-	diff->tail = NULL;
-	diff->red  = 1;
-	_cesk_diff_hash_node_t* np;
-	for(np = _cesk_diff_node_list; 
-		np != NULL;
-		np = np->list_next)
-	{
-		cesk_diff_item_t* this = np->reduced;
-		this->next = diff->head;
-		diff->head = this;
-		if(NULL == diff->tail)
-			diff->tail = this;
-	}
-	/* clear the temp hash table */
-	_cesk_diff_hash_clear();
-	return 0;
-}
-
-int cesk_diff_apply_d(cesk_diff_t* left, cesk_diff_t* right)
-{
-	if(NULL == left || NULL == right)
-	{
-		LOG_ERROR("invalid argument");
-		return -1;
-	}
-	/* first, try to reduce the two input */
-	if(left->red == 0 || right->red == 0)
-	{
-		LOG_ERROR("can not apply an unreduced diff to other diff");
-		return -1;
-	}
-	/* if the first one is empty, return the second one */
-	if(NULL == left->head)
-	{
-		left->head = right->head;
-		left->tail = right->tail;
-		free(right);
-		return 0;
-	}
-	/* otherwise, merge two list and try to reduce it again */
-	left->tail = right->head;
-	left->red = 0;
-	free(right);
-	if(cesk_diff_reduce(left) < 0)
-	{
-		LOG_ERROR("can not reduce the result");
-		cesk_diff_free(left);
-		return -1;
-	}
-	return 0;
-}
-int cesk_diff_apply_s(const cesk_diff_t* diff, cesk_store_t* store)
-{
-	LOG_ERROR("unimplememnted");
-	/* TODO */
-	return -1;
-}
-/**
- * @brief merge a allocation operation with anoterh operation
- * @param left the allocation operation
- * @param right the other opration 
- * @return < 0 for error 
- **/
-static inline int _cesk_diff_item_merge_allocation(cesk_diff_item_t* left, cesk_diff_item_t* right)
-{
-	switch(right->type)
-	{
-		case CESK_DIFF_ITEM_TYPE_ALLOCATE:
-			/* allocation + allocation ==> allocation */
-			return 0;
-		case CESK_DIFF_ITEM_TYPE_DEALLOCATE:
-			/* allocation + delocation ==> impossible */
-			LOG_ERROR("can not merge a diff pakcage with deallocation");
-			return 0;
-		case CESK_DIFF_ITEM_TYPE_ALLOCSET:
-			/* allocation + allocation-set = allocation-set */
-			left->type = CESK_DIFF_ITEM_TYPE_ALLOCSET;
-			left->data.value = right->data.value;
-			return 0;
-		case CESK_DIFF_ITEM_TYPE_ALLOCREUSE:
-			/* allocation + allocation-reuse = allocation-reuse */
-			left->type = CESK_DIFF_ITEM_TYPE_ALLOCREUSE;
-			return 0;
-		case CESK_DIFF_ITEM_TYPE_REUSE:
-			/* allocation + reuse = reuse */
-			left->type = CESK_DIFF_ITEM_TYPE_REUSE;
-			left->data.reuse = right->data.reuse;
-			return 0;
-		case CESK_DIFF_ITEM_TYPE_SET:
-			/* allocation + set = set */
-			left->type = CESK_DIFF_ITEM_TYPE_SET;
-			left->data.value = right->data.value;
-			return 0;
-		default:
-			LOG_ERROR("invalid second operand");
-			return -1;
-	}
-}
-/**
- * @brief merge the deallocation operation with another operation
- * @param first the deallocation operation
- * @param second the other operation
- **/
-static inline int _cesk_diff_item_merge_deallocation(cesk_diff_item_t* first, cesk_diff_item_t* second)
-{
-	LOG_ERROR("can not merge a delocation with other operations");
-	return -1;
-}
-
-/**
- * @brief merge two diff item (perform an add operation left + right)
- * @param left the left operand
- * @param right the right operand
- * @return the result of the merge
- * @note the caller is responsible for cleaning the second operand after successfully merged
- *       two items 
- **/
-static inline int _cesk_diff_item_merge(cesk_diff_item_t* left, cesk_diff_item_t* right)
-{
-	/* won't check the validity of the pointer */
-	LOG_DEBUG("we are going to merge two diff items");
-	LOG_DEBUG("first = %s", cesk_diff_item_to_string(left, NULL));
-	LOG_DEBUG("second = %s", cesk_diff_item_to_string(right, NULL));
-	/* check the comptibility of two diff item */
-	if(left->frame_addr.type != right->frame_addr.type ||
-	   left->frame_addr.value != right->frame_addr.value)
-	{
-		LOG_ERROR("can not merge two diff item which does not affect the same address");
-		return -1;
-	}
-	/* because the merge operation is symmetric, so we can enumerate only 7 * (7 + 1) / 2 = 28 cases
-	 * To do this, we should assume that the opcode of te first item is numerally larger than that of 
-	 * the second. If this condition is not satisified, we need to swap the two pointer.
-	 * But this can cause problems, because the caller is responsible for call free function to the 
-	 * second diff item. So if we swapped two pointer, the caller can not clean up the unused memory 
-	 * properly. 
-	 * So we need to swap the value rather than the opinter
-	 */
-	if(left->type > right->type)
-	{
-		/* swap two value */
-		char buf[sizeof(cesk_diff_item_t)];
-		memcpy(buf, left, sizeof(cesk_diff_item_t));
-		memcpy(left, right, sizeof(cesk_diff_item_t));
-		memcpy(right, buf, sizeof(cesk_diff_item_t));
-	}
-	/* ok, now we start to enumerate the cases */
-	switch(left->type)
-	{
-		case CESK_DIFF_ITEM_TYPE_NOP:
-			/* just copy the second item to the first */
-			left->type = right->type;
-			left->data.value = right->data.value; 
-			return 0;
-		case CESK_DIFF_ITEM_TYPE_ALLOCATE:
-			return _cesk_diff_item_merge_allocation(left, right);
-		case CESK_DIFF_ITEM_TYPE_DEALLOCATE:
-			return _cesk_diff_item_merge_deallocation(left, right);
-		/*
-		case CESK_DIFF_ITEM_TYPE_REUSE:
-			return _cesk_diff_item_merge_reuse(first, second);
-		case CESK_DIFF_ITEM_TYPE_ALLOCREUSE:
-			return _cesk_diff_item_merge_allocreuse(first, second);
-		case CESK_DIFF_ITEM_TYPE_SET:
-			return _cesk_diff_item_merge_set(first, second);
-		case CESK_DIFF_ITEM_TYPE_ALLOCSET:
-			return _cesk_diff_item_merge_allocset(first, second);*/
-		default:
-			LOG_ERROR("invalid diff item type");
-			return -1;
-	}
-}
-int cesk_diff_merge(cesk_diff_t* left, cesk_diff_t* right)
-{
-	if(NULL == left || NULL == right)
-	{
-		LOG_ERROR("invalid parameters");
-		return -1;
-	}
-	if(left->red == 0 || right->red == 0)
-	{
-		LOG_ERROR("can not merge unreduced diff packages");
-		return -1;
-	}
-	/* insert all elements in the first diff package first */
-	cesk_diff_item_t *ptr;
-	for(ptr = left->head; ptr != NULL;)
-	{
-		cesk_diff_item_t* this = ptr;
-		ptr = ptr->next;
-		_cesk_diff_hash_node_t* node = _cesk_diff_hash_find(ptr->frame_addr);
-		if(NULL == node)
+		if(!first)
 		{
-			LOG_ERROR("can no aquire the address in the table");
-			return -1;
+			_cesk_diff_print_record(section, 
+									ret->data[ret->offset[section + 1]].addr, 
+									ret->data[ret->offset[section + 1]].arg.generic);
+			ret->offset[section + 1] ++;
 		}
-		if(node->reduced != NULL)
-		{
-			LOG_ERROR("there are two diff items that affects the same address");
-			return -1;
-		}
-		else
-		{
-			node->reduced = this;
-		}
-	}
-	/* now merge the second diff package */
-	for(ptr = right->head; ptr != NULL; )
-	{
-		cesk_diff_item_t* this = ptr;
-		ptr = ptr->next;
-		_cesk_diff_hash_node_t* node = _cesk_diff_hash_find(ptr->frame_addr);
-		if(NULL == node)
-		{
-			LOG_ERROR("can not find the address in the table");
-			return -1;
-		}
-		if(node->reduced != NULL)
-		{
-			/* a diff item is already there, merge the value */
-			//TODO
-		}
-		else
-		{
-			/* this is totally new, just add it to the table */
-			node->reduced = this;
-		}
-	}
-	/* reconstruct the list in the first diff package */
-	_cesk_diff_hash_node_t* np;
-	left->red = 0;
-	left->head = NULL;
-	left->tail = NULL;
-
-	for(np = _cesk_diff_node_list; NULL != np; np = np->list_next)
-	{
-		cesk_diff_item_t* this = np->reduced;
-		this->next = left->head;
-		left->head = this;
-		if(left->tail == NULL)
-			left->tail = left->head;
-	}
-	/* fianlly clear the hash table */
-	_cesk_diff_hash_clear();
-	return 0;
-}
-#define __PR(fmt, args...) buf += sprintf(buf, fmt, ##args)
-/**
- * @brief output human readable address to buffer
- **/
-static char* _cesk_diff_write_address(const cesk_diff_frame_addr_t* addr, char* buf)
-{
-	switch(addr->type)
-	{
-		case CESK_DIFF_FRAME_STORE:
-			__PR("(store @0x%x)", addr->value);
-			break;
-		case CESK_DIFF_FRAME_REGISTER:
-			__PR("(register %u)", addr->value);
-			break;
-		default:
-			__PR("(invalid-address-type)");
-	}
-	return buf;
-}
-const char* cesk_diff_item_to_string(const cesk_diff_item_t* item, char* buf)
-{
-	static char __default_buf__[128];
-	if(NULL == buf)
-		buf = __default_buf__;
-	char* ret = buf;
-	switch(item->type)
-	{
-		case CESK_DIFF_ITEM_TYPE_NOP:
-			__PR("(nop)");
-			break;
-		case CESK_DIFF_ITEM_TYPE_DEALLOCATE:
-			__PR("(dellocate ");
-			goto __PA;
-		case CESK_DIFF_ITEM_TYPE_ALLOCATE:
-			__PR("(allocate ");
-__PA:
-			buf = _cesk_diff_write_address(&item->frame_addr, buf);
-			buf[0] = ')';
-			buf[1] = 0;
-			buf ++;
-			break;
-		case CESK_DIFF_ITEM_TYPE_REUSE:
-			__PR("(reuse ");
-			buf = _cesk_diff_write_address(&item->frame_addr, buf);
-			__PR("%u)", item->data.reuse);
-			break;
-		case CESK_DIFF_ITEM_TYPE_SET:
-			__PR("(set ");
-			buf = _cesk_diff_write_address(&item->frame_addr, buf);
-			__PR("%p)", item->data.value);
-			break;
-		default:
-			__PR("(invalid-diff-item-type ");
-			buf = _cesk_diff_write_address(&item->frame_addr, buf);
-			__PR("%p)", item->data.value);
 	}
 	return ret;
 }
+void cesk_diff_free(cesk_diff_t* diff)
+{
+	if(NULL == diff) return;
+	int sec, ofs = 0;
+	for(sec = 0; sec < CESK_DIFF_NTYPES; sec ++)
+	{
+		for(ofs = diff->offset[sec]; ofs < diff->offset[sec + 1]; ofs ++)
+		{
+			switch(sec)
+			{
+				case CESK_DIFF_ALLOC:
+				case CESK_DIFF_STORE:
+					cesk_value_decref(diff->data[ofs].arg.value);
+					break;
+				case CESK_DIFF_REG:
+					cesk_set_free(diff->data[ofs].arg.set);
+			}
+		}
+	}
+	free(diff);
+}
+/**
+ * @brief allocate a memory for the result
+ * @param N how many inputs
+ * @param args the arguments
+ * @return the newly created memory, NULL indcates error
+ **/
+static inline cesk_diff_t* _cesk_diff_allocate_result(int N, cesk_diff_t* args[])
+{
+	size_t size = 0;
+	int i, section;
+	for(i = 0; i < N; i ++)
+		args[i]->_index = args[i]->offset[0];
+	for(section = 0; section < CESK_DIFF_NTYPES; section ++)
+	{
+		uint32_t prev_addr = CESK_STORE_ADDR_NULL;
+		for(;;)
+		{
+			uint32_t cur_addr = CESK_STORE_ADDR_NULL;
+			int cur_idx = 0;
+			for(i = 0; i < N; i ++)
+				if(args[i]->_index < args[i]->offset[section + 1] &&
+				   args[i]->data[args[i]->_index].addr < cur_addr)
+				{
+					cur_addr = args[i]->data[args[i]->_index].addr;
+					cur_idx = i;
+				}
+			if(CESK_STORE_ADDR_NULL == cur_addr) break;
+			args[cur_idx]->_index ++;
+			if(prev_addr != cur_addr) size ++;
+			prev_addr = cur_addr;
+		}
+	}
+	cesk_diff_t* ret = (cesk_diff_t*) malloc(sizeof(cesk_diff_t) + size * sizeof(_cesk_diff_node_t));
+	LOG_DEBUG("created a new diff struct with %zu slots", size);
+	if(NULL == ret)
+	{
+		LOG_ERROR("can not allocate memory for the result diff");
+		return NULL;
+	}
+	memset(ret->offset, 0, sizeof(ret->offset));
+	return ret;
+}
+cesk_diff_t* cesk_diff_apply(int N, cesk_diff_t** args)
+{
+	int i;
+	cesk_diff_t* ret = _cesk_diff_allocate_result(N, args);
+	if(NULL == ret)
+	{
+		LOG_ERROR("can not allocate memory for the newly created diff");
+		return NULL;
+	}
+	/* init the index */
+	for(i = 0; i < N; i ++)
+		args[i]->_index = args[i]->offset[0];
+	/* ok, let's go */
+	int section;
+	LOG_DEBUG("build diff package from applying existing package");
+	/* for each section */
+	for(section = 0; section < CESK_DIFF_NTYPES; section ++)
+	{
+		ret->offset[section + 1] = ret->offset[section];   /* the initial size of this section should be 0 */
+		for(;;)
+		{
+			/* find the mininal address */
+			uint32_t cur_addr = CESK_STORE_ADDR_NULL;
+			for(i = 0; i < N; i ++)
+				if(args[i]->_index < args[i]->offset[section + 1] &&
+				   args[i]->data[args[i]->_index].addr < cur_addr)
+					cur_addr = args[i]->data[args[i]->_index].addr;
+			if(CESK_STORE_ADDR_NULL == cur_addr) break;
+			/* merge the address */
+			for(i = 0; i < N; i ++)
+				if(args[i]->_index < args[i]->offset[section + 1] &&
+				   args[i]->data[args[i]->_index].addr == cur_addr)
+				{
+					cesk_diff_rec_t* node = args[i]->data + args[i]->_index;
+					switch(section)
+					{
+						case CESK_DIFF_ALLOC:
+						case CESK_DIFF_REG:
+						case CESK_DIFF_STORE:
+						case CESK_DIFF_REUSE:
+							ret->data[ret->offset[section + 1]].arg.generic = node->arg.generic;
+						case CESK_DIFF_DEALLOC:
+							ret->data[ret->offset[section + 1]].addr = cur_addr;
+							break;
+						default:
+							LOG_WARNING("unknown diff type");
+
+					}
+					args[i]->_index ++;
+				}
+			/* fix the reference counter, becuase the ownership of the value is not correct */
+			switch(section)
+			{
+				case CESK_DIFF_ALLOC:
+				case CESK_DIFF_STORE:
+					cesk_value_incref(ret->data[ret->offset[section + 1]].arg.value);
+					break;
+				case CESK_DIFF_REG:
+					ret->data[ret->offset[section + 1]].arg.set = 
+						cesk_set_fork(ret->data[ret->offset[section + 1]].arg.set);
+					break;
+			}
+			_cesk_diff_print_record(section, 
+									ret->data[ret->offset[section + 1]].addr, 
+									ret->data[ret->offset[section + 1]].arg.generic);
+		
+			ret->offset[section + 1] ++;
+		}
+	}
+	/* now we eliminate allocation-deallocation pairs */
+	int alloc_begin = ret->offset[CESK_DIFF_ALLOC];
+	int alloc_end   = ret->offset[CESK_DIFF_ALLOC + 1];
+	int dealloc_begin = ret->offset[CESK_DIFF_DEALLOC];
+	int dealloc_end = ret->offset[CESK_DIFF_DEALLOC + 1];
+	int alloc_ptr, dealloc_ptr, alloc_free = alloc_end, dealloc_free = dealloc_end;
+	int matches = 0;
+	for(alloc_ptr = alloc_end - 1, dealloc_ptr = dealloc_end - 1; alloc_ptr >= alloc_begin; alloc_ptr --)
+	{
+		for(;dealloc_ptr >= dealloc_begin && ret->data[dealloc_ptr].addr > ret->data[alloc_ptr].addr; dealloc_ptr --)
+		{
+			if(!matches)
+				ret->data[--dealloc_free] = ret->data[dealloc_ptr];
+			else
+				LOG_DEBUG("elimiate allocation record %d", dealloc_ptr);
+			matches = 0;
+		}
+		if(ret->data[dealloc_ptr].addr != ret->data[alloc_ptr].addr)
+		{
+			ret->data[--alloc_free] = ret->data[alloc_ptr];
+		}
+		else
+		{
+			LOG_DEBUG("elimiate allocation record %d", alloc_ptr);
+			matches = 1;
+		}
+	}
+	for(;dealloc_ptr >= dealloc_begin && ret->data[dealloc_ptr].addr > ret->data[alloc_ptr].addr; dealloc_ptr --)
+	{
+		if(!matches)
+			ret->data[--dealloc_free] = ret->data[dealloc_ptr];
+		else
+			LOG_DEBUG("elimiate allocation record %d", dealloc_ptr);
+		matches = 0;
+	}
+	for(dealloc_ptr = dealloc_free; dealloc_ptr < dealloc_end; dealloc_ptr ++)
+		ret->data[dealloc_ptr - dealloc_free + dealloc_begin] = ret->data[dealloc_ptr];
+	ret->offset[0] = alloc_free;
+	ret->offset[CESK_DIFF_NTYPES] = dealloc_end - dealloc_free + dealloc_begin;
+	return ret;
+}
+cesk_diff_t* cesk_diff_factorize(int N, cesk_diff_t** diffs, const cesk_frame_t** current_frame)
+{
+	cesk_diff_t* ret = _cesk_diff_allocate_result(N, diffs);
+	if(NULL == ret)
+	{
+		LOG_ERROR("can not allocate memory for the result");
+		return NULL;
+	}
+
+	/* initialize the _index for each input */
+	int i;
+	for(i = 0; i < N; i ++)
+		diffs[i]->_index = diffs[i]->offset[0];
+	ret->offset[0] = 0;
+	/* start working */
+	int section;
+	cesk_set_t* result;
+	for(section = 0; section < CESK_DIFF_NTYPES; section ++)
+	{
+		ret->offset[section + 1] = ret->offset[section];
+		for(;;)
+		{
+			uint32_t cur_addr = CESK_STORE_ADDR_NULL;
+			int      cur_i = 0, count = 0;
+			for(i = 0; i < N; i ++)
+				if(diffs[i]->_index < diffs[i]->offset[section + 1] &&
+				   diffs[i]->data[diffs[i]->_index].addr <= cur_addr)
+				{
+					uint32_t this_addr = diffs[i]->data[diffs[i]->_index].addr;
+					if(cur_addr != this_addr) count = 1;
+					else count ++;
+					cur_addr = this_addr;
+					cur_i = i;
+				}
+
+			if(CESK_STORE_ADDR_NULL == cur_addr) break;
+			ret->data[ret->offset[section + 1]].addr = cur_addr;
+			
+			switch(section)
+			{
+				case CESK_DIFF_DEALLOC:
+					ret->data[ret->offset[section + 1]].arg.generic = NULL;
+					break;
+				case CESK_DIFF_ALLOC:
+					ret->data[ret->offset[section + 1]].arg.value = diffs[cur_i]->data[diffs[cur_i]->_index].arg.value;
+					cesk_value_incref(ret->data[ret->offset[section + 1]].arg.value);
+					break;
+				case CESK_DIFF_REUSE:
+					ret->data[ret->offset[section + 1]].arg.boolean = diffs[cur_i]->data[diffs[cur_i]->_index].arg.boolean;
+					break;
+				case CESK_DIFF_REG:
+					if(1 == count)
+					{
+						ret->data[ret->offset[section + 1]].arg.set = 
+							cesk_set_fork(diffs[cur_i]->data[diffs[cur_i]->_index].arg.set);
+						break;
+					}
+					result = cesk_set_empty_set();
+					for(i = 0; i < N; i ++)
+					{
+						const cesk_set_t* that = current_frame[i]->regs[cur_addr];
+						if(cesk_set_merge(result, that) < 0)
+							LOG_WARNING("failed to merge the value of register together");
+					}
+					ret->data[ret->offset[section + 1]].arg.set = result; 
+					break;
+				case CESK_DIFF_STORE:
+					if(1 == count)
+					{
+						ret->data[ret->offset[section + 1]].arg.value =
+							diffs[cur_i]->data[diffs[cur_i]->_index].arg.value;
+						cesk_value_incref(ret->data[ret->offset[section + 1]].arg.value);
+					}
+					/* the only way to modify object value is using allocation instruction
+					 * so there's no need for processing object value at this point */
+					result = cesk_set_empty_set();
+					for(i = 0; i < N; i ++)
+					{
+						const cesk_value_const_t *val = cesk_store_get_ro(current_frame[i]->store, cur_addr);
+						if(CESK_TYPE_SET != val->type)
+						{
+							LOG_WARNING("ignore non-set value at store address @%x in store %p",
+							            cur_addr, 
+							            current_frame[i]->store);
+							continue;
+						}
+						if(cesk_set_merge(result, val->pointer.set) < 0)
+							LOG_WARNING("failed to merge the value of store together");
+					}
+					if(NULL == (ret->data[ret->offset[section + 1]].arg.value = cesk_value_from_set(result)))
+					{
+						LOG_WARNING("can not create value struct for the new value");
+						continue;
+					}
+					cesk_value_incref(ret->data[ret->offset[section + 1]].arg.value);
+					break;
+				default:
+					LOG_WARNING("unknown type of diff record");
+			}
+			for(i = 0; i < N; i ++)
+				if(diffs[i]->_index < diffs[i]->offset[section + 1] &&
+				   diffs[i]->data[diffs[i]->_index].addr == cur_addr)
+					diffs[i]->_index ++;
+			ret->offset[section + 1]++;
+		}
+	}
+	return ret;
+}
+
