@@ -205,5 +205,25 @@ int cesk_frame_store_new_object(
 		const char* clspath,
 		cesk_diff_buffer_t* diff_buf,
 		cesk_diff_buffer_t* inv_buf);
-
+/**
+ * @brief put the content of a register to the a field in store
+ * @note because we allocate all fields in the new_object function, so if we 
+ *       can see uninitialized value here, this must be an error
+ * @param frame
+ * @param dst_addr the destination object
+ * @param src_reg  the source register
+ * @param clspath the class path
+ * @param fldname the field name
+ * @param diff_buf 
+ * @param inv_buf
+ * @return the result of the operation < 0 indicates an error
+ **/
+int cesk_frame_store_put_field(
+		cesk_frame_t* frame,
+		uint32_t dst_addr,
+		uint32_t src_reg,
+		const char* clspath,
+		const char* fldname,
+		cesk_diff_buffer_t* diff_buf,
+		cesk_diff_buffer_t* inv_buf);
 #endif /* __CESK_FRAME_H__ */

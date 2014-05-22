@@ -744,7 +744,6 @@ int cesk_frame_store_new_object(
 				cesk_store_release_rw(frame->store, faddr);
 				_SNAPSHOT(diff_buf, CESK_DIFF_ALLOC, faddr, fvalue);
 				_SNAPSHOT(inv_buf, CESK_DIFF_DEALLOC, faddr, NULL);
-
 			}
 			CESK_OBJECT_STRUCT_ADVANCE(this);
 		}
@@ -756,4 +755,131 @@ int cesk_frame_store_new_object(
 		_SNAPSHOT(inv_buf, CESK_DIFF_DEALLOC, addr, NULL);
 	}
 	return addr;
+}
+
+int cesk_frame_store_put_field(
+		cesk_frame_t* frame,
+		uint32_t dst_addr,
+		uint32_t src_reg,
+		const char* clspath,
+		const char* fldname,
+		cesk_diff_buffer_t* diff_buf,
+		cesk_diff_buffer_t* inv_buf)
+{
+	if(NULL == frame || frame->size <= src_reg)
+	{
+		LOG_ERROR("invalid argument");
+		return -1;
+	}
+
+	cesk_value_t* value = cesk_store_get_rw(frame->store, dst_addr, 1);
+	
+	if(NULL == value)
+	{
+		LOG_ERROR("can not find object @%x", dst_addr);
+		return -1;
+	}
+
+	if(value->type != CESK_TYPE_OBJECT)
+	{
+		LOG_ERROR("try to put a member from a non-object address %x", dst_addr);
+		return -1;
+	}
+	
+	cesk_object_t* object = value->pointer.object;
+
+	uint32_t* paddr = cesk_object_get(object, clspath, fldname);
+
+	if(NULL == paddr)
+	{
+		LOG_ERROR("can not get field %s/%s", clspath, fldname);
+		return -1;
+	}
+
+	cesk_value_t* value_set = NULL;
+
+	if(*paddr == CESK_STORE_ADDR_NULL)
+	{
+		LOG_ERROR("field name is supposed not to be NULL");
+		return -1;
+	}
+
+	value_set = cesk_store_get_rw(frame->store, *paddr, 1);
+	if(NULL == value_set)
+	{
+		LOG_ERROR("can not find the value set for field %s/%s", clspath, fldname);
+		return -1;
+	}
+
+	_SNAPSHOT(inv_buf, CESK_DIFF_STORE, *paddr, cesk_value_fork(value_set));  /* because we need refcount to be 1 */
+
+	if(cesk_store_get_reuse(frame->store, dst_addr) == 1)
+	{
+		/* this address is used by mutliple objects, so we can not dicard old value */
+		/* get the address of the value set */
+		LOG_DEBUG("this is a reused object, just keep the old value");
+	}
+	else
+	{
+		/* we are going to drop the old value, so that we should release the writable pointer first*/
+		cesk_store_release_rw(frame->store, *paddr);
+		
+		/* this address is used by single object, so we will lose the old value after we write the field */
+		LOG_DEBUG("this address is used by signle object, drop the old value");
+		value_set = cesk_value_empty_set();
+		if(NULL == value_set)
+		{
+			LOG_ERROR("can not create an empty set for field %s/%s", clspath, fldname);
+			return -1;
+		}
+
+		/* because cesk_store_attach is responsible for decref to the old value,
+		 * And if the set is used only by this object, this will trigger the dispose
+		 * function, and this will eventually decref all address that this set 
+		 * refered */
+		if(cesk_store_attach(frame->store, *paddr, value_set) < 0)   /* we just cover the old set with an empty set */
+		{
+			LOG_ERROR("can not attach empty set to address %x", *paddr);
+			return -1;
+		}
+	}
+	if(NULL == value_set)
+	{
+		LOG_ERROR("unknown error, but value_set should not be NULL");
+		return -1;
+	}
+	cesk_set_t* set = value_set->pointer.set;
+
+	/* of course, the refcount should be increased */
+	cesk_set_iter_t iter;
+	if(NULL == cesk_set_iter(frame->regs[src_reg], &iter))
+	{
+		LOG_ERROR("can not aquire iterator for register %d", src_reg);
+		return -1;
+	}
+	uint32_t tmp_addr;
+	while(CESK_STORE_ADDR_NULL != (tmp_addr = cesk_set_iter_next(&iter)))
+	{
+		/* the duplicated one do not need incref */
+		if(cesk_set_contain(set, tmp_addr) == 1) continue;
+		if(cesk_store_incref(frame->store, tmp_addr) < 0)
+		{
+			LOG_WARNING("can not incref at address @%x", tmp_addr);
+		}
+	}
+
+	/* okay, append the value of registers to the set */
+	if(cesk_set_merge(set, frame->regs[src_reg]) < 0)
+	{
+		LOG_ERROR("can not merge set");
+		return -1;
+	}
+
+	/* ok take the snapshot here */
+	_SNAPSHOT(diff_buf, CESK_DIFF_STORE, *paddr, cesk_value_fork(value_set));
+
+	/* release the write pointer */
+	cesk_store_release_rw(frame->store, *paddr);
+	cesk_store_release_rw(frame->store, dst_addr);
+	return 0;
 }
