@@ -467,4 +467,4 @@ int cesk_frame_register_load(
 	return 0;
 }
 
-//TODO frame operations
+//TODO frame operation
