@@ -233,6 +233,51 @@ hashval_t cesk_frame_compute_hashcode(const cesk_frame_t* frame)
 	ret ^= cesk_store_compute_hashcode(frame->store);
 	return ret;
 }
+/**
+ * @brief free the register, this function should be called before modifying the value of register to a new set
+ * @param frame 
+ * @param reg the register number
+ * @return < 0 indicates error
+ **/
+static inline int _cesk_frame_free_reg(cesk_frame_t* frame, uint32_t reg)
+{
+	cesk_set_iter_t iter;
+	
+	if(NULL == cesk_set_iter(frame->regs[reg], &iter))
+	{
+		LOG_ERROR("can not aquire iterator for destination register %d", reg);
+		return -1;
+	}
+	
+	uint32_t set_addr;
+	
+	while(CESK_STORE_ADDR_NULL != (set_addr = cesk_set_iter_next(&iter)))
+		cesk_store_decref(frame->store, set_addr);
+	
+	cesk_set_free(frame->regs[reg]);
+
+	return 0;
+}
+/**
+ * @brief make the new value in the register referencing to the store
+ * @param frame 
+ * @param reg
+ * @return < 0 indicates error 
+ **/
+static inline int _cesk_frame_init_reg(cesk_frame_t* frame, uint32_t reg)
+{
+	cesk_set_iter_t iter;
+	if(NULL == cesk_set_iter(frame->regs[reg], &iter))
+	{
+		LOG_ERROR("can not aquire iterator for the register %d", reg);
+		return -1;
+	}
+	
+	uint32_t addr;
+	while(CESK_STORE_ADDR_NULL != (addr = cesk_set_iter_next(&iter)))
+		cesk_store_incref(frame->store, addr);
+	return 0;
+}
 int cesk_frame_apply_diff(cesk_frame_t* frame, const cesk_diff_t* diff, const cesk_reloc_table_t* reloctab)
 {
 	if(NULL == frame || NULL == diff)
@@ -258,9 +303,42 @@ int cesk_frame_apply_diff(cesk_frame_t* frame, const cesk_diff_t* diff, const ce
 						LOG_WARNING("can not set reuse bit for @%x in store %p", rec->addr, frame->store);
 					break;
 				case CESK_DIFF_REG:
-					//TODO
+					if(_cesk_frame_free_reg(frame, rec->addr) < 0)
+					{
+						LOG_WARNING("can not clean the old value in the register %d", rec->addr);
+						break;
+					}
+					if(NULL == (frame->regs[rec->addr] = cesk_set_fork(rec->arg.set)))
+					{
+						LOG_WARNING("can not set the new value for register %d", rec->addr);
+						break;
+					}
+					if(_cesk_frame_init_reg(frame, rec->addr) < 0)
+					{
+						LOG_WARNING("can not make reference from the register %d", rec->addr);
+						break;
+					}
 					break;
-					
+				case CESK_DIFF_STORE:
+					if(cesk_store_attach(frame->store, rec->addr, rec->arg.value) < 0)
+					{
+						LOG_WARNING("can not attach value to store address @%x in store %p", rec->addr, frame->store);
+						break;
+					}
+					/* update the refcnt */
+					cesk_set_iter_t iter;
+					if(cesk_set_iter(rec->arg.value->pointer.set, &iter) < 0)
+					{
+						LOG_WARNING("can not aquire the iterator for set");
+						break;
+					}
+					uint32_t addr;
+					while(CESK_STORE_ADDR_NULL != (addr = cesk_set_iter_next(&iter)))
+						cesk_store_incref(frame->store, addr);
+					break;
+				case CESK_DIFF_DEALLOC:
+					LOG_WARNING("no way to apply a deallocation to a store !");
+					break;
 			}
 		}
 	}

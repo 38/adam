@@ -51,6 +51,7 @@ int main()
 	assert(0 == cesk_diff_buffer_append(buf, CESK_DIFF_REG, 3, set1));
 	assert(0 == cesk_diff_buffer_append(buf, CESK_DIFF_STORE, 0x123, cesk_value_empty_set()));
 	cesk_diff_t* diff2 = cesk_diff_from_buffer(buf);
+	cesk_diff_buffer_free(buf);
 	assert(NULL != diff2);
 	assert(diff2->offset[CESK_DIFF_NTYPES] == 2);
 
