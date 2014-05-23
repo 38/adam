@@ -239,7 +239,11 @@ const char* cesk_value_to_string(const cesk_value_t* value, char* buf, int sz)
 		sz = sizeof(_buf);
 	}
 	char *p = buf;
-#define __PR(fmt, args...) do{p += snprintf(p, buf + sz - p, fmt, ##args);}while(0)
+#define __PR(fmt, args...) do{\
+	int pret = snprintf(p, buf + sz - p, fmt, ##args);\
+	if(pret > buf + sz - p) pret = buf + sz - p;\
+	p += pret;\
+}while(0)
 	switch(value->type)
 	{
 		case CESK_TYPE_OBJECT:

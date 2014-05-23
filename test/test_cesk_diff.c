@@ -74,6 +74,7 @@ int main()
 
 	//TODO test fractorize
 	
+	
 	adam_finalize();
 	return 0;
 }

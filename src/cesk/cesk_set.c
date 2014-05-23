@@ -558,7 +558,11 @@ const char* cesk_set_to_string(const cesk_set_t* set, char* buf, int sz)
 		sz = sizeof(_buf);
 	}
 	char* p = buf;
-#define __PR(fmt, args...) do{p += snprintf(p, buf + sz - p, fmt, ##args);}while(0)
+#define __PR(fmt, args...) do{\
+	int pret = snprintf(p, buf + sz - p, fmt, ##args);\
+	if(pret > buf + sz - p) pret = buf + sz - p;\
+	p += pret;\
+}while(0)
 	cesk_set_iter_t iter;
 	if(cesk_set_iter(set, &iter) < 0)
 	{

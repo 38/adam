@@ -1475,7 +1475,9 @@ void dalvik_instruction_free(dalvik_instruction_t* buf)
 	}
 }
 #define __PR(fmt, args...) do{\
-			p += snprintf(p, buf + sz - p, fmt, ##args);\
+	int pret = snprintf(p, buf + sz - p, fmt, ##args);\
+	if(pret > buf + sz - p) pret = buf + sz - p;\
+	p += pret;\
 }while(0)
 static inline int _dalvik_instruction_operand_const_to_string(const dalvik_operand_t* op, char* buf, size_t sz)
 {

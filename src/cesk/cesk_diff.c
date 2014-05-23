@@ -66,7 +66,11 @@ void cesk_diff_buffer_free(cesk_diff_buffer_t* mem)
 	vector_free(mem->buffer);
 	free(mem);
 }
-#define __PR(fmt, args...) do{p += snprintf(p, buf + sz - p, fmt, ##args);}while(0)
+#define __PR(fmt, args...) do{\
+	int pret = snprintf(p, buf + sz - p, fmt, ##args);\
+	if(pret > buf + sz - p) pret = buf + sz - p;\
+	p += pret;\
+}while(0)
 static inline const char* _cesk_diff_record_to_string(int type, int addr, void* value, char* buf, int sz)
 {
 	static char _buf[1024];

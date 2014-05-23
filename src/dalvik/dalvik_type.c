@@ -208,24 +208,34 @@ static inline int _dalvik_type_to_string_imp(const dalvik_type_t* type, char* bu
 	if(NULL == type)
 		return snprintf(buf, sz, "(null-type)");
 	if(DALVIK_TYPE_IS_ATOM(type->typecode))
-		return snprintf(buf, sz, "(atom %s)", dalvik_type_atom_name[type->typecode]);
+	{
+		int pret = snprintf(buf, sz, "(atom %s)", dalvik_type_atom_name[type->typecode]);
+		if(pret > sz) return sz;
+		return pret;
+	}
 	else
 	{
 		char* p;
+		int pret;
 		switch(type->typecode)
 		{
 			case DALVIK_TYPECODE_OBJECT:
-				return snprintf(buf, sz, "(object %s)", type->data.object.path);
+				pret = snprintf(buf, sz, "(object %s)", type->data.object.path);
+				if(pret > sz) return sz;
+				return pret;
 			case DALVIK_TYPECODE_ARRAY:
 				p = buf;
 				p += snprintf(p, sz, "(array ");
+				if(p > buf + sz) p = buf + sz;
 				p += _dalvik_type_to_string_imp(type->data.array.elem_type, p, buf + sz - p);
 				p[0] = ')';
 				p[1] = 0;
 				p ++;
 				return p - buf;
 			default:
-				return snprintf(buf, sz, "(unknown-type)");
+				pret = snprintf(buf, sz, "(unknown-type)");
+				if(pret > sz) return sz;
+				return pret;
 		}
 	}
 }
@@ -250,6 +260,7 @@ const char* dalvik_type_list_to_string(const dalvik_type_t * const * list, char*
 	}
 	char* p = buf;
 	p += snprintf(p, buf + sz - p, "(type-list");
+	if(p > buf + sz) p = buf + sz;
 	int i;
 	for(i = 0; NULL != list[i]; i ++)
 	{
@@ -257,7 +268,7 @@ const char* dalvik_type_list_to_string(const dalvik_type_t * const * list, char*
 		if(NULL != list[i+1])
 			p += snprintf(p, buf + sz - p, ",");   /* not the last one, add seperator */
 	}
-	p += snprintf(p, buf + sz - p, ")");
+	snprintf(p, buf + sz - p, ")");
 	return buf;
 }
 dalvik_type_t* dalvik_type_clone(const dalvik_type_t* type)

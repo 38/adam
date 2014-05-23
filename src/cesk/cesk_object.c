@@ -211,9 +211,13 @@ const char* cesk_object_to_string(const cesk_object_t* object, char* buf, size_t
 		sz = sizeof(_buf);
 	}
 	char* p = buf;
-#define __PR(fmt, args...) do{p += snprintf(p, buf + sz - p, fmt, ##args);}while(0)
 	const cesk_object_struct_t* this = object->members;
 	int i;
+#define __PR(fmt, args...) do{\
+	int pret = snprintf(p, buf + sz - p, fmt, ##args);\
+	if(pret > buf + sz - p) pret = buf + sz - p;\
+	p += pret;\
+}while(0)
 	for(i = 0; i < object->depth; i ++)
 	{
 		__PR("[class %s (", this->class->path);
