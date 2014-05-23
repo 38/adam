@@ -9,15 +9,10 @@ cesk_reloc_table_t *cesk_reloc_table_new()
 	}
 	return ret;
 }
+#include <stdio.h>
 void cesk_reloc_table_free(cesk_reloc_table_t* mem)
 {
 	if(NULL == mem) return;
-	int i;
-	for(i = 0; i < vector_size(mem); i ++)
-	{
-		cesk_value_t* val = vector_get(mem, i);
-		cesk_value_decref(val);
-	}
 	vector_free(mem);
 	return;
 }

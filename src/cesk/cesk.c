@@ -15,6 +15,6 @@ int cesk_init(void)
 }
 void cesk_finalize(void)
 {
-	cesk_set_finalize();
 	cesk_value_finalize();
+	cesk_set_finalize();
 }
