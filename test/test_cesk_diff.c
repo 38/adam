@@ -100,9 +100,12 @@ int main()
 	/* another stub instruction */
 	const dalvik_instruction_t* inst2 = dalvik_instruction_get(124);
 	/* the third instruction */
-	//const dalvik_instruction_t* inst3 = dalvik_instruction_get(125);
+	const dalvik_instruction_t* inst3 = dalvik_instruction_get(125);
+	const dalvik_instruction_t* inst4 = dalvik_instruction_get(126);
 	/* the class path we want to set */
 	const char* classpath = stringpool_query("antlr/ANTLRLexer");
+	const char* superclass = stringpool_query("antlr/CharScanner");
+	const char* field = stringpool_query("literals");
 
 	/* to make frame1 and frame2 different first we make some untracked changes */
 	cesk_diff_buffer_t *btmp = cesk_diff_buffer_new(0);
@@ -113,19 +116,93 @@ int main()
 	uint32_t addr2 = cesk_frame_store_new_object(frame2, rtab, inst2, classpath, btmp, NULL);  
 	assert(CESK_STORE_ADDR_NULL != addr2);
 	assert(0 == cesk_frame_register_load(frame2, 3, addr2, NULL, NULL));
+	/* make a record that can set reg #3 to {addd1, addr2} */
+	cesk_set_t* tmpset = cesk_set_empty_set();
+	assert(NULL != tmpset);
+	cesk_set_push(tmpset, addr1);
+	cesk_set_push(tmpset, addr2);
+	cesk_diff_buffer_append(btmp, CESK_DIFF_REG, 3, tmpset);
+	cesk_set_free(tmpset);
 
 	/* then we shoud make the frame3 looks like the result of merge of frame1 and frame2 */
 	cesk_diff_t* tmp_diff = cesk_diff_from_buffer(btmp);
-	return 0;
 	cesk_diff_buffer_free(btmp);
 	assert(0 == cesk_frame_apply_diff(frame3, tmp_diff, rtab));
 	cesk_diff_free(tmp_diff);
 
+	/* now track changes in frame1 and frame2 */
+	/* allocate a new object in frame1 */
+	uint32_t addr3 = cesk_frame_store_new_object(frame1, rtab, inst3, classpath, db1, ib1);
+	/* allocate another object in frame2 */
+	uint32_t addr4 = cesk_frame_store_new_object(frame2, rtab, inst4, classpath, db2, ib2);
+
+
+	assert(CESK_STORE_ADDR_NULL != addr4);
+	assert(CESK_STORE_ADDR_NULL != addr3);
+	assert(addr4 != addr1);
+
+	assert(0 == cesk_frame_register_load(frame1, 5, addr3, db1, ib1));
+	assert(0 == cesk_frame_register_load(frame2, 5, addr4, db2, ib2));
+
+	/* set a field of addr3*/
+	assert(0 == cesk_frame_register_load(frame1, 4, CESK_STORE_ADDR_POS, db1, ib1));
+	assert(0 == cesk_frame_store_put_field(frame1, addr3, 4, superclass, field, db1, ib1));
+
+	/* set a field of addr4*/
+	assert(0 == cesk_frame_register_load(frame2, 4, CESK_STORE_ADDR_NEG, db2, ib2));
+	assert(0 == cesk_frame_store_put_field(frame2 , addr4, 4, superclass, field, db2, ib2));
+
+	/* build diff */
+	cesk_diff_t* D1 = cesk_diff_from_buffer(db1);
+	cesk_diff_t* D2 = cesk_diff_from_buffer(db2);
+	cesk_diff_t* I1 = cesk_diff_from_buffer(ib1);
+	cesk_diff_t* I2 = cesk_diff_from_buffer(ib2);
+	
 	cesk_diff_buffer_free(db1);
 	cesk_diff_buffer_free(db2);
 	cesk_diff_buffer_free(ib1);
 	cesk_diff_buffer_free(ib2);
 
+	assert(NULL != D1 && NULL != D2 && NULL != I1 && NULL != I2);
+
+	/* let's try factorize */
+	cesk_diff_t* diffs[] = {D1, D2};
+	const cesk_frame_t* frames[] = {frame1, frame2};
+	cesk_diff_t* D = cesk_diff_factorize(2, diffs, frames);
+	assert(NULL != D);
+
+	cesk_diff_free(D1);
+	cesk_diff_free(D2);
+	cesk_diff_free(I1);
+	cesk_diff_free(I2);
+
+	/* apply this to frame3 */
+	assert(0 == cesk_frame_apply_diff(frame3, D, rtab));
+
+	cesk_diff_free(D);
+
+	/* okay, let's verify the result of apply */
+	assert(2 == cesk_set_size(frame3->regs[3]));
+	assert(cesk_set_contain(frame3->regs[3], addr1));
+	assert(cesk_set_contain(frame3->regs[3], addr2));
+	assert(2 == cesk_set_size(frame3->regs[5]));
+	assert(cesk_set_contain(frame3->regs[5], addr3));
+	assert(cesk_set_contain(frame3->regs[5], addr4));
+	assert(2 == cesk_set_size(frame3->regs[4]));
+	assert(cesk_set_contain(frame3->regs[4], CESK_STORE_ADDR_POS));
+	assert(cesk_set_contain(frame3->regs[4], CESK_STORE_ADDR_NEG));
+	uint32_t ubuf[3];
+	int k;
+	assert((k = cesk_frame_store_peek_field(frame3, addr3, superclass, field, ubuf, 3 )) >= 0);
+	assert(1 == k);
+	assert((k = cesk_frame_store_peek_field(frame3, addr4, superclass, field, ubuf, 3)) >= 0 );
+	assert(1 == k);
+
+	cesk_frame_free(frame1);
+	cesk_frame_free(frame2);
+	cesk_frame_free(frame3);
+	cesk_reloc_table_free(rtab);
+	cesk_alloctab_free(atab);
 	adam_finalize();
 	return 0;
 }

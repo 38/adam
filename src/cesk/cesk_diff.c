@@ -765,6 +765,7 @@ cesk_diff_t* cesk_diff_factorize(int N, cesk_diff_t** diffs, const cesk_frame_t*
 					for(i = 0; i < N; i ++)
 					{
 						const cesk_value_const_t *val = cesk_store_get_ro(current_frame[i]->store, cur_addr);
+						if(NULL == val) continue;
 						if(CESK_TYPE_SET != val->type)
 						{
 							LOG_WARNING("ignore non-set value at store address @%x in store %p",
@@ -792,6 +793,8 @@ cesk_diff_t* cesk_diff_factorize(int N, cesk_diff_t** diffs, const cesk_frame_t*
 			ret->offset[section + 1]++;
 		}
 	}
+	static char buf[10000];
+	LOG_DEBUG("result : %s", cesk_diff_to_string(ret, buf, 10000));
 	return ret;
 }
 

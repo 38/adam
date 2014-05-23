@@ -351,13 +351,13 @@ static inline uint32_t _cesk_store_make_object_address(const cesk_store_t* store
 		/* if this address is a relocated address */
 		if(NULL == store->alloc_tab)
 		{
-			LOG_ERROR("try to aquire a relocated address without an allocation table address=@0x%x", addr);
+			LOG_DEBUG("try to aquire a relocated address without an allocation table address=@0x%x", addr);
 			return CESK_STORE_ADDR_NULL;
 		}
 		ret = cesk_alloctab_query(store->alloc_tab, store, addr);
 		if(CESK_STORE_ADDR_NULL == ret)
 		{
-			LOG_ERROR("there's no record for this store at relocated address @0x%x", addr);
+			LOG_DEBUG("there's no record for this store at relocated address @0x%x", addr);
 			return CESK_STORE_ADDR_NULL;
 		}
 	}

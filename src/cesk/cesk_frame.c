@@ -303,10 +303,12 @@ int cesk_frame_apply_diff(cesk_frame_t* frame, const cesk_diff_t* diff, const ce
 			switch(section)
 			{
 				case CESK_DIFF_ALLOC:
+					LOG_DEBUG("allocating object %s at store address @%x", cesk_value_to_string(rec->arg.value, NULL, 0) ,rec->addr);
 					if(cesk_reloc_addr_init(reloctab, frame->store, rec->addr, rec->arg.value) == CESK_STORE_ADDR_NULL)
 						LOG_WARNING("can not initialize relocated address @%x in store %p", rec->addr, frame->store);
 					break;
 				case CESK_DIFF_REUSE:
+					LOG_DEBUG("setting reuse flag at store address @%x to %u", rec->addr, rec->arg.boolean);
 					if(rec->arg.boolean)
 					{
 						if(cesk_store_set_reuse(frame->store, rec->addr) < 0)
@@ -319,6 +321,7 @@ int cesk_frame_apply_diff(cesk_frame_t* frame, const cesk_diff_t* diff, const ce
 					}
 					break;
 				case CESK_DIFF_REG:
+					LOG_DEBUG("setting register #%u to value %s", rec->addr, cesk_set_to_string(rec->arg.set, NULL, 0));
 					if(_cesk_frame_free_reg(frame, rec->addr) < 0)
 					{
 						LOG_WARNING("can not clean the old value in the register %d", rec->addr);
@@ -336,6 +339,7 @@ int cesk_frame_apply_diff(cesk_frame_t* frame, const cesk_diff_t* diff, const ce
 					}
 					break;
 				case CESK_DIFF_STORE:
+					LOG_DEBUG("setting store address @%x to value %s", rec->addr, cesk_value_to_string(rec->arg.value, NULL, 0));
 					if(cesk_store_attach(frame->store, rec->addr, rec->arg.value) < 0)
 					{
 						LOG_WARNING("can not attach value to store address @%x in store %p", rec->addr, frame->store);
@@ -962,12 +966,12 @@ int cesk_frame_register_peek(const cesk_frame_t* frame, uint32_t regid, uint32_t
 	}
 	return _cesk_frame_load_set(frame->regs[regid], buf, size);
 }
-int cesk_frame_register_peek_object(const cesk_frame_t* frame, 
+int cesk_frame_store_peek_field(const cesk_frame_t* frame, 
 		uint32_t addr, 
 		const char* classpath, const char* fieldname, 
 		uint32_t* buf, size_t size)
 {
-	if(frame == NULL || addr >= frame->size ||
+	if(frame == NULL || 
 	   NULL == classpath || NULL == fieldname ||
 	   NULL == buf)
 	{
@@ -998,7 +1002,7 @@ int cesk_frame_register_peek_object(const cesk_frame_t* frame,
 		return -1;
 	}
 	cesk_value_const_t* set_value = cesk_store_get_ro(frame->store, faddr);
-	if(CESK_TYPE_SET != value->type)
+	if(CESK_TYPE_SET != set_value->type)
 	{
 		LOG_ERROR("bad set pointer");
 		return -1;
