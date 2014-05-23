@@ -436,9 +436,9 @@ int cesk_set_push(cesk_set_t* dest, uint32_t addr)
 	return 0;
 }
 /**
- * @brief prepair for merging two sets 
+ * @brief prepare for merging two sets 
  **/
-static inline int _cesk_set_prepair_merge(
+static inline int _cesk_set_prepare_merge(
 		cesk_set_t* dest, 
 		const cesk_set_t* sour, 
 		cesk_set_info_entry_t** p_info_dst,
@@ -480,9 +480,9 @@ int cesk_set_merge(cesk_set_t* dest, const cesk_set_t* sour)
 {
 	cesk_set_info_entry_t* info_src = NULL;
 	cesk_set_info_entry_t* info_dst = NULL;
-	if(_cesk_set_prepair_merge(dest, sour, &info_dst, &info_src) < 0)
+	if(_cesk_set_prepare_merge(dest, sour, &info_dst, &info_src) < 0)
 	{
-		LOG_ERROR("failed to prepair for merging");
+		LOG_ERROR("failed to prepare for merging");
 		return -1;
 	}
 	cesk_set_node_t* ptr;
