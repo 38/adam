@@ -77,7 +77,7 @@
 
 #ifndef CESK_STORE_ADDR_RELOC_PREFIX
 /** @brief the address prefix for reloc address */
-#	define CESK_STORE_ADDR_RELOC_PREFIX 0xffff0000ul
+#	define CESK_STORE_ADDR_RELOC_PREFIX 0xff000000ul
 #endif
 
 #ifndef CESK_SET_EMPTY_HASH
