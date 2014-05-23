@@ -207,7 +207,7 @@ int cesk_frame_register_load_from_object(
  * @param inv_buf
  * @return the address of newly created object , CESK_STORE_ADDR_NULL indicates an error
  **/
-int cesk_frame_store_new_object(
+uint32_t cesk_frame_store_new_object(
 		cesk_frame_t* frame,
 		cesk_reloc_table_t* reloctab,
 		const dalvik_instruction_t* inst,

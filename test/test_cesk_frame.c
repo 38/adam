@@ -313,3 +313,9 @@ int main()
 	adam_finalize();
 	return 0;
 }
+void print_regs(cesk_frame_t* frame)
+{
+	int i;
+	for(i = 0; i < frame->size; i ++)
+		printf("v%d : %s\n", i-2, cesk_set_to_string(frame->regs[i], NULL, 0));
+}

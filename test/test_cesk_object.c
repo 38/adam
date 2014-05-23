@@ -16,14 +16,14 @@ int main()
 	uint32_t* res2 = cesk_object_get(object, stringpool_query("antlr/Parser"), stringpool_query("tokenNames"));
 	assert(res2 != NULL);
 	assert(*res2 == 0xfffffffful);
-	LOG_ERROR("object dump: %s", cesk_object_to_string(object, NULL, 0));
+	LOG_ERROR("object dump: %s", cesk_object_to_string(object, NULL, 0, 0));
 	LOG_ERROR("hash value: %x", cesk_object_hashcode(object));
 	assert(cesk_object_hashcode(object) == cesk_object_compute_hashcode(object));
 
 	/* try to clone it */
 	cesk_object_t* object_clone = cesk_object_fork(object);
 	assert(NULL != object_clone);
-	LOG_ERROR("cloned object dump: %s", cesk_object_to_string(object, NULL, 0));
+	LOG_ERROR("cloned object dump: %s", cesk_object_to_string(object, NULL, 0, 0));
 	LOG_ERROR("hash value of cloned object: %x", cesk_object_hashcode(object_clone));
 	assert(cesk_object_hashcode(object_clone) == cesk_object_compute_hashcode(object_clone));
 	assert(cesk_object_hashcode(object) == cesk_object_hashcode(object_clone));

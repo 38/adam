@@ -247,7 +247,7 @@ const char* cesk_value_to_string(const cesk_value_t* value, char* buf, int sz)
 	switch(value->type)
 	{
 		case CESK_TYPE_OBJECT:
-			__PR("(objval (refcnt %d) %s)", value->refcnt ,cesk_object_to_string(value->pointer.object, NULL, 0));
+			__PR("(objval (refcnt %d) %s)", value->refcnt ,cesk_object_to_string(value->pointer.object, NULL, 0, 1));
 			break;
 		case CESK_TYPE_SET:
 			__PR("(setval (refcnt %d) %s)", value->refcnt, cesk_set_to_string(value->pointer.set, NULL, 0));

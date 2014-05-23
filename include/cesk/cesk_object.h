@@ -117,9 +117,10 @@ static inline const char* cesk_object_classpath(const cesk_object_t* object)
  * @param object
  * @param buf the output buffer, if buf is NULL, use default buffer
  * @param sz size of buffer
+ * @param brief if it's not 0, print the class briefly
  * @return the result string 
  */
-const char* cesk_object_to_string(const cesk_object_t* object, char* buf, size_t sz);
+const char* cesk_object_to_string(const cesk_object_t* object, char* buf, size_t sz, int brief);
 
 /**
  * @brief check if the object is a instantce of the class 

@@ -202,7 +202,7 @@ int cesk_object_equal(const cesk_object_t* first, const cesk_object_t* second)
 	}
 	return 1;
 }
-const char* cesk_object_to_string(const cesk_object_t* object, char* buf, size_t sz)
+const char* cesk_object_to_string(const cesk_object_t* object, char* buf, size_t sz, int brief)
 {
 	static char _buf[1024];
 	if(NULL == buf)
@@ -218,13 +218,18 @@ const char* cesk_object_to_string(const cesk_object_t* object, char* buf, size_t
 	if(pret > buf + sz - p) pret = buf + sz - p;\
 	p += pret;\
 }while(0)
+	if(brief)
+	{
+		__PR("[class %s]", this->class->path);
+		return buf;
+	}
 	for(i = 0; i < object->depth; i ++)
 	{
 		__PR("[class %s (", this->class->path);
 		int j;
 		for(j = 0; j < this->num_members; j ++)
 		{
-			__PR("(%s, %d) ", this->class->members[j] ,this->valuelist[j]);
+			__PR("(%s @%x) ", this->class->members[j] ,this->valuelist[j]);
 		}
 		__PR(")]");
 		CESK_OBJECT_STRUCT_ADVANCE(this);

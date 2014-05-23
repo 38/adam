@@ -72,9 +72,60 @@ int main()
 	cesk_set_free(set1);
 	cesk_set_free(set2);
 
-	//TODO test fractorize
+	/* now we test the factorize */
+	/* setup 3 frames */
+	cesk_frame_t* frame1 = cesk_frame_new(32);
+	cesk_frame_t* frame2 = cesk_frame_new(32);
+	cesk_frame_t* frame3 = cesk_frame_new(32);
+	assert(NULL != frame1 && NULL != frame2 && NULL != frame3);
 	
+	cesk_alloctab_t* atab    = cesk_alloctab_new();
+	cesk_reloc_table_t* rtab = cesk_reloc_table_new();
 	
+	cesk_frame_set_alloctab(frame1, atab);
+	cesk_frame_set_alloctab(frame2, atab);
+	cesk_frame_set_alloctab(frame3, atab);
+
+	/* now we use 2 gourps of diff buffers to keep tracking the modification */
+	cesk_diff_buffer_t *db1 = cesk_diff_buffer_new(0);
+	cesk_diff_buffer_t *ib1 = cesk_diff_buffer_new(1);
+	cesk_diff_buffer_t *db2 = cesk_diff_buffer_new(0);
+	cesk_diff_buffer_t *ib2 = cesk_diff_buffer_new(1);
+
+	assert(NULL != db1 && NULL != db2  &&
+	       NULL != ib1 && NULL != ib2 );
+
+	/* a stub instruction that used for testing */
+	const dalvik_instruction_t* inst1 = dalvik_instruction_get(123);
+	/* another stub instruction */
+	const dalvik_instruction_t* inst2 = dalvik_instruction_get(124);
+	/* the third instruction */
+	//const dalvik_instruction_t* inst3 = dalvik_instruction_get(125);
+	/* the class path we want to set */
+	const char* classpath = stringpool_query("antlr/ANTLRLexer");
+
+	/* to make frame1 and frame2 different first we make some untracked changes */
+	cesk_diff_buffer_t *btmp = cesk_diff_buffer_new(0);
+	uint32_t addr1 = cesk_frame_store_new_object(frame1, rtab, inst1, classpath, btmp, NULL);  
+	assert(CESK_STORE_ADDR_NULL != addr1);
+	assert(0 == cesk_frame_register_load(frame1, 3, addr1, NULL, NULL));
+
+	uint32_t addr2 = cesk_frame_store_new_object(frame2, rtab, inst2, classpath, btmp, NULL);  
+	assert(CESK_STORE_ADDR_NULL != addr2);
+	assert(0 == cesk_frame_register_load(frame2, 3, addr2, NULL, NULL));
+
+	/* then we shoud make the frame3 looks like the result of merge of frame1 and frame2 */
+	cesk_diff_t* tmp_diff = cesk_diff_from_buffer(btmp);
+	return 0;
+	cesk_diff_buffer_free(btmp);
+	assert(0 == cesk_frame_apply_diff(frame3, tmp_diff, rtab));
+	cesk_diff_free(tmp_diff);
+
+	cesk_diff_buffer_free(db1);
+	cesk_diff_buffer_free(db2);
+	cesk_diff_buffer_free(ib1);
+	cesk_diff_buffer_free(ib2);
+
 	adam_finalize();
 	return 0;
 }

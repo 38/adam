@@ -40,14 +40,14 @@ int main()
 
 	//*value_rw = cesk_value_from_classpath(stringpool_query("antlr/ANTLRLexer"));
 	cesk_object_t* object = value_rw->pointer.object;
-	LOG_DEBUG("object dump: %s", cesk_object_to_string(object, NULL, 0));
+	LOG_DEBUG("object dump: %s", cesk_object_to_string(object, NULL, 0, 0));
 	LOG_DEBUG("value hash: %x", cesk_value_hashcode(value_rw));
 	LOG_DEBUG("object hash: %x", cesk_object_hashcode(object));
 	*cesk_object_get(object, stringpool_query("antlr/ANTLRTokdefParser"), stringpool_query("antlrTool")) = 0;
 
 	cesk_store_release_rw(store3, addr);
 
-	LOG_DEBUG("object dump: %s", cesk_object_to_string(object, NULL, 0));
+	LOG_DEBUG("object dump: %s", cesk_object_to_string(object, NULL, 0, 0));
 	LOG_DEBUG("value hash: %x", cesk_value_hashcode(value_rw));
 	LOG_DEBUG("object hash: %x", cesk_object_hashcode(object));
 
@@ -59,7 +59,7 @@ int main()
 	LOG_ERROR("hash code of store1 : %x", cesk_store_hashcode(store));
 	LOG_ERROR("hash code of store2 : %x", cesk_store_hashcode(store2));
 	LOG_ERROR("hash code of store3 : %x", cesk_store_hashcode(store3));
-	LOG_ERROR("object dump origin: %s", cesk_object_to_string(value_ro->pointer.object, NULL, 0));
+	LOG_ERROR("object dump origin: %s", cesk_object_to_string(value_ro->pointer.object, NULL, 0, 0));
 
 	assert(cesk_store_hashcode(store) == cesk_store_compute_hashcode(store));
 	assert(cesk_store_hashcode(store3) == cesk_store_compute_hashcode(store3));

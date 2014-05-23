@@ -346,11 +346,13 @@ int cesk_frame_apply_diff(cesk_frame_t* frame, const cesk_diff_t* diff, const ce
 					if(cesk_set_iter(rec->arg.value->pointer.set, &iter) < 0)
 					{
 						LOG_WARNING("can not aquire the iterator for set");
+						cesk_store_release_rw(frame->store, rec->addr);
 						break;
 					}
 					uint32_t addr;
 					while(CESK_STORE_ADDR_NULL != (addr = cesk_set_iter_next(&iter)))
 						cesk_store_incref(frame->store, addr);
+					cesk_store_release_rw(frame->store, rec->addr);
 					break;
 				case CESK_DIFF_DEALLOC:
 					LOG_WARNING("no way to apply a deallocation to a store !");
@@ -631,7 +633,7 @@ int cesk_frame_register_load_from_object(
 
 	return 0;
 }
-int cesk_frame_store_new_object(
+uint32_t cesk_frame_store_new_object(
 		cesk_frame_t* frame,
 		cesk_reloc_table_t* reloctab,
 		const dalvik_instruction_t* inst,
@@ -772,7 +774,7 @@ int cesk_frame_store_new_object(
 					return -1;
 				}
 				/* push default zero to it */
-				if(cesk_set_push(fvalue->pointer.set, 0) < 0)
+				if(cesk_set_push(fvalue->pointer.set, CESK_STORE_ADDR_ZERO) < 0)
 				{
 					LOG_ERROR("can not push default zero to the set");
 					return -1;
