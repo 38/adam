@@ -544,7 +544,7 @@ hashval_t cesk_set_compute_hashcode(const cesk_set_t* set)
 	}
 	return ret;
 }
-const char* cesk_set_to_string(const cesk_set_t* set, char* buf)
+const char* cesk_set_to_string(const cesk_set_t* set, char* buf, int sz)
 {
 	if(NULL == set)
 	{
@@ -552,8 +552,11 @@ const char* cesk_set_to_string(const cesk_set_t* set, char* buf)
 		return NULL;
 	}
 	static char _buf[1024];
-	int sz = sizeof(_buf);
-	if(NULL == buf) buf = _buf;
+	if(NULL == buf) 
+	{
+		buf = _buf;
+		sz = sizeof(_buf);
+	}
 	char* p = buf;
 #define __PR(fmt, args...) do{p += snprintf(p, buf + sz - p, fmt, ##args);}while(0)
 	cesk_set_iter_t iter;

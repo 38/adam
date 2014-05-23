@@ -168,8 +168,9 @@ static inline void cesk_value_clear_reloc(cesk_value_t* value)
  * @breif convert the value to string
  * @param value
  * @param buffer if the buffer is NULL, use the defualt buffer
- * @return the converted string
+ * @param size the size of buffer
+ * @return the converted string, NULL indicates an error
  **/
-const char* cesk_value_to_string(const cesk_value_t* value, char* buffer);
+const char* cesk_value_to_string(const cesk_value_t* value, char* buffer, int size);
 
 #endif /* __CESK_VALUE_T__ */

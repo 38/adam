@@ -119,7 +119,9 @@ hashval_t cesk_set_compute_hashcode(const cesk_set_t* set);
  * @brief convert the set to string
  * @param set
  * @param buffer if it's NULL means use the default buffer
+ * @param size the buffer size
+ * @return the result string NULL indicates error
  **/
-const char* cesk_set_to_string(const cesk_set_t* set, char* buffer);
+const char* cesk_set_to_string(const cesk_set_t* set, char* buffer, int size);
 
 #endif /* __CESK_SET_H__ */

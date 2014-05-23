@@ -289,11 +289,21 @@ int main()
 
 	cesk_diff_buffer_free(dif);
 	cesk_diff_buffer_free(inv);
+
+	cesk_frame_t* frame2 = cesk_frame_new(32);
+	cesk_frame_set_alloctab(frame2, alloc);
+	assert(NULL != frame2);
+	assert(cesk_frame_apply_diff(frame2, D, reloc) == 0);
+	assert(cesk_frame_gc(frame2) == 0);
+
+	assert(cesk_frame_hashcode(frame) == cesk_frame_hashcode(frame2));
+
 	cesk_diff_free(X);
 	cesk_diff_free(I);
 	cesk_diff_free(D);
 
 	cesk_frame_free(frame);
+	cesk_frame_free(frame2);
 	cesk_reloc_table_free(reloc);
 	cesk_alloctab_free(alloc);
 

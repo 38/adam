@@ -226,15 +226,18 @@ int cesk_value_equal(const cesk_value_t* first, const cesk_value_t* second)
 			return 1;
 	}
 }
-const char* cesk_value_to_string(const cesk_value_t* value, char* buf)
+const char* cesk_value_to_string(const cesk_value_t* value, char* buf, int sz)
 {
 	static char _buf[1024];
 	if(NULL == value) 
 	{
 		return "(nothing)";
 	}
-	if(NULL == buf) buf = _buf;
-	int sz = sizeof(_buf);
+	if(NULL == buf) 
+	{
+		buf = _buf;
+		sz = sizeof(_buf);
+	}
 	char *p = buf;
 #define __PR(fmt, args...) do{p += snprintf(p, buf + sz - p, fmt, ##args);}while(0)
 	switch(value->type)
@@ -243,7 +246,7 @@ const char* cesk_value_to_string(const cesk_value_t* value, char* buf)
 			__PR("(objval (refcnt %d) %s)", value->refcnt ,cesk_object_to_string(value->pointer.object, NULL, 0));
 			break;
 		case CESK_TYPE_SET:
-			__PR("(setval (refcnt %d) %s)", value->refcnt, cesk_set_to_string(value->pointer.set, NULL));
+			__PR("(setval (refcnt %d) %s)", value->refcnt, cesk_set_to_string(value->pointer.set, NULL, 0));
 			break;
 		default:
 			__PR("(unknown-val)");

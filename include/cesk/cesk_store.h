@@ -86,6 +86,8 @@ typedef struct _cesk_store_t cesk_store_t;
 #define CESK_STORE_ADDR_IS_RELOC(addr) ((((addr)&CESK_STORE_ADDR_RELOC_PREFIX) == CESK_STORE_ADDR_RELOC_PREFIX) && !CESK_STORE_ADDR_IS_CONST(addr))
 /** @brief get the index of global relocation object table from the address */
 #define CESK_STORE_ADDR_RELOC_IDX(addr) (addr&~CESK_STORE_ADDR_RELOC_PREFIX)
+/** @brief the size of relocated address space */
+#define CESK_STORE_ADDR_RELOC_SIZE ((1 + ~CESK_STORE_ADDR_RELOC_PREFIX) -  (1 + ~CESK_STORE_ADDR_CONST_PREFIX))
 
 /** @brief check if or not an address is an object address */
 #define CESK_STORE_ADDR_IS_OBJ(addr) ((addr) < CESK_STORE_ADDR_RELOC_PREFIX)

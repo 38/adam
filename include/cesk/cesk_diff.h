@@ -122,4 +122,12 @@ cesk_diff_t* cesk_diff_apply(int N, cesk_diff_t** args);
  * @return the result diff
  **/
 cesk_diff_t* cesk_diff_factorize(int N, cesk_diff_t** diffs, const cesk_frame_t** current_frame);
+/**
+ * @brief convert the diff package to a human-reable string
+ * @param diff the diff pakcage
+ * @param buf the buffer if buf == NULL, use the default buf
+ * @param size the size of buffer
+ * @return the result string, NULL indicates error
+ **/
+const char* cesk_diff_to_string(const cesk_diff_t* diff, char* buf, int size);
 #endif
