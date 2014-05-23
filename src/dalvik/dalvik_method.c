@@ -127,7 +127,7 @@ dalvik_method_t* dalvik_method_from_sexp(const sexpression_t* sexp, const char* 
 		else if(sexp_match(this_smt, "(L=L?", DALVIK_TOKEN_LABEL, &arg))
 		{
 			/* (label arg) */
-			int lid, i;
+			int lid = -1, i;
 			if(dalvik_label_exists(arg))
 			{
 				lid = dalvik_label_get_label_id(arg);
@@ -202,6 +202,7 @@ dalvik_method_t* dalvik_method_from_sexp(const sexpression_t* sexp, const char* 
 			LOG_DEBUG("exception %s is handlered in label #%d", 
 					  excepthandler[number_of_exception_handler]->exception, 
 					  excepthandler[number_of_exception_handler]->handler_label);
+			label_st[number_of_exception_handler] = 0;
 			number_of_exception_handler ++;
 		}
 		else if(sexp_match(this_smt, "(L=A", DALVIK_TOKEN_FILL, &arg))

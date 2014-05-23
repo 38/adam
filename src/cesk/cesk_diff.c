@@ -21,14 +21,14 @@ typedef struct _cesk_diff_node_t _cesk_diff_node_t;
  **/
 struct _cesk_diff_node_t{
 	int type;           /*!< which type this diff item is, useful when sorting */
-	int addr;           /*!< the address to operate, in the Register Segment, this means the register number */
+	unsigned addr;           /*!< the address to operate, in the Register Segment, this means the register number */
 	int time;           /*!< the time stamp of this node */
 	void* value;        /*!< the value of this node */
 };
 
 cesk_diff_buffer_t* cesk_diff_buffer_new(uint8_t reverse)
 {
-	cesk_diff_buffer_t* ret = (cesk_diff_buffer_t*)malloc(sizeof(cesk_diff_buffer_t*));
+	cesk_diff_buffer_t* ret = (cesk_diff_buffer_t*)malloc(sizeof(cesk_diff_buffer_t));
 	if(NULL == ret)
 	{
 		LOG_ERROR("can not allocate memory for this buffer");
@@ -173,8 +173,7 @@ cesk_diff_t* cesk_diff_from_buffer(cesk_diff_buffer_t* buffer)
 	}
 	memset(ret->offset, 0, sizeof(ret->offset));
 	ret->_index = 0;
-
-	LOG_DEBUG("constructing the diff package");
+	LOG_DEBUG("*****************constructing the diff package************************");
 	/* then we start to scan the buffer, and build our result */
 	int section;
 	for(i = 0, section = 0; section < CESK_DIFF_NTYPES; section ++)
@@ -245,6 +244,7 @@ cesk_diff_t* cesk_diff_from_buffer(cesk_diff_buffer_t* buffer)
 			ret->offset[section + 1] ++;
 		}
 	}
+	LOG_DEBUG("**********************************************************************");
 	return ret;
 }
 void cesk_diff_free(cesk_diff_t* diff)

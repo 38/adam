@@ -231,7 +231,7 @@ void cesk_set_free(cesk_set_t* set)
 			if(NULL != data_node->next) 
 				data_node->next->prev = data_node->prev;
 			cesk_set_node_t* tmp = data_node;
-			data_node = data_node->next;
+			data_node = data_node->data_entry->next;
 			free(tmp);
 		}
 		/* maintain the pointer used in the hash table */
@@ -567,9 +567,9 @@ const char* cesk_set_to_string(const cesk_set_t* set, char* buf)
 	while(CESK_STORE_ADDR_NULL != (this = cesk_set_iter_next(&iter)))
 	{
 		if(first)
-			__PR("{%u", this);
+			__PR("{@%x", this);
 		else
-			__PR(",%u", this);
+			__PR(",@%x", this);
 		first = 0;
 	}
 	if(first) __PR("{");
