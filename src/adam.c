@@ -10,6 +10,11 @@ int adam_init(void)
 		LOG_FATAL("failed to initialize string pool");
 		return -1;
 	}
+	if(bci_init() < 0)
+	{
+		LOG_FATAL("failed to initialize built-in class interface");
+		return -1;
+	}
 	if(dalvik_init() < 0)
 	{
 		LOG_FATAL("failed to initialize dalvik loader");
@@ -26,6 +31,7 @@ void adam_finalize(void)
 {
 	cesk_finalize();
 	dalvik_finalize();
+	bci_finalize();
 	stringpool_fianlize();
 	log_finalize();
 }

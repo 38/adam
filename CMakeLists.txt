@@ -34,6 +34,7 @@ enable_testing()
 aux_source_directory(src/ adam_FILES)
 aux_source_directory(src/dalvik adam_FILES)
 aux_source_directory(src/cesk adam_FILES)
+aux_source_directory(src/bci adam_FILES)
 set_source_files_properties(${adam_FILES} PROPERTIES COMPILE_FLAGS ${CFLAGS})
 add_library(adam ${adam_FILES})
 

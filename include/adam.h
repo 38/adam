@@ -10,6 +10,7 @@
 
 #include <dalvik/dalvik.h>
 #include <cesk/cesk.h>
+#include <bci/bci.h>
 /** @brief Intialize libadam
  *  @return nothing
  */
