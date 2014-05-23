@@ -151,7 +151,10 @@ int main()
 	assert(0 == cesk_frame_register_load(frame, 31, addr, dif, inv));
 	assert(0 == cesk_frame_register_load_from_object(frame, 5, 31, superclass, field, dif, inv));
 	/* the value should be a set {object2, true} */
-	assert(2 == cesk_set_size(frame->regs[5]));
+	/* TODO: currently, this should be 3 due to the default zero, buf in the future this can not happend ,
+	 * since after the tag system is available, we can figure out which is the new value 
+	 */
+	assert(3 == cesk_set_size(frame->regs[5]));  
 	assert(1 == cesk_set_contain(frame->regs[5], addr2));
 	assert(1 == cesk_set_contain(frame->regs[5], CESK_STORE_ADDR_TRUE));
 	/* check the refcnt */

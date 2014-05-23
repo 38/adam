@@ -14,6 +14,14 @@
  *
  * 		 in this case, in fact v1 = 10 is not a possible value. However in our 
  * 		 program it just keep the value 10.
+ *
+ * 		 this problem can be handled by adding a timestamp in set, and each element is either new(current tick) or old(less than current tick)
+ *
+ * 		 And each element holds the oldest timestamp it can hold. 
+ *
+ * 		 And we can also implment a `new' tag, which indicates this register referencing the new value rather
+ * 		 than the old value. If the register continas this value, we should override all value with new as timestamp
+ * 		 should be replace.
  */
 #include <log.h>
 #include <cesk/cesk_frame.h>
@@ -682,6 +690,44 @@ int cesk_frame_store_new_object(
 			return CESK_STORE_ADDR_NULL;
 		}
 
+		/* push default zero to the class */
+		int i;
+		const cesk_object_struct_t* this = object->members;
+		for(i = 0; i < object->depth; i ++)
+		{
+			int j;
+			for(j = 0; j < this->num_members; j ++)
+			{
+				uint32_t addr = this->valuelist[j];
+				if(CESK_STORE_ADDR_NULL == addr) 
+				{
+					LOG_WARNING("uninitialized field %s in an initialize object @%x", this->class->members[j], addr);
+					continue;
+				}
+				cesk_value_t* value = cesk_store_get_rw(frame->store, addr, 0);
+				if(NULL == value)
+				{
+					LOG_WARNING("can not get writable pointer to store address @%x in store %p", addr, frame->store);
+					continue;
+				}
+				if(CESK_TYPE_SET != value->type)
+				{
+					LOG_WARNING("expecting a set at store address @%x in store %p", addr, frame->store);
+					continue;
+				}
+				_SNAPSHOT(inv_buf, CESK_DIFF_STORE, addr, value);
+				if(cesk_set_push(value->pointer.set, CESK_STORE_ADDR_ZERO) < 0)
+				{
+					LOG_WARNING("can not push default zero to the class");
+					continue;
+				}
+				_SNAPSHOT(diff_buf, CESK_DIFF_STORE, addr, value);
+
+				cesk_store_release_rw(frame->store, addr);
+			}
+			CESK_OBJECT_STRUCT_ADVANCE(this);
+		}
+
 		_SNAPSHOT(diff_buf, CESK_DIFF_REUSE, addr, CESK_DIFF_REUSE_VALUE(1));
 	}
 	else
@@ -723,6 +769,12 @@ int cesk_frame_store_new_object(
 				if(NULL == fvalue)
 				{
 					LOG_ERROR("can not construct init value for a field");
+					return -1;
+				}
+				/* push default zero to it */
+				if(cesk_set_push(fvalue->pointer.set, 0) < 0)
+				{
+					LOG_ERROR("can not push default zero to the set");
 					return -1;
 				}
 				if(cesk_store_attach(frame->store, faddr, fvalue) < 0)
