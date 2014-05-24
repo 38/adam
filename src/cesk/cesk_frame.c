@@ -313,7 +313,10 @@ int cesk_frame_apply_diff(cesk_frame_t* frame, const cesk_diff_t* diff, const ce
 				case CESK_DIFF_ALLOC:
 					LOG_DEBUG("allocating object %s at store address @%x", cesk_value_to_string(rec->arg.value, NULL, 0) ,rec->addr);
 					if(cesk_reloc_addr_init(reloctab, frame->store, rec->addr, rec->arg.value) == CESK_STORE_ADDR_NULL)
-						LOG_WARNING("can not initialize relocated address @%x in store %p", rec->addr, frame->store);
+					{
+						LOG_ERROR("can not initialize relocated address @%x in store %p", rec->addr, frame->store);
+						return -1;
+					}
 					else
 						ret ++;
 					break;
@@ -328,12 +331,18 @@ int cesk_frame_apply_diff(cesk_frame_t* frame, const cesk_diff_t* diff, const ce
 					if(rec->arg.boolean)
 					{
 						if(cesk_store_set_reuse(frame->store, rec->addr) < 0)
-							LOG_WARNING("can not set reuse bit for @%x in store %p", rec->addr, frame->store);
+						{
+							LOG_ERROR("can not set reuse bit for @%x in store %p", rec->addr, frame->store);
+							return -1;
+						}
 					}
 					else
 					{
 						if(cesk_store_clear_reuse(frame->store, rec->addr) < 0)
-							LOG_WARNING("can not clear reuse bit for @%x in store %p", rec->addr, frame->store);
+						{
+							LOG_ERROR("can not clear reuse bit for @%x in store %p", rec->addr, frame->store);
+							return -1;
+						}
 					}
 					break;
 				case CESK_DIFF_REG:
@@ -346,18 +355,18 @@ int cesk_frame_apply_diff(cesk_frame_t* frame, const cesk_diff_t* diff, const ce
 					ret ++;
 					if(_cesk_frame_free_reg(frame, rec->addr) < 0)
 					{
-						LOG_WARNING("can not clean the old value in the register %d", rec->addr);
-						break;
+						LOG_ERROR("can not clean the old value in the register %d", rec->addr);
+						return -1;
 					}
 					if(NULL == (frame->regs[rec->addr] = cesk_set_fork(rec->arg.set)))
 					{
-						LOG_WARNING("can not set the new value for register %d", rec->addr);
-						break;
+						LOG_ERROR("can not set the new value for register %d", rec->addr);
+						return -1;
 					}
 					if(_cesk_frame_init_reg(frame, rec->addr) < 0)
 					{
-						LOG_WARNING("can not make reference from the register %d", rec->addr);
-						break;
+						LOG_ERROR("can not make reference from the register %d", rec->addr);
+						return -1;
 					}
 					break;
 				case CESK_DIFF_STORE:
@@ -371,16 +380,16 @@ int cesk_frame_apply_diff(cesk_frame_t* frame, const cesk_diff_t* diff, const ce
 					ret ++;
 					if(cesk_store_attach(frame->store, rec->addr, rec->arg.value) < 0)
 					{
-						LOG_WARNING("can not attach value to store address @%x in store %p", rec->addr, frame->store);
-						break;
+						LOG_ERROR("can not attach value to store address @%x in store %p", rec->addr, frame->store);
+						return -1;
 					}
 					/* update the refcnt */
 					cesk_set_iter_t iter;
 					if(cesk_set_iter(rec->arg.value->pointer.set, &iter) < 0)
 					{
-						LOG_WARNING("can not aquire the iterator for set");
+						LOG_ERROR("can not aquire the iterator for set");
 						cesk_store_release_rw(frame->store, rec->addr);
-						break;
+						return -1;
 					}
 					uint32_t addr;
 					while(CESK_STORE_ADDR_NULL != (addr = cesk_set_iter_next(&iter)))
@@ -391,6 +400,41 @@ int cesk_frame_apply_diff(cesk_frame_t* frame, const cesk_diff_t* diff, const ce
 					LOG_DEBUG("ignore deallocation section");
 					break;
 			}
+		}
+	}
+	/* and we should go over the allocation section again to fix the reference counter in the store */
+	int offset;
+	for(offset = diff->offset[CESK_DIFF_ALLOC]; offset < diff->offset[CESK_DIFF_ALLOC + 1]; offset ++)
+	{
+		int i;
+		const cesk_value_t* val = diff->data[offset].arg.value;
+		const cesk_object_t* obj;
+		const cesk_object_struct_t* this;
+		const cesk_set_t *set;
+		cesk_set_iter_t iter;
+		switch(val->type)
+		{
+			case CESK_TYPE_OBJECT:
+				obj = val->pointer.object;
+				this = obj->members;
+				for(i = 0; i < obj->depth; i ++)
+				{
+					int j;
+					for(j = 0; j < this->num_members; j ++)
+						cesk_store_incref(frame->store, this->addrtab[j]);
+					CESK_OBJECT_STRUCT_ADVANCE(this);
+				}
+				break;
+			case CESK_TYPE_SET:
+				set = val->pointer.set;
+				if(NULL == cesk_set_iter(set, &iter))
+				{
+					LOG_ERROR("can not aquire set iterator for set");
+					return -1;
+				}
+				uint32_t addr;
+				while(CESK_STORE_ADDR_NULL != (addr = cesk_set_iter_next(&iter)))
+					cesk_store_incref(frame->store, addr);
 		}
 	}
 	return ret;
@@ -829,6 +873,7 @@ uint32_t cesk_frame_store_new_object(
 						LOG_ERROR("can not maniuplate the reference counter at store address @%x", faddr);
 						return -1;
 					}
+					new_val->reloc = 1;
 					cesk_store_release_rw(frame->store, faddr);
 					_SNAPSHOT(diff_buf, CESK_DIFF_ALLOC, faddr, fvalue);
 					_SNAPSHOT(inv_buf, CESK_DIFF_DEALLOC, faddr, NULL);
@@ -957,6 +1002,8 @@ int cesk_frame_store_put_field(
 		{
 			LOG_WARNING("can not incref at address @%x", tmp_addr);
 		}
+		if(CESK_STORE_ADDR_IS_RELOC(tmp_addr))
+			value_set->reloc = 1;
 	}
 
 	/* okay, append the value of registers to the set */

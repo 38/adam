@@ -53,12 +53,12 @@ struct _cesk_value_t {
 	uint8_t     reloc:1;        /*!<does the object contains an relocation address? */
 	union {
 		__CESK_POINTER_LIST()
-	} pointer;              /*!<actuall data pointer*/
+	} __attribute__((__packed__)) pointer; /*!<actuall data pointer*/
 	uint32_t    refcnt;     /*!<the reference counter */
 	hashval_t   hashcode;   /*!<the hashcode */
 	struct _cesk_value_t  *prev, 
 						  *next; /*!<the previous and next pointer used by value list */
-}; 
+};
 
 /** @brief the abstruct value that can not be modified */
 struct _cesk_value_const_t {
@@ -66,7 +66,7 @@ struct _cesk_value_const_t {
 	const uint8_t     write_status:1; /*!<this bit check if the value is associated with a writable pointer */
 	const union {
 		__CESK_POINTER_LIST(const)
-	} pointer; /*!<actuall data pointer*/
+	} __attribute__((__packed__)) pointer; /*!<actuall data pointer*/
 } ;
 
 CONST_ASSERTION_LAST(cesk_value_const_t, pointer); /* we don't want refcount is visible with readonly premission */

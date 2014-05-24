@@ -48,12 +48,17 @@ void sexp_free(sexpression_t* buf)
 static inline int _sexp_parse_ws(const char** p) 
 {
 	int ret = 0;
+	if(**p == '-') 
+	{
+		(*p) ++;
+		ret = 1;
+	}
 	for(; **p == ' ' || 
 		  **p == '\t' ||
 		  **p == '\r' ||
 		  **p == '\n'||
 		  **p == '/' ||
-		  **p == '-' ||
+		  //**p == '-' ||
 		  **p == ',' ||
 		  **p == '.';
 		  (*p) ++) ret = 1;
@@ -94,6 +99,8 @@ static inline const char* _sexp_parse_list(const char* str, sexpression_t** buf)
 			*buf = _sexp_alloc(SEXP_TYPE_CONS);
 			sexp_cons_t* data = (sexp_cons_t*)((*buf)->data);
 			if(NULL == *buf) goto ERR;
+			if(*str == '-') 
+				str--;
 			str = sexp_parse(str, &data->first);
 			if(NULL == str) goto ERR;
 			data->seperator = *str;
@@ -168,6 +175,8 @@ static inline const char* _sexpr_parse_literal(const char* str, sexpression_t** 
 {
 	stringpool_accumulator_t accumulator;
 	stringpool_accumulator_init(&accumulator, str);
+	if(*str == '-')
+		stringpool_accumulator_next(&accumulator, *(str ++));
 	for(; *str != '\r' &&
 		  *str != '\n' &&
 		  *str != ' '  &&

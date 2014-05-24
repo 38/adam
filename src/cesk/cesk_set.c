@@ -463,7 +463,7 @@ static inline int _cesk_set_prepare_merge(
 	}
 	if((*p_info_dst)->refcnt > 1)
 	{
-		LOG_DEBUG("set #%d is refered by %d set objects, duplicate it before merging", dest->set_idx, (*p_info_dst)->refcnt);
+		LOG_DEBUG("set #%d has %d references, duplicate it before merging", dest->set_idx, (*p_info_dst)->refcnt);
 		cesk_set_info_entry_t *new;
 		uint32_t idx = _cesk_set_duplicate(*p_info_dst, &new);
 		if(CESK_SET_INVALID == idx)

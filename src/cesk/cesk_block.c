@@ -67,8 +67,8 @@ static inline uint32_t _cesk_block_register_const_merge(const cesk_frame_t* fram
  **/
 static inline int _cesk_block_handler_move(const dalvik_instruction_t* ins, cesk_frame_t* frame, cesk_diff_buffer_t* D, cesk_diff_buffer_t* I)
 {
-	uint16_t from = _cesk_block_operand_to_regidx(ins->operands + 0);
-	uint16_t to   = _cesk_block_operand_to_regidx(ins->operands + 1);
+	uint16_t to     = _cesk_block_operand_to_regidx(ins->operands + 0);
+	uint16_t from   = _cesk_block_operand_to_regidx(ins->operands + 1);
 	if(ins->operands[0].header.info.size)
 	{
 		/* if this instruction is to move a register pair */

@@ -24,10 +24,10 @@ static inline uint32_t cesk_arithmetic_neg(uint32_t a)
 	if(CESK_STORE_ADDR_CONST_CONTAIN(a, NEG))
 		ret = CESK_STORE_ADDR_CONST_SET(ret, POS);
 	/* - pos = neg */
-	if(CESK_STORE_ADDR_CONST_CONTAIN(a, POS));
+	if(CESK_STORE_ADDR_CONST_CONTAIN(a, POS))
 		ret = CESK_STORE_ADDR_CONST_SET(ret, NEG);
 	/* - zero = zero */
-	if(CESK_STORE_ADDR_CONST_CONTAIN(ret, ZERO))
+	if(CESK_STORE_ADDR_CONST_CONTAIN(a, ZERO))
 		ret = CESK_STORE_ADDR_CONST_SET(ret, ZERO);
 	if(ret == CESK_STORE_ADDR_CONST_PREFIX)
 	{

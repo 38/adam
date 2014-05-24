@@ -296,6 +296,7 @@ static inline int _cesk_store_apply_alloc_tab(cesk_store_t* store, uint32_t base
 				LOG_ERROR("invalid value typecode(%d)", value->type);
 				return -1;
 		}
+		value->reloc = 0;
 		/* release the write pointer */
 		cesk_store_release_rw(store, base_addr + ofs);
 	}

@@ -27,10 +27,11 @@
 		(iput v1 v0 testClass.value2 [object testClass])
 		(iput v2 v1 testClass.value2 [object testClass])
 		(iput v0 v2 testClass.value2 [object testClass])
-		(instance-of v3 v1 testClass)
+		;(instance-of v3 v1 testClass)
 		(const v1 0)
 		(const v2 0)
 		(const v0 0)
+		(cmp-long v3 v0 v2)
 		(return-void)
 	)
 	(method (attrs public) case3() void
