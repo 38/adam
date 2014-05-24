@@ -36,7 +36,7 @@ dalvik_field_t* dalvik_field_from_sexp(const sexpression_t* sexp, const char* cl
 	if(NULL == (ret->type = dalvik_type_from_sexp(type_sexp))) 
 	{
 		LOG_ERROR("can't parse type");
-		LOG_DEBUG("type is %s", sexp_to_string(type_sexp,NULL));
+		LOG_DEBUG("type is %s", sexp_to_string(type_sexp,NULL, 0));
 		goto ERR;
 	}
 
@@ -49,13 +49,15 @@ dalvik_field_t* dalvik_field_from_sexp(const sexpression_t* sexp, const char* cl
 	if(SEXP_NIL != sexp)
 	{
 		/* it has a defualt value */
-		if(!sexp_match(sexp, "(A", &ret->defualt_value)) 
+		if(!sexp_match(sexp, "(L?A", &ret->defualt_value, &sexp)) 
 		{
 			LOG_ERROR("can't parse default value");
 			goto ERR;
 		}
-		LOG_NOTICE("fixme: parse default value of a field");
+		//LOG_NOTICE("fixme: parse default value of a field");
 	}
+	else
+		ret->defualt_value = NULL;
 	return ret;
 ERR:
 	dalvik_field_free(ret);

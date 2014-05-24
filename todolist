@@ -6,3 +6,8 @@ we can override.
 block analyzer
 
 built-in class interface(src/bci)
+
+
+what to do next :
+  static field support
+  more accurate int repr
