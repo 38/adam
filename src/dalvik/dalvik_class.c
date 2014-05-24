@@ -48,7 +48,7 @@ dalvik_class_t* dalvik_class_from_sexp(const sexpression_t* sexp)
 	
 	if((attrs = dalvik_attrs_from_sexp(attr_list)) < 0)
 	{
-		LOG_ERROR("invalid attribute %s", sexp_to_string(attr_list,NULL,0));
+		LOG_ERROR("invalid attribute %s", sexp_to_string(attr_list,NULL));
 		goto ERR;
 	}
 	
@@ -139,7 +139,7 @@ dalvik_class_t* dalvik_class_from_sexp(const sexpression_t* sexp)
 				dalvik_method_t* method;
 				if(NULL == (method = dalvik_method_from_sexp(this_def, class->path, source)))
 				{
-					LOG_ERROR("can not resolve method %s", sexp_to_string(this_def, NULL,0));
+					LOG_ERROR("can not resolve method %s", sexp_to_string(this_def, NULL));
 					goto ERR;
 				}
 				/* Register it */
@@ -150,14 +150,15 @@ dalvik_class_t* dalvik_class_from_sexp(const sexpression_t* sexp)
 				}
 				LOG_DEBUG("new class method %s.%s", class->path, method->name);
 				/* because the method in fact is static object, we can retrive the method thru member dict
-				 * So we do not add them to the memberlist */
+				 * So we do not add them to the memberlist
+				 */
 			}
 			else if(firstlit == DALVIK_TOKEN_FIELD)
 			{
 				dalvik_field_t* field;
 				if(NULL == (field = dalvik_field_from_sexp(this_def, class->path, source)))
 				{
-					LOG_ERROR("can not resolve field %s", sexp_to_string(this_def, NULL,0));
+					LOG_ERROR("can not resolve field %s", sexp_to_string(this_def, NULL));
 					goto ERR;
 				}
 				/* Not static? it's the real member */
@@ -165,10 +166,6 @@ dalvik_class_t* dalvik_class_from_sexp(const sexpression_t* sexp)
 				{
 					field->offset = field_count;
 					class->members[field_count++] = field->name;
-				}
-				else
-				{
-					//TODO register static member here
 				}
 				if(dalvik_memberdict_register_field(class->path, field) < 0)
 				{

@@ -422,40 +422,37 @@ int sexp_length(const sexpression_t* sexp)
 		sexp = ((sexp_cons_t*)sexp->data)->second;
 	return ret;
 }
-char* sexp_to_string(const sexpression_t* sexp, char* buf, int sz)
+char* sexp_to_string(const sexpression_t* sexp, char* buf)
 {
-	static char defualt_buf[10240];
+	static char defualt_buf[1024];
 	char * ret;
-	if(buf == NULL) buf = defualt_buf, sz = sizeof(defualt_buf);
+	if(buf == NULL) buf = defualt_buf;
 	ret = buf;
 	if(NULL == buf) return NULL;
 	if(SEXP_NIL == sexp) 
 	{
-		snprintf(buf, sz ,"nil");
+		sprintf(buf, "nil");
 		return buf;
 	}
 	if(sexp->type == SEXP_TYPE_LIT)
 	{
-		snprintf(buf, sz ,"%s ", *(sexp_lit_t*)sexp->data);
+		sprintf(buf, "%s ", *(sexp_lit_t*)sexp->data);
 	}
 	else if(sexp->type == SEXP_TYPE_STR)
 	{
-		snprintf(buf, sz, "'%s' ", *(sexp_str_t*)sexp->data);
+		sprintf(buf, "'%s' ", *(sexp_str_t*)sexp->data);
 	}
 	else if(sexp->type == SEXP_TYPE_CONS)
 	{
 		sexp_cons_t *cons = (sexp_cons_t*)sexp->data;
 		buf[0] = '(';
 		buf ++;
-		if(NULL == sexp_to_string(cons->first, buf, sz)) return NULL;
-		sz -= strlen(buf);
+		if(NULL == sexp_to_string(cons->first, buf)) return NULL;
 		buf += strlen(buf);
-		if(NULL == sexp_to_string(cons->second, buf, sz)) return NULL;
-		sz -= strlen(buf);
+		if(NULL == sexp_to_string(cons->second, buf)) return NULL;
 		buf += strlen(buf);
-		snprintf(buf, sz, ")");
-		/*buf[0] = ')';
-		buf[1] = 0;*/
+		buf[0] = ')';
+		buf[1] = 0;
 	}
 	return ret;
 }

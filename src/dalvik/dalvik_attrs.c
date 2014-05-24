@@ -6,7 +6,7 @@
 
 int dalvik_attrs_from_sexp(const sexpression_t* sexp)
 {
-	LOG_DEBUG("sexp = %s", sexp_to_string(sexp, NULL,0));
+	LOG_DEBUG("sexp = %s", sexp_to_string(sexp, NULL));
 	int flags = 0;
 	/* all attribute section has form (attrs ....) */
 	if(!sexp_match(sexp, "(L=A", DALVIK_TOKEN_ATTRS, &sexp)) return -1;

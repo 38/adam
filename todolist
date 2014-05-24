@@ -8,6 +8,7 @@ block analyzer
 built-in class interface(src/bci)
 
 
-what to do next :
-  static field support
-  more accurate int repr
+
+-what to do next :
+-  static field support
+-  more accurate int repr
