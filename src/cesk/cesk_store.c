@@ -194,7 +194,6 @@ int cesk_store_set_alloc_table(cesk_store_t* store, cesk_alloctab_t* table)
 }
 /**
  * @brief apply the allocation table to the block
- * @param source the source store
  * @param store the result store
  * @param  base_addr the base address of this block
  * @param base_addr the base address of the block

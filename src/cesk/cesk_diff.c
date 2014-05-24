@@ -2,11 +2,11 @@
  * @file cesk_diff.c
  * @brief implementation of frame diff package
  * @details the layout of diff
- * 		Allocation Section:   <addr, init_value>
- *		Reuse Section     :   <addr, new_bit>
- *		Register Section  :   <regid, set>
- *		Store Section     :   <addr,  value>
- *		Deallocate Section:   <addr>
+ * 		Allocation Section:   [addr, init_value]
+ *		Reuse Section     :   [addr, new_bit]
+ *		Register Section  :   [regid, set]
+ *		Store Section     :   [addr,  value]
+ *		Deallocate Section:   [addr]
  * @todo review the code, and the idea of diff
  **/
 #include <stdio.h> 
@@ -168,7 +168,7 @@ static int _cesk_diff_buffer_cmp(const void* left, const void* right)
 }
 /**
  * @brief collect the garbage allocation
- * @detials If the newly created object is dereferenced in this block, the 
+ * @details If the newly created object is dereferenced in this block, the 
  *          diff will contains an allocation instruction at that address, 
  *          but without corresponding register/store reference. In this case
  *          we should delete those block 

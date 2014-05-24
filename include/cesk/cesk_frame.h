@@ -98,7 +98,7 @@ static inline int cesk_frame_set_alloctab(cesk_frame_t* frame, cesk_alloctab_t* 
  * @todo implmentation
  * @param frame
  * @param diff
- * @param reloctable the relocation table
+ * @param reloctab the relocation table
  * @return the number of changes has applied,  <0 indicates error
  **/
 int cesk_frame_apply_diff(cesk_frame_t* frame, const cesk_diff_t* diff, const cesk_reloc_table_t* reloctab);
@@ -150,7 +150,7 @@ int cesk_frame_register_load(
  * @param frame
  * @param dst_reg destination register
  * @param src_addr the source constant
- * @param diff_buff the diff buffer
+ * @param diff_buf the diff buffer
  * @param inv_buf the inverse diff buffer
  * @return < 0 indicates errors
  **/
@@ -237,7 +237,7 @@ int cesk_frame_store_put_field(
 		uint32_t src_reg,
 		const char* clspath,
 		const char* fldname,
-		int keep_old_vlaue,
+		int keep_old_value,
 		cesk_diff_buffer_t* diff_buf,
 		cesk_diff_buffer_t* inv_buf);
 

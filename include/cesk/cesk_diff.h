@@ -24,14 +24,14 @@ typedef struct _cesk_diff_buffer_t cesk_diff_buffer_t;
  * @brief define the segmentations in a diff pacakge 
  **/
 enum{
-	CESK_DIFF_ALLOC,   /*!<Allocate a new object in relocated address <allocate reloc_addr>*/
+	CESK_DIFF_ALLOC,   /*!<Allocate a new object in relocated address [allocate reloc_addr]*/
 	CESK_DIFF_REUSE,   /*!<Set the reuse flag, we can use the value pointer as a interger value, and this
 	                       will be emitted when an allocation instruction cause the reuse bit changes. 
 	                       In this situation, we do not need this alloc record any more, we use an reuse
 	                       record to show that this is not the first time we allocate the object */
-	CESK_DIFF_REG,     /*!<Set a value to a register <set-reg reg-id new-value> */
-	CESK_DIFF_STORE,   /*!<Set a value to a store cell <set-store address new-value> */
-	CESK_DIFF_DEALLOC, /*!<Deallocate the object (must not apply to a store) <deallocate reloc_addr> */
+	CESK_DIFF_REG,     /*!<Set a value to a register [set-reg reg-id new-value] */
+	CESK_DIFF_STORE,   /*!<Set a value to a store cell [set-store address new-value] */
+	CESK_DIFF_DEALLOC, /*!<Deallocate the object (must not apply to a store) [deallocate reloc_addr] */
 	CESK_DIFF_NTYPES   /*!<Number of segmentations in a diff */
 };
 
@@ -109,13 +109,14 @@ void cesk_diff_free(cesk_diff_t* diff);
 /**
  * @brief make a new diff that is the result to apply N input diff into one
  * @param N the number of diffs that want to apply
+ * @param args the input cesk_diff_t array
  * @return the newly create diff, NULL indicates error
  */
 cesk_diff_t* cesk_diff_apply(int N, cesk_diff_t** args);
 
 /**
  * @brief factorize the sum expression
- * @detail make D1*S1 + ... + Dn*Sn = D * (S1 + S2 + ... + Sn) 
+ * @details make D1*S1 + ... + Dn*Sn = D * (S1 + S2 + ... + Sn) 
  * @param N the number of terms
  * @param current_frame Sn*Dn
  * @param diffs Dn
