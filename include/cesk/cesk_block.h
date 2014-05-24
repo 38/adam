@@ -22,9 +22,10 @@ typedef struct {
 /**
  * @brief Analyze a code block, return the result in buf
  * @param code the code block to analyze
- * @param frame the stack frame 
+ * @param frame the stack frame
+ * @param rtab  the relocation table 
  * @param buf the output buffer
  * @return < 0 indicates erorrs
  **/
-int cesk_block_analyze(const dalvik_block_t* code, cesk_frame_t* frame, cesk_block_result_t* buf);
+int cesk_block_analyze(const dalvik_block_t* code, cesk_frame_t* frame, cesk_reloc_table_t* rtab, cesk_block_result_t* buf);
 #endif

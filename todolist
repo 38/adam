@@ -5,7 +5,7 @@ we can override.
 
 block analyzer
 
-built-in class interface(src/bci)
+built-in class interface(src/bci) : see all LOG_FATAL("TODO ....")s
 
 
 
