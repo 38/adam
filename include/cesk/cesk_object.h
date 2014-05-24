@@ -10,6 +10,7 @@ typedef struct _cesk_object_t cesk_object_t;
 #include <constants.h>
 #include <cesk/cesk_value.h>
 #include <dalvik/dalvik_class.h>
+#include <bci/bci_class.h>
 /**
  * @brief an abstract object value
  *
@@ -20,12 +21,23 @@ typedef struct _cesk_object_t cesk_object_t;
  *         list of abstruct object struct(cesk_object_t).
  **/
 typedef struct {
-	const dalvik_class_t*	 class;		/*!<the class of this object struct*/
-	size_t                   num_members; /*!<the number of members */
-	uint32_t                 valuelist[0];  /*!<the value of the member */
+	union{
+		const dalvik_class_t*	 udef;		   /*!< the user defined class*/
+		const bci_class_t*       bci;          /*!< the built-in class interface */
+		const struct {
+			const char* value;                 /*!< value of class path */
+		}*path;                                /*!< the class path */
+		void*                    generic;      /*!< the generic pointer */
+	} __attribute__((__packed__)) class;       /*!<the class of this object struct*/
+	uint32_t                 num_members:31;   /*!<the number of members, if it's a built-in class, this is the size of the data area */
+	uint8_t                  built_in:1;       /*!<is this object a built-in class*/
+	uint32_t                 addrtab[0];       /*!<the value of the member */
+	char                     bcidata[0];       /*!< the storage for built-in class */
 } cesk_object_struct_t; 
-CONST_ASSERTION_SIZE(cesk_object_struct_t, valuelist, 0);
-CONST_ASSERTION_LAST(cesk_object_struct_t, valuelist);
+CONST_ASSERTION_SIZE(cesk_object_struct_t, addrtab, 0);
+CONST_ASSERTION_LAST(cesk_object_struct_t, addrtab);
+CONST_ASSERTION_SIZE(cesk_object_struct_t, bcidata, 0);
+CONST_ASSERTION_LAST(cesk_object_struct_t, bcidata);
 /**
  * @brief An abstruct object
  *
@@ -53,7 +65,12 @@ CONST_ASSERTION_SIZE(cesk_object_t, members, 0);
  * @brief goto the next object struct 
  * @param cur the current struct
  **/
-#define CESK_OBJECT_STRUCT_ADVANCE(cur) do{ cur = (typeof(cur))((cur)->valuelist + (cur)->num_members); } while(0)
+#define CESK_OBJECT_STRUCT_ADVANCE(cur) do{\
+	if(0 == cur->built_in)\
+		cur = (typeof(cur))((cur)->addrtab + (cur)->num_members);\
+	else\
+		cur = (typeof(cur))((cur)->bcidata + (cur)->num_members);\
+} while(0)
 
 /**
  * @brief Create a new instance object of class in classpath 
@@ -110,7 +127,7 @@ int cesk_object_equal(const cesk_object_t* first, const cesk_object_t* second);
  */
 static inline const char* cesk_object_classpath(const cesk_object_t* object)
 {
-	return object->members[0].class->path;
+	return object->members[0].class.path->value;
 }
 /**
  * @brief print out the data of the object 

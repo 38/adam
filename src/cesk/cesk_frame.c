@@ -168,11 +168,18 @@ static inline void _cesk_frame_store_dfs(uint32_t addr,cesk_store_t* store, uint
 			this = obj->members;
 			for(i = 0; i < obj->depth; i ++)
 			{
-				int j;
-				for(j = 0; j < this->num_members; j ++)
+				if(this->built_in)
 				{
-					next_addr = this->valuelist[j];
-					_cesk_frame_store_dfs(next_addr, store, f);
+					LOG_FATAL("TODO dfs thru a built_in class");
+				}
+				else
+				{
+					int j;
+					for(j = 0; j < this->num_members; j ++)
+					{
+						next_addr = this->addrtab[j];
+						_cesk_frame_store_dfs(next_addr, store, f);
+					}
 				}
 				CESK_OBJECT_STRUCT_ADVANCE(this);
 			}
@@ -701,35 +708,39 @@ uint32_t cesk_frame_store_new_object(
 		const cesk_object_struct_t* this = object->members;
 		for(i = 0; i < object->depth; i ++)
 		{
-			int j;
-			for(j = 0; j < this->num_members; j ++)
+			if(!this->built_in)
 			{
-				uint32_t addr = this->valuelist[j];
-				if(CESK_STORE_ADDR_NULL == addr) 
+				int j;
+				for(j = 0; j < this->num_members; j ++)
 				{
-					LOG_WARNING("uninitialized field %s in an initialize object @%x", this->class->members[j], addr);
-					continue;
-				}
-				cesk_value_t* value = cesk_store_get_rw(frame->store, addr, 0);
-				if(NULL == value)
-				{
-					LOG_WARNING("can not get writable pointer to store address @%x in store %p", addr, frame->store);
-					continue;
-				}
-				if(CESK_TYPE_SET != value->type)
-				{
-					LOG_WARNING("expecting a set at store address @%x in store %p", addr, frame->store);
-					continue;
-				}
-				_SNAPSHOT(inv_buf, CESK_DIFF_STORE, addr, value);
-				if(cesk_set_push(value->pointer.set, CESK_STORE_ADDR_ZERO) < 0)
-				{
-					LOG_WARNING("can not push default zero to the class");
-					continue;
-				}
-				_SNAPSHOT(diff_buf, CESK_DIFF_STORE, addr, value);
+					uint32_t addr = this->addrtab[j];
+					if(CESK_STORE_ADDR_NULL == addr) 
+					{
+						LOG_WARNING("uninitialized field %s in an initialize object @%x", this->class.udef->members[j], addr);
+						continue;
+					}
+					cesk_value_t* value = cesk_store_get_rw(frame->store, addr, 0);
+					if(NULL == value)
+					{
+						LOG_WARNING("can not get writable pointer to store address @%x in store %p", addr, frame->store);
+						continue;
+					}
+					if(CESK_TYPE_SET != value->type)
+					{
+						LOG_WARNING("expecting a set at store address @%x in store %p", addr, frame->store);
+						continue;
+					}
+					_SNAPSHOT(inv_buf, CESK_DIFF_STORE, addr, value);
+					if(cesk_set_push(value->pointer.set, CESK_STORE_ADDR_ZERO) < 0)
+					{
+						LOG_WARNING("can not push default zero to the class");
+						continue;
+					}
+					_SNAPSHOT(diff_buf, CESK_DIFF_STORE, addr, value);
 
-				cesk_store_release_rw(frame->store, addr);
+					cesk_store_release_rw(frame->store, addr);
+				}
+				/* no default zero for a built-in class */
 			}
 			CESK_OBJECT_STRUCT_ADVANCE(this);
 		}
@@ -756,48 +767,52 @@ uint32_t cesk_frame_store_new_object(
 		int i;
 		for(i = 0; i < object->depth; i ++)
 		{
-			int j;
-			for(j = 0; j < this->num_members; j ++)
+			if(!this->built_in)
 			{
-				uint32_t faddr = cesk_reloc_allocate(
-						reloctab, 
-						frame->store, 
-						inst, 
-						CESK_STORE_ADDR_NULL, 
-						CESK_OBJECT_FIELD_OFS(object, this->valuelist + j));
-				if(CESK_STORE_ADDR_NULL == faddr)
+				int j;
+				for(j = 0; j < this->num_members; j ++)
 				{
-					LOG_ERROR("can not allocate value set for field %s/%s", this->class->path, this->class->members[j]);
-					return -1;
+					uint32_t faddr = cesk_reloc_allocate(
+							reloctab, 
+							frame->store, 
+							inst, 
+							CESK_STORE_ADDR_NULL, 
+							CESK_OBJECT_FIELD_OFS(object, this->addrtab + j));
+					if(CESK_STORE_ADDR_NULL == faddr)
+					{
+						LOG_ERROR("can not allocate value set for field %s/%s", this->class.path->value, this->class.udef->members[j]);
+						return -1;
+					}
+					/* this must be a fresh address, make a new value for it */
+					cesk_value_t* fvalue = cesk_value_empty_set();
+					if(NULL == fvalue)
+					{
+						LOG_ERROR("can not construct init value for a field");
+						return -1;
+					}
+					/* push default zero to it */
+					if(cesk_set_push(fvalue->pointer.set, CESK_STORE_ADDR_ZERO) < 0)
+					{
+						LOG_ERROR("can not push default zero to the set");
+						return -1;
+					}
+					if(cesk_store_attach(frame->store, faddr, fvalue) < 0)
+					{
+						LOG_ERROR("can not attach the new value to store");
+						return -1;
+					}
+					this->addrtab[j] = faddr;
+					if(cesk_store_incref(frame->store, faddr) < 0)
+					{
+						LOG_ERROR("can not maniuplate the reference counter at store address @%x", faddr);
+						return -1;
+					}
+					cesk_store_release_rw(frame->store, faddr);
+					_SNAPSHOT(diff_buf, CESK_DIFF_ALLOC, faddr, fvalue);
+					_SNAPSHOT(inv_buf, CESK_DIFF_DEALLOC, faddr, NULL);
 				}
-				/* this must be a fresh address, make a new value for it */
-				cesk_value_t* fvalue = cesk_value_empty_set();
-				if(NULL == fvalue)
-				{
-					LOG_ERROR("can not construct init value for a field");
-					return -1;
-				}
-				/* push default zero to it */
-				if(cesk_set_push(fvalue->pointer.set, CESK_STORE_ADDR_ZERO) < 0)
-				{
-					LOG_ERROR("can not push default zero to the set");
-					return -1;
-				}
-				if(cesk_store_attach(frame->store, faddr, fvalue) < 0)
-				{
-					LOG_ERROR("can not attach the new value to store");
-					return -1;
-				}
-				this->valuelist[j] = faddr;
-				if(cesk_store_incref(frame->store, faddr) < 0)
-				{
-					LOG_ERROR("can not maniuplate the reference counter at store address @%x", faddr);
-					return -1;
-				}
-				cesk_store_release_rw(frame->store, faddr);
-				_SNAPSHOT(diff_buf, CESK_DIFF_ALLOC, faddr, fvalue);
-				_SNAPSHOT(inv_buf, CESK_DIFF_DEALLOC, faddr, NULL);
 			}
+			/* no need to initialze value for a built-in class */
 			CESK_OBJECT_STRUCT_ADVANCE(this);
 		}
 		/* because the attach function auqire a writable pointer automaticly, 

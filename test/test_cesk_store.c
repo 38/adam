@@ -83,7 +83,7 @@ int main()
 	assert(cesk_alloctab_insert(alloc_tab, store4, oa, CESK_STORE_ADDR_RELOC_PREFIX) == 0);
 	
 	
-	object->members[0].valuelist[0] = CESK_STORE_ADDR_RELOC_PREFIX + 1;   /* setup an relocated address to it */
+	object->members[0].addrtab[0] = CESK_STORE_ADDR_RELOC_PREFIX + 1;   /* setup an relocated address to it */
 	cesk_value_set_reloc(objval);
 
 	assert(cesk_store_attach(store4, oa, objval) == 0);
@@ -107,9 +107,9 @@ int main()
 
 	object = objval->pointer.object;
 	assert(NULL != object);
-	object->members[0].valuelist[0] = CESK_STORE_ADDR_RELOC_PREFIX | 1; // this is the set object
+	object->members[0].addrtab[0] = CESK_STORE_ADDR_RELOC_PREFIX | 1; // this is the set object
 
-	uint32_t oa1 = cesk_store_allocate(store4, ins, CESK_STORE_ADDR_RELOC_PREFIX, CESK_OBJECT_FIELD_OFS(object, object->members[0].valuelist));
+	uint32_t oa1 = cesk_store_allocate(store4, ins, CESK_STORE_ADDR_RELOC_PREFIX, CESK_OBJECT_FIELD_OFS(object, object->members[0].addrtab));
 	uint32_t oa2 = cesk_store_allocate(store4, ins, 0, 12345);
 
 	assert(CESK_STORE_ADDR_NULL != oa1);

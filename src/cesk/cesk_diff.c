@@ -272,15 +272,23 @@ static inline int _cesk_diff_gc(cesk_diff_t* diff, uint8_t* emap)
 						int i;
 						for(i = 0; i < obj->depth; i ++)
 						{
-							int j;
-							for(j = 0; j < this->num_members; j ++)
+							if(this->built_in)
 							{
-								uint32_t maddr = this->valuelist[j];
-								if(CESK_STORE_ADDR_IS_RELOC(maddr))
+								LOG_FATAL("TODO set bit map for a built-in class refernce");
+
+							}
+							else
+							{
+								int j;
+								for(j = 0; j < this->num_members; j ++)
 								{
-									uint32_t midx = CESK_STORE_ADDR_RELOC_IDX(maddr);
-									bitmap[midx/8] |= (1<<(midx%8));
-									LOG_DEBUG("address @%x is safe", maddr);
+									uint32_t maddr = this->addrtab[j];
+									if(CESK_STORE_ADDR_IS_RELOC(maddr))
+									{
+										uint32_t midx = CESK_STORE_ADDR_RELOC_IDX(maddr);
+										bitmap[midx/8] |= (1<<(midx%8));
+										LOG_DEBUG("address @%x is safe", maddr);
+									}
 								}
 							}
 							CESK_OBJECT_STRUCT_ADVANCE(this);

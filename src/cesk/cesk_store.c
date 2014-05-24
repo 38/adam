@@ -65,13 +65,20 @@ static inline int _cesk_store_free_object(cesk_store_t* store, cesk_object_t* ob
 	for(i = 0; i < object->depth; i ++)
 	{
 		int j;
-		for(j = 0; j < this->num_members; j ++)
+		if(!this->built_in)
 		{
-			/* decrease the intra-store refcount */
-			if(cesk_store_decref(store, this->valuelist[j]) < 0)
+			for(j = 0; j < this->num_members; j ++)
 			{
-				LOG_WARNING("can not decref at address %x", this->valuelist[j]);
+				/* decrease the intra-store refcount */
+				if(cesk_store_decref(store, this->addrtab[j]) < 0)
+				{
+					LOG_WARNING("can not decref at address %x", this->addrtab[j]);
+				}
 			}
+		}
+		else
+		{
+			LOG_FATAL("TODO decref all in built-in class");
 		}
 		CESK_OBJECT_STRUCT_ADVANCE(this);
 	}
@@ -260,20 +267,27 @@ static inline int _cesk_store_apply_alloc_tab(cesk_store_t* store, uint32_t base
 				object_base = object->members;
 				for(i = 0; i < object->depth; i ++)
 				{
-					for(j = 0; j < object_base->num_members; j ++)
+					if(object_base->built_in)
 					{
-						from_addr = object_base->valuelist[j];
-						if(CESK_STORE_ADDR_IS_RELOC(from_addr))
+						LOG_FATAL("TODO apply relocation table to a built_in class");
+					}
+					else
+					{
+						for(j = 0; j < object_base->num_members; j ++)
 						{
-							to_addr = cesk_alloctab_query(store->alloc_tab, store ,from_addr);
-							if(CESK_STORE_ADDR_NULL == to_addr)
+							from_addr = object_base->addrtab[j];
+							if(CESK_STORE_ADDR_IS_RELOC(from_addr))
 							{
-								LOG_WARNING("failed to query the allocation table for relocated address @0x%x",
-											to_addr);
-								continue;
+								to_addr = cesk_alloctab_query(store->alloc_tab, store ,from_addr);
+								if(CESK_STORE_ADDR_NULL == to_addr)
+								{
+									LOG_WARNING("failed to query the allocation table for relocated address @0x%x",
+												to_addr);
+									continue;
+								}
+								object_base->addrtab[j] = to_addr;
+								LOG_DEBUG("apply map record @0x%x --> @0x%x", from_addr, to_addr);
 							}
-							object_base->valuelist[j] = to_addr;
-							LOG_DEBUG("apply map record @0x%x --> @0x%x", from_addr, to_addr);
 						}
 					}
 					CESK_OBJECT_STRUCT_ADVANCE(object_base);

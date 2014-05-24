@@ -68,13 +68,14 @@ cesk_object_t* cesk_object_new(const char* classpath)
 				LOG_WARNING("Can not find field %s/%s, skip", classes[i]->path, classes[i]->members[j]);
 				continue;
 			}
-			base->valuelist[field->offset] = CESK_STORE_ADDR_NULL;  
+			base->addrtab[field->offset] = CESK_STORE_ADDR_NULL;  
 			LOG_DEBUG("Create new filed %s/%s for class %s at offset %d", classes[i]->path, 
 																		 classes[i]->members[j], 
 																		 classes[0]->path, 
 																		 field->offset);
 		}
-		base->class = classes[i];
+		base->built_in = 0;
+		base->class.udef = classes[i];
 		base->num_members = j;
 		CESK_OBJECT_STRUCT_ADVANCE(base);
 	}
@@ -95,7 +96,7 @@ uint32_t* cesk_object_get(cesk_object_t* object, const char* classpath, const ch
 	cesk_object_struct_t* this = object->members;
 	for(i = 0; i < object->depth; i ++)
 	{
-		if(this->class->path == classpath) break;
+		if(this->class.path->value == classpath) break;
 		/* move to next object struct */
 		CESK_OBJECT_STRUCT_ADVANCE(this);
 	}
@@ -107,14 +108,21 @@ uint32_t* cesk_object_get(cesk_object_t* object, const char* classpath, const ch
 					cesk_object_classpath(object));
 		return NULL;
 	}
-	
-	dalvik_field_t* field = dalvik_memberdict_get_field(classpath, field_name);
-	if(NULL == field)
+	if(this->built_in)
 	{
-		LOG_WARNING("No field named %s/%s", classpath, field_name);
+		LOG_FATAL("TODO fetch a pointer to the built-in class field");
 		return NULL;
 	}
-	return this->valuelist + field->offset;
+	else
+	{
+		dalvik_field_t* field = dalvik_memberdict_get_field(classpath, field_name);
+		if(NULL == field)
+		{
+			LOG_WARNING("No field named %s/%s", classpath, field_name);
+			return NULL;
+		}
+		return this->addrtab + field->offset;
+	}
 }
 void cesk_object_free(cesk_object_t* object)
 {
@@ -137,7 +145,7 @@ cesk_object_t* cesk_object_fork(const cesk_object_t* object)
 
 hashval_t cesk_object_hashcode(const cesk_object_t* object)
 {
-	hashval_t  hash = ((uintptr_t)object->members[0].class->path) & ~(hashval_t)0;    /* We also consider the type of the object */
+	hashval_t  hash = ((uintptr_t)object->members[0].class.path) & ~(hashval_t)0;    /* We also consider the type of the object */
 	
 	int i;
 	const cesk_object_struct_t* this = object->members;
@@ -145,13 +153,20 @@ hashval_t cesk_object_hashcode(const cesk_object_t* object)
 	for(i = 0; i < object->depth; i ++)
 	{
 		int j;
-		mul ^= (uintptr_t)this->class->path;
-		for(j = 0; j < this->num_members; j ++)
+		mul ^= (uintptr_t)this->class.path;
+		if(this->built_in)
 		{
-			hashval_t k = this->valuelist[j] * mul;
-			mul *= MH_MULTIPLY;
-			hash ^= k;
-			hash = (hash << 16) | (hash >> 16);
+			LOG_FATAL("TODO compute hashcode of built-in instances");
+		}
+		else
+		{
+			for(j = 0; j < this->num_members; j ++)
+			{
+				hashval_t k = this->addrtab[j] * mul;
+				mul *= MH_MULTIPLY;
+				hash ^= k;
+				hash = (hash << 16) | (hash >> 16);
+			}
 		}
 		CESK_OBJECT_STRUCT_ADVANCE(this);
 	}
@@ -166,7 +181,7 @@ hashval_t cesk_object_compute_hashcode(const cesk_object_t* object)
 int cesk_object_equal(const cesk_object_t* first, const cesk_object_t* second)
 {
 	if(NULL == first || NULL == second) return first == second;
-	if(first->members[0].class->path != second->members[0].class->path) return 0;
+	if(first->members[0].class.path != second->members[0].class.path) return 0;
 	const cesk_object_struct_t* this = first->members;
 	const cesk_object_struct_t* that = second->members;
 
@@ -182,23 +197,40 @@ int cesk_object_equal(const cesk_object_t* first, const cesk_object_t* second)
 	for(i = 0; i < first->depth; i ++)
 	{
 		int j;
-		if(this->num_members != that->num_members)
+		if(this->built_in != that->built_in)
 		{
 			LOG_WARNING("two object build from the same class %s has different memory structure", cesk_object_classpath(first));
-			LOG_WARNING("first class has %zu fields for class %s, but the second one has %zu", 
-						this->num_members, 
-						cesk_object_classpath(first),
-						that->num_members);
+			LOG_WARNING("first class is %s class %s, but the second one is %s class %s", 
+							(this->built_in?"built-in":"user defined"), 
+							cesk_object_classpath(first),
+							(that->built_in?"built-in":"user defined"), 
+							cesk_object_classpath(second));
 			return 0;
 		}
-		for(j = 0; j < this->num_members; j ++)
+		if(this->built_in)
 		{
-			uint32_t addr1 = this->valuelist[j];
-			uint32_t addr2 = that->valuelist[j];
-			if(addr1 != addr2) return 0;
+			LOG_FATAL("TODO compare two built-in class");
 		}
-		CESK_OBJECT_STRUCT_ADVANCE(this);
-		CESK_OBJECT_STRUCT_ADVANCE(that);
+		else
+		{
+			if(this->num_members != that->num_members)
+			{
+				LOG_WARNING("two object build from the same class %s has different memory structure", cesk_object_classpath(first));
+				LOG_WARNING("first class has %d fields for class %s, but the second one has %d", 
+							this->num_members, 
+							cesk_object_classpath(first),
+							that->num_members);
+				return 0;
+			}
+			for(j = 0; j < this->num_members; j ++)
+			{
+				uint32_t addr1 = this->addrtab[j];
+				uint32_t addr2 = that->addrtab[j];
+				if(addr1 != addr2) return 0;
+			}
+			CESK_OBJECT_STRUCT_ADVANCE(this);
+			CESK_OBJECT_STRUCT_ADVANCE(that);
+		}
 	}
 	return 1;
 }
@@ -220,18 +252,26 @@ const char* cesk_object_to_string(const cesk_object_t* object, char* buf, size_t
 }while(0)
 	if(brief)
 	{
-		__PR("[class %s]", this->class->path);
+		__PR("[class %s]", this->class.path->value);
 		return buf;
 	}
 	for(i = 0; i < object->depth; i ++)
 	{
-		__PR("[class %s (", this->class->path);
-		int j;
-		for(j = 0; j < this->num_members; j ++)
+		__PR("[class %s (", this->class.path->value);
+		if(this->built_in)
 		{
-			__PR("(%s @%x) ", this->class->members[j] ,this->valuelist[j]);
+			LOG_FATAL("TODO built-in class to string");
+
 		}
-		__PR(")]");
+		else
+		{
+			int j;
+			for(j = 0; j < this->num_members; j ++)
+			{
+				__PR("(%s @%x) ", this->class.udef->members[j] ,this->addrtab[j]);
+			}
+			__PR(")]");
+		}
 		CESK_OBJECT_STRUCT_ADVANCE(this);
 	}
 #undef __PR
@@ -244,10 +284,17 @@ int cesk_object_instance_of(const cesk_object_t* object, const char* classpath)
 	for(i = 0; i < object->depth; i ++)
 	{
 		int j;
-		if(this->class->path == classpath) return 1;
-		for(j = 0; this->class->implements[j] != NULL; j ++)
+		if(this->class.path->value == classpath) return 1;
+		if(this->built_in)
 		{
-			if(classpath == this->class->implements[i]) return 1;
+			LOG_FATAL("TODO if this built-in implements the interface");
+		}
+		else
+		{
+			for(j = 0; this->class.udef->implements[j] != NULL; j ++)
+			{
+				if(classpath == this->class.udef->implements[i]) return 1;
+			}
 		}
 		CESK_OBJECT_STRUCT_ADVANCE(this);
 	}
