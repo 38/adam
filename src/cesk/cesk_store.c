@@ -461,6 +461,11 @@ cesk_value_t* cesk_store_get_rw(cesk_store_t* store, uint32_t addr, int noval)
 		return NULL;
 	}
 	cesk_value_t* val = block->slots[offset].value;
+	if(NULL == value)
+	{
+		LOG_ERROR("the address is not in use (@%x)", addr);
+		return NULL;
+	}
 	if(val->refcnt > 1 && noval == 0)
 	{
 		LOG_DEBUG("this value is refered by other frame block, so fork it first");
