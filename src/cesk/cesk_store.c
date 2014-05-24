@@ -456,6 +456,11 @@ cesk_value_t* cesk_store_get_rw(cesk_store_t* store, uint32_t addr, int noval)
 	if(CESK_STORE_ADDR_NULL == (addr = _cesk_store_make_object_address(store, addr))) return NULL;
 	uint32_t offset    = addr % CESK_STORE_BLOCK_NSLOTS;
 	cesk_store_block_t* block = _cesk_store_getblock_rw(store, addr);
+	if(NULL == block)
+	{
+		LOG_ERROR("failed to get block #%lu", addr/CESK_STORE_BLOCK_NSLOTS);
+		return NULL;
+	}
 	cesk_value_t* val = block->slots[offset].value;
 	if(val->refcnt > 1 && noval == 0)
 	{

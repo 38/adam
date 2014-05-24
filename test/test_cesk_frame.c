@@ -80,7 +80,7 @@ int main()
 	/* verify the size of reg0 */
 	assert(1 == cesk_set_size(frame->regs[0]));
 	/* object-put addr, antlr.CharScanner.literals, reg0 */
-	cesk_frame_store_put_field(frame, addr, 0, superclass, field, dif, inv);
+	cesk_frame_store_put_field(frame, addr, 0, superclass, field, 0, dif, inv);
 	/* verify the hash code */
 	assert(cesk_frame_compute_hashcode(frame) == cesk_frame_hashcode(frame));
 	/* try to get the field */
@@ -97,7 +97,7 @@ int main()
 	/* verify the hash code */
 	assert(cesk_frame_compute_hashcode(frame) == cesk_frame_hashcode(frame));
 	/* object-put addr, antlr.CharScanner.literals, reg2 */
-	assert(0 == cesk_frame_store_put_field(frame, addr, 2, superclass, field, dif, inv));
+	assert(0 == cesk_frame_store_put_field(frame, addr, 2, superclass, field, 0, dif, inv));
 	/* verify the hash code */
 	assert(cesk_frame_compute_hashcode(frame) == cesk_frame_hashcode(frame));
 	/* the value should be overrided , verify it */
@@ -119,7 +119,7 @@ int main()
 	/* verify hashcode */
 	assert(cesk_frame_compute_hashcode(frame) == cesk_frame_hashcode(frame));
 	/* object-put addr, antlr.CharScanner.literals, reg5 */
-	assert(0 == cesk_frame_store_put_field(frame, addr, 5, superclass, field, dif, inv));
+	assert(0 == cesk_frame_store_put_field(frame, addr, 5, superclass, field, 0, dif, inv));
 	/* verify the hash code */
 	assert(cesk_frame_compute_hashcode(frame) == cesk_frame_hashcode(frame));
 	/* verify the refcount */
@@ -144,7 +144,7 @@ int main()
 	assert(1 == cesk_store_get_refcnt(frame->store, addr2));
 	/* put the value to object 1 */
 	/* ((antlr.CharScanner) obj1).literals = reg5 */
-	assert(0 == cesk_frame_store_put_field(frame, addr, 5, superclass, field, dif, inv)); 
+	assert(0 == cesk_frame_store_put_field(frame, addr, 5, superclass, field, 0, dif, inv)); 
 	/* check the hashcode */
 	assert(cesk_frame_hashcode(frame) == cesk_frame_compute_hashcode(frame));
 	/* then try to get the field */
@@ -171,7 +171,7 @@ int main()
 	/* move reg21, addr4 */
 	assert(0 == cesk_frame_register_load(frame, 21, addr4, dif, inv));
 	/* instance-put addr2, antlr.CharScanner.literals ,reg4 */
-	assert(0 == cesk_frame_store_put_field(frame, addr2, 21, superclass, field, dif, inv));
+	assert(0 == cesk_frame_store_put_field(frame, addr2, 21, superclass, field, 0, dif, inv));
 	/* check the hash code*/
 	assert(cesk_frame_hashcode(frame) == cesk_frame_compute_hashcode(frame));
 	/* override the register that contains address of object 2 */
@@ -228,11 +228,11 @@ int main()
 	assert(cesk_frame_hashcode(frame) == cesk_frame_compute_hashcode(frame));
 	/* build a circle */
 	/* 1 --> 2 */
-	assert(0 == cesk_frame_store_put_field(frame, obj1, 2, superclass, field, dif, inv));
+	assert(0 == cesk_frame_store_put_field(frame, obj1, 2, superclass, field, 0, dif, inv));
 	/* 2 --> 3 */                                        
-	assert(0 == cesk_frame_store_put_field(frame, obj2, 3, superclass, field, dif, inv));
+	assert(0 == cesk_frame_store_put_field(frame, obj2, 3, superclass, field, 0, dif, inv));
 	/* 3 --> 1 */                                        
-	assert(0 == cesk_frame_store_put_field(frame, obj3, 1, superclass, field, dif, inv));
+	assert(0 == cesk_frame_store_put_field(frame, obj3, 1, superclass, field, 0, dif, inv));
 	/* verify the hashcode of the store */
 	assert(cesk_frame_hashcode(frame) == cesk_frame_compute_hashcode(frame));
 	/* the refcnt for each object should be 2 */

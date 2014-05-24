@@ -13,6 +13,7 @@
 		(const v1 100)
 		(const v2 200)
 		(cmp-long v3 v1 v2)
+		(new-instance v0 testClass)
 		(iput v3 v0 testClass.value1 int)
 		(iget v4 v0 testClass.value1 int)
 		(return-void)

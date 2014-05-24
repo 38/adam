@@ -193,6 +193,10 @@ static inline int _cesk_block_handler_instance(
 	const char* clspath;
 	const char* fldname;
 	uint32_t ret;
+	const cesk_set_t* set;
+	cesk_set_iter_t it;
+	int keep_old = 0;
+	uint32_t addr;
 	switch(ins->flags)
 	{
 		case DVM_FLAG_INSTANCE_NEW:
@@ -213,16 +217,32 @@ static inline int _cesk_block_handler_instance(
 			fldname = ins->operands[3].payload.string;
 			return cesk_frame_register_load_from_object(frame, dest, sour, clspath, fldname, D, I); 
 		case DVM_FLAG_INSTANCE_PUT:
-			dest = _cesk_block_operand_to_regidx(ins->operands + 0);
-			sour = _cesk_block_operand_to_regidx(ins->operands + 1);
+			dest = _cesk_block_operand_to_regidx(ins->operands + 1);
+			sour = _cesk_block_operand_to_regidx(ins->operands + 0);
 			clspath = ins->operands[2].payload.string;
 			fldname = ins->operands[3].payload.string;
-			return cesk_frame_store_put_field(frame, dest, sour, clspath, fldname, D, I); 
+			set = frame->regs[dest];
+			if(cesk_set_size(set) == 1) keep_old = 0;
+			else keep_old = 1;
+			if(NULL == cesk_set_iter(set, &it))
+			{
+				LOG_ERROR("can not aquire set iterator for register v%d", dest);
+				return -1;
+			}
+			while(CESK_STORE_ADDR_NULL != (addr = cesk_set_iter_next(&it)))
+			{
+				if(cesk_frame_store_put_field(frame, addr, sour, clspath, fldname, keep_old, D, I) < 0)
+				{
+					LOG_ERROR("failed to write filed %s/%s at store address @%x", clspath, fldname, addr);
+					return -1;
+				}
+			}
+			return 0;
 		/* TODO other instance instructions, static things */
 		default:
 			LOG_ERROR("unknwon instruction flag %x", ins->flags);
 	}
-	return 0;
+	return -1;
 }
 /**
  * @brief the instruction handler for unary operation  

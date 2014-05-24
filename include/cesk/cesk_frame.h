@@ -99,7 +99,7 @@ static inline int cesk_frame_set_alloctab(cesk_frame_t* frame, cesk_alloctab_t* 
  * @param frame
  * @param diff
  * @param reloctable the relocation table
- * @return the result of operation <0 indicates error
+ * @return the number of changes has applied,  <0 indicates error
  **/
 int cesk_frame_apply_diff(cesk_frame_t* frame, const cesk_diff_t* diff, const cesk_reloc_table_t* reloctab);
 /**
@@ -223,6 +223,10 @@ uint32_t cesk_frame_store_new_object(
  * @param src_reg  the source register
  * @param clspath the class path
  * @param fldname the field name
+ * @param keep_old_value wether or not we need to keep the old value during the assignemnt.
+ *        This is because if the analyzer just know a set of address that is possiblely the
+ *        destination, in this situation, override the old value will cause lost of possible value,
+ *        so we keep the old value of every involed address
  * @param diff_buf 
  * @param inv_buf
  * @return the result of the operation < 0 indicates an error
@@ -233,6 +237,7 @@ int cesk_frame_store_put_field(
 		uint32_t src_reg,
 		const char* clspath,
 		const char* fldname,
+		int keep_old_vlaue,
 		cesk_diff_buffer_t* diff_buf,
 		cesk_diff_buffer_t* inv_buf);
 

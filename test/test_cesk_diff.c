@@ -127,7 +127,7 @@ int main()
 	/* then we shoud make the frame3 looks like the result of merge of frame1 and frame2 */
 	cesk_diff_t* tmp_diff = cesk_diff_from_buffer(btmp);
 	cesk_diff_buffer_free(btmp);
-	assert(0 == cesk_frame_apply_diff(frame3, tmp_diff, rtab));
+	assert(cesk_frame_apply_diff(frame3, tmp_diff, rtab) >= 0);
 	cesk_diff_free(tmp_diff);
 
 	/* now track changes in frame1 and frame2 */
@@ -146,11 +146,11 @@ int main()
 
 	/* set a field of addr3*/
 	assert(0 == cesk_frame_register_load(frame1, 4, CESK_STORE_ADDR_POS, db1, ib1));
-	assert(0 == cesk_frame_store_put_field(frame1, addr3, 4, superclass, field, db1, ib1));
+	assert(0 == cesk_frame_store_put_field(frame1, addr3, 4, superclass, field, 0 ,db1, ib1));
 
 	/* set a field of addr4*/
 	assert(0 == cesk_frame_register_load(frame2, 4, CESK_STORE_ADDR_NEG, db2, ib2));
-	assert(0 == cesk_frame_store_put_field(frame2 , addr4, 4, superclass, field, db2, ib2));
+	assert(0 == cesk_frame_store_put_field(frame2 , addr4, 4, superclass, field, 0, db2, ib2));
 
 	/* build diff */
 	cesk_diff_t* D1 = cesk_diff_from_buffer(db1);
@@ -177,7 +177,7 @@ int main()
 	cesk_diff_free(I2);
 
 	/* apply this to frame3 */
-	assert(0 == cesk_frame_apply_diff(frame3, D, rtab));
+	assert(cesk_frame_apply_diff(frame3, D, rtab) >= 0);
 
 	cesk_diff_free(D);
 

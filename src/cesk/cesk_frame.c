@@ -295,6 +295,7 @@ static inline int _cesk_frame_init_reg(cesk_frame_t* frame, uint32_t reg)
 }
 int cesk_frame_apply_diff(cesk_frame_t* frame, const cesk_diff_t* diff, const cesk_reloc_table_t* reloctab)
 {
+	int ret = 0;
 	if(NULL == frame || NULL == diff)
 	{
 		LOG_ERROR("invalid argument");
@@ -313,9 +314,17 @@ int cesk_frame_apply_diff(cesk_frame_t* frame, const cesk_diff_t* diff, const ce
 					LOG_DEBUG("allocating object %s at store address @%x", cesk_value_to_string(rec->arg.value, NULL, 0) ,rec->addr);
 					if(cesk_reloc_addr_init(reloctab, frame->store, rec->addr, rec->arg.value) == CESK_STORE_ADDR_NULL)
 						LOG_WARNING("can not initialize relocated address @%x in store %p", rec->addr, frame->store);
+					else
+						ret ++;
 					break;
 				case CESK_DIFF_REUSE:
 					LOG_DEBUG("setting reuse flag at store address @%x to %u", rec->addr, rec->arg.boolean);
+					if(rec->arg.boolean == cesk_store_get_reuse(frame->store, rec->addr)) 
+					{
+						LOG_DEBUG("the value reuse bit is already as excepted, no operation needed");
+						break;
+					}
+					ret ++;
 					if(rec->arg.boolean)
 					{
 						if(cesk_store_set_reuse(frame->store, rec->addr) < 0)
@@ -329,6 +338,12 @@ int cesk_frame_apply_diff(cesk_frame_t* frame, const cesk_diff_t* diff, const ce
 					break;
 				case CESK_DIFF_REG:
 					LOG_DEBUG("setting register #%u to value %s", rec->addr, cesk_set_to_string(rec->arg.set, NULL, 0));
+					if(cesk_set_equal(frame->regs[rec->addr], rec->arg.set))
+					{
+						LOG_DEBUG("the register value is already the target value, no operation needed");
+						break;
+					}
+					ret ++;
 					if(_cesk_frame_free_reg(frame, rec->addr) < 0)
 					{
 						LOG_WARNING("can not clean the old value in the register %d", rec->addr);
@@ -347,6 +362,13 @@ int cesk_frame_apply_diff(cesk_frame_t* frame, const cesk_diff_t* diff, const ce
 					break;
 				case CESK_DIFF_STORE:
 					LOG_DEBUG("setting store address @%x to value %s", rec->addr, cesk_value_to_string(rec->arg.value, NULL, 0));
+					cesk_value_const_t* oldval = cesk_store_get_ro(frame->store, rec->addr);
+					if(NULL != oldval && CESK_TYPE_SET == oldval->type && cesk_set_equal(rec->arg.value->pointer.set, oldval->pointer.set))
+					{
+						LOG_DEBUG("the target value is already there, no nothing to patch");
+						break;
+					}
+					ret ++;
 					if(cesk_store_attach(frame->store, rec->addr, rec->arg.value) < 0)
 					{
 						LOG_WARNING("can not attach value to store address @%x in store %p", rec->addr, frame->store);
@@ -366,12 +388,12 @@ int cesk_frame_apply_diff(cesk_frame_t* frame, const cesk_diff_t* diff, const ce
 					cesk_store_release_rw(frame->store, rec->addr);
 					break;
 				case CESK_DIFF_DEALLOC:
-					LOG_WARNING("no way to apply a deallocation to a store !");
+					LOG_DEBUG("ignore deallocation section");
 					break;
 			}
 		}
 	}
-	return 0;
+	return ret;
 }
 #define _SNAPSHOT(var, type, addr, value) do{\
 	if(NULL != var && cesk_diff_buffer_append(var, type, addr, value) < 0)\
@@ -831,6 +853,7 @@ int cesk_frame_store_put_field(
 		uint32_t src_reg,
 		const char* clspath,
 		const char* fldname,
+		int keep_old_vlaue,
 		cesk_diff_buffer_t* diff_buf,
 		cesk_diff_buffer_t* inv_buf)
 {
@@ -840,7 +863,7 @@ int cesk_frame_store_put_field(
 		return -1;
 	}
 
-	cesk_value_t* value = cesk_store_get_rw(frame->store, dst_addr, 1);
+	cesk_value_t* value = cesk_store_get_rw(frame->store, dst_addr, 0);
 	
 	if(NULL == value)
 	{
@@ -872,7 +895,7 @@ int cesk_frame_store_put_field(
 		return -1;
 	}
 
-	value_set = cesk_store_get_rw(frame->store, *paddr, 1);
+	value_set = cesk_store_get_rw(frame->store, *paddr, 0);
 	if(NULL == value_set)
 	{
 		LOG_ERROR("can not find the value set for field %s/%s", clspath, fldname);
@@ -881,7 +904,7 @@ int cesk_frame_store_put_field(
 
 	_SNAPSHOT(inv_buf, CESK_DIFF_STORE, *paddr, cesk_value_fork(value_set));  /* because we need refcount to be 1 */
 
-	if(cesk_store_get_reuse(frame->store, dst_addr) == 1)
+	if(keep_old_vlaue || cesk_store_get_reuse(frame->store, dst_addr) == 1)
 	{
 		/* this address is used by mutliple objects, so we can not dicard old value */
 		/* get the address of the value set */
