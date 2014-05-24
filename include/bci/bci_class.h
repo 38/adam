@@ -8,16 +8,18 @@
 /** @brief the built-in class */
 typedef struct _bci_class_t bci_class_t;
 /** @brief use for int class comparasion, returns a constant address */
-typedef uint32_t (*bci_class_compare_fn_t)(const cesk_object_t*, const cesk_object_t*);
+typedef uint32_t (*bci_class_compare_fn_t)(const void*, const void*);
 /** @brief the built-in class */
 struct _bci_class_t{
 	const char* path;      /*!< the class path of this built-in class */
 	size_t      size;      /*!< the additional size of a instance */
-	uint32_t    nfields;   /*!< the number of fields */
 	bci_class_compare_fn_t cmp; /*!< the compare function */
-	const char* fields[0]; /*!< the field names */
+	uint32_t   nsfields;   /*!< the number of static fields */
+	const char* sfields[0];   /*!< static field name */
 };
 CONST_ASSERTION_FIRST(bci_class_t, path);
+CONST_ASSERTION_LAST(bci_class_t, sfields);
+CONST_ASSERTION_SIZE(bci_class_t, sfields, 0);
 
 /**
  * @brief init the bci_class.c

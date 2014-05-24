@@ -48,7 +48,7 @@ typedef struct _cesk_store_t cesk_store_t;
  * ------------------------------------------------------------------
  * |                     Object                  |  Reloc   | Const |
  * ------------------------------------------------------------------
- * 00000000										ffff0000    ffffff00 ffffffff
+ * 00000000										ff000000    ffffff00 ffffffff
  */
 
 /* special address that used for constants */
