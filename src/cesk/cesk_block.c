@@ -362,8 +362,8 @@ int cesk_block_analyze(const dalvik_block_t* code, cesk_frame_t* frame, cesk_rel
 	buf->diff = NULL;
 	buf->inverse = NULL;
 	/* prepare the diff buffers */
-	cesk_diff_buffer_t* dbuf; 
-	cesk_diff_buffer_t* ibuf;
+	cesk_diff_buffer_t* dbuf = NULL; 
+	cesk_diff_buffer_t* ibuf = NULL;
 	dbuf = cesk_diff_buffer_new(0);
 	if(NULL == dbuf)
 	{

@@ -801,8 +801,21 @@ cesk_diff_t* cesk_diff_factorize(int N, cesk_diff_t** diffs, const cesk_frame_t*
 			ret->offset[section + 1]++;
 		}
 	}
+#if LOG_LEVEL >= 6
 	static char buf[10000];
+#endif
 	LOG_DEBUG("result : %s", cesk_diff_to_string(ret, buf, 10000));
 	return ret;
 }
 
+cesk_diff_t* cesk_diff_empty()
+{
+	cesk_diff_t* ret = (cesk_diff_t*)malloc(sizeof(cesk_diff_t));
+	if(NULL == ret)
+	{
+		LOG_ERROR("can not allocate memory for an empty diff");
+		return NULL;
+	}
+	memset(ret, 0, sizeof(ret));
+	return ret;
+}

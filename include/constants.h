@@ -42,8 +42,8 @@
 #ifndef DALVIK_BLOCK_MAX_KEYS
 /** brief the maximum size of a key instruction list */
 #   define DALVIK_BLOCK_MAX_KEYS 1024
+#	define CESK_METHOD_MAX_NBLOCKS DALVIK_BLOCK_MAX_KEYS  /* this is actually a renamed constant */
 #endif
-
 
 #ifndef CESK_STORE_BLOCK_SIZE
 /** @brief the size of one block in cesk store */

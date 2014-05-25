@@ -564,7 +564,7 @@ const char* cesk_set_to_string(const cesk_set_t* set, char* buf, int sz)
 	p += pret;\
 }while(0)
 	cesk_set_iter_t iter;
-	if(cesk_set_iter(set, &iter) < 0)
+	if(NULL == cesk_set_iter(set, &iter))
 	{
 		LOG_ERROR("can not aquire interator for the set %d", set->set_idx);
 		return NULL;

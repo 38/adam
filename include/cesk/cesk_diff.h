@@ -131,4 +131,9 @@ cesk_diff_t* cesk_diff_factorize(int N, cesk_diff_t** diffs, const cesk_frame_t*
  * @return the result string, NULL indicates error
  **/
 const char* cesk_diff_to_string(const cesk_diff_t* diff, char* buf, int size);
+/**
+ * @brief create a empty diff package
+ * @return the newly created empty diff, NULL indicates an error
+ */
+cesk_diff_t* cesk_diff_empty();
 #endif

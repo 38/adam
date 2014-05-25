@@ -296,6 +296,15 @@ static inline int _cesk_store_apply_alloc_tab(cesk_store_t* store, uint32_t base
 				LOG_ERROR("invalid value typecode(%d)", value->type);
 				return -1;
 		}
+		/* apply the allocation table to parent address */
+		if(CESK_STORE_ADDR_IS_RELOC(blk->slots[ofs].parent))
+		{
+			uint32_t addr = cesk_alloctab_query(store->alloc_tab, store, blk->slots[ofs].parent);
+			if(CESK_STORE_ADDR_NULL == addr)
+				LOG_ERROR("failed to quiery allocation table for relocated address @%x", blk->slots[ofs].parent);
+			else
+				blk->slots[ofs].parent = addr;
+		}
 		value->reloc = 0;
 		/* release the write pointer */
 		cesk_store_release_rw(store, base_addr + ofs);

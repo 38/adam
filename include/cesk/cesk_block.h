@@ -1,7 +1,7 @@
 /**
  * @brief the Block Analyzer
  **/
-#ifndef __CEKS_BLOCK_H__
+#ifndef __CESK_BLOCK_H__
 #define __CESK_BLOCK_H__
 #include <constants.h>
 #include <const_assertion.h>

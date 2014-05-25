@@ -18,6 +18,7 @@
 #include <cesk/cesk_alloctab.h>
 #include <cesk/cesk_reloc.h>
 #include <cesk/cesk_block.h>
+#include <cesk/cesk_method.h>
 
 /** @brief initialize 
  *  @return < 0 for error
