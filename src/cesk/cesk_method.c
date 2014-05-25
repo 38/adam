@@ -3,10 +3,9 @@
  * @brief node in cache , use [block, frame] as key
  **/
 typedef struct _cesk_method_cache_node_t{
-	const dalvik_block_t* block;  /*!< the code block */
+	const dalvik_block_t* code;  /*!< the code block */
 	cesk_frame_t* frame;          /*!< the stack frame */
 	cesk_diff_t* result;          /*!< the analyze result */
-	int term;                     /*!< if the analyze this node represents terminiated */
 	struct _cesk_method_cache_node_t* next;  /*!< next pointer for the hash table */
 } _cesk_method_cache_node_t;
 /**
@@ -51,28 +50,89 @@ void cesk_method_finalize()
 		}
 	}
 }
-static inline hashval_t _cesk_method_cache_hash(const dalvik_block_t* code, cesk_frame_t* frame)
+/**
+ * @brief the hash code used by the method analyzer cache, the key is the code block and current stack frame
+ * @param code current code block
+ * @param frame current stack frame
+ * @return the hashcode computed from the input key pair
+ **/
+static inline hashval_t _cesk_method_cache_hash(const dalvik_block_t* code, const cesk_frame_t* frame)
 {
-	//TODO
-	return 0;
+	return (((((uintptr_t)code)&(~0L)) * (((uintptr_t)code)&(~0L))) + 
+	       0x35fbc27 * (((uintptr_t)code)>>32)) ^  /* for 32 bit machine, this part is 0 */
+		   cesk_frame_hashcode(frame);
 }
-static inline int _cesk_method_cache_insert(const dalvik_block_t* code, cesk_frame_t* frame, cesk_diff_t* result)
+/**
+ * @brief allocate a new cache node 
+ * @param code current code block
+ * @param frame current stack frame
+ * @return the pointer to the newly created cache node, NULL indicates there's some error
+ **/
+static inline _cesk_method_cache_node_t* _cesk_method_cache_node_new(const dalvik_block_t* code, const cesk_frame_t* frame)
 {
-	//TODO
-	return 0;
+	_cesk_method_cache_node_t* ret = (_cesk_method_cache_node_t*)malloc(sizeof(_cesk_method_cache_node_t));
+	if(NULL == ret) 
+	{
+		LOG_ERROR("can not allocate memory for the cesk method cache node");
+		return NULL;
+	}
+	ret->frame = cesk_frame_fork(frame);
+	ret->code = code;
+	ret->result = NULL;
+	ret->next = NULL;
+	return ret;
+}
+/**
+ * @brief insert a new node into the method analyzer cache
+ * @note in this function we assume that there's no duplicate node in the table. And the caller
+ *       should guareentee this
+ * @param code current code block
+ * @param frame current stack frame
+ * @param return the pointer to the newly inserted node, NULL indicates there's some error
+ **/
+static inline _cesk_method_cache_node_t* _cesk_method_cache_insert(const dalvik_block_t* code, const cesk_frame_t* frame)
+{
+	hashval_t h = _cesk_method_cache_hash(code, frame);
+	_cesk_method_cache_node_t* node = _cesk_method_cache_node_new(code, frame);
+	if(NULL == node)
+	{
+		LOG_ERROR("can not allocate node for method analyzer cache");
+		return NULL;
+	}
+	node->next = _cesk_method_cache[h%CESK_METHOD_CAHCE_SIZE];
+	_cesk_method_cache[h%CESK_METHOD_CAHCE_SIZE] = node;
+	return node;
+}
+/**
+ * @brief find if there's an record in the cache matches the input key
+ * @param code the current code block
+ * @param frame the current stack frame
+ * @return the pointer to the node that matches the input key pair, NULL indicates nothing found
+ **/
+static inline _cesk_method_cache_node_t* _cesk_method_cache_find(const dalvik_block_t* code, const cesk_frame_t* frame)
+{
+	hashval_t h = _cesk_method_cache_hash(code, frame);
+	_cesk_method_cache_node_t* node;
+	for(node = _cesk_method_cache[h%CESK_METHOD_CAHCE_SIZE]; NULL != node; node = node->next)
+	{
+		if(node->code == code && cesk_frame_equal(frame, node->frame))
+		{
+			return node;
+		}
+	}
+	return NULL;
 }
 /**
  * @brief initialize the analyzer
- * @param block the block graph
+ * @param code the block graph
  * @param input_frame the input stack frame
  * @return the result of initialization < 0 indicates an error
  **/
-static inline int _cesk_method_analyze_init(const dalvik_block_t* block, cesk_frame_t* input_frame, cesk_alloctab_t* atab)
+static inline int _cesk_method_analyze_init(const dalvik_block_t* code, cesk_frame_t* input_frame, cesk_alloctab_t* atab)
 {
-	LOG_DEBUG("start analyzing code block graph at %p", block);
-	uint32_t idx = block->index;
+	uint32_t idx = code->index;
 	if(_cesk_method_blocklist[idx].init) return 0;
-	_cesk_method_blocklist[idx].code = block;
+	_cesk_method_blocklist[idx].code = code;
 	
 	if(NULL == (_cesk_method_blocklist[idx].last_intp_inv = cesk_diff_empty()))
 	{
@@ -101,13 +161,13 @@ static inline int _cesk_method_analyze_init(const dalvik_block_t* block, cesk_fr
 	}
 	cesk_frame_set_alloctab(_cesk_method_blocklist[idx].frame, atab);
 
-	LOG_DEBUG("code block #%d is initialized", block->index);
+	LOG_DEBUG("code block #%d is initialized", code->index);
 
 	int i;
-	for(i = 0; i < block->nbranches; i ++)
+	for(i = 0; i < code->nbranches; i ++)
 	{
-		if(block->branches[i].disabled) continue;
-		if(_cesk_method_analyze_init(block->branches[i].block, input_frame, atab) < 0)
+		if(code->branches[i].disabled) continue;
+		if(_cesk_method_analyze_init(code->branches[i].block, input_frame, atab) < 0)
 			return -1;
 	}
 
@@ -115,7 +175,28 @@ static inline int _cesk_method_analyze_init(const dalvik_block_t* block, cesk_fr
 }
 cesk_diff_t* cesk_method_analyze(const dalvik_block_t* code, cesk_frame_t* frame)
 {
-	/* todo cache */
+	LOG_DEBUG("start analyzing code block graph at %p with frame %p (hashcode = %u)", code, frame, cesk_frame_hashcode(frame));
+	/* first we try to find in the cache for this state */
+	_cesk_method_cache_node_t* node = _cesk_method_cache_find(code, frame);
+	if(NULL != node)
+	{
+		LOG_DEBUG("ya, there's an node is actually about this state, there's no need to look at this method");
+		if(NULL == node->result)
+		{
+			LOG_DEBUG("oh? I've ever seen this before, it's a trap. I won't go inside");
+			return cesk_diff_empty();
+		}
+		else
+		{
+			LOG_DEBUG("we found we have previously done that!");
+			return cesk_diff_fork(node->result);
+		}
+	}
+	
+	/* insert current state to the cache, tell others I've ever been here */
+	node = _cesk_method_cache_insert(code, frame);
+
+	/* not found, ok, we analyze it */
 	int i;
 	memset(_cesk_method_blocklist, 0, sizeof(_cesk_method_blocklist));
 

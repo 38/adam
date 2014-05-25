@@ -65,7 +65,8 @@ typedef struct _cesk_diff_rec_t{
  * @note the diff items is sorted so that we can merge it by a signle scan
  **/
 struct _cesk_diff_t{
-	int _index;                         /*!< the index of current element, used for heap manipulation */ 
+	int _index;                         /*!< the index of current element, used for heap manipulation, DO NOT use outsied of the file cesk_diff.c */ 
+	uint32_t refcnt;                    /*!< how many refernces to this diff */
 	int offset[CESK_DIFF_NTYPES + 1];   /*!< the size of each segment */
 	cesk_diff_rec_t data[0];          /*!< the data section */
 };
@@ -136,4 +137,12 @@ const char* cesk_diff_to_string(const cesk_diff_t* diff, char* buf, int size);
  * @return the newly created empty diff, NULL indicates an error
  */
 cesk_diff_t* cesk_diff_empty();
+/**
+ * @brief 'fork' another diff, this actually increase the reference count and return the input back
+ * @note this allows the caller to free the diff, do not cause actually deallocation on those address
+ *       which actually we need to hold in the cache
+ * @param diff the input diff
+ * @param the pointer to the diff
+ */
+cesk_diff_t* cesk_diff_fork();
 #endif

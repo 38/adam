@@ -426,6 +426,7 @@ cesk_diff_t* cesk_diff_from_buffer(cesk_diff_buffer_t* buffer)
 		LOG_ERROR("can not allocate memory for the diff");
 		return NULL;
 	}
+	ret->refcnt = 1;
 	memset(ret->offset, 0, sizeof(ret->offset));
 	ret->_index = 0;
 	/* then we start to scan the buffer, and build our result */
@@ -510,23 +511,26 @@ cesk_diff_t* cesk_diff_from_buffer(cesk_diff_buffer_t* buffer)
 void cesk_diff_free(cesk_diff_t* diff)
 {
 	if(NULL == diff) return;
-	int sec, ofs = 0;
-	for(sec = 0; sec < CESK_DIFF_NTYPES; sec ++)
+	if(0 == (--diff->refcnt))
 	{
-		for(ofs = diff->offset[sec]; ofs < diff->offset[sec + 1]; ofs ++)
+		int sec, ofs = 0;
+		for(sec = 0; sec < CESK_DIFF_NTYPES; sec ++)
 		{
-			switch(sec)
+			for(ofs = diff->offset[sec]; ofs < diff->offset[sec + 1]; ofs ++)
 			{
-				case CESK_DIFF_ALLOC:
-				case CESK_DIFF_STORE:
-					cesk_value_decref(diff->data[ofs].arg.value);
-					break;
-				case CESK_DIFF_REG:
-					cesk_set_free(diff->data[ofs].arg.set);
+				switch(sec)
+				{
+					case CESK_DIFF_ALLOC:
+					case CESK_DIFF_STORE:
+						cesk_value_decref(diff->data[ofs].arg.value);
+						break;
+					case CESK_DIFF_REG:
+						cesk_set_free(diff->data[ofs].arg.set);
+				}
 			}
 		}
+		free(diff);
 	}
-	free(diff);
 }
 /**
  * @brief allocate a memory for the result
@@ -568,6 +572,7 @@ static inline cesk_diff_t* _cesk_diff_allocate_result(int N, cesk_diff_t* args[]
 		return NULL;
 	}
 	memset(ret->offset, 0, sizeof(ret->offset));
+	ret->refcnt = 1;
 	return ret;
 }
 cesk_diff_t* cesk_diff_apply(int N, cesk_diff_t** args)
@@ -810,12 +815,26 @@ cesk_diff_t* cesk_diff_factorize(int N, cesk_diff_t** diffs, const cesk_frame_t*
 
 cesk_diff_t* cesk_diff_empty()
 {
-	cesk_diff_t* ret = (cesk_diff_t*)malloc(sizeof(cesk_diff_t));
+	static cesk_diff_t* ret = NULL;
 	if(NULL == ret)
 	{
-		LOG_ERROR("can not allocate memory for an empty diff");
-		return NULL;
+		ret = (cesk_diff_t*)malloc(sizeof(cesk_diff_t));
+		if(NULL == ret)
+		{
+			LOG_ERROR("can not allocate memory for an empty diff");
+			return NULL;
+		}
+		memset(ret, 0, sizeof(ret));
+		ret->refcnt ++;
 	}
-	memset(ret, 0, sizeof(ret));
+	else 
+		ret->refcnt ++;
 	return ret;
+}
+
+cesk_diff_t* cesk_diff_fork(cesk_diff_t* diff)
+{
+	if(NULL == diff) return NULL;
+	diff->refcnt ++;
+	return diff;
 }
