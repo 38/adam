@@ -108,6 +108,11 @@
 #	define CESK_DIFF_HASH_SIZE 1023
 #endif
 
+#ifndef CESK_METHOD_CAHCE_SIZE
+/** @brief the size of method analyzer */
+#	define CESK_METHOD_CAHCE_SIZE 100007
+#endif
+
 /** @brief the magic number used for Knuth Multiplicative Hash */
 #define MH_MULTIPLY (2654435761ul)
 

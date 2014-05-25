@@ -1,9 +1,25 @@
 #include <cesk/cesk_method.h>
 /**
+ * @brief node in cache , use [block, frame] as key
+ **/
+typedef struct _cesk_method_cache_node_t{
+	const dalvik_block_t* block;  /*!< the code block */
+	cesk_frame_t* frame;          /*!< the stack frame */
+	cesk_diff_t* result;          /*!< the analyze result */
+	int term;                     /*!< if the analyze this node represents terminiated */
+	struct _cesk_method_cache_node_t* next;  /*!< next pointer for the hash table */
+} _cesk_method_cache_node_t;
+/**
+ * @brief the cache 
+ **/
+_cesk_method_cache_node_t* _cesk_method_cache[CESK_METHOD_CAHCE_SIZE];
+
+/**
  * @brief the data structure we used for intermedian data storage
  **/
 typedef struct {
-	int	init;               /*!< is this block initialized? */
+	uint16_t init;               /*!< is this block initialized? */
+	uint16_t inqueue;            /*!< is this block in queue? */ 
 	const dalvik_block_t* code; /*!<the code for this block */
 	uint32_t timestamp;     /*!< when do we analyze this block last time */
 	cesk_diff_t* last_intp_inv;  /*!< the last interpretator diff inversion (from output to input) */
@@ -13,7 +29,38 @@ typedef struct {
 	cesk_frame_t*  frame;        /*!< the result stack frame of this block */
 } _cesk_method_codeblock_t;
 static _cesk_method_codeblock_t _cesk_method_blocklist[CESK_METHOD_MAX_NBLOCKS];
-
+static uint32_t _cesk_method_blockqueue[CESK_METHOD_MAX_NBLOCKS];
+int cesk_method_init()
+{
+	memset(_cesk_method_cache, 0, sizeof(_cesk_method_cache));
+	return 0;
+}
+void cesk_method_finalize()
+{
+	int i;
+	for(i = 0; i < CESK_METHOD_CAHCE_SIZE; i ++)
+	{
+		_cesk_method_cache_node_t* node;
+		for(node = _cesk_method_cache[i]; NULL != node;)
+		{
+			_cesk_method_cache_node_t* current = node;
+			node = node->next;
+			if(current->frame) cesk_frame_free(current->frame);
+			if(current->result) cesk_diff_free(current->result);
+			free(node);
+		}
+	}
+}
+static inline hashval_t _cesk_method_cache_hash(const dalvik_block_t* code, cesk_frame_t* frame)
+{
+	//TODO
+	return 0;
+}
+static inline int _cesk_method_cache_insert(const dalvik_block_t* code, cesk_frame_t* frame, cesk_diff_t* result)
+{
+	//TODO
+	return 0;
+}
 /**
  * @brief initialize the analyzer
  * @param block the block graph
@@ -68,6 +115,7 @@ static inline int _cesk_method_analyze_init(const dalvik_block_t* block, cesk_fr
 }
 cesk_diff_t* cesk_method_analyze(const dalvik_block_t* code, cesk_frame_t* frame)
 {
+	/* todo cache */
 	int i;
 	memset(_cesk_method_blocklist, 0, sizeof(_cesk_method_blocklist));
 
@@ -91,7 +139,12 @@ cesk_diff_t* cesk_method_analyze(const dalvik_block_t* code, cesk_frame_t* frame
 		LOG_ERROR("can not intialize the method analyzer");
 		goto ERR;
 	}
-	//TODO: start analyze
+	int front = 0, rear = 1;
+	_cesk_method_blockqueue[0] = code->index;
+	while(front < rear)
+	{
+		//TODO
+	}
 	return 0;
 ERR:
 	for(i = 0; i < CESK_METHOD_MAX_NBLOCKS; i ++)

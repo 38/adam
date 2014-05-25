@@ -11,7 +11,16 @@
 #include <cesk/cesk_frame.h>
 #include <cesk/cesk_diff.h>
 #include <cesk/cesk_block.h>
-
+/**
+ * @brief initialize the method analyzer
+ * @return result of intialization, < 0 indicates errors
+ **/
+int cesk_method_init();
+/**
+ * @brief finalize the method analyzer
+ * @return nothing
+ **/
+void cesk_method_finalize();
 /**
  * @brief analyze a method 
  * @param code the code block graph of the method
