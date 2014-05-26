@@ -21,7 +21,9 @@ typedef struct _cesk_method_codeblock_t _cesk_method_codeblock_t;
  *        So that we need this struct to store the branch information
  **/
 typedef struct {
-	_cesk_method_codeblock_t* code;  /*!< the code block struct that produces this input */
+	_cesk_method_codeblock_t* code;  /*!< the code block struct that produces this input, if NULL this is a return branch */
+	uint32_t index;                  /*!< the index of the branch in the code block */
+	cesk_frame_t*  frame;            /*!< the result stack frame of this block in this branch*/
 	cesk_diff_t* prv_inversion;      /*!< the previous (second youngest result) inversive diff (from branch output to block input) */
 	cesk_diff_t* cur_diff;           /*!< the current (the youngest result) compute diff (from block input to branch output) */
 	cesk_diff_t* cur_inversion;      /*!< the current (the youngest result) inversive diff (from branch output to block input) */
@@ -35,7 +37,6 @@ struct _cesk_method_codeblock_t{
 	const dalvik_block_t* code;  /*!< the code for this block */
 	uint32_t timestamp;          /*!< when do we analyze this block last time */
 	cesk_diff_t* input_diff;     /*!< the diff from previous input to current input */
-	cesk_frame_t*  frame;        /*!< the result stack frame of this block */
 	uint32_t ninputs;            /*!< number of inputs */
 	uint32_t _idx;               /*!< an index for interal use */
 	_cesk_method_branch_input_t* inputs;  /*!< the input branches */
@@ -43,7 +44,8 @@ struct _cesk_method_codeblock_t{
 };
 static _cesk_method_codeblock_t _cesk_method_blocklist[CESK_METHOD_MAX_NBLOCKS];
 static uint32_t _cesk_method_blockqueue[CESK_METHOD_MAX_NBLOCKS];
-static uint32_t _cesk_method_max_block_idx;
+static uint32_t _cesk_method_block_max_idx;
+static uint32_t _cesk_method_block_max_ninputs;
 int cesk_method_init()
 {
 	memset(_cesk_method_cache, 0, sizeof(_cesk_method_cache));
@@ -140,15 +142,14 @@ static inline _cesk_method_cache_node_t* _cesk_method_cache_find(const dalvik_bl
 /**
  * @brief initialize the block list
  * @param code the block graph
- * @param input_frame the input stack frame
  * @return the result of initialization < 0 indicates an error
  **/
-static inline int _cesk_method_blocklist_init(const dalvik_block_t* code, cesk_frame_t* input_frame, cesk_alloctab_t* atab)
+static inline int _cesk_method_blocklist_init(const dalvik_block_t* code)
 {
 	uint32_t idx = code->index;
 	
-	if(idx > _cesk_method_max_block_idx) 
-		idx = _cesk_method_max_block_idx;
+	if(idx > _cesk_method_block_max_idx) 
+		idx = _cesk_method_block_max_idx;
 
 	if(_cesk_method_blocklist[idx].init) return 0;
 	_cesk_method_blocklist[idx].code = code;
@@ -158,24 +159,25 @@ static inline int _cesk_method_blocklist_init(const dalvik_block_t* code, cesk_f
 		LOG_ERROR("can not allocate initial empty diff package");
 		return -1;
 	}
-	if(NULL == (_cesk_method_blocklist[idx].frame = cesk_frame_fork(input_frame)))
-	{
-		LOG_ERROR("can not fork input frame");
-		return -1;
-	}
-
-	cesk_frame_set_alloctab(_cesk_method_blocklist[idx].frame, atab);
 
 	LOG_DEBUG("code block #%d is initialized", code->index);
 
 	int i;
 	for(i = 0; i < code->nbranches; i ++)
 	{
+		/* for disabled branch, just ignore */
 		if(code->branches[i].disabled) continue;
-		if(_cesk_method_blocklist_init(code->branches[i].block, input_frame, atab) < 0)
+		/* the return branch, the field for next block is not valid */
+		if(0 == code->branches[i].conditional && DALVIK_BLOCK_BRANCH_UNCOND_TYPE_IS_RETURN(code->branches[i]))
+			continue;
+		/* otherwise, DFS it's neigbhour */
+		if(_cesk_method_blocklist_init(code->branches[i].block) < 0)
 			return -1;
 		_cesk_method_blocklist[idx].ninputs ++;
 	}
+	/* update the maximum number of inputs, used when allocating memory */
+	if(_cesk_method_blocklist[idx].ninputs > _cesk_method_block_max_ninputs)
+		_cesk_method_block_max_ninputs = _cesk_method_blocklist[idx].ninputs;
 	/* allocate the index block array */
 	_cesk_method_blocklist[idx].input_index = (uint32_t*)malloc(sizeof(uint32_t) * code->nbranches);
 	if(NULL == _cesk_method_blocklist[idx].input_index)
@@ -187,12 +189,14 @@ static inline int _cesk_method_blocklist_init(const dalvik_block_t* code, cesk_f
 }
 /**
  * @brief initialize the branches 
+ * @param input_frame the input stack frame
+ * @param atab the allocation table
  * @return result of initialization < 0 indocates error 
  **/
-static inline int _cesk_method_branches_init()
+static inline int _cesk_method_branches_init(const cesk_frame_t* frame, cesk_alloctab_t* atab)
 {
 	int i, j;
-	for(i = 0; i <= _cesk_method_max_block_idx; i ++)
+	for(i = 0; i <= _cesk_method_block_max_idx; i ++)
 	{
 		_cesk_method_codeblock_t* block = _cesk_method_blocklist + i;
 		/* skip this is a unintialzed slot*/
@@ -223,10 +227,18 @@ static inline int _cesk_method_branches_init()
 				LOG_ERROR("can not allocate initializal value for the block input struct");
 				return -1;
 			}
+
+			if(NULL == (inputs[j].frame = cesk_frame_fork(frame)))
+			{
+				LOG_ERROR("can not fork input frame");
+				return -1;
+			}
+
+			cesk_frame_set_alloctab(inputs[j].frame, atab);
 		}
 	}
 	/* the second pass, set up the code block info and the input_index array */
-	for(i = 0; i < _cesk_method_max_block_idx; i ++)
+	for(i = 0; i < _cesk_method_block_max_idx; i ++)
 	{
 		_cesk_method_codeblock_t* block = _cesk_method_blocklist + i;
 		if(NULL == block->code) continue;
@@ -237,6 +249,7 @@ static inline int _cesk_method_branches_init()
 			uint32_t target = block->code->branches[j].block->index;
 			uint32_t idx = _cesk_method_blocklist[target]._idx ++;
 			_cesk_method_blocklist[target].inputs[idx].code = block;
+			_cesk_method_blocklist[target].inputs[idx].index = j;
 			block->input_index[j] = idx;
 		}
 	}
@@ -290,29 +303,84 @@ cesk_diff_t* cesk_method_analyze(const dalvik_block_t* code, cesk_frame_t* frame
 	/* now we call the initialization functions */
 
 	memset(_cesk_method_blocklist, 0, sizeof(_cesk_method_blocklist));
-	_cesk_method_max_block_idx = 0;
+	_cesk_method_block_max_idx = 0;
+	_cesk_method_block_max_ninputs = 0;
+	const cesk_frame_t** frame_buf = NULL;
+	cesk_diff_t** diff_buf = NULL;
 
-	if(_cesk_method_blocklist_init(code, frame, atab) < 0)
+	if(_cesk_method_blocklist_init(code) < 0)
 	{
 		LOG_ERROR("can not intialize the block list used by method analyzer");
 		goto ERR;
 	}
-	if(_cesk_method_branches_init() < 0)
+	if(_cesk_method_branches_init(frame, atab) < 0)
 	{
 		LOG_ERROR("can not initialize the branch structs for method analyzer");
 		goto ERR;
 	}
-	int front = 0, rear = 1;
+	/* TODO lazy allocation */
+	if(NULL == (frame_buf = (const cesk_frame_t**)malloc(sizeof(const cesk_frame_t*) * _cesk_method_block_max_ninputs)))
+	{
+		LOG_ERROR("can not allocate frame buffer");
+		goto ERR;
+	}
+	if(NULL == (diff_buf = (cesk_diff_t**)malloc(sizeof(cesk_diff_t*) * _cesk_method_block_max_ninputs)))
+	{
+		LOG_ERROR("can not allocate different buffer");
+		goto ERR;
+	}
+	/* initialize the queue */
+	int front = 0, rear = 1;   /* actually, the index in the queue is the timestamp */
 	_cesk_method_blockqueue[0] = code->index;
+	
+	/* start analyzing */
+	/* TODO: how to determine wether or not the data has been modified */
 	while(front < rear)
 	{
 		int i;
 		/* current block to analyze */
-		int current = _cesk_method_blockqueue[front];
-		/* for each branch */
-		for(i = 0; i < _cesk_method_blocklist[current].code->nbranches; i ++)
+		int current_idx = _cesk_method_blockqueue[front];
+		_cesk_method_codeblock_t* current_blk = _cesk_method_blocklist + current_idx;
+		/* first of all we compute the input */
+		int nterms = 0;
+		for(i = 0; i < current_blk->ninputs; i ++)
 		{
-			const dalvik_block_branch_t* branch = _cesk_method_blocklist[current].code->branches + i;
+			_cesk_method_branch_input_t* input_branch = current_blk->inputs + i;
+			
+			_cesk_method_codeblock_t* input_blk = _cesk_method_blocklist + input_branch->code->code->index;
+
+			/* if this input block has not been modified since the last evaluation of this block, ignore it */
+			if(input_blk->timestamp < current_blk->timestamp) continue;
+			cesk_diff_t* tmp_inputs[3];
+			tmp_inputs[0] = input_branch->prv_inversion;
+			tmp_inputs[1] = input_blk->input_diff;
+			tmp_inputs[2] = input_branch->cur_diff;
+			cesk_diff_t* tmp_diff = cesk_diff_apply(3, tmp_inputs);
+			if(NULL == tmp_diff)
+			{
+				LOG_ERROR("failed to compute the branch difference");
+				goto ERR;
+			}
+			frame_buf[nterms] = input_branch->frame;
+			diff_buf[nterms] = tmp_diff;
+			nterms ++;
+		}
+		cesk_diff_t* input_diff = cesk_diff_factorize(nterms, diff_buf, frame_buf);
+		for(i = 0; i < nterms; i ++)
+			cesk_diff_free(diff_buf[i]);
+		if(NULL == input_diff)
+		{
+			LOG_ERROR("failed to comput the input difference");
+			goto ERR;
+		}
+		cesk_diff_free(current_blk->input_diff);
+		current_blk->input_diff = input_diff;
+		current_blk->timestamp = front;
+
+		/* for each branch */
+		for(i = 0; i < current_blk->code->nbranches; i ++)
+		{
+			const dalvik_block_branch_t* branch = current_blk->code->branches + i;
 			/* if this branch is disabled, ignore it */
 			if(branch->disabled) continue;
 			/* if this is a unconditional branch */
@@ -321,7 +389,34 @@ cesk_diff_t* cesk_method_analyze(const dalvik_block_t* code, cesk_frame_t* frame
 				/* if this is a simple jump */
 				if(DALVIK_BLOCK_BRANCH_UNCOND_TYPE_IS_JUMP(*branch))
 				{
+					uint32_t target = branch->block->index;  /* the target block */
+					_cesk_method_codeblock_t* tblk = _cesk_method_blocklist + target;
+					_cesk_method_branch_input_t* input = tblk->inputs + current_blk->input_index[i];
 
+					cesk_diff_t* tmp_buf[] = {input->cur_inversion, input_diff};
+					cesk_diff_t* D = cesk_diff_apply(2, tmp_buf);   /* this is the diff we used to get the input */
+					if(NULL == D)
+					{
+						LOG_ERROR("can not compute the branch input diff");
+						goto ERR;
+					}
+					/* apply the diff */
+					if(cesk_frame_apply_diff(input->frame, D, rtab) < 0)
+					{
+						LOG_ERROR("can not apply the diff to the buf");
+						goto ERR;
+					}
+					cesk_block_result_t result;
+					if(cesk_block_analyze(current_blk->code, input->frame, rtab, &result) < 0)
+					{
+						LOG_ERROR("can not execute the code block");
+						goto ERR;
+					}
+					cesk_diff_free(input->prv_inversion);
+					cesk_diff_free(input->cur_diff);
+					input->prv_inversion = input->prv_inversion;
+					input->cur_diff = result.diff;
+					input->cur_inversion = result.inverse;
 				}
 				
 				/* TODO if it's a exception branch */
@@ -334,10 +429,13 @@ cesk_diff_t* cesk_method_analyze(const dalvik_block_t* code, cesk_frame_t* frame
 			/* a conditional branch */
 			else 
 			{
-
+				// TODO a conditional branch
 			}
 		}
+		
+		front ++;
 	}
+	/* release the memory */
 	return 0;
 ERR:
 	for(i = 0; i < CESK_METHOD_MAX_NBLOCKS; i ++)
@@ -352,12 +450,14 @@ ERR:
 				if(NULL != input->prv_inversion) cesk_diff_free(input->prv_inversion);
 				if(NULL != input->cur_diff) cesk_diff_free(input->cur_diff);
 				if(NULL != input->cur_inversion) cesk_diff_free(input->cur_inversion);
+				if(NULL != input->frame) cesk_frame_free(input->frame);
 			}
 		}
 		if(NULL != _cesk_method_blocklist[i].input_index) free(_cesk_method_blocklist[i].input_index);
-		if(NULL != _cesk_method_blocklist[i].frame) cesk_frame_free(_cesk_method_blocklist[i].frame);
 	}
 	if(NULL != atab) cesk_alloctab_free(atab);
 	if(NULL != rtab) cesk_reloc_table_free(rtab);
+	if(NULL != frame_buf) free(frame_buf);
+	if(NULL != diff_buf) free(diff_buf);
 	return NULL;
 }
