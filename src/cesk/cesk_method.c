@@ -19,7 +19,7 @@ typedef struct _cesk_method_block_context_t _cesk_method_block_context_t;
  *        So that we need this struct to store the branch information
  **/
 typedef struct {
-	_cesk_method_block_context_t* code;  /*!< the code block struct that produces this input, if NULL this is a return branch */
+	_cesk_method_block_context_t* block;  /*!< the code block struct that produces this input, if NULL this is a return branch */
 	uint32_t index;                  /*!< the index of the branch in the code block */
 	cesk_frame_t*  frame;            /*!< the result stack frame of this block in this branch*/
 	cesk_diff_t* prv_inversion;      /*!< the previous (second youngest result) inversive diff (from branch output to block input) */
@@ -237,7 +237,7 @@ static inline void _cesk_method_context_free(_cesk_method_context_t* context)
  * @param entry the entry point of this method
  * @return the analyzer context
  **/
-static inline _cesk_method_context_t* _cesk_method_context_new(const dalvik_block_t* entry)
+static inline _cesk_method_context_t* _cesk_method_context_new(const dalvik_block_t* entry, const cesk_frame_t* frame)
 {
 	_cesk_method_context_t* ret;
 	_cesk_method_block_max_ninputs = 0;
@@ -281,11 +281,104 @@ static inline _cesk_method_context_t* _cesk_method_context_new(const dalvik_bloc
 		if(NULL == _cesk_method_block_list[i]) continue;
 		ret->blocks[i].code = _cesk_method_block_list[i];
 		ret->blocks[i].input_index = (uint32_t*)malloc(_cesk_method_block_ninputs[i]);
-
-		/* TODO */
+		ret->blocks[i].input_diff = cesk_diff_empty();
+		if(NULL == ret->blocks[i].input_diff)
+		{
+			LOG_ERROR("can not create an empty diff for intial input diff");
+			goto ERR;
+		}
+		if(NULL == ret->blocks[i].input_index)
+		{
+			LOG_ERROR("can not allocate input index array for block #%d", i);
+			goto ERR;
+		}
+		int j;
+		for(j = 0; j < ret->blocks[i].code->nbranches; j ++)
+		{
+			const dalvik_block_branch_t* branch = ret->blocks[i].code->branches + j;
+			if(branch->disabled || 
+			   (0 == branch->conditional && DALVIK_BLOCK_BRANCH_UNCOND_TYPE_IS_RETURN(*branch)))
+				continue;
+			uint32_t t = branch->block->index;
+			/* if the input context array is not initialized */
+			if(NULL == ret->blocks[t].inputs)
+			{
+				size_t inputs_size = sizeof(_cesk_method_block_input_t) * ret->blocks[t].ninputs;
+				ret->blocks[t].ninputs = _cesk_method_block_ninputs[t];
+				ret->blocks[t].inputs = (_cesk_method_block_input_t*)malloc(inputs_size);
+				if(NULL == ret->blocks[t].inputs)
+				{
+					LOG_ERROR("can not allocate input structs for block #%d", i);
+					goto ERR;
+				}
+				memset(ret->blocks[t].inputs, 0, inputs_size);
+			}
+			ret->blocks[t].inputs[0].block = ret->blocks + i;
+			ret->blocks[t].inputs[0].index = j;
+			ret->blocks[t].inputs[0].frame = cesk_frame_fork(frame);
+			if(NULL == ret->blocks[t].inputs[0].frame)
+			{
+				LOG_ERROR("failed to duplicate the input frame");
+				goto ERR;
+			}
+			ret->blocks[t].inputs[0].prv_inversion = cesk_diff_empty();
+			if(NULL == ret->blocks[t].inputs[0].prv_inversion)
+			{
+				goto ERR;
+			}
+			ret->blocks[t].inputs[0].cur_inversion = cesk_diff_empty();
+			if(NULL == ret->blocks[t].inputs[0].cur_inversion)
+			{
+				goto ERR;
+			}
+			ret->blocks[t].inputs[0].cur_diff = cesk_diff_empty();
+			if(NULL == ret->blocks[t].inputs[0].cur_diff)
+			{
+				goto ERR;
+			}
+			ret->blocks[t].inputs ++;
+		}
+	}
+	/* restore the input pointer */
+	for(i = 0; i < _cesk_method_block_max_idx + 1; i ++)
+	{
+		/* skip block that not reachable */
+		if(NULL == _cesk_method_block_list[i]) continue;
+		ret->blocks[i].inputs -= ret->blocks[i].ninputs;
 	}
 	return ret;
 ERR:
 	if(NULL != ret) _cesk_method_context_free(ret);
-	return -1;
+	return NULL;
+}
+
+cesk_diff_t* cesk_method_analyze(const dalvik_block_t* code, cesk_frame_t* frame)
+{
+	LOG_DEBUG("start analyzing code block graph at %p with frame %p (hashcode = %u)", code, frame, cesk_frame_hashcode(frame));
+	/* first we try to find in the cache for this state */
+	_cesk_method_cache_node_t* node = _cesk_method_cache_find(code, frame);
+	if(NULL != node)
+	{
+		LOG_DEBUG("ya, there's an node is actually about this state, there's no need to look at this method");
+		if(NULL == node->result)
+		{
+			LOG_DEBUG("oh? I've ever seen this before, it's a trap. I won't go inside");
+			return cesk_diff_empty();
+		}
+		else
+		{
+			LOG_DEBUG("we found we have previously done that!");
+			return cesk_diff_fork(node->result);
+		}
+	}
+	
+	/* insert current node to the cache, tell others I've ever been here */
+	node = _cesk_method_cache_insert(code, frame);
+	
+	/* start analyzing */
+	cesk_diff_t* result = NULL;
+
+	/* cache the result diff */
+	node->result = result;
+	return result;
 }
