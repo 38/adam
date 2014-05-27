@@ -11,7 +11,7 @@ typedef struct _cesk_method_cache_node_t{
 	struct _cesk_method_cache_node_t* next;  /*!< next pointer for the hash table */
 } _cesk_method_cache_node_t;
 
-typedef struct _cesk_method_codeblock_t _cesk_method_codeblock_t;
+typedef struct _cesk_method_block_context_t _cesk_method_block_context_t;
 /**
  * @brief the branch information, because we consider the value assemption we 
  *        flollows into conditional branch. So although the input and the code
@@ -19,7 +19,7 @@ typedef struct _cesk_method_codeblock_t _cesk_method_codeblock_t;
  *        So that we need this struct to store the branch information
  **/
 typedef struct {
-	_cesk_method_codeblock_t* code;  /*!< the code block struct that produces this input, if NULL this is a return branch */
+	_cesk_method_block_context_t* code;  /*!< the code block struct that produces this input, if NULL this is a return branch */
 	uint32_t index;                  /*!< the index of the branch in the code block */
 	cesk_frame_t*  frame;            /*!< the result stack frame of this block in this branch*/
 	cesk_diff_t* prv_inversion;      /*!< the previous (second youngest result) inversive diff (from branch output to block input) */
@@ -29,7 +29,7 @@ typedef struct {
 /**
  * @brief the data structure we used for intermedian data storage
  **/
-struct _cesk_method_codeblock_t{
+struct _cesk_method_block_context_t{
 	uint16_t init;               /*!< is this block initialized? */
 	uint16_t inqueue;            /*!< is this block in queue? */ 
 	const dalvik_block_t* code;  /*!< the code for this block */
@@ -47,7 +47,7 @@ typedef struct {
 	uint32_t Q[CESK_METHOD_MAX_NBLOCKS]; /*!< the analyzer queue */ 
 	uint32_t front;                      /*!< the earlist timestamp in the queue */
 	uint32_t rear;                       /*!< next fresh timestamp */
-	_cesk_method_codeblock_t blocks[0];  /*!< the block contexts */
+	_cesk_method_block_context_t blocks[0];  /*!< the block contexts */
 } _cesk_method_context_t;
 
 /* static globals */
@@ -190,8 +190,8 @@ static inline int _cesk_method_explore_code(const dalvik_block_t* entry)
 			LOG_DEBUG("ignore the disabled and return branch");
 			continue;
 		}
-		_cesk_method_block_ninputs[entry->block->index] ++;
-		if(NULL != _cesk_method_block_list[entry->index]) continue;
+		_cesk_method_block_ninputs[branch->block->index] ++;
+		if(NULL != _cesk_method_block_list[branch->block->index]) continue;
 		if(_cesk_method_explore_code(branch->block) < 0)
 		{
 			LOG_ERROR("can not explore the code blocks from block #%d", branch->block->index);
@@ -207,12 +207,23 @@ static inline int _cesk_method_explore_code(const dalvik_block_t* entry)
  **/
 static inline _cesk_method_context_t* _cesk_method_analysis_init(const dalvik_block_t* entry)
 {
+	_cesk_method_context_t* ret;
 	_cesk_method_block_max_ninputs = 0;
 	_cesk_method_block_max_idx = ~0L;
+	memset(_cesk_method_block_list, 0, sizeof(_cesk_method_block_list));
+	/* first explore all blocks belongs to this method */
 	if(_cesk_method_explore_code(entry) < 0)
 	{
 		LOG_ERROR("can not explor the code block graph");
 		return NULL;
 	}
-	// TODO
+	/* construct context */
+	ret = (_cesk_method_context_t*)malloc(sizeof(_cesk_method_context_t) + (_cesk_method_block_max_idx + 1) * sizeof(_cesk_method_block_context_t));
+	if(NULL == ret)
+	{
+		LOG_ERROR("can not allocate memory for analyzer context");
+		return NULL;
+	}
+
+	return ret;
 }
