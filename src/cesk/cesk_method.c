@@ -25,19 +25,16 @@ typedef struct {
 	cesk_diff_t* prv_inversion;      /*!< the previous (second youngest result) inversive diff (from branch output to block input) */
 	cesk_diff_t* cur_diff;           /*!< the current (the youngest result) compute diff (from block input to branch output) */
 	cesk_diff_t* cur_inversion;      /*!< the current (the youngest result) inversive diff (from branch output to block input) */
-} _cesk_method_branch_input_t;
+} _cesk_method_block_input_t;
 /**
  * @brief the data structure we used for intermedian data storage
  **/
 struct _cesk_method_block_context_t{
-	uint16_t init;               /*!< is this block initialized? */
-	uint16_t inqueue;            /*!< is this block in queue? */ 
 	const dalvik_block_t* code;  /*!< the code for this block */
 	uint32_t timestamp;          /*!< when do we analyze this block last time */
 	cesk_diff_t* input_diff;     /*!< the diff from previous input to current input */
 	uint32_t ninputs;            /*!< number of inputs */
-	uint32_t _idx;               /*!< an index for interal use */
-	_cesk_method_branch_input_t* inputs;  /*!< the input branches */
+	_cesk_method_block_input_t* inputs;  /*!< the input branches */
 	uint32_t* input_index;      /*!< input_index[k] is the index of struct for the k-th branch blocklist[block.code.index].inputs[block.input_index[k]]*/
 };
 /**
@@ -47,6 +44,9 @@ typedef struct {
 	uint32_t Q[CESK_METHOD_MAX_NBLOCKS]; /*!< the analyzer queue */ 
 	uint32_t front;                      /*!< the earlist timestamp in the queue */
 	uint32_t rear;                       /*!< next fresh timestamp */
+	cesk_reloc_table_t* rtable;          /*!< relocation table*/
+	cesk_alloctab_t*    atable;          /*!< allocation table*/
+	uint32_t nslots;                     /*!< the number of slots */
 	_cesk_method_block_context_t blocks[0];  /*!< the block contexts */
 } _cesk_method_context_t;
 
@@ -201,16 +201,49 @@ static inline int _cesk_method_explore_code(const dalvik_block_t* entry)
 	return 0;
 }
 /**
+ * @brief free a method analyzer context
+ * @param context the context to be freed
+ * @return nothing
+ **/
+static inline void _cesk_method_context_free(_cesk_method_context_t* context)
+{
+	if(NULL == context) return;
+	int b;
+	for(b = 0; b < context->nslots; b ++)
+	{
+		_cesk_method_block_context_t* block = context->blocks + b;
+		if(NULL == block->code) continue;
+		if(NULL != block->input_diff) cesk_diff_free(block->input_diff);
+		if(NULL != block->input_index) free(block->input_index);
+		int i;
+		if(NULL != block->inputs)
+		{
+			for(i = 0; i < block->ninputs; i ++)
+			{
+				if(NULL != block->inputs[i].prv_inversion) cesk_diff_free(block->inputs[i].prv_inversion);
+				if(NULL != block->inputs[i].cur_inversion) cesk_diff_free(block->inputs[i].cur_inversion);
+				if(NULL != block->inputs[i].cur_diff) cesk_diff_free(block->inputs[i].cur_diff);
+				if(NULL != block->inputs[i].frame) cesk_frame_free(block->inputs[i].frame);
+			}
+			free(block->inputs);
+		}
+	}
+	if(NULL != context->rtable) cesk_reloc_table_free(context->rtable);
+	if(NULL != context->atable) cesk_alloctab_free(context->atable);
+	free(context);
+}
+/**
  * @brief initialize the method analyzer
  * @param entry the entry point of this method
  * @return the analyzer context
  **/
-static inline _cesk_method_context_t* _cesk_method_analysis_init(const dalvik_block_t* entry)
+static inline _cesk_method_context_t* _cesk_method_context_new(const dalvik_block_t* entry)
 {
 	_cesk_method_context_t* ret;
 	_cesk_method_block_max_ninputs = 0;
 	_cesk_method_block_max_idx = ~0L;
 	memset(_cesk_method_block_list, 0, sizeof(_cesk_method_block_list));
+	memset(_cesk_method_block_ninputs, 0, sizeof(_cesk_method_block_ninputs));
 	/* first explore all blocks belongs to this method */
 	if(_cesk_method_explore_code(entry) < 0)
 	{
@@ -218,12 +251,41 @@ static inline _cesk_method_context_t* _cesk_method_analysis_init(const dalvik_bl
 		return NULL;
 	}
 	/* construct context */
-	ret = (_cesk_method_context_t*)malloc(sizeof(_cesk_method_context_t) + (_cesk_method_block_max_idx + 1) * sizeof(_cesk_method_block_context_t));
+	size_t context_size = sizeof(_cesk_method_context_t) + (_cesk_method_block_max_idx + 1) * sizeof(_cesk_method_block_context_t);
+	ret = (_cesk_method_context_t*)malloc(context_size);
 	if(NULL == ret)
 	{
 		LOG_ERROR("can not allocate memory for analyzer context");
 		return NULL;
 	}
+	memset(ret, 0, context_size);
+	ret->nslots = _cesk_method_block_max_idx + 1;
+	/* create allocation table and relocation table */
+	ret->rtable = cesk_reloc_table_new();
+	if(NULL == ret->rtable)
+	{
+		LOG_ERROR("can not create new relocation table");
+		goto ERR;
+	}
+	ret->atable = cesk_alloctab_new();
+	if(NULL == ret->atable)
+	{
+		LOG_ERROR("can not create new allocation table");
+		goto ERR;
+	}
+	/* initialize all context for every blocks */
+	int i;
+	for(i = 0; i < _cesk_method_block_max_idx + 1; i ++)
+	{
+		/* skip block that not reachable */
+		if(NULL == _cesk_method_block_list[i]) continue;
+		ret->blocks[i].code = _cesk_method_block_list[i];
+		ret->blocks[i].input_index = (uint32_t*)malloc(_cesk_method_block_ninputs[i]);
 
+		/* TODO */
+	}
 	return ret;
+ERR:
+	if(NULL != ret) _cesk_method_context_free(ret);
+	return -1;
 }
