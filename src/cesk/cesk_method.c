@@ -494,6 +494,7 @@ cesk_diff_t* cesk_method_analyze(const dalvik_block_t* code, cesk_frame_t* frame
 			/* first of all, apply the branch info to the frame */
 			cesk_diff_t *b_diff = NULL;
 			cesk_diff_t *b_inv  = NULL;
+			/* TODO: check for the fix point */
 			if(_cesk_method_get_branch_input(blkctx, input_ctx, &b_diff, &b_inv) < 0)
 			{
 				LOG_ERROR("can not compute the branch diff");
@@ -522,10 +523,36 @@ cesk_diff_t* cesk_method_analyze(const dalvik_block_t* code, cesk_frame_t* frame
 			cesk_block_result_t res;
 			if(cesk_block_analyze(blkctx->code, input_ctx->frame, context->rtable, &res) < 0)
 			{
-				//TODO	
+				LOG_ERROR("failed to analyze the block #%d with frame hash = 0x%x",  blkctx->code->index, cesk_frame_hashcode(input_ctx->frame));
+				goto ERR;
+			}
+			/* compute new diff */
+			cesk_diff_free(input_ctx->prv_inversion);
+			cesk_diff_free(input_ctx->cur_diff);
+			input_ctx->prv_inversion = input_ctx->cur_inversion;
+			cesk_diff_t* buf[] = {b_diff, res.diff};
+			cesk_diff_t* ibuf[] = {res.inverse, b_inv};
+			input_ctx->cur_diff = cesk_diff_apply(2, buf);
+			if(NULL == input_ctx->cur_diff)
+			{
+				LOG_ERROR("failed to compute new diff");
+				goto ERR;
+			}
+			input_ctx->cur_inversion = cesk_diff_apply(2, ibuf);
+			if(NULL == input_ctx->cur_inversion)
+			{
+				LOG_ERROR("failed to compute the inversion");
+				goto ERR;
+			}
+			/* finally, update the queue and timestamp */
+			uint32_t target_ts = input_ctx->block->timestamp;
+			input_ctx->block->timestamp = context->rear;
+			if(target_ts <= context->front)
+			{
+				context->Q[context->rear%CESK_METHOD_MAX_NBLOCKS] = input_ctx->block->code->index;
+				context->rear ++;
 			}
 		}
-
 	}
 	/* cache the result diff */
 	node->result = result;
