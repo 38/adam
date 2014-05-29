@@ -107,7 +107,7 @@ void cesk_method_finalize()
  **/
 static inline hashval_t _cesk_method_cache_hash(const dalvik_block_t* code, const cesk_frame_t* frame)
 {
-	return (((((uintptr_t)code)&(~0L)) * (((uintptr_t)code)&(~0L))) + 
+	return (((((uintptr_t)code)&0xffffffffu) * (((uintptr_t)code)&0xffffffffu)) + 
 	       0x35fbc27 * (((uintptr_t)code)>>32)) ^  /* for 32 bit machine, this part is 0 */
 		   cesk_frame_hashcode(frame);
 }
@@ -163,12 +163,8 @@ static inline _cesk_method_cache_node_t* _cesk_method_cache_find(const dalvik_bl
 	hashval_t h = _cesk_method_cache_hash(code, frame);
 	_cesk_method_cache_node_t* node;
 	for(node = _cesk_method_cache[h%CESK_METHOD_CAHCE_SIZE]; NULL != node; node = node->next)
-	{
 		if(node->code == code && cesk_frame_equal(frame, node->frame))
-		{
 			return node;
-		}
-	}
 	return NULL;
 }
 
@@ -183,17 +179,14 @@ static inline int _cesk_method_explore_code(const dalvik_block_t* entry)
 	if(NULL == entry) return 0;
 	LOG_DEBUG("found block #%d", entry->index);
 	_cesk_method_block_list[entry->index] = entry;
-	if(_cesk_method_block_max_idx < entry->index || _cesk_method_block_max_idx == (~0L))
+	if(_cesk_method_block_max_idx < entry->index || _cesk_method_block_max_idx == 0xffffffffu)
 		_cesk_method_block_max_idx = entry->index;
 	int i;
 	for(i = 0; i < entry->nbranches; i ++)
 	{
 		const dalvik_block_branch_t* branch = entry->branches + i;
 		if(branch->disabled || (0 == branch->conditional && DALVIK_BLOCK_BRANCH_UNCOND_TYPE_IS_RETURN(*branch)))
-		{
-			LOG_DEBUG("ignore the disabled and return branch");
 			continue;
-		}
 		_cesk_method_block_ninputs[branch->block->index] ++;
 		if(NULL != _cesk_method_block_list[branch->block->index]) continue;
 		if(_cesk_method_explore_code(branch->block) < 0)
@@ -245,7 +238,7 @@ static inline _cesk_method_context_t* _cesk_method_context_new(const dalvik_bloc
 {
 	_cesk_method_context_t* ret;
 	_cesk_method_block_max_ninputs = 0;
-	_cesk_method_block_max_idx = ~0L;
+	_cesk_method_block_max_idx = 0xfffffffful;
 	memset(_cesk_method_block_list, 0, sizeof(_cesk_method_block_list));
 	memset(_cesk_method_block_ninputs, 0, sizeof(_cesk_method_block_ninputs));
 	memset(_cesk_method_block_inputs_used, 0, sizeof(_cesk_method_block_inputs_used));
@@ -282,7 +275,7 @@ static inline _cesk_method_context_t* _cesk_method_context_new(const dalvik_bloc
 	int i;
 	for(i = 0; i < _cesk_method_block_max_idx + 1; i ++)
 	{
-		/* skip block that not reachable */
+		/* skip block not reachable */
 		if(NULL == _cesk_method_block_list[i]) continue;
 		ret->blocks[i].code = _cesk_method_block_list[i];
 		ret->blocks[i].input_index = (uint32_t*)malloc(ret->blocks[i].code->nbranches * sizeof(uint32_t));
@@ -305,12 +298,14 @@ static inline _cesk_method_context_t* _cesk_method_context_new(const dalvik_bloc
 			if(branch->disabled || 
 			   (0 == branch->conditional && DALVIK_BLOCK_BRANCH_UNCOND_TYPE_IS_RETURN(*branch)))
 				continue;
+			/* the target index */
 			uint32_t t = branch->block->index;
-			/* if the input context array is not initialized */
+			/* if the input context array is not initialized, allocate it */
 			if(NULL == ret->blocks[t].inputs)
 			{
-				size_t inputs_size = sizeof(_cesk_method_block_input_t) * ret->blocks[t].ninputs;
+				size_t inputs_size;
 				ret->blocks[t].ninputs = _cesk_method_block_ninputs[t];
+				inputs_size = sizeof(_cesk_method_block_input_t) * ret->blocks[t].ninputs;
 				ret->blocks[t].inputs = (_cesk_method_block_input_t*)malloc(inputs_size);
 				if(NULL == ret->blocks[t].inputs)
 				{
@@ -319,6 +314,7 @@ static inline _cesk_method_context_t* _cesk_method_context_new(const dalvik_bloc
 				}
 				memset(ret->blocks[t].inputs, 0, inputs_size);
 			}
+			/* append this branch to the list */
 			ret->blocks[t].inputs[0].block = ret->blocks + i;
 			ret->blocks[t].inputs[0].index = j;
 			ret->blocks[t].inputs[0].frame = cesk_frame_fork(frame);
@@ -349,7 +345,6 @@ static inline _cesk_method_context_t* _cesk_method_context_new(const dalvik_bloc
 	/* restore the input pointer */
 	for(i = 0; i < _cesk_method_block_max_idx + 1; i ++)
 	{
-		/* skip block that not reachable */
 		if(NULL == _cesk_method_block_list[i]) continue;
 		ret->blocks[i].inputs -= ret->blocks[i].ninputs;
 	}
@@ -384,6 +379,14 @@ static inline int _cesk_method_compute_next_input(_cesk_method_context_t* ctx, _
 		if(blkctx->timestamp > sourctx->timestamp)
 		{
 			LOG_DEBUG("this block uses the input from block #%d, but there's no modification on the block, so skipping", sourctx->code->index);
+			term_frame[nways] = input->frame;
+			term_diff[nways] = cesk_diff_empty();
+			if(NULL == term_diff[nways])
+			{
+				LOG_ERROR("can not allocate a new indentity diff");
+				goto ERR;
+			}
+			nways ++;
 			continue;
 		}
 		/* so this is the input that has been modified since last intepration of current block, we need to compute the output diff for that */
@@ -500,12 +503,11 @@ cesk_diff_t* cesk_method_analyze(const dalvik_block_t* code, cesk_frame_t* frame
 				LOG_ERROR("can not compute the branch diff");
 				goto ERR;
 			}
-			/* then compute the actual diff to generate a correct input frame, so that we can call the block analyzer */
-			/* ((current_output * current_inversion) * input_diff) * branch_diff ==> 
+			/* then compute the actual diff to generate a correct input frame, so that we can call the block analyzer 
+			 * ((current_output * current_inversion) * input_diff) * branch_diff ==> 
 			 * (current_input * input_diff) * branch_diff ==>
 			 * next_input * branch_diff ==>
-			 * branch_input
-			 * */
+			 * branch_input */
 			cesk_diff_t* diffbuf[] = {input_ctx->cur_inversion, blkctx->input_diff, b_diff};
 			cesk_diff_t* branch_diff = cesk_diff_apply(3, diffbuf);
 			if(NULL == branch_diff)

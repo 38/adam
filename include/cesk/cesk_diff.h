@@ -145,4 +145,7 @@ cesk_diff_t* cesk_diff_empty();
  * @param the pointer to the diff
  */
 cesk_diff_t* cesk_diff_fork();
+
+
+//TODO is the diff actually do nothing ?
 #endif
