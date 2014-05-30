@@ -142,10 +142,15 @@ cesk_diff_t* cesk_diff_empty();
  * @note this allows the caller to free the diff, do not cause actually deallocation on those address
  *       which actually we need to hold in the cache
  * @param diff the input diff
- * @param the pointer to the diff
+ * @return the pointer to the diff
  */
-cesk_diff_t* cesk_diff_fork();
+cesk_diff_t* cesk_diff_fork(cesk_diff_t* diff);
 
-
-//TODO is the diff actually do nothing ?
+/** 
+ * @brief check if the diff-inv pair is identity
+ * @param diff 
+ * @param inv
+ * @return 1 if the pair is identity, the diff actually does nothing to the target frame
+ */
+int cesk_diff_identity(const cesk_diff_t* diff, const cesk_diff_t* inv);
 #endif

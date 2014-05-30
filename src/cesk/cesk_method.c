@@ -19,9 +19,9 @@ typedef struct _cesk_method_block_context_t _cesk_method_block_context_t;
  *        So that we need this struct to store the branch information
  **/
 typedef struct {
-	_cesk_method_block_context_t* block;  /*!< the code block struct that produces this input, if NULL this is a return branch */
 	uint32_t index;                  /*!< the index of the branch in the code block */
-	cesk_frame_t*  frame;            /*!< the result stack frame of this block in this branch*/
+	_cesk_method_block_context_t* block;  /*!< the code block struct that produces this input, if NULL this is a return branch */
+	cesk_frame_t* frame;             /*!< the result stack frame of this block in this branch*/
 	cesk_diff_t* prv_inversion;      /*!< the previous (second youngest result) inversive diff (from branch output to block input) */
 	cesk_diff_t* cur_diff;           /*!< the current (the youngest result) compute diff (from block input to branch output) */
 	cesk_diff_t* cur_inversion;      /*!< the current (the youngest result) inversive diff (from branch output to block input) */
@@ -137,7 +137,7 @@ static inline _cesk_method_cache_node_t* _cesk_method_cache_node_new(const dalvi
  *       should guareentee this
  * @param code current code block
  * @param frame current stack frame
- * @param return the pointer to the newly inserted node, NULL indicates there's some error
+ * @return the pointer to the newly inserted node, NULL indicates there's some error
  **/
 static inline _cesk_method_cache_node_t* _cesk_method_cache_insert(const dalvik_block_t* code, const cesk_frame_t* frame)
 {
@@ -175,7 +175,7 @@ static inline _cesk_method_cache_node_t* _cesk_method_cache_find(const dalvik_bl
  * @return < 0 indicates an error
  **/
 static inline int _cesk_method_explore_code(const dalvik_block_t* entry)
-{
+{  
 	if(NULL == entry) return 0;
 	LOG_DEBUG("found block #%d", entry->index);
 	_cesk_method_block_list[entry->index] = entry;
@@ -232,6 +232,7 @@ static inline void _cesk_method_context_free(_cesk_method_context_t* context)
 /**
  * @brief initialize the method analyzer
  * @param entry the entry point of this method
+ * @param frame the stack frame
  * @return the analyzer context
  **/
 static inline _cesk_method_context_t* _cesk_method_context_new(const dalvik_block_t* entry, const cesk_frame_t* frame)
@@ -314,7 +315,7 @@ static inline _cesk_method_context_t* _cesk_method_context_new(const dalvik_bloc
 				}
 				memset(ret->blocks[t].inputs, 0, inputs_size);
 			}
-			/* append this branch to the list */
+			/* append this branch to the input table */
 			ret->blocks[t].inputs[0].block = ret->blocks + i;
 			ret->blocks[t].inputs[0].index = j;
 			ret->blocks[t].inputs[0].frame = cesk_frame_fork(frame);
@@ -357,7 +358,7 @@ ERR:
 }
 /**
  * @brief compute the next input for this branch, update the input context and apply the diff to frame
- * @detials this function will merge the content of input frame
+ * @details this function will merge the content of input frame
  * @param ctx the current context
  * @param blkctx the current block context
  * @return < 0 error
@@ -450,15 +451,15 @@ cesk_diff_t* cesk_method_analyze(const dalvik_block_t* code, cesk_frame_t* frame
 	_cesk_method_cache_node_t* node = _cesk_method_cache_find(code, frame);
 	if(NULL != node)
 	{
-		LOG_DEBUG("ya, there's an node is actually about this state, there's no need to look at this method");
+		LOG_DEBUG("ya, there's an node is actually about this invocation context, there's no need to look at this method");
 		if(NULL == node->result)
 		{
-			LOG_DEBUG("oh? I've ever seen this before, it's a trap. I won't go inside");
+			LOG_DEBUG("oh? This context won't return, it's a trap. I don't wanna go inside it");
 			return cesk_diff_empty();
 		}
 		else
 		{
-			LOG_DEBUG("we found we have previously done that!");
+			LOG_DEBUG("I find I did previous work on this invocation context!");
 			return cesk_diff_fork(node->result);
 		}
 	}
@@ -529,19 +530,16 @@ cesk_diff_t* cesk_method_analyze(const dalvik_block_t* code, cesk_frame_t* frame
 				goto ERR;
 			}
 			/* compute new diff */
-			cesk_diff_free(input_ctx->prv_inversion);
-			cesk_diff_free(input_ctx->cur_diff);
-			input_ctx->prv_inversion = input_ctx->cur_inversion;
 			cesk_diff_t* buf[] = {b_diff, res.diff};
 			cesk_diff_t* ibuf[] = {res.inverse, b_inv};
-			input_ctx->cur_diff = cesk_diff_apply(2, buf);
-			if(NULL == input_ctx->cur_diff)
+			cesk_diff_t* cur_diff = cesk_diff_apply(2, buf);
+			if(NULL == cur_diff)
 			{
 				LOG_ERROR("failed to compute new diff");
 				goto ERR;
 			}
-			input_ctx->cur_inversion = cesk_diff_apply(2, ibuf);
-			if(NULL == input_ctx->cur_inversion)
+			cesk_diff_t* cur_inversion = cesk_diff_apply(2, ibuf);
+			if(NULL == cur_inversion)
 			{
 				LOG_ERROR("failed to compute the inversion");
 				goto ERR;
@@ -549,8 +547,13 @@ cesk_diff_t* cesk_method_analyze(const dalvik_block_t* code, cesk_frame_t* frame
 			/* finally, update the queue and timestamp */
 			uint32_t target_ts = input_ctx->block->timestamp;
 			input_ctx->block->timestamp = context->rear;
-			if(target_ts <= context->front)
+			if(!cesk_diff_identity(cur_diff, cur_inversion) && target_ts <= context->front)
 			{
+				cesk_diff_free(input_ctx->prv_inversion);
+				cesk_diff_free(input_ctx->cur_diff);
+				input_ctx->prv_inversion = input_ctx->cur_inversion;
+				input_ctx->cur_diff = cur_diff;
+				input_ctx->cur_inversion = cur_inversion;
 				context->Q[context->rear%CESK_METHOD_MAX_NBLOCKS] = input_ctx->block->code->index;
 				context->rear ++;
 			}

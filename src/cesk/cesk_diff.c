@@ -838,3 +838,42 @@ cesk_diff_t* cesk_diff_fork(cesk_diff_t* diff)
 	diff->refcnt ++;
 	return diff;
 }
+int cesk_diff_identity(const cesk_diff_t* diff, const cesk_diff_t* inv)
+{
+	if(NULL == diff || NULL == inv) return 1; 
+	int i, j;
+	/* verify CESK_DIFF_REUSE section */
+	if(diff->offset[CESK_DIFF_REUSE + 1] - diff->offset[CESK_DIFF_REUSE] != inv->offset[CESK_DIFF_REUSE + 1] - inv->offset[CESK_DIFF_REUSE])
+		return 0;
+	for(i = diff->offset[CESK_DIFF_REUSE], j = inv->offset[CESK_DIFF_REUSE]; 
+	    i < diff->offset[CESK_DIFF_REUSE + 1] && j < inv->offset[CESK_DIFF_REUSE + 1]; 
+	    i ++, j ++)
+		if(diff->data[i].addr != inv->data[j].addr || diff->data[i].arg.boolean != diff->data[j].arg.boolean)
+			return 0;
+	/* verify CESK_DIFF_STORE section */
+	if(diff->offset[CESK_DIFF_STORE + 1] - diff->offset[CESK_DIFF_STORE] != inv->offset[CESK_DIFF_STORE + 1] - inv->offset[CESK_DIFF_STORE])
+		return 0;
+	for(i = diff->offset[CESK_DIFF_STORE], j = inv->offset[CESK_DIFF_STORE];
+	    i < diff->offset[CESK_DIFF_STORE + 1] && j < inv->offset[CESK_DIFF_STORE + 1];
+		i ++, j ++)
+		if(diff->data[i].addr != inv->data[j].addr || 0 == cesk_set_equal(diff->data[i].arg.set, inv->data[j].arg.set))
+			return 0;
+	/* verify CESK_DIFF_REG section */
+	if(diff->offset[CESK_DIFF_REG + 1] - diff->offset[CESK_DIFF_REG] != inv->offset[CESK_DIFF_REG + 1] - inv->offset[CESK_DIFF_REG])
+		return 0;
+	for(i = diff->offset[CESK_DIFF_REG], j = inv->offset[CESK_DIFF_REG];
+	    i < diff->offset[CESK_DIFF_REG + 1] && j < inv->offset[CESK_DIFF_REG + 1];
+		i ++, j ++)
+		if(diff->data[i].addr != inv->data[j].addr || 0 == cesk_set_equal(diff->data[i].arg.set, inv->data[j].arg.set))
+			return 0;
+	/* verify CESK_DIFF_ALLOC and CESK_DIFF_DEALLOC, all allocation should be canceled by  */
+	j = inv->offset[CESK_DIFF_DEALLOC];
+	for(i = diff->offset[CESK_DIFF_ALLOC]; i < diff->offset[CESK_DIFF_ALLOC + 1] && j < inv->offset[CESK_DIFF_DEALLOC + 1]; i ++)
+	{
+		for(;j < inv->offset[CESK_DIFF_DEALLOC + 1]; j ++)
+			if(diff->data[i].addr == diff->data[j].addr)
+				break;
+	}
+	if(i != diff->offset[CESK_DIFF_DEALLOC + 1]) return 0;
+	return 1;
+}
