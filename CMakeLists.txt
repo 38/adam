@@ -7,8 +7,10 @@ check_type_size("void*" SIZE_OF_PTR)
 
 if(SIZE_OF_PTR EQUAL 8)
     set(PTR_T uint64_t)
+    set(WIDTH 64)
 elseif(SIZE_OF_PTR EQUAL 4)
     set(PTR_T uint32_t)
+    set(WIDTH 32)
 endif(SIZE_OF_PTR EQUAL 8)
 
 set(CMAKE_USE_RELATIVE_PATHS ON)

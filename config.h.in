@@ -2,4 +2,5 @@
 #define __CONFIG_H__
 #include <stdint.h>
 typedef @PTR_T@ uintptr_t;
+#define PTRWIDTH @WIDTH@
 #endif

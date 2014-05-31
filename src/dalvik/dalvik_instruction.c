@@ -150,7 +150,12 @@ static inline int _dalvik_instruction_write_annotation(dalvik_instruction_t* ins
  * @param flag the flag of this operand, see definition of dalvik_operand_t for details
  * @param value the value of the operand
  **/
-#define __DI_SETUP_OPERAND(id, flag, value) do{_dalvik_instruction_operand_setup(buf->operands + (id), (flag), (uint64_t)(value));}while(0)
+#   define __DI_SETUP_OPERAND(id, flag, value) do{_dalvik_instruction_operand_setup(buf->operands + (id), (flag), (uint64_t)(value));}while(0)
+#if PTRWIDTH == 32
+#   define __DI_SETUP_OPERANDPTR(id, flag, value) do{_dalvik_instruction_operand_setup(buf->operands + (id), (flag), (uint32_t)(value));}while(0)
+#else
+#   define __DI_SETUP_OPERANDPTR __DI_SETUP_OPERAND
+#endif
 /**
  * @brief write an annotation to the buffer
  * @param what what to write to the instruction
@@ -353,7 +358,7 @@ __DI_CONSTRUCTOR(CONST)
 	   if(sexp_match(next, "(L?S?", &dest, &sour))
 	   {
 		   __DI_SETUP_OPERAND(0, DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_STRING), __DI_REGNUM(dest));
-		   __DI_SETUP_OPERAND(1, DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_STRING) | DVM_OPERAND_FLAG_CONST, sour);
+		   __DI_SETUP_OPERANDPTR(1, DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_STRING) | DVM_OPERAND_FLAG_CONST, sour);
 	   }
 	   else
 	   {
@@ -366,7 +371,7 @@ __DI_CONSTRUCTOR(CONST)
 		if(sexp_match(next, "(L?A", &dest, &next))
 		{
 		   __DI_SETUP_OPERAND(0, DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_OBJECT), __DI_REGNUM(dest));
-		   __DI_SETUP_OPERAND(1, DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_CLASS) | DVM_OPERAND_FLAG_CONST, sexp_get_object_path(next, NULL));
+		   __DI_SETUP_OPERANDPTR(1, DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_CLASS) | DVM_OPERAND_FLAG_CONST, sexp_get_object_path(next, NULL));
 		}
 		else 
 		{
@@ -431,7 +436,7 @@ __DI_CONSTRUCTOR(CHECK)
 		if(sexp_match(next, "(L?A", &sour, &next))
 		{
 			__DI_SETUP_OPERAND(0, DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_OBJECT), __DI_REGNUM(sour));
-			__DI_SETUP_OPERAND(1, DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_CLASS) |
+			__DI_SETUP_OPERANDPTR(1, DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_CLASS) |
 								  DVM_OPERAND_FLAG_CONST , 
 								  sexp_get_object_path(next, NULL));
 		}
@@ -496,7 +501,7 @@ __DI_CONSTRUCTOR(PACKED)
 		__DI_SETUP_OPERAND(1, DVM_OPERAND_FLAG_CONST |
 							  DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_INT),
 							  __DI_INSNUM(begin));
-		__DI_SETUP_OPERAND(2, DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_LABELVECTOR) |
+		__DI_SETUP_OPERANDPTR(2, DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_LABELVECTOR) |
 							  DVM_OPERAND_FLAG_CONST,
 							  jump_table = vector_new(sizeof(uint32_t)));
 		if(NULL == jump_table) 
@@ -544,7 +549,7 @@ __DI_CONSTRUCTOR(SPARSE)
 		const char *cond;
 		vector_t* jump_table;
 		__DI_SETUP_OPERAND(0, 0, __DI_REGNUM(reg));
-		__DI_SETUP_OPERAND(1, DVM_OPERAND_FLAG_CONST |
+		__DI_SETUP_OPERANDPTR(1, DVM_OPERAND_FLAG_CONST |
 							  DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_SPARSE),
 							  jump_table = vector_new(sizeof(dalvik_sparse_switch_branch_t)));
 		if(NULL == jump_table) 
@@ -810,15 +815,15 @@ static inline int _dalvik_instruction_setup_object_operations(
 			LOG_ERROR("invalid type");
 			return -1;
 		}
-		__DI_SETUP_OPERAND(ins_kind==1?1:2, 
+		__DI_SETUP_OPERANDPTR(ins_kind==1?1:2, 
 						   DVM_OPERAND_FLAG_CONST |
 						   DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_CLASS),
 						   path);
-		__DI_SETUP_OPERAND(ins_kind==1?2:3,
+		__DI_SETUP_OPERANDPTR(ins_kind==1?2:3,
 						   DVM_OPERAND_FLAG_CONST |
 						   DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_FIELD),
 						   field);
-		__DI_SETUP_OPERAND(ins_kind==1?3:4, 
+		__DI_SETUP_OPERANDPTR(ins_kind==1?3:4, 
 						   DVM_OPERAND_FLAG_CONST |
 						   DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_TYPEDESC),
 						   type);
@@ -902,10 +907,10 @@ __DI_CONSTRUCTOR(INVOKE)
 			}
 			
 			/* TODO: We actually care about the type, because the function may be overloaded */
-			__DI_SETUP_OPERAND(0, DVM_OPERAND_FLAG_CONST |
+			__DI_SETUP_OPERANDPTR(0, DVM_OPERAND_FLAG_CONST |
 								  DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_CLASS),
 								  path);
-			__DI_SETUP_OPERAND(1, DVM_OPERAND_FLAG_CONST |
+			__DI_SETUP_OPERANDPTR(1, DVM_OPERAND_FLAG_CONST |
 								  DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_FIELD),
 								  field);
 			if(sexp_match(args, "(L?L?", &reg1, &reg2))
@@ -952,7 +957,7 @@ __DI_CONSTRUCTOR(INVOKE)
 				}
 			}
 
-			__DI_SETUP_OPERAND(2, DVM_OPERAND_FLAG_CONST | DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_TYPELIST), array);
+			__DI_SETUP_OPERANDPTR(2, DVM_OPERAND_FLAG_CONST | DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_TYPELIST), array);
 		}
 		else return -1;
 	}
@@ -967,10 +972,10 @@ __DI_CONSTRUCTOR(INVOKE)
 			}
 
 			/* TODO: We actually care about the type, because the function may be overloaded */
-			__DI_SETUP_OPERAND(0, DVM_OPERAND_FLAG_CONST |
+			__DI_SETUP_OPERANDPTR(0, DVM_OPERAND_FLAG_CONST |
 								  DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_CLASS),
 								  path);
-			__DI_SETUP_OPERAND(1, DVM_OPERAND_FLAG_CONST |
+			__DI_SETUP_OPERANDPTR(1, DVM_OPERAND_FLAG_CONST |
 								  DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_FIELD),
 								  field);
 
@@ -1018,7 +1023,7 @@ __DI_CONSTRUCTOR(INVOKE)
 					return -1;
 				}
 			}
-			__DI_SETUP_OPERAND(2, DVM_OPERAND_FLAG_CONST | DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_TYPELIST), array);
+			__DI_SETUP_OPERANDPTR(2, DVM_OPERAND_FLAG_CONST | DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_TYPELIST), array);
 		}
 	}
 	return 0;
@@ -1243,7 +1248,7 @@ __DI_CONSTRUCTOR(INSTANCE)
 	
 	if(NULL != (path = sexp_get_object_path(next, NULL))) 
 	{
-		__DI_SETUP_OPERAND(2, DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_CLASS) | 
+		__DI_SETUP_OPERANDPTR(2, DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_CLASS) | 
 							  DVM_OPERAND_FLAG_CONST ,
 							  path);
 	}
@@ -1257,7 +1262,7 @@ __DI_CONSTRUCTOR(INSTANCE)
 				LOG_ERROR("invalid type");
 				return -1;
 			}
-			__DI_SETUP_OPERAND(2, DVM_OPERAND_FLAG_CONST|
+			__DI_SETUP_OPERANDPTR(2, DVM_OPERAND_FLAG_CONST|
 								  DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_TYPEDESC),
 								  type);
 		}
@@ -1316,7 +1321,7 @@ __DI_CONSTRUCTOR(NEW)
 			LOG_ERROR("invalid class path");
 			return -1;
 		}
-		__DI_SETUP_OPERAND(1, 
+		__DI_SETUP_OPERANDPTR(1, 
 						   DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_CLASS) |
 						   DVM_OPERAND_FLAG_CONST,
 						   path);
@@ -1343,7 +1348,7 @@ __DI_CONSTRUCTOR(NEW)
 			LOG_ERROR("invalid type");
 			return -1;
 		}
-		__DI_SETUP_OPERAND(2, 
+		__DI_SETUP_OPERANDPTR(2, 
 						   DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_TYPEDESC) |
 						   DVM_OPERAND_FLAG_CONST,
 						   type);

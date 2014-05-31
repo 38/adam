@@ -380,7 +380,7 @@ static inline dalvik_block_t* _dalvik_block_setup_keyinst_goto(const dalvik_inst
 	block->branches[0].linked = 0;
 	block->branches[0].conditional = 0;
 	block->branches[0].block_id[0] = _dalvik_block_find_blockid_by_instruction(target, key, kcnt);
-	LOG_DEBUG("possible path block %u --> %"PRIu64,  index, block->branches[0].block_id[0]);
+	LOG_DEBUG("possible path block %u --> %"PRIuPTR,  index, block->branches[0].block_id[0]);
 	return block;
 }
 /**
@@ -414,7 +414,7 @@ static inline dalvik_block_t* _dalvik_block_setup_keyinst_if(const dalvik_instru
 	{
 		/* make a tag for the default branch */
 		block->branches[1].block_id[0] = _dalvik_block_find_blockid_by_instruction(inst->next, key, kcnt);
-		LOG_DEBUG("possible path block %d --> %"PRIu64, index, block->branches[1].block_id[0]);
+		LOG_DEBUG("possible path block %d --> %"PRIuPTR, index, block->branches[1].block_id[0]);
 	}
 	/* setup the true branch */
 	uint32_t target = dalvik_label_jump_table[inst->operands[2].payload.labelid];
@@ -436,7 +436,7 @@ static inline dalvik_block_t* _dalvik_block_setup_keyinst_if(const dalvik_instru
 	   inst->flags == DVM_FLAG_IF_GT)
 		block->branches[0].gt = 1;
 	
-	LOG_DEBUG("possible path block %d --> %"PRIu64,  index, block->branches[0].block_id[0]);
+	LOG_DEBUG("possible path block %d --> %"PRIuPTR,  index, block->branches[0].block_id[0]);
 	return block;
 }
 /**
@@ -472,7 +472,7 @@ static inline dalvik_block_t* _dalvik_block_setup_keyinst_switch(const dalvik_in
 			block->branches[j].ileft[0] = j + value_begin;
 			block->branches[j].right = inst->operands + 0;
 			block->branches[j].eq = 1;
-			LOG_DEBUG("possible path block %d --> %"PRIu64, index, block->branches[j].block_id[0]);
+			LOG_DEBUG("possible path block %d --> %"PRIuPTR, index, block->branches[j].block_id[0]);
 		}
 		block->branches[nb-1].conditional = 0;
 	}
@@ -510,7 +510,7 @@ static inline dalvik_block_t* _dalvik_block_setup_keyinst_switch(const dalvik_in
 				block->branches[j].right    = inst->operands + 1;
 				block->branches[j].eq       = 1;
 			}
-			LOG_DEBUG("possible path block %d --> %"PRIu64, index, block->branches[j].block_id[0]);
+			LOG_DEBUG("possible path block %d --> %"PRIuPTR, index, block->branches[j].block_id[0]);
 		}
 	}
 	else 
@@ -542,7 +542,7 @@ static inline dalvik_block_t* _dalvik_block_setup_keyinst(const dalvik_instructi
 		LOG_ERROR("unexcepted instruction at the end of the method, branches disabled");
 		block->branches[0].disabled = 1;
 	}
-	LOG_DEBUG("possible path block %d --> %"PRIu64, index, block->branches[0].block_id[0]);
+	LOG_DEBUG("possible path block %d --> %"PRIuPTR, index, block->branches[0].block_id[0]);
 
 	for(hptr = inst->handler_set, i = 1; NULL != hptr; hptr = hptr->next, i ++)
 	{
