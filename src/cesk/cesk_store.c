@@ -468,7 +468,7 @@ cesk_value_t* cesk_store_get_rw(cesk_store_t* store, uint32_t addr, int noval)
 	cesk_store_block_t* block = _cesk_store_getblock_rw(store, addr);
 	if(NULL == block)
 	{
-		LOG_ERROR("failed to get block #%"PRIu32, addr/CESK_STORE_BLOCK_NSLOTS);
+		LOG_ERROR("failed to get block #%"PRIu32, (uint32_t)(addr/CESK_STORE_BLOCK_NSLOTS));
 		return NULL;
 	}
 	cesk_value_t* val = block->slots[offset].value;
@@ -630,7 +630,8 @@ uint32_t cesk_store_allocate(cesk_store_t* store, const dalvik_instruction_t* in
 		if(empty_offset != -1)
 		{
 			LOG_DEBUG("allocate %"PRIu32" (block=%d, offset = %d) for instruction %d", 
-						empty_block * CESK_STORE_BLOCK_NSLOTS + empty_offset, empty_block, empty_offset, idx);
+						(uint32_t)(empty_block * CESK_STORE_BLOCK_NSLOTS + empty_offset), 
+                        empty_block, empty_offset, idx);
 			store->blocks[empty_block]->slots[empty_offset].idx = idx;
 			store->blocks[empty_block]->slots[empty_offset].parent = parent;
 			store->blocks[empty_block]->slots[empty_offset].field = field_ofs;
@@ -647,7 +648,7 @@ uint32_t cesk_store_allocate(cesk_store_t* store, const dalvik_instruction_t* in
 	{
 		/* some equal entry */
 		LOG_DEBUG("reuse %"PRIu32" (block = %d, offset = %d for instruction %d",
-			   equal_block * CESK_STORE_BLOCK_NSLOTS + equal_offset, equal_block, equal_offset, idx);
+			      (uint32_t)(equal_block * CESK_STORE_BLOCK_NSLOTS + equal_offset), equal_block, equal_offset, idx);
 		/* do not set the reuse bit here */
 		//store->blocks[equal_block]->slots[equal_offset].reuse = 1;   
 		return equal_block * CESK_STORE_BLOCK_NSLOTS  + equal_offset;
