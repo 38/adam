@@ -416,7 +416,7 @@ static inline int _cesk_block_handler_invoke(
 		LOG_ERROR("can not invoke the function");
 		goto ERR;
 	}
-	cesk_diff_t* result = cesk_method_analyze(code, frame);
+	cesk_diff_t* result = cesk_method_analyze(code, callee_frame);
 	if(NULL == result)
 	{
 		LOG_ERROR("can not analyze the function invocation");

@@ -39,6 +39,17 @@ int main()
 	cesk_diff_free(ret);
 
 
+	methodname = stringpool_query("neg");
+	type[0] = NULL;
+	graph = dalvik_block_from_method(classpath, methodname, type);
+
+	frame = cesk_frame_new(graph->nregs);
+	assert(NULL != frame);
+
+	ret = cesk_method_analyze(graph, frame);
+	puts(cesk_diff_to_string(ret, NULL, 0));
+	cesk_frame_free(frame);
+	cesk_diff_free(ret);
 
 	adam_finalize();
 	return 0;

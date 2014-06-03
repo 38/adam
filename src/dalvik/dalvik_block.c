@@ -281,6 +281,8 @@ static inline int _dalvik_block_get_key_instruction_list(uint32_t entry_point, u
 				 __PUSH(inst);
 				 break;
 			 case DVM_RETURN:
+				 if(inst != entry_point)
+				 	__PUSH(inst-1);   /* because invoke itself forms a block, so it's previous instruction is also a key instruction */
 				 __PUSH(inst);
 				 break;
 			 default:

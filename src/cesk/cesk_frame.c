@@ -126,7 +126,7 @@ cesk_frame_t* cesk_frame_make_invoke(const cesk_frame_t* frame, uint32_t nregs, 
 		LOG_ERROR("can not allocate memory");
 		return NULL;
 	}
-	ret->size = nregs;
+	ret->size = nregs + 2;
 	/* register init */
 	int i;
 	/* first part is the register that does not carry a parameter */

@@ -31,4 +31,12 @@
 	  (label L_RET)
 	  (return v1)
 	)
+	(method (attrs public static) neg() int
+	  (limit-registers 3)
+	  (const v0 20)
+	  (invoke-static {v0} testClass/frac int)
+	  (move-result v0)
+	  (neg-int v0 v0)
+	  (return v0)
+	)
 )
