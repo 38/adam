@@ -127,7 +127,7 @@ int main()
 	/* then we shoud make the frame3 looks like the result of merge of frame1 and frame2 */
 	cesk_diff_t* tmp_diff = cesk_diff_from_buffer(btmp);
 	cesk_diff_buffer_free(btmp);
-	assert(cesk_frame_apply_diff(frame3, tmp_diff, rtab) >= 0);
+	assert(cesk_frame_apply_diff(frame3, tmp_diff, rtab, NULL, NULL) >= 0);
 	cesk_diff_free(tmp_diff);
 
 	/* now track changes in frame1 and frame2 */
@@ -177,7 +177,7 @@ int main()
 	cesk_diff_free(I2);
 
 	/* apply this to frame3 */
-	assert(cesk_frame_apply_diff(frame3, D, rtab) >= 0);
+	assert(cesk_frame_apply_diff(frame3, D, rtab, NULL, NULL) >= 0);
 
 	cesk_diff_free(D);
 

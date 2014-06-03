@@ -551,12 +551,12 @@ cesk_diff_t* cesk_method_analyze(const dalvik_block_t* code, cesk_frame_t* frame
 			}
 			cesk_diff_free(branch_diff);
 #else
-			if(cesk_frame_apply_diff(input_ctx->frame, input_ctx->cur_inversion, context->rtable) < 0)
+			if(cesk_frame_apply_diff(input_ctx->frame, input_ctx->cur_inversion, context->rtable, NULL, NULL) < 0)
 			{
 				LOG_ERROR("can not apply the previous inversion diff to the frame.");
 				goto ERR;
 			}
-			int rc = cesk_frame_apply_diff(input_ctx->frame, blkctx->input_diff, context->rtable);
+			int rc = cesk_frame_apply_diff(input_ctx->frame, blkctx->input_diff, context->rtable, NULL, NULL);
 			if(rc < 0)
 			{
 				LOG_ERROR("can not apply the input diff to the frame, so that we can make the new input");
@@ -569,7 +569,7 @@ cesk_diff_t* cesk_method_analyze(const dalvik_block_t* code, cesk_frame_t* frame
 				cesk_diff_free(b_inv);
 				continue;
 			}
-			if(cesk_frame_apply_diff(input_ctx->frame, b_diff, context->rtable) < 0)
+			if(cesk_frame_apply_diff(input_ctx->frame, b_diff, context->rtable, NULL, NULL) < 0)
 			{
 				LOG_ERROR("can not apply branch diff to the input");
 				goto ERR;

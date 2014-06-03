@@ -1,6 +1,7 @@
 #include <dalvik/dalvik_instruction.h>
 
 #include <cesk/cesk_block.h>
+#include <cesk/cesk_method.h>
 
 /** 
  * @brief convert an register referencing operand to index of register 
@@ -368,8 +369,64 @@ static inline int _cesk_block_handler_invoke(
 		cesk_diff_buffer_t* D, 
 		cesk_diff_buffer_t* I)
 {
-	/* TODO */
-	goto ERR;
+	const char* classpath = ins->operands[0].payload.methpath;
+	const char* methodname = ins->operands[1].payload.methpath;
+	const dalvik_type_t* const * typelist = ins->operands[2].payload.typelist;
+	if(NULL == classpath || NULL == methodname || NULL == typelist)
+	{
+		LOG_ERROR("invalid instruction format");
+		return -1;
+	}
+	const dalvik_block_t* code = NULL;
+	cesk_frame_t* callee_frame = NULL;
+	/* currently, we only consider the static and direct invocation */
+	switch(ins->flags & DVM_FLAG_INVOKE_TYPE_MSK)
+	{
+		case DVM_FLAG_INVOKE_STATIC:
+		case DVM_FLAG_INVOKE_DIRECT:
+			code = dalvik_block_from_method(classpath, methodname, typelist);
+			if(NULL == code)
+			{
+				LOG_ERROR("can not find the method!");
+				break;
+			}
+			LOG_INFO("function invocation %s/%s", classpath, methodname);
+			if(ins->flags & DVM_FLAG_INVOKE_RANGE)
+			{
+				/* TODO range invocation support */
+			}
+			else
+			{
+				uint32_t nregs = code->nregs;
+				uint32_t nargs = ins->num_operands - 3;
+				cesk_set_t* args[10] = {};
+				int i;
+				for(i = 0; i < nargs; i ++)
+				{
+					uint32_t regnum = CESK_FRAME_GENERAL_REG(ins->operands[i + 3].payload.uint16);
+					args[i] = cesk_set_fork(frame->regs[regnum]);
+					/* TODO check the duplication is successed */
+				}
+				callee_frame = cesk_frame_make_invoke(frame, nregs, nargs, args);
+			}
+	}
+	if(NULL == callee_frame || NULL == code)
+	{
+		LOG_ERROR("can not invoke the function");
+		goto ERR;
+	}
+	cesk_diff_t* result = cesk_method_analyze(code, frame);
+	if(NULL == result)
+	{
+		LOG_ERROR("can not analyze the function invocation");
+		goto ERR;
+	}
+	/* TODO maintain the rtable to pass the newly created object in the subroutine to the caller */
+	if(cesk_frame_apply_diff(frame, result, rtab, D, I) < 0)
+	{
+		LOG_ERROR("can not apply the result diff to the frame");
+		return -1;
+	}
 	return 0;
 ERR:
 	return -1;

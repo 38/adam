@@ -52,11 +52,11 @@ void case1()
 	uint32_t empty_hash = cesk_frame_hashcode(frame2);
 	assert(NULL != frame2);
 	cesk_frame_set_alloctab(frame2, atab);
-	assert(cesk_frame_apply_diff(frame2, result.diff, rtab) > 0);
+	assert(cesk_frame_apply_diff(frame2, result.diff, rtab, NULL, NULL) > 0);
 	assert(cesk_frame_hashcode(frame) == cesk_frame_hashcode(frame2));
-	assert(cesk_frame_apply_diff(frame2, result.inverse, rtab) > 0);
+	assert(cesk_frame_apply_diff(frame2, result.inverse, rtab, NULL, NULL) > 0);
 	assert(cesk_frame_hashcode(frame2) == empty_hash);
-	assert(0 == cesk_frame_apply_diff(frame2, result.inverse, rtab));
+	assert(0 == cesk_frame_apply_diff(frame2, result.inverse, rtab, NULL, NULL));
 	/* clean up */
 	cesk_frame_free(frame);
 	cesk_frame_free(frame2);
@@ -119,12 +119,12 @@ void case2()
 	uint32_t empty_hash = cesk_frame_hashcode(frame2);
 	assert(NULL != frame2);
 	cesk_frame_set_alloctab(frame2, atab);
-	assert(cesk_frame_apply_diff(frame2, result.diff, rtab) > 0);
+	assert(cesk_frame_apply_diff(frame2, result.diff, rtab, NULL, NULL) > 0);
 	assert(0 == cesk_frame_gc(frame2));
 	assert(cesk_frame_hashcode(frame) == cesk_frame_hashcode(frame2));
-	assert(cesk_frame_apply_diff(frame2, result.inverse, rtab) > 0);
+	assert(cesk_frame_apply_diff(frame2, result.inverse, rtab, NULL, NULL) > 0);
 	assert(cesk_frame_hashcode(frame2) == empty_hash);
-	assert(0 == cesk_frame_apply_diff(frame2, result.inverse, rtab));
+	assert(0 == cesk_frame_apply_diff(frame2, result.inverse, rtab, NULL, NULL));
 
 	/* clean up */
 	cesk_frame_free(frame);
@@ -175,12 +175,12 @@ void case3()
 	uint32_t empty_hash = cesk_frame_hashcode(frame2);
 	assert(NULL != frame2);
 	cesk_frame_set_alloctab(frame2, atab);
-	assert(cesk_frame_apply_diff(frame2, result.diff, rtab) > 0);
+	assert(cesk_frame_apply_diff(frame2, result.diff, rtab, NULL, NULL) > 0);
 	assert(0 == cesk_frame_gc(frame2));
 	assert(cesk_frame_hashcode(frame) == cesk_frame_hashcode(frame2));
-	assert(cesk_frame_apply_diff(frame2, result.inverse, rtab) > 0);
+	assert(cesk_frame_apply_diff(frame2, result.inverse, rtab, NULL, NULL) > 0);
 	assert(cesk_frame_hashcode(frame2) == empty_hash);
-	assert(0 == cesk_frame_apply_diff(frame2, result.inverse, rtab));
+	assert(0 == cesk_frame_apply_diff(frame2, result.inverse, rtab, NULL, NULL));
 	/* clean up */
 	cesk_frame_free(frame);
 	cesk_frame_free(frame2);

@@ -983,6 +983,13 @@ __DI_CONSTRUCTOR(INVOKE)
 			buf->num_operands = 3;
 			for(;args != SEXP_NIL;)
 			{
+				/* we check the boundary */
+				if(buf->num_operands >= sizeof(buf->operands)/sizeof(buf->operands[0])) 
+				{
+					LOG_ERROR("too many argument");
+					return -1;
+				}
+				/* parse the argument */
 				if(sexp_match(args, "(L?A", &reg1, &args))
 				{
 					__DI_SETUP_OPERAND(buf->num_operands ++, 0, __DI_REGNUM(reg1));
@@ -1007,7 +1014,7 @@ __DI_CONSTRUCTOR(INVOKE)
 				LOG_ERROR("can not allocate memory for type array");
 				return -1;
 			}
-			memset(array, 0, sizeof(dalvik_type_t*) * nparam);
+			//memset(array, 0, sizeof(dalvik_type_t*) * nparam);
 			int i;
 			sexpression_t *type_sexp;
 			for(i = 0; sexp_match(next, "(_?A", &type_sexp, &next) && i < nparam - 1; i ++)
@@ -1023,6 +1030,7 @@ __DI_CONSTRUCTOR(INVOKE)
 					return -1;
 				}
 			}
+			array[nparam - 1] = NULL;
 			__DI_SETUP_OPERANDPTR(2, DVM_OPERAND_FLAG_CONST | DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_TYPELIST), array);
 		}
 	}

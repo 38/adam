@@ -119,6 +119,7 @@ cesk_frame_t* cesk_frame_make_invoke(const cesk_frame_t* frame, uint32_t nregs, 
 		LOG_ERROR("invalid argument");
 		return 0;
 	}
+	/* memory allocation */
 	cesk_frame_t* ret = (cesk_frame_t*)malloc(sizeof(cesk_frame_t) + (nregs + 2) * sizeof(cesk_set_t*));
 	if(NULL == ret)
 	{
@@ -128,6 +129,7 @@ cesk_frame_t* cesk_frame_make_invoke(const cesk_frame_t* frame, uint32_t nregs, 
 	ret->size = nregs;
 	/* register init */
 	int i;
+	/* first part is the register that does not carry a parameter */
 	for(i = 0; i < ret->size - nargs; i ++)
 	{
 		ret->regs[i] = cesk_set_empty_set();
@@ -137,6 +139,7 @@ cesk_frame_t* cesk_frame_make_invoke(const cesk_frame_t* frame, uint32_t nregs, 
 			goto ERR;
 		}
 	}
+	/* second part is the parameters */
 	for(;i < ret->size; i ++)
 	{
 		ret->regs[i] = args[i - ret->size + nargs];
@@ -402,7 +405,12 @@ static inline int _cesk_frame_init_reg(cesk_frame_t* frame, uint32_t reg)
 		cesk_store_incref(frame->store, addr);
 	return 0;
 }
-int cesk_frame_apply_diff(cesk_frame_t* frame, const cesk_diff_t* diff, const cesk_reloc_table_t* reloctab)
+int cesk_frame_apply_diff(
+	cesk_frame_t* frame, 
+	const cesk_diff_t* diff, 
+	const cesk_reloc_table_t* reloctab, 
+	cesk_diff_buffer_t* fwdbuf,
+	cesk_diff_buffer_t* invbuf)
 {
 	int ret = 0;
 	if(NULL == frame || NULL == diff)
@@ -428,6 +436,16 @@ int cesk_frame_apply_diff(cesk_frame_t* frame, const cesk_diff_t* diff, const ce
 					}
 					else
 						ret ++;
+					if(NULL != invbuf && cesk_diff_buffer_append(invbuf, CESK_DIFF_DEALLOC, rec->addr, NULL) < 0)
+					{
+						LOG_ERROR("can not append a new record to the inverse diff buf");
+						return -1;
+					}
+					if(NULL != fwdbuf && cesk_diff_buffer_append(fwdbuf, CESK_DIFF_ALLOC, rec->addr, NULL) < 0)
+					{
+						LOG_ERROR("can not append a new record to the foward diff buffer");
+						return -1;
+					}
 					break;
 				case CESK_DIFF_REUSE:
 					LOG_DEBUG("setting reuse flag at store address @%x to %u", rec->addr, rec->arg.boolean);
@@ -444,12 +462,32 @@ int cesk_frame_apply_diff(cesk_frame_t* frame, const cesk_diff_t* diff, const ce
 							LOG_ERROR("can not set reuse bit for @%x in store %p", rec->addr, frame->store);
 							return -1;
 						}
+						if(NULL != invbuf && cesk_diff_buffer_append(invbuf, CESK_DIFF_REUSE, rec->addr, CESK_DIFF_REUSE_VALUE(0)) < 0)
+						{
+							LOG_ERROR("can not append a new record for the inverse diff buf");
+							return -1;
+						}
+						if(NULL != fwdbuf && cesk_diff_buffer_append(fwdbuf, CESK_DIFF_REUSE, rec->addr, CESK_DIFF_REUSE_VALUE(1)) < 0)
+						{
+							LOG_ERROR("can not append a new record to the foward diff buffer");
+							return -1;
+						}
 					}
 					else
 					{
 						if(cesk_store_clear_reuse(frame->store, rec->addr) < 0)
 						{
 							LOG_ERROR("can not clear reuse bit for @%x in store %p", rec->addr, frame->store);
+							return -1;
+						}
+						if(NULL != invbuf && cesk_diff_buffer_append(invbuf, CESK_DIFF_REUSE, rec->addr, CESK_DIFF_REUSE_VALUE(1)) < 0)
+						{
+							LOG_ERROR("can not append a new record for the inverse diff buf");
+							return -1;
+						}
+						if(NULL != fwdbuf && cesk_diff_buffer_append(fwdbuf, CESK_DIFF_REUSE, rec->addr, CESK_DIFF_REUSE_VALUE(0)) < 0)
+						{
+							LOG_ERROR("can not append a new record to the foward diff buffer");
 							return -1;
 						}
 					}
@@ -460,6 +498,16 @@ int cesk_frame_apply_diff(cesk_frame_t* frame, const cesk_diff_t* diff, const ce
 					{
 						LOG_DEBUG("the register value is already the target value, no operation needed");
 						break;
+					}
+					if(NULL != invbuf && cesk_diff_buffer_append(invbuf, CESK_DIFF_REG, rec->addr, frame->regs[rec->addr]) < 0)
+					{
+						LOG_ERROR("can not append a new record for the inverse diff buf");
+						return -1;
+					}
+					if(NULL != fwdbuf && cesk_diff_buffer_append(fwdbuf, CESK_DIFF_REG, rec->addr, rec->arg.set) < 0)
+					{
+						LOG_ERROR("can not append a new record to the foward diff buffer");
+						return -1;
 					}
 					ret ++;
 					if(_cesk_frame_free_reg(frame, rec->addr) < 0)
@@ -485,6 +533,17 @@ int cesk_frame_apply_diff(cesk_frame_t* frame, const cesk_diff_t* diff, const ce
 					{
 						LOG_DEBUG("the target value is already there, no nothing to patch");
 						break;
+					}
+					if(NULL != invbuf && CESK_TYPE_SET == oldval->type && 
+					   cesk_diff_buffer_append(invbuf, CESK_DIFF_STORE, rec->addr, (cesk_set_t*)oldval->pointer.set) < 0)
+					{
+						LOG_ERROR("can not append a new record for the inverse diff buf");
+						return -1;
+					}
+					if(NULL != fwdbuf && cesk_diff_buffer_append(fwdbuf, CESK_DIFF_REG, rec->addr, rec->arg.set) < 0)
+					{
+						LOG_ERROR("can not append a new record to the foward diff buffer");
+						return -1;
 					}
 					ret ++;
 					if(cesk_store_attach(frame->store, rec->addr, rec->arg.value) < 0)

@@ -296,7 +296,7 @@ int main()
 	cesk_frame_t* frame2 = cesk_frame_new(32);
 	cesk_frame_set_alloctab(frame2, alloc);
 	assert(NULL != frame2);
-	assert(cesk_frame_apply_diff(frame2, D, reloc) >= 0);
+	assert(cesk_frame_apply_diff(frame2, D, reloc, NULL, NULL) >= 0);
 	assert(cesk_frame_gc(frame2) == 0);
 
 	assert(cesk_frame_hashcode(frame) == cesk_frame_hashcode(frame2));

@@ -99,9 +99,16 @@ static inline int cesk_frame_set_alloctab(cesk_frame_t* frame, cesk_alloctab_t* 
  * @param frame
  * @param diff
  * @param reloctab the relocation table
+ * @param invbuf the inverse diff buffer, NULL means do not record this
+ * @param fwdbuf the forward diff buffer, NULL means do not record this
  * @return the number of changes has applied,  <0 indicates error
  **/
-int cesk_frame_apply_diff(cesk_frame_t* frame, const cesk_diff_t* diff, const cesk_reloc_table_t* reloctab);
+int cesk_frame_apply_diff(
+	cesk_frame_t* frame, 
+	const cesk_diff_t* diff, 
+	const cesk_reloc_table_t* reloctab, 
+	cesk_diff_buffer_t* fwdbuf,
+	cesk_diff_buffer_t* invbuf);
 /**
  * @brief move the content in source register to the destination register
  * @param frame 
