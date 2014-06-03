@@ -1,0 +1,18 @@
+(class (attrs public) testClass
+	(super java/lang/object)
+	(source "testClass.java")
+	(method (attrs public) sum() int
+	 	(limit-registers 10)
+		(const v1 100)
+		(const v2 0)
+		(const v3 0)
+		(const v4 1)
+		(label LoopBegin)
+		(if-lt v2 v3 LoopEnd)
+		(add-int v2 v2 v1)
+		(sub-int v1 v1 v4) 
+		(goto LoopBegin)
+		(label LoopEnd)
+		(return v2)
+	)
+)

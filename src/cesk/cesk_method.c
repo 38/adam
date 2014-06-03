@@ -49,6 +49,7 @@ typedef struct {
 	uint32_t nslots;                     /*!< the number of slots */
 	_cesk_method_block_context_t blocks[0];  /*!< the block contexts */
 } _cesk_method_context_t;
+cesk_diff_t* __deb__ = NULL;
 
 /* static globals */
 
@@ -296,8 +297,7 @@ static inline _cesk_method_context_t* _cesk_method_context_new(const dalvik_bloc
 		{
 			ret->blocks[i].input_index[j] = 0;
 			const dalvik_block_branch_t* branch = ret->blocks[i].code->branches + j;
-			if(branch->disabled || 
-			   (0 == branch->conditional && DALVIK_BLOCK_BRANCH_UNCOND_TYPE_IS_RETURN(*branch)))
+			if(branch->disabled || DALVIK_BLOCK_BRANCH_UNCOND_TYPE_IS_RETURN(*branch))
 				continue;
 			/* the target index */
 			uint32_t t = branch->block->index;
@@ -324,6 +324,7 @@ static inline _cesk_method_context_t* _cesk_method_context_new(const dalvik_bloc
 				LOG_ERROR("failed to duplicate the input frame");
 				goto ERR;
 			}
+			cesk_frame_set_alloctab(ret->blocks[t].inputs[0].frame, ret->atable);
 			ret->blocks[t].inputs[0].prv_inversion = cesk_diff_empty();
 			if(NULL == ret->blocks[t].inputs[0].prv_inversion)
 			{
@@ -377,6 +378,7 @@ static inline int _cesk_method_compute_next_input(_cesk_method_context_t* ctx, _
 	{
 		_cesk_method_block_input_t*   input = blkctx->inputs + i;                    /* current input */
 		_cesk_method_block_context_t* sourctx = ctx->blocks + input->block->code->index;   /* the context of the source block */
+		/* if there's no modification since the last computation */
 		if(blkctx->timestamp > sourctx->timestamp)
 		{
 			LOG_DEBUG("this block uses the input from block #%d, but there's no modification on the block, so skipping", sourctx->code->index);
@@ -438,7 +440,7 @@ static inline int _cesk_method_get_branch_input(
 		cesk_diff_t** diff_buf,
 		cesk_diff_t** inv_buf)
 {
-	/* TODO */
+	if(input_ctx->
 	*diff_buf = cesk_diff_empty();
 	*inv_buf = cesk_diff_empty();
 	return 0;
@@ -478,20 +480,46 @@ cesk_diff_t* cesk_method_analyze(const dalvik_block_t* code, cesk_frame_t* frame
 
 	context->front = 0, context->rear = 1;
 	context->Q[0] = code->index;
+	/* build the result, things we should care about: result register, exception register and static variables */
+	/* currently, we only consider the result result register */
+	cesk_set_t* result_reg = cesk_set_empty_set();
+	if(NULL == result_reg) 
+	{
+		LOG_ERROR("can not allocate set the result register");
+		goto ERR;
+	}
+	/* TODO: exception & static support & allocation */
+	
 	while(context->front < context->rear)
 	{
 		/* current block context */
 		_cesk_method_block_context_t *blkctx = context->blocks + context->Q[(context->front++)%CESK_METHOD_MAX_NBLOCKS];
+		LOG_DEBUG("current block : block #%d", blkctx->code->index);
 		if(_cesk_method_compute_next_input(context, blkctx) < 0) 
 		{
 			LOG_ERROR("can not compute the next input");
 			goto ERR;
 		}
-
 		/* then we compute the new output for each branch */
 		int i;
 		for(i = 0; i < blkctx->code->nbranches; i ++)
 		{
+			if(0 == blkctx->code->branches[i].conditional && DALVIK_BLOCK_BRANCH_UNCOND_TYPE_IS_RETURN(blkctx->code->branches[i]))
+			{
+				uint32_t regid = CESK_FRAME_GENERAL_REG(blkctx->code->branches[i].left->payload.uint16);
+				uint32_t j;
+				for(j = blkctx->input_diff->offset[CESK_DIFF_REG]; 
+				    j < blkctx->input_diff->offset[CESK_DIFF_REG + 1] &&
+					blkctx->input_diff->data[j].addr < regid;
+					j ++);
+				if(j < blkctx->input_diff->offset[CESK_DIFF_REG + 1]  && regid == blkctx->input_diff->data[j].addr)
+				{
+					LOG_DEBUG("return %s", cesk_set_to_string(blkctx->input_diff->data[j].arg.set, NULL, 0)); 
+					if(cesk_set_merge(result_reg, blkctx->input_diff->data[j].arg.set) < 0)
+						LOG_WARNING("can not merge the new return value to result");
+				}
+				continue;
+			}
 			_cesk_method_block_context_t* target_ctx = context->blocks + blkctx->code->branches[i].block->index;
 			_cesk_method_block_input_t*   input_ctx  = target_ctx->inputs + blkctx->input_index[i];
 			if(blkctx->code->branches[i].disabled) continue;
@@ -509,6 +537,7 @@ cesk_diff_t* cesk_method_analyze(const dalvik_block_t* code, cesk_frame_t* frame
 			 * (current_input * input_diff) * branch_diff ==>
 			 * next_input * branch_diff ==>
 			 * branch_input */
+#if 0 
 			cesk_diff_t* diffbuf[] = {input_ctx->cur_inversion, blkctx->input_diff, b_diff};
 			cesk_diff_t* branch_diff = cesk_diff_apply(3, diffbuf);
 			if(NULL == branch_diff)
@@ -522,6 +551,31 @@ cesk_diff_t* cesk_method_analyze(const dalvik_block_t* code, cesk_frame_t* frame
 				goto ERR;
 			}
 			cesk_diff_free(branch_diff);
+#else
+			if(cesk_frame_apply_diff(input_ctx->frame, input_ctx->cur_inversion, context->rtable) < 0)
+			{
+				LOG_ERROR("can not apply the previous inversion diff to the frame.");
+				goto ERR;
+			}
+			int rc = cesk_frame_apply_diff(input_ctx->frame, blkctx->input_diff, context->rtable);
+			if(rc < 0)
+			{
+				LOG_ERROR("can not apply the input diff to the frame, so that we can make the new input");
+				goto ERR;
+			}
+			if(rc == 0 && context->front != 1)
+			{
+				LOG_DEBUG("there's no modification in this branch, so we skip");
+				cesk_diff_free(b_diff);
+				cesk_diff_free(b_inv);
+				continue;
+			}
+			if(cesk_frame_apply_diff(input_ctx->frame, b_diff, context->rtable) < 0)
+			{
+				LOG_ERROR("can not apply branch diff to the input");
+				goto ERR;
+			}
+#endif
 			/* then we can run the code */
 			cesk_block_result_t res;
 			if(cesk_block_analyze(blkctx->code, input_ctx->frame, context->rtable, &res) < 0)
@@ -539,6 +593,10 @@ cesk_diff_t* cesk_method_analyze(const dalvik_block_t* code, cesk_frame_t* frame
 				goto ERR;
 			}
 			cesk_diff_t* cur_inversion = cesk_diff_apply(2, ibuf);
+			cesk_diff_free(res.diff);
+			cesk_diff_free(res.inverse);
+			cesk_diff_free(b_diff);
+			cesk_diff_free(b_inv);
 			if(NULL == cur_inversion)
 			{
 				LOG_ERROR("failed to compute the inversion");
@@ -547,24 +605,48 @@ cesk_diff_t* cesk_method_analyze(const dalvik_block_t* code, cesk_frame_t* frame
 			/* finally, update the queue and timestamp */
 			uint32_t target_ts = input_ctx->block->timestamp;
 			input_ctx->block->timestamp = context->rear;
-			if(!cesk_diff_identity(cur_diff, cur_inversion) && target_ts <= context->front)
+			if(target_ts <= context->front)
 			{
 				cesk_diff_free(input_ctx->prv_inversion);
 				cesk_diff_free(input_ctx->cur_diff);
 				input_ctx->prv_inversion = input_ctx->cur_inversion;
 				input_ctx->cur_diff = cur_diff;
 				input_ctx->cur_inversion = cur_inversion;
-				context->Q[context->rear%CESK_METHOD_MAX_NBLOCKS] = input_ctx->block->code->index;
+				context->Q[context->rear%CESK_METHOD_MAX_NBLOCKS] = target_ctx->code->index;
 				context->rear ++;
 			}
 		}
 	}
+	cesk_diff_buffer_t* db = cesk_diff_buffer_new(0);
+	if(NULL == db) 
+	{
+		LOG_ERROR("can not build result diff buffer");
+		goto ERR;
+	}
+	if(cesk_diff_buffer_append(db, CESK_DIFF_REG, CESK_FRAME_RESULT_REG, result_reg)  < 0)
+	{
+		LOG_ERROR("can not append record modifying the result register");
+		cesk_diff_buffer_free(db);
+		goto ERR;
+	}
+	result = cesk_diff_from_buffer(db);
+	if(NULL == result)
+	{
+		LOG_ERROR("can not construct the result diff");
+		cesk_diff_buffer_free(db);
+		goto ERR;
+	}
+	cesk_diff_buffer_free(db);
+	db = NULL;
+	cesk_set_free(result_reg);
 	/* cache the result diff */
 	node->result = result;
 	_cesk_method_context_free(context);
+	LOG_DEBUG("end of analysis result diff = %s", cesk_diff_to_string(result, NULL, 0));
 	return result;
 ERR:
 	if(result) cesk_diff_free(result);
+	if(result_reg) cesk_set_free(result_reg);
 	if(context) _cesk_method_context_free(context);
 	return NULL;
 }

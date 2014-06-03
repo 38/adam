@@ -824,7 +824,7 @@ cesk_diff_t* cesk_diff_empty()
 			LOG_ERROR("can not allocate memory for an empty diff");
 			return NULL;
 		}
-		memset(ret, 0, sizeof(ret));
+		memset(ret, 0, sizeof(cesk_diff_t));
 		ret->refcnt ++;
 	}
 	else 
