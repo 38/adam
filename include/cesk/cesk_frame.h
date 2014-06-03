@@ -264,4 +264,17 @@ int cesk_frame_store_peek_field(const cesk_frame_t* frame,
 		uint32_t addr, 
 		const char* classpath, const char* fieldname, 
 		uint32_t* buf, size_t size);
+/**
+ * @brief make a new frame that is used for function invocation
+ * @param frame current stack frame
+ * @param nregs the number of registers the caller function requires
+ * @param nargs the number of arguments this function rquires
+ * @param args the argument array
+ * @note the frame dose borrow reference from the args, that means, the if a set is put in array args 
+ *       it should increase the refcount(which means we should fork a new reference to put in array)
+ *       the reference is passed from the args array to the frame, that means, after this function return,
+ *       the caller does not need to free the args array
+ * @return the newly created frame
+ */
+cesk_frame_t* cesk_frame_make_invoke(const cesk_frame_t* frame, uint32_t nregs, uint32_t nargs, cesk_set_t** args)
 #endif /* __CESK_FRAME_H__ */

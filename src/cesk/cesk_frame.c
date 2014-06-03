@@ -91,9 +91,119 @@ cesk_frame_t* cesk_frame_fork(const cesk_frame_t* frame)
 	for(i = 0; i < frame->size; i ++)
 	{
 		ret->regs[i] = cesk_set_fork(frame->regs[i]);
+		if(NULL == ret->regs[i])
+		{
+			LOG_ERROR("can not fork the set for the new register");
+			goto ERR;
+		}
 	}
 	ret->store = cesk_store_fork(frame->store);
+	if(NULL == ret->store)
+	{
+		LOG_ERROR("can not fork the frame store");
+		goto ERR;
+	}
 	return ret;
+ERR:
+	int j
+	for(j = 0; j < i; i ++)
+	{
+		if(NULL != ret->regs[i]) cesk_set_free(ret->regs[i]);
+	}
+	if(NULL != ret->store) cesk_store_free(ret->store);
+	return -1;
+}
+cesk_frame_t* cesk_frame_make_invoke(const cesk_frame_t* frame, uint32_t nregs, uint32_t nargs, cesk_set_t** args)
+{
+	if(NULL == frame || nregs > 65536 || nargs > nregs || NULL == args)
+	{
+		LOG_ERROR("invalid argument");
+		return 0;
+	}
+	cesk_frame_t* ret = (cesk_frame_t*)malloc(sizeof(cesk_frame_t) + (nregs + 2) * sizeof(cesk_set_t*));
+	if(NULL == ret)
+	{
+		LOG_ERROR("can not allocate memory");
+		return NULL;
+	}
+	ret->size = nreg;
+	/* register init */
+	int i;
+	for(i = 0; i < ret->size - nargs; i ++)
+	{
+		ret->regs[i] = cesk_set_empty_set();
+		if(NULL == ret->regs[i])
+		{
+			LOG_ERROR("can not create an empty set for the register %d", i);
+			goto ERR;
+		}
+	}
+	for(;i < ret->size; i ++)
+	{
+		ret->regs[i] = args[i - ret->size + nargs];
+		if(NULL == ret->regs[i])
+		{
+			LOG_ERROR("invalid argument list");
+			goto ERR;
+		}
+	}
+	/* store init */
+	ret->store = cesk_store_fork(frame->store);
+	if(NULL == ret->store)
+	{
+		LOG_ERROR("can not fork the frame store");
+		goto ERR;
+	}
+	/* apply the relocation table to the register */
+	for(i = 0; i < ret->size; i ++)
+	{
+		cesk_set_t* reg = ret->regs[i];
+		cesk_set_iter_t* iter;
+		if(cesk_set_iter(reg, &iter) == NULL)
+		{
+			LOG_ERROR("can not aquire iterator for the regsiter #%d", i);
+			goto ERR;
+		}
+		uint32_t addr;
+		while(CESK_STORE_ADDR_NULL != (addr = cesk_set_iter_next(&iter)))
+		{
+			if(CESK_STORE_ADDR_IS_RELOC(addr))
+			{
+				uint32_t idx = CESK_STORE_ADDR_RELOC_IDX(addr);
+				uint32_t naddr = cesk_alloctab_query(ret->store->alloc_tab, ret->store, idx);
+				if(CESK_STORE_ADDR_NULL == naddr)
+				{
+					LOG_ERROR("can not find the relocated address @%x", addr);
+					goto ERR;
+				}
+				if(cesk_set_modify(reg, addr, naddr) < 0)
+				{
+					LOG_ERROR("can not update relocated address @%x --> @%x", addr, naddr);
+					goto ERR;
+				}
+			}
+		}
+	}
+	/* apply the allocation table toe the store */
+	if(cesk_store_apply_alloctab(ret->store) < 0)
+	{
+		LOG_ERROR("failed to apply the allocation table to the store frake");
+		goto ERR;
+	}
+	/*run garbage collector*/
+	if(cesk_frame_gc(ret) < 0)
+	{
+		LOG_ERROR("can not run garbage collector on the new store");
+		goto ERR;
+	}
+	return ret;
+ERR:
+	for(i = 0; i < frame->size; i ++)
+		if(NULL != frame->regs[i])
+			cesk_set_free(frame->regs[i]);
+	if(NULL != frame->store)
+		cesk_store_free(frame->store);
+	return NULL;
 }
 
 void cesk_frame_free(cesk_frame_t* frame)

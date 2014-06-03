@@ -96,7 +96,7 @@ void cesk_method_finalize()
 			node = node->next;
 			if(current->frame) cesk_frame_free(current->frame);
 			if(current->result) cesk_diff_free(current->result);
-			free(node);
+			free(current);
 		}
 	}
 }
@@ -440,7 +440,6 @@ static inline int _cesk_method_get_branch_input(
 		cesk_diff_t** diff_buf,
 		cesk_diff_t** inv_buf)
 {
-	if(input_ctx->
 	*diff_buf = cesk_diff_empty();
 	*inv_buf = cesk_diff_empty();
 	return 0;

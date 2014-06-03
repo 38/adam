@@ -352,6 +352,26 @@ static inline int _cesk_block_handler_binop(const dalvik_instruction_t* ins, ces
 	/* finally load the result */
 	return cesk_frame_register_load(frame, dest, result, D, I);
 }
+/**
+ * @brief the instruction handler for function calls
+ * @param ins current instruction
+ * @param frame current stack frame
+ * @param rtab the relocation table
+ * @param D the diff buffer to track the modification
+ * @param I the diff buffer to tacck the how to revert the modification
+ * @return the result of execution, < 0 indicates failure
+ **/
+static inline int _cesk_block_handler_invoke(
+		const dalvik_instruction_t* ins, 
+		cesk_frame_t* frame, 
+		cesk_reloc_table_t* rtab, 
+		cesk_diff_buffer_t* D, 
+		cesk_diff_buffer_t* I)
+{
+	/* TODO */
+ERR:
+	if(NULL != input_frame) cesk_frame_free(input_frame);
+}
 int cesk_block_analyze(const dalvik_block_t* code, cesk_frame_t* frame, cesk_reloc_table_t* rtab, cesk_block_result_t* buf)
 {
 	if(NULL == code || NULL == frame || NULL == buf || NULL == rtab)
@@ -399,7 +419,7 @@ int cesk_block_analyze(const dalvik_block_t* code, cesk_frame_t* frame, cesk_rel
 				if(_cesk_block_handler_instance(ins, frame, rtab, dbuf, ibuf) < 0) goto EXE_ERR;
 				break;
 			case DVM_INVOKE:
-				/* TODO inter-procedual */
+				if(_cesk_block_handler_invoke(ins, frame, rbuf, dbuf, ibuf) < 0) goto EXE_ERR;
 				break;
 			case DVM_UNOP:
 				if(_cesk_block_handler_unop(ins, frame, dbuf, ibuf) < 0) goto EXE_ERR;
