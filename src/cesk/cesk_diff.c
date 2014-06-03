@@ -825,7 +825,7 @@ cesk_diff_t* cesk_diff_empty()
 			return NULL;
 		}
 		memset(ret, 0, sizeof(cesk_diff_t));
-		ret->refcnt ++;
+		ret->refcnt ++;   /* keep this object alive */
 	}
 	else 
 		ret->refcnt ++;

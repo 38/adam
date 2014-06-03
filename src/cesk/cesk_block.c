@@ -394,6 +394,7 @@ static inline int _cesk_block_handler_invoke(
 			if(ins->flags & DVM_FLAG_INVOKE_RANGE)
 			{
 				/* TODO range invocation support */
+				LOG_TRACE("fixme: We need range invocation support");
 			}
 			else
 			{
@@ -427,6 +428,8 @@ static inline int _cesk_block_handler_invoke(
 		LOG_ERROR("can not apply the result diff to the frame");
 		return -1;
 	}
+	cesk_frame_free(callee_frame);
+	cesk_diff_free(result);
 	return 0;
 ERR:
 	return -1;

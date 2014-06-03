@@ -78,10 +78,12 @@ static int _cesk_method_block_ninputs[CESK_METHOD_MAX_NBLOCKS];
  **/
 static int _cesk_method_block_inputs_used[CESK_METHOD_MAX_NBLOCKS];
 
+static cesk_diff_t *_cesk_method_empty_diff = NULL;
 
 int cesk_method_init()
 {
 	memset(_cesk_method_cache, 0, sizeof(_cesk_method_cache));
+	_cesk_method_empty_diff = cesk_diff_empty();
 	return 0;
 }
 void cesk_method_finalize()
@@ -99,6 +101,7 @@ void cesk_method_finalize()
 			free(current);
 		}
 	}
+	if(NULL != _cesk_method_empty_diff) cesk_diff_free(_cesk_method_empty_diff);
 }
 /**
  * @brief the hash code used by the method analyzer cache, the key is the code block and current stack frame
@@ -440,6 +443,7 @@ static inline int _cesk_method_get_branch_input(
 		cesk_diff_t** diff_buf,
 		cesk_diff_t** inv_buf)
 {
+	//TODO
 	*diff_buf = cesk_diff_empty();
 	*inv_buf = cesk_diff_empty();
 	return 0;
@@ -642,7 +646,7 @@ cesk_diff_t* cesk_method_analyze(const dalvik_block_t* code, cesk_frame_t* frame
 	node->result = result;
 	_cesk_method_context_free(context);
 	LOG_DEBUG("end of analysis result diff = %s", cesk_diff_to_string(result, NULL, 0));
-	return result;
+	return cesk_diff_fork(result);
 ERR:
 	if(result) cesk_diff_free(result);
 	if(result_reg) cesk_set_free(result_reg);

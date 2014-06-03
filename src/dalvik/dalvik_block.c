@@ -59,6 +59,8 @@ static inline dalvik_block_cache_node_t* _dalvik_block_cache_node_alloc(
 	}
 	ret->block = block;
 	ret->typelist = dalvik_type_list_clone(typelist);
+	ret->methodname = method;
+	ret->classpath = class;
 	ret->next = NULL;
 	return ret;
 }
