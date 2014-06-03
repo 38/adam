@@ -276,5 +276,5 @@ int cesk_frame_store_peek_field(const cesk_frame_t* frame,
  *       the caller does not need to free the args array
  * @return the newly created frame
  */
-cesk_frame_t* cesk_frame_make_invoke(const cesk_frame_t* frame, uint32_t nregs, uint32_t nargs, cesk_set_t** args)
+cesk_frame_t* cesk_frame_make_invoke(const cesk_frame_t* frame, uint32_t nregs, uint32_t nargs, cesk_set_t** args);
 #endif /* __CESK_FRAME_H__ */

@@ -369,8 +369,10 @@ static inline int _cesk_block_handler_invoke(
 		cesk_diff_buffer_t* I)
 {
 	/* TODO */
+	goto ERR;
+	return 0;
 ERR:
-	if(NULL != input_frame) cesk_frame_free(input_frame);
+	return -1;
 }
 int cesk_block_analyze(const dalvik_block_t* code, cesk_frame_t* frame, cesk_reloc_table_t* rtab, cesk_block_result_t* buf)
 {
@@ -419,7 +421,8 @@ int cesk_block_analyze(const dalvik_block_t* code, cesk_frame_t* frame, cesk_rel
 				if(_cesk_block_handler_instance(ins, frame, rtab, dbuf, ibuf) < 0) goto EXE_ERR;
 				break;
 			case DVM_INVOKE:
-				if(_cesk_block_handler_invoke(ins, frame, rbuf, dbuf, ibuf) < 0) goto EXE_ERR;
+				/* TODO */
+				if(_cesk_block_handler_invoke(ins, frame, rtab, dbuf, ibuf) < 0) goto EXE_ERR;
 				break;
 			case DVM_UNOP:
 				if(_cesk_block_handler_unop(ins, frame, dbuf, ibuf) < 0) goto EXE_ERR;

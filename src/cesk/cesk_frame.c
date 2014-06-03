@@ -80,7 +80,7 @@ cesk_frame_t* cesk_frame_fork(const cesk_frame_t* frame)
 		LOG_ERROR("invalid argument");
 		return 0;
 	}
-	int i;
+	int i,j;
 	cesk_frame_t* ret = (cesk_frame_t*)malloc(sizeof(cesk_frame_t) + frame->size * sizeof(cesk_set_t*));
 	if(NULL == ret)
 	{
@@ -105,13 +105,12 @@ cesk_frame_t* cesk_frame_fork(const cesk_frame_t* frame)
 	}
 	return ret;
 ERR:
-	int j
 	for(j = 0; j < i; i ++)
 	{
 		if(NULL != ret->regs[i]) cesk_set_free(ret->regs[i]);
 	}
 	if(NULL != ret->store) cesk_store_free(ret->store);
-	return -1;
+	return NULL;
 }
 cesk_frame_t* cesk_frame_make_invoke(const cesk_frame_t* frame, uint32_t nregs, uint32_t nargs, cesk_set_t** args)
 {
@@ -126,7 +125,7 @@ cesk_frame_t* cesk_frame_make_invoke(const cesk_frame_t* frame, uint32_t nregs, 
 		LOG_ERROR("can not allocate memory");
 		return NULL;
 	}
-	ret->size = nreg;
+	ret->size = nregs;
 	/* register init */
 	int i;
 	for(i = 0; i < ret->size - nargs; i ++)
@@ -158,7 +157,7 @@ cesk_frame_t* cesk_frame_make_invoke(const cesk_frame_t* frame, uint32_t nregs, 
 	for(i = 0; i < ret->size; i ++)
 	{
 		cesk_set_t* reg = ret->regs[i];
-		cesk_set_iter_t* iter;
+		cesk_set_iter_t iter;
 		if(cesk_set_iter(reg, &iter) == NULL)
 		{
 			LOG_ERROR("can not aquire iterator for the regsiter #%d", i);
