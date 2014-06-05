@@ -4,6 +4,11 @@
 #ifndef __CONSTANTS_H__
 #define __CONSTANTS_H__
 
+#ifndef LOG_DEFAULT_CONFIG_FILE 
+/** @brief default log config file name */
+#	define LOG_DEFAULT_CONFIG_FILE "log.cfg"
+#endif
+
 #ifndef VECTOR_INIT_CAP
 /** @brief initial size of a vector */
 #   define VECTOR_INIT_CAP 32

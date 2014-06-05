@@ -9,7 +9,10 @@ static FILE* _log_fp[8] = {};
 int log_init()
 {
 	FILE* default_fp = stderr;
-	FILE* fp = fopen(CONFIG_PATH "/log.cfg", "r");
+	const char* conf_path = getenv("LOGCONF");
+	if(NULL == conf_path || 0 == strlen(conf_path))
+		conf_path = CONFIG_PATH "/" LOG_DEFAULT_CONFIG_FILE;
+	FILE* fp = fopen(conf_path, "r");
 	strcpy(_log_path[7], "<stderr>");
 	_log_fp[7] = stderr;
 	if(NULL != fp)
@@ -106,7 +109,7 @@ int log_init()
 			return -1;
 		}
 	}
-	fclose(fp);
+	if(NULL != fp) fclose(fp);
 	return 0;
 }
 void log_finalize()

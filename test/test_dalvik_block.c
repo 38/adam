@@ -32,9 +32,12 @@ int main()
 	assert(block->begin == method->entry);
 	assert(block->end == method->entry + 3);
 	assert(block->nbranches == 1);
-	assert(DALVIK_BLOCK_BRANCH_UNCOND_TYPE_IS_RETURN(block->branches[0]));
-	assert(block->branches[0].block == NULL);
-	assert(block->branches[0].left->header.info.type == DVM_OPERAND_TYPE_VOID);
+	assert(block->branches[0].conditional == 0);
+	assert(DALVIK_BLOCK_BRANCH_UNCOND_TYPE_IS_JUMP(block->branches[0]));
+	dalvik_block_t* retblk = block->branches[0].block;
+	assert(NULL != retblk);
+	assert(1 == retblk->nbranches);
+	assert(DALVIK_BLOCK_BRANCH_UNCOND_TYPE_IS_RETURN(retblk->branches[0]));
 
 	/* Case 2 */
 	methodname = stringpool_query("case2");
@@ -113,10 +116,17 @@ int main()
 	assert(block3->nbranches == 1);
 	assert(block3->branches[0].linked == 1);
 	assert(block3->branches[0].disabled == 0);
-	assert(DALVIK_BLOCK_BRANCH_UNCOND_TYPE_IS_RETURN(block3->branches[0]));
-	assert(block3->branches[0].left->header.flags == 0);
-	assert(block3->branches[0].left->payload.uint16 == 9);
-	assert(block3->branches[0].block == NULL);
+	assert(DALVIK_BLOCK_BRANCH_UNCOND_TYPE_IS_JUMP(block3->branches[0]));
+
+	/*verify block 4 */
+	dalvik_block_t* block4 = block3->branches[0].block;
+	assert(block4->begin == method->entry + 7);
+	assert(block4->end == method->entry + 7);
+	assert(block4->nbranches == 1);
+	assert(DALVIK_BLOCK_BRANCH_UNCOND_TYPE_IS_RETURN(block4->branches[0]));
+	assert(block4->branches[0].left->header.flags == 0);
+	assert(block4->branches[0].left->payload.uint16 == 9);
+	assert(block4->branches[0].block == NULL);
 
 	/* Case 4 */
 	methodname = stringpool_query("case4");
@@ -149,8 +159,11 @@ int main()
 	assert(block3->branches[0].linked == 1);
 	assert(block3->branches[0].conditional == 0);
 	assert(block3->branches[0].disabled == 0);
-	assert(DALVIK_BLOCK_BRANCH_UNCOND_TYPE_IS_RETURN(block3->branches[0]));
-	assert(block3->branches[0].block == NULL);
+	
+	block4 = block3->branches[0].block;
+	assert(NULL != block4);
+	assert(DALVIK_BLOCK_BRANCH_UNCOND_TYPE_IS_RETURN(block4->branches[0]));
+	assert(block4->branches[0].block == NULL);
 
 	/* Case 5 */
 	methodname = stringpool_query("case5");

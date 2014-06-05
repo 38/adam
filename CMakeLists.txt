@@ -25,7 +25,6 @@ set(tools_DIR "tools")
 set(LOG     6)  # log level can be 0 to 6, 0 means no log, 6 means the most enable debug log 
 #set(CFLAGS -O0\ -Werror\ -Wall\ -g\ -DLOG_LEVEL=${LOG}\ -DPARSER_COUNT)
 set(CFLAGS -O0\ -Wall\ -Werror\ -g\ -DLOG_LEVEL=${LOG}\ -DPARSER_COUNT)
-set(LDFLAGS \ )
 
 
 include_directories("include" ".")
@@ -49,6 +48,7 @@ foreach(tool ${tools})
 		set_source_files_properties(${tools_FILES} PROPERTIES COMPILE_FLAGS ${CFLAGS})
 		add_executable(${tool} ${tool_FILES})
 		target_link_libraries(${tool} adam)
+		target_link_libraries(${tool} readline)
 	endif(IS_DIRECTORY ${tools_DIR}/${tool})
 endforeach(tool ${tools})
 
