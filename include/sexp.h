@@ -164,5 +164,8 @@ char* sexp_to_string(const sexpression_t* sexp, char* buf);
 
 /** @brief empty S-Expression */
 #define SEXP_NIL NULL
+/** @brief the S-Expression indicates that it's just a EOF */
+extern sexpression_t _sexp_eof;
+#define SEXP_EOF (&_sexp_eof)
 
 #endif /* __SEXP_H__ */

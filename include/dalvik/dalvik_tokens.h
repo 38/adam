@@ -125,7 +125,7 @@ extern const char* dalvik_keywords[DALVIK_MAX_NUM_KEYWORDS];
 #define DALVIK_TOKEN_FILL       DALVIK_TOKEN_TABLE_ENTITY(110)
 #define DALVIK_TOKEN_USING      DALVIK_TOKEN_TABLE_ENTITY(111)
 #define DALVIK_TOKEN_FROM       DALVIK_TOKEN_TABLE_ENTITY(112)
-
+#define DALVIK_TOKEN_DEBUG      DALVIK_TOKEN_TABLE_ENTITY(113)
 /** @brief initialize the token table. no need to finalize, because stringpool can dealing with this */
 int dalvik_tokens_init(void);
 

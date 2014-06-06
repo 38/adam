@@ -653,47 +653,49 @@ cesk_diff_t* cesk_diff_apply(int N, cesk_diff_t** args)
 	int matches = 0;
 	static uint8_t bmap[(CESK_STORE_ADDR_RELOC_SIZE + 7) / 8];
 	memset(bmap, 0, sizeof(bmap));
-	
-	for(alloc_ptr = alloc_end - 1, dealloc_ptr = dealloc_end - 1; alloc_ptr >= alloc_begin; alloc_ptr --)
+	if(alloc_end - alloc_begin > 0 && dealloc_end - dealloc_begin > 0)
 	{
+		for(alloc_ptr = alloc_end - 1, dealloc_ptr = dealloc_end - 1; alloc_ptr >= alloc_begin; alloc_ptr --)
+		{
+			for(;dealloc_ptr >= dealloc_begin && ret->data[dealloc_ptr].addr > ret->data[alloc_ptr].addr; dealloc_ptr --)
+			{
+				if(!matches)
+					ret->data[--dealloc_free] = ret->data[dealloc_ptr];
+				else
+					LOG_DEBUG("elimiate deallocation record %d at store address @%x", dealloc_ptr, ret->data[dealloc_ptr].addr);
+				matches = 0;
+			}
+			if(ret->data[dealloc_ptr].addr != ret->data[alloc_ptr].addr)
+			{
+				ret->data[--alloc_free] = ret->data[alloc_ptr];
+			}
+			else
+			{
+				LOG_DEBUG("elimiate allocation record %d at store address @%x", alloc_ptr, ret->data[alloc_ptr].addr);
+				/* we should elimiate the reference also */
+				cesk_value_decref(ret->data[alloc_ptr].arg.value);
+				matches = 1;
+				if(CESK_STORE_ADDR_IS_RELOC(ret->data[alloc_ptr].addr))
+				{
+					uint32_t idx = CESK_STORE_ADDR_RELOC_IDX(ret->data[alloc_ptr].addr);
+					bmap[idx/8] |= 1 << (idx % 8);
+				}
+			}
+		}
+
 		for(;dealloc_ptr >= dealloc_begin && ret->data[dealloc_ptr].addr > ret->data[alloc_ptr].addr; dealloc_ptr --)
 		{
 			if(!matches)
 				ret->data[--dealloc_free] = ret->data[dealloc_ptr];
 			else
-				LOG_DEBUG("elimiate deallocation record %d at store address @%x", dealloc_ptr, ret->data[dealloc_ptr].addr);
+				LOG_DEBUG("elimiate deallocation record %d", dealloc_ptr);
 			matches = 0;
 		}
-		if(ret->data[dealloc_ptr].addr != ret->data[alloc_ptr].addr)
-		{
-			ret->data[--alloc_free] = ret->data[alloc_ptr];
-		}
-		else
-		{
-			LOG_DEBUG("elimiate allocation record %d at store address @%x", alloc_ptr, ret->data[alloc_ptr].addr);
-			/* we should elimiate the reference also */
-			cesk_value_decref(ret->data[alloc_ptr].arg.value);
-			matches = 1;
-			if(CESK_STORE_ADDR_IS_RELOC(ret->data[alloc_ptr].addr))
-			{
-				uint32_t idx = CESK_STORE_ADDR_RELOC_IDX(ret->data[alloc_ptr].addr);
-				bmap[idx/8] |= 1 << (idx % 8);
-			}
-		}
+		for(dealloc_ptr = dealloc_free; dealloc_ptr < dealloc_end; dealloc_ptr ++)
+			ret->data[dealloc_ptr - dealloc_free + dealloc_begin] = ret->data[dealloc_ptr];
+		ret->offset[0] = alloc_free;
+		ret->offset[CESK_DIFF_NTYPES] = dealloc_end - dealloc_free + dealloc_begin;
 	}
-
-	for(;dealloc_ptr >= dealloc_begin && ret->data[dealloc_ptr].addr > ret->data[alloc_ptr].addr; dealloc_ptr --)
-	{
-		if(!matches)
-			ret->data[--dealloc_free] = ret->data[dealloc_ptr];
-		else
-			LOG_DEBUG("elimiate deallocation record %d", dealloc_ptr);
-		matches = 0;
-	}
-	for(dealloc_ptr = dealloc_free; dealloc_ptr < dealloc_end; dealloc_ptr ++)
-		ret->data[dealloc_ptr - dealloc_free + dealloc_begin] = ret->data[dealloc_ptr];
-	ret->offset[0] = alloc_free;
-	ret->offset[CESK_DIFF_NTYPES] = dealloc_end - dealloc_free + dealloc_begin;
 	if(_cesk_diff_gc(ret, bmap) < 0)
 		LOG_WARNING("can not run diff_gc");
 	LOG_DEBUG("result : %s", cesk_diff_to_string(ret, NULL, 0));

@@ -509,6 +509,7 @@ cesk_diff_t* cesk_method_analyze(const dalvik_block_t* code, cesk_frame_t* frame
 		{
 			if(0 == blkctx->code->branches[i].conditional && DALVIK_BLOCK_BRANCH_UNCOND_TYPE_IS_RETURN(blkctx->code->branches[i]))
 			{
+				LOG_DEBUG("return branch diff: %s", cesk_diff_to_string(blkctx->input_diff, NULL, 0));
 				uint32_t regid = CESK_FRAME_GENERAL_REG(blkctx->code->branches[i].left->payload.uint16);
 				uint32_t j;
 				for(j = blkctx->input_diff->offset[CESK_DIFF_REG]; 
@@ -540,29 +541,29 @@ cesk_diff_t* cesk_method_analyze(const dalvik_block_t* code, cesk_frame_t* frame
 			 * (current_input * input_diff) * branch_diff ==>
 			 * next_input * branch_diff ==>
 			 * branch_input */
-			if(cesk_frame_apply_diff(input_ctx->frame, input_ctx->cur_inversion, context->rtable, NULL, NULL) < 0)
+			cesk_diff_t* diffbuf[] = {input_ctx->cur_inversion, blkctx->input_diff, b_diff};
+			cesk_diff_t* branch_diff = cesk_diff_apply(3, diffbuf);
+			if(NULL == branch_diff)
 			{
-				LOG_ERROR("can not apply the previous inversion diff to the frame.");
+				LOG_ERROR("can not compute the branch input");
 				goto ERR;
 			}
-			int rc = cesk_frame_apply_diff(input_ctx->frame, blkctx->input_diff, context->rtable, NULL, NULL);
-			if(rc < 0)
+			int rc;
+			if((rc = cesk_frame_apply_diff(input_ctx->frame, branch_diff, context->rtable, NULL, NULL)) < 0)
 			{
-				LOG_ERROR("can not apply the input diff to the frame, so that we can make the new input");
+				LOG_ERROR("can not apply branch input diff to the branch frame");
 				goto ERR;
 			}
-			if(rc == 0 && context->front != 1)
+			cesk_diff_free(branch_diff);
+
+			if(0 == rc && context->front  != 1)
 			{
 				LOG_DEBUG("there's no modification in this branch, so we skip");
 				cesk_diff_free(b_diff);
 				cesk_diff_free(b_inv);
 				continue;
 			}
-			if(cesk_frame_apply_diff(input_ctx->frame, b_diff, context->rtable, NULL, NULL) < 0)
-			{
-				LOG_ERROR("can not apply branch diff to the input");
-				goto ERR;
-			}
+			
 			/* then we can run the code */
 			cesk_block_result_t res;
 			if(cesk_block_analyze(blkctx->code, input_ctx->frame, context->rtable, &res) < 0)
@@ -601,7 +602,7 @@ cesk_diff_t* cesk_method_analyze(const dalvik_block_t* code, cesk_frame_t* frame
 				input_ctx->cur_inversion = cur_inversion;
 				context->Q[context->rear%CESK_METHOD_MAX_NBLOCKS] = target_ctx->code->index;
 				context->rear ++;
-			}
+			}	
 		}
 	}
 	cesk_diff_buffer_t* db = cesk_diff_buffer_new(0);

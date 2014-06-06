@@ -4,6 +4,7 @@
 #include <stringpool.h>
 #include <string.h>
 #include <debug.h>
+sexpression_t _sexp_eof;
 /**
  * @brief allocate a new s-expression
  * @param type the type of this S-Expression (literal/stirng/cons)
@@ -27,13 +28,18 @@ static inline sexpression_t* _sexp_alloc(int type)
 			return NULL;
 	}
 	sexpression_t* ret = (sexpression_t*) malloc(size);
-	if(NULL != ret) ret->type = type;
+	if(NULL != ret) 
+	{
+		memset(ret, 0, size);
+		ret->type = type;
+	}
 	return ret;
 }
 void sexp_free(sexpression_t* buf)
 {
 	sexp_cons_t* cons_data;
 	if(SEXP_NIL == buf)  return; /* A empty S-Expression */
+	if(SEXP_EOF == buf)  return; /* EOF singleton */
 	switch(buf->type)
 	{
 		case SEXP_TYPE_CONS:     /* A Cons S-Expression, free the memory recursively */
@@ -99,15 +105,11 @@ static inline const char* _sexp_parse_list(const char* str, sexpression_t** buf)
 			*buf = _sexp_alloc(SEXP_TYPE_CONS);
 			sexp_cons_t* data = (sexp_cons_t*)((*buf)->data);
 			if(NULL == *buf) goto ERR;
-			if(*str == '-') 
-				str--;
+			if(*str == '-') str--;
 			str = sexp_parse(str, &data->first);
 			if(NULL == str) goto ERR;
 			data->seperator = *str;
-			//str = _sexp_parse_list(str, &data->second);
-			if(NULL == str) goto ERR;
 			if(NULL == head) head = *buf;
-			//return str;
 			buf = &data->second;
 		}
 	}
@@ -207,8 +209,8 @@ const char* sexp_parse(const char* str, sexpression_t** buf)
 	_sexp_parse_comment(&str);
 	if(*str == 0)
 	{
-		(*buf) = SEXP_NIL;
-		return str;
+		(*buf) = SEXP_EOF;
+		return NULL;
 	}
 	else if(*str == '(' || *str == '[' || *str == '{') return _sexp_parse_list(str + 1, buf);
 	else if(*str == '"') return _sexp_parse_string(str + 1, buf);

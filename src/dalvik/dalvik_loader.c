@@ -75,6 +75,7 @@ int dalvik_loader_from_directory(const char* path)
 				sexpression_t* sexp;
 				if(NULL == (ptr = sexp_parse(ptr, &sexp)))
 				{
+					if(SEXP_EOF == sexp) break;
 					sexp_free(sexp);
 					LOG_ERROR("Can't parse S-Expression");
 					goto ERR;

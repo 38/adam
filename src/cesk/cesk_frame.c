@@ -429,6 +429,9 @@ int cesk_frame_apply_diff(
 			{
 				case CESK_DIFF_ALLOC:
 					LOG_DEBUG("allocating object %s at store address @%x", cesk_value_to_string(rec->arg.value, NULL, 0) ,rec->addr);
+					/* TODO: use a diff substraction to replace this if */
+					if(cesk_alloctab_query(frame->store->alloc_tab, frame->store, rec->addr) != CESK_STORE_ADDR_NULL)
+						break;
 					if(cesk_reloc_addr_init(reloctab, frame->store, rec->addr, rec->arg.value) == CESK_STORE_ADDR_NULL)
 					{
 						LOG_ERROR("can not initialize relocated address @%x in store %p", rec->addr, frame->store);
