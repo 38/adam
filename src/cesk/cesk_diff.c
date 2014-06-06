@@ -879,3 +879,60 @@ int cesk_diff_identity(const cesk_diff_t* diff, const cesk_diff_t* inv)
 	if(i != diff->offset[CESK_DIFF_DEALLOC + 1]) return 0;
 	return 1;
 }
+int cesk_diff_sub(cesk_diff_t* dest, const cesk_diff_t* sour)
+{
+	if(NULL == dest || NULL == sour)
+	{
+		LOG_ERROR("invalid argument");
+		return -1;
+	}
+	/* if there's an allocation section */
+	if(sour->offset[CESK_DIFF_ALLOC + 1] - sour->offset[CESK_DIFF_ALLOC] > 0)
+	{
+		int dest_begin = dest->offset[CESK_DIFF_ALLOC];
+		int dest_end   = dest->offset[CESK_DIFF_ALLOC + 1];
+		int sour_begin = sour->offset[CESK_DIFF_ALLOC];
+		int sour_end   = sour->offset[CESK_DIFF_ALLOC + 1];
+		int dest_ptr   = dest_end - 1;
+		int i, j;
+		j = sour_end - 1;
+		for(i = dest_end - 1; i >= dest_begin; i --)
+		{
+			for(; j >= sour_begin && sour->data[j].addr > dest->data[i].addr; j --);
+			if(sour->data[j].addr == dest->data[i].addr)
+			{
+				LOG_DEBUG("allocation @%x is deleted", sour->data[j].addr); 
+			}
+			else
+			{
+				dest->offset[dest_ptr --] = dest->offset[i];
+			}
+		}
+		dest->offset[CESK_DIFF_ALLOC] = dest_ptr + 1;
+	}
+	/* if there's an deallocation section */
+	if(sour->offset[CESK_DIFF_DEALLOC + 1] - sour->offset[CESK_DIFF_DEALLOC] > 0)
+	{
+		int dest_begin = dest->offset[CESK_DIFF_DEALLOC];
+		int dest_end   = dest->offset[CESK_DIFF_DEALLOC + 1];
+		int sour_begin = dest->offset[CESK_DIFF_DEALLOC];
+		int sour_end   = dest->offset[CESK_DIFF_DEALLOC + 1];
+		int dest_ptr = dest_begin;
+		int i, j;
+		j = sour_begin;
+		for(i = dest_begin; i < dest_end; i ++)
+		{
+			for(; j < sour_end && dest->data[i].addr > sour->data[j].addr; j ++);
+			if(sour->data[j].addr == dest->data[i].addr)
+			{
+				LOG_ERROR("deallocation @%x is deleted", sour->data[j].addr);
+			}
+			else
+			{
+				dest->offset[dest_ptr ++] = dest->offset[i];
+			}
+		}
+		dest->offset[CESK_DIFF_DEALLOC + 1] = dest_ptr;
+	}
+	return 0;
+}

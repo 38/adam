@@ -11,6 +11,7 @@ typedef struct _cesk_diff_buffer_t cesk_diff_buffer_t;
 #include <vector.h>
 #include <const_assertion.h>
 
+#include <const_assertion.h>
 #include <cesk/cesk_value.h>
 #include <cesk/cesk_frame.h>
 
@@ -34,7 +35,8 @@ enum{
 	CESK_DIFF_DEALLOC, /*!<Deallocate the object (must not apply to a store) [deallocate reloc_addr] */
 	CESK_DIFF_NTYPES   /*!<Number of segmentations in a diff */
 };
-
+CONST_ASSERTION_EQ(CESK_DIFF_DEALLOC, CESK_DIFF_NTYPES - 1);
+CONST_ASSERTION_EQ(CESK_DIFF_ALLOC, 0);
 /* Diff Buffer */
 
 /** 
@@ -153,4 +155,12 @@ cesk_diff_t* cesk_diff_fork(cesk_diff_t* diff);
  * @return 1 if the pair is identity, the diff actually does nothing to the target frame
  */
 int cesk_diff_identity(const cesk_diff_t* diff, const cesk_diff_t* inv);
+
+/**
+ * @brief diff substraction
+ * @param dest the destination diff
+ * @param frame the source diff
+ * @return result of this operation, < 0 indicates an error 
+ **/
+int cesk_diff_sub(cesk_diff_t* dest, const cesk_diff_t* sour);
 #endif

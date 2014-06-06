@@ -1,0 +1,32 @@
+(class (attrs public) listNode
+	(super java/lang/object)
+	(source "listNode.java")
+	(field (attrs public) value int)
+	(field (attrs public) next [object listNode])
+	(method (attrs public static) run() void
+	 	(limit-registers 10)
+		;Block 0
+		(new-instance v0 listNode)
+		(const v1 0)
+		(const v2 100)
+		(move-object v3 v0)
+		;v0: list head
+		;v1: current value
+		;v2: upper-bound
+		;v3: list tail
+		;v4: new object
+		(label L_BEGIN)
+		;Block 1
+		(if-ge v1 v2 L_END)
+		;Block 2
+		(new-instance v4 listNode)
+		(iput v1 v4 listNode.value int)
+		(iput v4 v3 listNode.next [object listNode])
+		(move-object v3 v4)
+		(add-int/lit16 v1 v1 1)
+		(goto L_BEGIN)
+		(label L_END)
+		;Block 3
+		(return-void)
+	)
+)

@@ -405,6 +405,11 @@ static inline int _cesk_method_compute_next_input(_cesk_method_context_t* ctx, _
 			LOG_ERROR("can not compute prv_inversion * input_diff * cur_diff");
 			goto ERR;
 		}
+		if(cesk_diff_sub(term_diff[nways], blkctx->input_diff) < 0)
+		{
+			LOG_ERROR("can not strip the output diff");
+			goto ERR;
+		}
 		term_frame[nways] = input->frame;
 		nways ++;
 	}
