@@ -739,6 +739,7 @@ cesk_diff_t* cesk_diff_factorize(int N, cesk_diff_t** diffs, const cesk_frame_t*
 			if(CESK_STORE_ADDR_NULL == cur_addr) break;
 			ret->data[ret->offset[section + 1]].addr = cur_addr;
 			
+
 			switch(section)
 			{
 				case CESK_DIFF_DEALLOC:
@@ -749,6 +750,7 @@ cesk_diff_t* cesk_diff_factorize(int N, cesk_diff_t** diffs, const cesk_frame_t*
 					cesk_value_incref(ret->data[ret->offset[section + 1]].arg.value);
 					break;
 				case CESK_DIFF_REUSE:
+					ret->data[ret->offset[section + 1]].arg.generic = NULL;
 					ret->data[ret->offset[section + 1]].arg.boolean = diffs[cur_i]->data[diffs[cur_i]->_index].arg.boolean;
 					break;
 				case CESK_DIFF_REG:
@@ -808,10 +810,7 @@ cesk_diff_t* cesk_diff_factorize(int N, cesk_diff_t** diffs, const cesk_frame_t*
 			ret->offset[section + 1]++;
 		}
 	}
-#if LOG_LEVEL >= 6
-	static char buf[10000];
-#endif
-	LOG_DEBUG("result : %s", cesk_diff_to_string(ret, buf, 10000));
+	LOG_DEBUG("result : %s", cesk_diff_to_string(ret, NULL, 0));
 	return ret;
 }
 

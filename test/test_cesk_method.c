@@ -18,6 +18,7 @@ int main()
 
 	cesk_diff_t* ret = cesk_method_analyze(graph, frame);
 	puts(cesk_diff_to_string(ret, NULL, 0));
+	assert(0 == strcmp("[][][(register v0 {@ffffff04,@ffffff02})][][]", cesk_diff_to_string(ret, NULL, 0)));
 	cesk_frame_free(frame);
 	cesk_diff_free(ret);
 
@@ -36,6 +37,7 @@ int main()
 
 	ret = cesk_method_analyze(graph, frame);
 	puts(cesk_diff_to_string(ret, NULL, 0));
+	assert(0 == strcmp("[][][(register v0 {@ffffff04})][][]", cesk_diff_to_string(ret, NULL, 0)));
 	cesk_frame_free(frame);
 	cesk_diff_free(ret);
 
@@ -49,6 +51,7 @@ int main()
 
 	ret = cesk_method_analyze(graph, frame);
 	puts(cesk_diff_to_string(ret, NULL, 0));
+	assert(0 == strcmp("[][][(register v0 {@ffffff01})][][]", cesk_diff_to_string(ret, NULL, 0)));
 	cesk_frame_free(frame);
 	cesk_diff_free(ret);
 
