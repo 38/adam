@@ -297,7 +297,7 @@ __DI_CONSTRUCTOR(RETURN)
 	}
 	else  /* return */
 	{
-		__DI_SETUP_OPERAND(0, 0, __DI_REGNUM(curlit));
+		__DI_SETUP_OPERAND(0, DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_INT), __DI_REGNUM(curlit));
 	}
 	return 0;
 }

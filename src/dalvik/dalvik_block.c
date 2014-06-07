@@ -286,7 +286,6 @@ static inline int _dalvik_block_get_key_instruction_list(uint32_t entry_point, u
 				 __PUSH(inst);
 				 break;
 			 default:
-				 /* TODO how to handle exceptions */
 				 if(current_inst->handler_set != NULL)
 				 {
 					 /* if there's an exception handler that means the instruction itself can 

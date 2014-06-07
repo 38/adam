@@ -463,7 +463,7 @@ cesk_diff_t* cesk_diff_from_buffer(cesk_diff_buffer_t* buffer)
 					switch(section)
 					{
 						case CESK_DIFF_ALLOC:
-							LOG_WARNING("ignore the duplicated allocation record at the same store address @%x", prev_addr);
+							LOG_DEBUG("ignore the duplicated allocation record at the same store address @%x", prev_addr);
 							/* we have to drop the reference */
 							if(NULL != ret->data[ret->offset[section + 1]].arg.value)
 								cesk_value_decref(ret->data[ret->offset[section + 1]].arg.value);

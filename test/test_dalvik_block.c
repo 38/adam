@@ -91,7 +91,6 @@ int main()
 	assert(block3->nbranches == 1);
 	assert(DALVIK_BLOCK_BRANCH_UNCOND_TYPE_IS_RETURN(block3->branches[0]));
 	assert(block3->branches[0].block == NULL);
-	assert(block3->branches[0].left->header.flags == 0);
 	assert(block3->branches[0].left->payload.uint16 == 1);
 	assert(block3->branches[0].block == NULL);
 
@@ -124,7 +123,6 @@ int main()
 	assert(block4->end == method->entry + 7);
 	assert(block4->nbranches == 1);
 	assert(DALVIK_BLOCK_BRANCH_UNCOND_TYPE_IS_RETURN(block4->branches[0]));
-	assert(block4->branches[0].left->header.flags == 0);
 	assert(block4->branches[0].left->payload.uint16 == 9);
 	assert(block4->branches[0].block == NULL);
 

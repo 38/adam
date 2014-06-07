@@ -490,12 +490,7 @@ cesk_diff_t* cesk_method_analyze(const dalvik_block_t* code, cesk_frame_t* frame
 	context->Q[0] = code->index;
 	/* build the result, things we should care about: result register, exception register and static variables */
 	/* currently, we only consider the result result register */
-	cesk_set_t* result_reg = cesk_set_empty_set();
-	if(NULL == result_reg) 
-	{
-		LOG_ERROR("can not allocate set the result register");
-		goto ERR;
-	}
+	cesk_set_t* result_reg = NULL;
 	/* TODO: exception & static support & allocation */
 	
 	while(context->front < context->rear)
@@ -515,17 +510,29 @@ cesk_diff_t* cesk_method_analyze(const dalvik_block_t* code, cesk_frame_t* frame
 			if(0 == blkctx->code->branches[i].conditional && DALVIK_BLOCK_BRANCH_UNCOND_TYPE_IS_RETURN(blkctx->code->branches[i]))
 			{
 				LOG_DEBUG("return branch diff: %s", cesk_diff_to_string(blkctx->input_diff, NULL, 0));
-				uint32_t regid = CESK_FRAME_GENERAL_REG(blkctx->code->branches[i].left->payload.uint16);
-				uint32_t j;
-				for(j = blkctx->input_diff->offset[CESK_DIFF_REG]; 
-				    j < blkctx->input_diff->offset[CESK_DIFF_REG + 1] &&
-					blkctx->input_diff->data[j].addr < regid;
-					j ++);
-				if(j < blkctx->input_diff->offset[CESK_DIFF_REG + 1]  && regid == blkctx->input_diff->data[j].addr)
+				if(blkctx->code->branches[i].left->header.info.type != DALVIK_TYPECODE_VOID)
 				{
-					LOG_DEBUG("return %s", cesk_set_to_string(blkctx->input_diff->data[j].arg.set, NULL, 0)); 
-					if(cesk_set_merge(result_reg, blkctx->input_diff->data[j].arg.set) < 0)
-						LOG_WARNING("can not merge the new return value to result");
+					if(NULL == result_reg) 
+					{
+						result_reg = cesk_set_empty_set();
+						if(NULL == result_reg) 
+						{
+							LOG_ERROR("can not allocate set the result register");
+							goto ERR;
+						}
+					}
+					uint32_t regid = CESK_FRAME_GENERAL_REG(blkctx->code->branches[i].left->payload.uint16);
+					uint32_t j;
+					for(j = blkctx->input_diff->offset[CESK_DIFF_REG]; 
+						j < blkctx->input_diff->offset[CESK_DIFF_REG + 1] &&
+						blkctx->input_diff->data[j].addr < regid;
+						j ++);
+					if(j < blkctx->input_diff->offset[CESK_DIFF_REG + 1]  && regid == blkctx->input_diff->data[j].addr)
+					{
+						LOG_DEBUG("return %s", cesk_set_to_string(blkctx->input_diff->data[j].arg.set, NULL, 0)); 
+						if(cesk_set_merge(result_reg, blkctx->input_diff->data[j].arg.set) < 0)
+							LOG_WARNING("can not merge the new return value to result");
+					}
 				}
 				continue;
 			}
@@ -616,7 +623,7 @@ cesk_diff_t* cesk_method_analyze(const dalvik_block_t* code, cesk_frame_t* frame
 		LOG_ERROR("can not build result diff buffer");
 		goto ERR;
 	}
-	if(cesk_diff_buffer_append(db, CESK_DIFF_REG, CESK_FRAME_RESULT_REG, result_reg)  < 0)
+	if(NULL != result_reg && cesk_diff_buffer_append(db, CESK_DIFF_REG, CESK_FRAME_RESULT_REG, result_reg)  < 0)
 	{
 		LOG_ERROR("can not append record modifying the result register");
 		cesk_diff_buffer_free(db);
