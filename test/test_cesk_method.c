@@ -63,6 +63,7 @@ int main()
 	frame = cesk_frame_new(graph->nregs);
 	assert(NULL != frame);
 	ret = cesk_method_analyze(graph, frame);
+	assert(0 == strcmp("[(allocate @ff000000 (objval (refcnt 2) [class listNode ((value @ff000001) (next @ff000002) )])) (allocate @ff000001 (setval (refcnt 2) {@ffffff02})) (allocate @ff000002 (setval (refcnt 2) {@ffffff02})) (allocate @ff000003 (objval (refcnt 1) [class listNode ((value @ff000004) (next @ff000005) )])) (allocate @ff000004 (setval (refcnt 1) {@ffffff02})) (allocate @ff000005 (setval (refcnt 1) {@ffffff02}))][(reuse @ff000003 1)][(register v0 {@ff000000})][(store @ff000002 (setval (refcnt 1) {@ffffff02,@ff000003})) (store @ff000004 (setval (refcnt 1) {@ffffff04,@ffffff02})) (store @ff000005 (setval (refcnt 1) {@ff000003,@ffffff02}))][]", cesk_diff_to_string(ret, NULL, 0)));
 	puts(cesk_diff_to_string(ret, NULL, 0));
 	cesk_frame_free(frame);
 	cesk_diff_free(ret);
