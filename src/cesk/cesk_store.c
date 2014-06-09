@@ -5,8 +5,8 @@
 
 #include <cesk/cesk_store.h>
 
-#define HASH_INC(addr,val) (addr * MH_MULTIPLY + cesk_value_hashcode(val))
-#define HASH_CMP(addr,val) (addr * MH_MULTIPLY + cesk_value_compute_hashcode(val))
+#define HASH_INC(addr,val,reuse) ((addr * MH_MULTIPLY + cesk_value_hashcode(val))^(reuse * ~MH_MULTIPLY))
+#define HASH_CMP(addr,val,reuse) ((addr * MH_MULTIPLY + cesk_value_compute_hashcode(val))^(reuse * ~MH_MULTIPLY))
 /** 
  * @brief make a copy of a store block, but *do not touch store-block refcnt*
  * @note caller is responsible for update the ref-counts
@@ -94,7 +94,7 @@ static inline int _cesk_store_swipe(cesk_store_t* store, cesk_store_block_t* blo
 	block->slots[ofs].value = NULL; 
 	
 	/* update the hashcode */
-	store->hashcode ^= HASH_INC(addr, value);
+	store->hashcode ^= HASH_INC(addr, value, block->slots[ofs].reuse);
 	
 	/* decref of its refernces */
 	int rc = -1;
@@ -507,7 +507,7 @@ cesk_value_t* cesk_store_get_rw(cesk_store_t* store, uint32_t addr, int noval)
 	/* when a rw pointer is auquired, the hashcode is ready to update.
 	 * After finish updating, you should call the function release the 
 	 * value and update the hashcode */
-	store->hashcode ^= HASH_INC(addr, val);
+	store->hashcode ^= HASH_INC(addr, val, block->slots[offset].reuse);
 	val->write_status = 1;
 	return val;
 }
@@ -537,7 +537,7 @@ void cesk_store_release_rw(cesk_store_t* store, uint32_t addr)
 	/* update the relocation bit */
 	block->reloc |= val->reloc;
 	/* update the hashcode */
-	store->hashcode ^= HASH_INC(addr, val);
+	store->hashcode ^= HASH_INC(addr, val, block->slots[offset].reuse);
 }
 /* just for debug purpose */
 hashval_t cesk_store_compute_hashcode(const cesk_store_t* store)
@@ -551,7 +551,7 @@ hashval_t cesk_store_compute_hashcode(const cesk_store_t* store)
 			if(NULL != store->blocks[i]->slots[j].value && store->blocks[i]->slots[j].value->write_status == 0)
 			{
 				uint32_t addr = i * CESK_STORE_BLOCK_NSLOTS + j;
-				ret ^= HASH_CMP(addr, store->blocks[i]->slots[j].value);
+				ret ^= HASH_CMP(addr, store->blocks[i]->slots[j].value, store->blocks[i]->slots[j].reuse);
 			}
 		}
 	}

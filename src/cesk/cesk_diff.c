@@ -155,6 +155,28 @@ int cesk_diff_buffer_append(cesk_diff_buffer_t* buffer, int type, uint32_t addr,
 	LOG_DEBUG("append a new record to the buffer %s, timestamp = %d", _cesk_diff_record_to_string(type, addr, value, NULL, 0), node.time);
 	return vector_pushback(buffer->buffer, &node);
 }
+void* cesk_diff_buffer_append_peek(cesk_diff_buffer_t* buffer, int type, uint32_t addr, void* value)
+{
+	if(cesk_diff_buffer_append(buffer, type, addr, value) < 0)
+	{
+		LOG_ERROR("can not append the record to buffer");
+		return NULL;
+	}
+	else
+	{
+		uint32_t sz = vector_size(buffer->buffer);
+		_cesk_diff_node_t* node = (_cesk_diff_node_t*)vector_get(buffer->buffer, sz - 1);
+		if(NULL == node) 
+		{
+			LOG_ERROR("can not get the last appended node");
+			return NULL;
+		}
+		else
+		{
+			return node->value;
+		}
+	}
+}
 /**
  * @todo use faster sorting algorihtm
  **/

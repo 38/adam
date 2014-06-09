@@ -95,6 +95,19 @@ void cesk_diff_buffer_free(cesk_diff_buffer_t* buffer);
  **/
 int cesk_diff_buffer_append(cesk_diff_buffer_t* buffer,int type, uint32_t addr, void* value);
 /**
+ * @brief similar to the cesk_diff_buffer_append, but return the newly inserted value instead of error code
+ * @param buffer the diff buffer
+ * @param type
+ * @param addr the address that this item works on
+ * @param value the value if the record has one
+ * @return the newly created value
+ * @note although NULL means error if there's an valid memeory address excepted for this record,
+ *       However, for the record type that do not requires a valid host memory address like 
+ *       (reuse and deallocate), the NULL return value won't be an indicator of abnormal routine
+ *       has been activated
+ */
+void* cesk_diff_buffer_append_peek(cesk_diff_buffer_t* buffer, int type, uint32_t addr, void* value);
+/**
  * @brief construct a new cesk_diff_t according to a given diff buffer
  * @param buffer the diff buffer
  * @return the newly created diff, NULL indicates error

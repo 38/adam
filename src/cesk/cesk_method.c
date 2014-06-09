@@ -41,12 +41,16 @@ struct _cesk_method_block_context_t{
  * @brief an analyzer context 
  **/
 typedef struct {
+	const cesk_frame_t* input_frame;     /*!< the input frame for this context */
 	uint32_t Q[CESK_METHOD_MAX_NBLOCKS]; /*!< the analyzer queue */ 
 	uint32_t front;                      /*!< the earlist timestamp in the queue */
 	uint32_t rear;                       /*!< next fresh timestamp */
 	cesk_reloc_table_t* rtable;          /*!< relocation table*/
 	cesk_alloctab_t*    atable;          /*!< allocation table*/
 	uint32_t nslots;                     /*!< the number of slots */
+	cesk_diff_buffer_t* result_buffer;   /*!< the result diff buffer */
+	cesk_set_t*         result_reg;      /*!< the result register in the return diff buffer */
+	cesk_set_t*         exception_reg;   /*!< the exception register */
 	_cesk_method_block_context_t blocks[0];  /*!< the block contexts */
 } _cesk_method_context_t;
 cesk_diff_t* __deb__ = NULL;
@@ -231,6 +235,7 @@ static inline void _cesk_method_context_free(_cesk_method_context_t* context)
 	}
 	if(NULL != context->rtable) cesk_reloc_table_free(context->rtable);
 	if(NULL != context->atable) cesk_alloctab_free(context->atable);
+	if(NULL != context->result_buffer) cesk_diff_buffer_free(context->result_buffer);
 	free(context);
 }
 /**
@@ -263,6 +268,8 @@ static inline _cesk_method_context_t* _cesk_method_context_new(const dalvik_bloc
 	}
 	memset(ret, 0, context_size);
 	ret->nslots = _cesk_method_block_max_idx + 1;
+	/* set the input frame */
+	ret->input_frame = frame;
 	/* create allocation table and relocation table */
 	ret->rtable = cesk_reloc_table_new();
 	if(NULL == ret->rtable)
@@ -274,6 +281,16 @@ static inline _cesk_method_context_t* _cesk_method_context_new(const dalvik_bloc
 	if(NULL == ret->atable)
 	{
 		LOG_ERROR("can not create new allocation table");
+		goto ERR;
+	}
+	/* set result register and exception register to NULL, since nothing to return,
+	 * but memset did this, so we wont't do anything here */
+
+	/* then we allocate the result diff buffer */
+	ret->result_buffer = cesk_diff_buffer_new(0);
+	if(NULL == ret->result_buffer)
+	{
+		LOG_ERROR("can not create new diff buffer for analysis result");
 		goto ERR;
 	}
 	/* initialize all context for every blocks */
@@ -435,14 +452,14 @@ ERR:
 	return -1;
 }
 /**
- * @brief utilze the branch condition information, generate a diff that is the actual input
+ * @brief utilze the branch condition information, generate a diff that reflect the constains of this branch
  * @param block_ctx the context of the input block
  * @param input_ctx the input context
  * @param diff_buf buffer to pass the diff to caller
  * @param inv_buf buffer to pass the inversion of the diff to caller
  * @return result of the opration < 0 indicates some errors
  **/
-static inline int _cesk_method_get_branch_input(
+static inline int _cesk_method_get_branch_constrain_diff(
 		_cesk_method_block_context_t* block_ctx, 
 		_cesk_method_block_input_t* input_ctx, 
 		cesk_diff_t** diff_buf,
@@ -453,7 +470,113 @@ static inline int _cesk_method_get_branch_input(
 	*inv_buf = cesk_diff_empty();
 	return 0;
 }
-
+/**
+ * @brief compute the input frame of a given branch
+ * @param context the analyzer context
+ * @param input_ctx the input context
+ * @param b_diff the branch constrain diff
+ * @return > 0 means there's some modification, so that we need to go on. = 0 means 
+ *         the computation is successful, but nothing has changed, so that we can 
+ *         skip this status. < 0 indicates something goes wrong
+ **/
+static inline int _cesk_method_compute_branch_frame(_cesk_method_context_t* context, _cesk_method_block_input_t* input_ctx, cesk_diff_t* b_diff)
+{
+	/* then compute the actual diff to generate a correct input frame, so that we can call the block analyzer 
+	 * ((current_output * current_inversion) * input_diff) * branch_diff ==> 
+	 * (current_input * input_diff) * branch_diff ==>
+	 * next_input * branch_diff ==>
+	 * branch_input */
+	cesk_diff_t* diffbuf[] = {input_ctx->cur_inversion, input_ctx->block->input_diff, b_diff};
+	cesk_diff_t* branch_diff = cesk_diff_apply(3, diffbuf);
+	if(NULL == branch_diff)
+	{
+		LOG_ERROR("can not compute the branch input");
+		return -1;
+	}
+	int rc;
+	if((rc = cesk_frame_apply_diff(input_ctx->frame, branch_diff, context->rtable, NULL, NULL)) < 0)
+	{
+		LOG_ERROR("can not apply branch input diff to the branch frame");
+		cesk_diff_free(branch_diff);
+		return -1;
+	}
+	cesk_diff_free(branch_diff);
+	return rc;
+}
+/**
+ * @brief when we meet a branch with a return instruction, the analyzer calls this function.
+ *        This function will forward the return value to a diff buffer, based on this, we can
+ *        construct a return diff after the analysis for this closure is done.
+ * @note  the store and result register won't be override, we need to merge all values that to 
+ *        be forwarded. (in register section only result register and exception is allowed
+ * @param context the context for analyzer
+ * @param branch the block branch structure describing this branch
+ * @param input_diff the diff of previous input and current input
+ * @param dbuf the result diff buffer
+ */
+static inline int _cesk_method_return(_cesk_method_context_t* context, const dalvik_block_branch_t* branch, const cesk_diff_t* input_diff)
+{
+	/* if this return instruction is not return-void, set the return code */
+	if(branch->left->header.info.type != DALVIK_TYPECODE_VOID)
+	{
+		uint32_t regid = CESK_FRAME_GENERAL_REG(branch->left->payload.uint16);
+		uint32_t j;
+		/* find the register to return */
+		for(j = input_diff->offset[CESK_DIFF_REG]; 
+			j < input_diff->offset[CESK_DIFF_REG + 1] &&
+			input_diff->data[j].addr < regid;
+			j ++);
+		/* if this register has been modified since last seen */
+		if(j < input_diff->offset[CESK_DIFF_REG + 1]  && regid == input_diff->data[j].addr)
+		{
+			if(NULL == context->result_reg)
+			{
+				context->result_reg = cesk_diff_buffer_append_peek(
+						context->result_buffer, 
+						CESK_DIFF_REG, 
+						CESK_FRAME_RESULT_REG, 
+						input_diff->data[j].arg.set);
+				/* although function cesk_diff_buffer_append_peek can result NULL when the function
+				 * returns normally. But there's no way for an register record which value is NULL,
+				 * so if this happend, we are confident to say, something goes wrong */ 
+				if(NULL == context->result_reg)
+				{
+					LOG_ERROR("can not append the new value to the store");
+					return -1;
+				}
+			}
+			else
+			{
+				if(cesk_set_merge(context->result_reg, input_diff->data[j].arg.set) < 0)
+				{
+					LOG_ERROR("can not merge the new return value to result");
+					return -1;
+				}
+			}
+		}
+		else if(NULL == context->result_reg)
+		{
+			/* otherwise, although nothing has changed, but if the return value has not setup yet,
+			 * we should use the input value for this return */
+			const cesk_set_t* set = context->input_frame->regs[regid];
+			if(NULL != set)
+			{
+				/* this is a dirty hack ... but actually set.fork and object.inc_ref requires different permissions, but use a signle function */ 
+				context->result_reg = cesk_diff_buffer_append_peek(context->result_buffer, CESK_DIFF_REG, CESK_FRAME_RESULT_REG, (void*)set);
+				if(NULL == context->result_reg)
+				{
+					LOG_ERROR("can not append new value to the store");
+					return -1;
+				}
+			}
+		}
+	}
+	/* all allocation, reuse and store operation should be forward to the callee */
+	/* TODO */
+	/* ok everything is done */
+	return 0;
+}
+/* TODO: exception return */
 cesk_diff_t* cesk_method_analyze(const dalvik_block_t* code, cesk_frame_t* frame)
 {
 	LOG_DEBUG("start analyzing code block graph at %p with frame %p (hashcode = %u)", code, frame, cesk_frame_hashcode(frame));
@@ -476,8 +599,8 @@ cesk_diff_t* cesk_method_analyze(const dalvik_block_t* code, cesk_frame_t* frame
 	
 	/* insert current node to the cache, tell others I've ever been here */
 	node = _cesk_method_cache_insert(code, frame);
-	
-	/* start analyzing */
+
+	/* create a result buffer */
 	cesk_diff_t* result = NULL;
 	_cesk_method_context_t* context = _cesk_method_context_new(code, frame);
 	if(NULL == context)
@@ -485,12 +608,9 @@ cesk_diff_t* cesk_method_analyze(const dalvik_block_t* code, cesk_frame_t* frame
 		LOG_ERROR("can not create context");
 		goto ERR;
 	}
-
+	
 	context->front = 0, context->rear = 1;
 	context->Q[0] = code->index;
-	/* build the result, things we should care about: result register, exception register and static variables */
-	/* currently, we only consider the result result register */
-	cesk_set_t* result_reg = NULL;
 	/* TODO: exception & static support & allocation */
 	
 	while(context->front < context->rear)
@@ -507,68 +627,32 @@ cesk_diff_t* cesk_method_analyze(const dalvik_block_t* code, cesk_frame_t* frame
 		int i;
 		for(i = 0; i < blkctx->code->nbranches; i ++)
 		{
+			if(blkctx->code->branches[i].disabled) continue;
+			/* if current branch is return */
 			if(0 == blkctx->code->branches[i].conditional && DALVIK_BLOCK_BRANCH_UNCOND_TYPE_IS_RETURN(blkctx->code->branches[i]))
 			{
-				LOG_DEBUG("return branch diff: %s", cesk_diff_to_string(blkctx->input_diff, NULL, 0));
-				if(blkctx->code->branches[i].left->header.info.type != DALVIK_TYPECODE_VOID)
+				if(_cesk_method_return(context, blkctx->code->branches + i, blkctx->input_diff) < 0)
 				{
-					if(NULL == result_reg) 
-					{
-						result_reg = cesk_set_empty_set();
-						if(NULL == result_reg) 
-						{
-							LOG_ERROR("can not allocate set the result register");
-							goto ERR;
-						}
-					}
-					uint32_t regid = CESK_FRAME_GENERAL_REG(blkctx->code->branches[i].left->payload.uint16);
-					uint32_t j;
-					for(j = blkctx->input_diff->offset[CESK_DIFF_REG]; 
-						j < blkctx->input_diff->offset[CESK_DIFF_REG + 1] &&
-						blkctx->input_diff->data[j].addr < regid;
-						j ++);
-					if(j < blkctx->input_diff->offset[CESK_DIFF_REG + 1]  && regid == blkctx->input_diff->data[j].addr)
-					{
-						LOG_DEBUG("return %s", cesk_set_to_string(blkctx->input_diff->data[j].arg.set, NULL, 0)); 
-						if(cesk_set_merge(result_reg, blkctx->input_diff->data[j].arg.set) < 0)
-							LOG_WARNING("can not merge the new return value to result");
-					}
+					LOG_ERROR("can not forward the result");
 				}
 				continue;
 			}
 			_cesk_method_block_context_t* target_ctx = context->blocks + blkctx->code->branches[i].block->index;
 			_cesk_method_block_input_t*   input_ctx  = target_ctx->inputs + blkctx->input_index[i];
-			if(blkctx->code->branches[i].disabled) continue;
-			/* first of all, apply the branch info to the frame */
+			/* first of all, apply the branch constrains to the frame */
 			cesk_diff_t *b_diff = NULL;
 			cesk_diff_t *b_inv  = NULL;
-			/* TODO: check for the fix point */
-			if(_cesk_method_get_branch_input(blkctx, input_ctx, &b_diff, &b_inv) < 0)
+			
+			/* let's think about the branch constain */
+			if(_cesk_method_get_branch_constrain_diff(blkctx, input_ctx, &b_diff, &b_inv) < 0)
 			{
 				LOG_ERROR("can not compute the branch diff");
 				goto ERR;
 			}
-			/* then compute the actual diff to generate a correct input frame, so that we can call the block analyzer 
-			 * ((current_output * current_inversion) * input_diff) * branch_diff ==> 
-			 * (current_input * input_diff) * branch_diff ==>
-			 * next_input * branch_diff ==>
-			 * branch_input */
-			cesk_diff_t* diffbuf[] = {input_ctx->cur_inversion, blkctx->input_diff, b_diff};
-			cesk_diff_t* branch_diff = cesk_diff_apply(3, diffbuf);
-			if(NULL == branch_diff)
-			{
-				LOG_ERROR("can not compute the branch input");
-				goto ERR;
-			}
-			int rc;
-			if((rc = cesk_frame_apply_diff(input_ctx->frame, branch_diff, context->rtable, NULL, NULL)) < 0)
-			{
-				LOG_ERROR("can not apply branch input diff to the branch frame");
-				goto ERR;
-			}
-			cesk_diff_free(branch_diff);
 
-			if(0 == rc && context->front  != 1)
+			/* then we should compute the actual input frame for this branch before we strat run the code in this block 
+			 * if nothing has been changed, it's a fix point*/
+			if(0 == _cesk_method_compute_branch_frame(context, input_ctx, b_diff) && context->front  != 1)
 			{
 				LOG_DEBUG("there's no modification in this branch, so we skip");
 				cesk_diff_free(b_diff);
@@ -583,70 +667,53 @@ cesk_diff_t* cesk_method_analyze(const dalvik_block_t* code, cesk_frame_t* frame
 				LOG_ERROR("failed to analyze the block #%d with frame hash = 0x%x",  blkctx->code->index, cesk_frame_hashcode(input_ctx->frame));
 				goto ERR;
 			}
-			/* compute new diff */
+
+			/* compute new branch analysis diff */
 			cesk_diff_t* buf[] = {b_diff, res.diff};
 			cesk_diff_t* ibuf[] = {res.inverse, b_inv};
 			cesk_diff_t* cur_diff = cesk_diff_apply(2, buf);
-			if(NULL == cur_diff)
-			{
-				LOG_ERROR("failed to compute new diff");
-				goto ERR;
-			}
 			cesk_diff_t* cur_inversion = cesk_diff_apply(2, ibuf);
-			cesk_diff_free(res.diff);
-			cesk_diff_free(res.inverse);
-			cesk_diff_free(b_diff);
-			cesk_diff_free(b_inv);
-			if(NULL == cur_inversion)
+			if(NULL == cur_diff || NULL == cur_inversion)
 			{
-				LOG_ERROR("failed to compute the inversion");
+				LOG_ERROR("failed to compute the analysis diff after interpretation of this branch");
 				goto ERR;
 			}
+			/* update the diff */
+			cesk_diff_free(input_ctx->prv_inversion);
+			cesk_diff_free(input_ctx->cur_diff);
+			input_ctx->prv_inversion = input_ctx->cur_inversion;
+			input_ctx->cur_diff = cur_diff;
+			input_ctx->cur_inversion = cur_inversion;
 			/* finally, update the queue and timestamp */
 			uint32_t target_ts = input_ctx->block->timestamp;
 			input_ctx->block->timestamp = context->rear;
 			if(target_ts <= context->front)
 			{
-				cesk_diff_free(input_ctx->prv_inversion);
-				cesk_diff_free(input_ctx->cur_diff);
-				input_ctx->prv_inversion = input_ctx->cur_inversion;
-				input_ctx->cur_diff = cur_diff;
-				input_ctx->cur_inversion = cur_inversion;
 				context->Q[context->rear%CESK_METHOD_MAX_NBLOCKS] = target_ctx->code->index;
 				context->rear ++;
 			}	
+			/* clean up */
+			cesk_diff_free(res.diff);
+			cesk_diff_free(res.inverse);
+			cesk_diff_free(b_diff);
+			cesk_diff_free(b_inv);
 		}
 	}
-	cesk_diff_buffer_t* db = cesk_diff_buffer_new(0);
-	if(NULL == db) 
-	{
-		LOG_ERROR("can not build result diff buffer");
-		goto ERR;
-	}
-	if(NULL != result_reg && cesk_diff_buffer_append(db, CESK_DIFF_REG, CESK_FRAME_RESULT_REG, result_reg)  < 0)
-	{
-		LOG_ERROR("can not append record modifying the result register");
-		cesk_diff_buffer_free(db);
-		goto ERR;
-	}
-	result = cesk_diff_from_buffer(db);
+	
+	result = cesk_diff_from_buffer(context->result_buffer);
 	if(NULL == result)
 	{
-		LOG_ERROR("can not construct the result diff");
-		cesk_diff_buffer_free(db);
+		LOG_ERROR("can not build the result diff from result diff buffer");
 		goto ERR;
 	}
-	cesk_diff_buffer_free(db);
-	db = NULL;
-	cesk_set_free(result_reg);
+
 	/* cache the result diff */
 	node->result = result;
 	_cesk_method_context_free(context);
-	LOG_DEBUG("end of analysis result diff = %s", cesk_diff_to_string(result, NULL, 0));
+	LOG_DEBUG("result diff = %s", cesk_diff_to_string(result, NULL, 0));
 	return cesk_diff_fork(result);
 ERR:
 	if(result) cesk_diff_free(result);
-	if(result_reg) cesk_set_free(result_reg);
 	if(context) _cesk_method_context_free(context);
 	return NULL;
 }
