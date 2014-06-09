@@ -63,6 +63,7 @@ int main()
 	frame = cesk_frame_new(graph->nregs);
 	assert(NULL != frame);
 	ret = cesk_method_analyze(graph, frame);
+	puts(cesk_diff_to_string(ret, NULL, 0));
 	cesk_frame_free(frame);
 	cesk_diff_free(ret);
 

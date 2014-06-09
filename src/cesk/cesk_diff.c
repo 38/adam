@@ -28,7 +28,7 @@ struct _cesk_diff_node_t{
 	void* value;        /*!< the value of this node */
 };
 
-cesk_diff_buffer_t* cesk_diff_buffer_new(uint8_t reverse)
+cesk_diff_buffer_t* cesk_diff_buffer_new(uint8_t reverse, uint32_t merge)
 {
 	cesk_diff_buffer_t* ret = (cesk_diff_buffer_t*)malloc(sizeof(cesk_diff_buffer_t));
 	if(NULL == ret)
@@ -38,6 +38,7 @@ cesk_diff_buffer_t* cesk_diff_buffer_new(uint8_t reverse)
 	}
 	ret->converted = 0;
 	ret->reverse = reverse; 
+	ret->merge = merge;
 	ret->buffer = vector_new(sizeof(_cesk_diff_node_t));
 	return ret;
 }
@@ -495,17 +496,79 @@ cesk_diff_t* cesk_diff_from_buffer(cesk_diff_buffer_t* buffer)
 							LOG_WARNING("ignore the dumplicated deallocation record at the same store address @%x", prev_addr);
 							break;
 						case CESK_DIFF_REUSE:
-							ret->data[ret->offset[section + 1]].arg.boolean = (node->value != NULL);
+							if(buffer->merge)
+								ret->data[ret->offset[section + 1]].arg.boolean |= (node->value != NULL);
+							else
+								ret->data[ret->offset[section + 1]].arg.boolean = (node->value != NULL);
 							break;
 						case CESK_DIFF_REG:
-							if(NULL != ret->data[ret->offset[section + 1]].arg.set)
-								cesk_set_free(ret->data[ret->offset[section + 1]].arg.set);
-							ret->data[ret->offset[section + 1]].arg.set = (cesk_set_t*)node->value;
+							if(buffer->merge)
+							{
+								if(NULL == ret->data[ret->offset[section + 1]].arg.set)
+									ret->data[ret->offset[section + 1]].arg.set = (cesk_set_t*)node->value;
+								else
+								{
+									if(cesk_set_merge(ret->data[ret->offset[section + 1]].arg.set, (cesk_set_t*)node->value) < 0)
+									{
+										LOG_WARNING("can not merge the result register and return register, some value is ignored");
+										continue;
+									}
+									cesk_set_free((cesk_set_t*)node->value);
+								}
+							}
+							else
+							{
+								if(NULL != ret->data[ret->offset[section + 1]].arg.set)
+									cesk_set_free(ret->data[ret->offset[section + 1]].arg.set);
+								ret->data[ret->offset[section + 1]].arg.set = (cesk_set_t*)node->value;
+							}
 							break;
 						case CESK_DIFF_STORE:
-							if(NULL != ret->data[ret->offset[section + 1]].arg.value)
-								cesk_value_decref(ret->data[ret->offset[section + 1]].arg.value);
-							ret->data[ret->offset[section + 1]].arg.value = (cesk_value_t*) node->value;
+							if(buffer->merge)
+							{
+								if(NULL == ret->data[ret->offset[section + 1]].arg.value)
+									ret->data[ret->offset[section + 1]].arg.value = (cesk_value_t*) node->value;
+								else
+								{
+									int type = ((cesk_value_t*)node->value)->type;
+									/* object type? this record must be wrong since the object structure itself can not changed during the run time */
+									if(type == CESK_TYPE_OBJECT)
+									{
+										LOG_WARNING("it seems no way to set a store address in which there's an object instance");
+									}
+									/* the type is a set as expected, so that we need to copy on write before this used */
+									else if(type == CESK_TYPE_SET)
+									{
+										cesk_value_t* value = ret->data[ret->offset[section + 1]].arg.value;
+										/* if current value is used by multiple users, fork it before merge */
+										if(value->refcnt > 1)
+										{
+											cesk_value_t* new_value = cesk_value_fork(value);
+											if(NULL == new_value)
+											{
+												LOG_WARNING("can not fork the old value to make changes, item ignored");
+												break;
+											}
+											cesk_value_decref(value);
+											cesk_value_incref(new_value);
+											value = new_value;
+											ret->data[ret->offset[section + 1]].arg.value = value;
+										}
+										/* now we can safely merge the value without affecting other value */
+										if(cesk_set_merge(value->pointer.set, ((cesk_value_t*)node->value)->pointer.set) < 0)
+										{
+											LOG_ERROR("can not merge return store diff item the result store item, some values in the store is ignored");
+										}
+										cesk_value_decref((cesk_value_t*) node->value);
+									}
+								}
+							}
+							else
+							{
+								if(NULL != ret->data[ret->offset[section + 1]].arg.value)
+									cesk_value_decref(ret->data[ret->offset[section + 1]].arg.value);
+								ret->data[ret->offset[section + 1]].arg.value = (cesk_value_t*) node->value;
+							}
 							break;
 						default:
 							LOG_WARNING("unknown type of record");

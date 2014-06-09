@@ -20,8 +20,8 @@ int main()
 	/* check the frame */
 	assert(NULL != frame);
 
-	cesk_diff_buffer_t* dif = cesk_diff_buffer_new(0);
-	cesk_diff_buffer_t* inv = cesk_diff_buffer_new(1);
+	cesk_diff_buffer_t* dif = cesk_diff_buffer_new(0, 0);
+	cesk_diff_buffer_t* inv = cesk_diff_buffer_new(1, 0);
 
 	/* set reloc table and alloc table */
 	cesk_reloc_table_t* reloc = cesk_reloc_table_new();

@@ -47,7 +47,8 @@ CONST_ASSERTION_EQ(CESK_DIFF_ALLOC, 0);
 struct _cesk_diff_buffer_t{
 	int converted;   /*!< indicates how many items are converted */
 	vector_t* buffer;/*!< the actual buffer */
-	uint8_t reverse; /*!< this buffer is in reverse time order */
+	uint8_t reverse:1; /*!< this buffer is in reverse time order */
+	uint8_t merge:1;   /*!< if this bit is set, that means are going to merge all set value, rather than override it */
 };
 
 /**
@@ -77,9 +78,11 @@ CONST_ASSERTION_SIZE(cesk_diff_t, data, 0);
 
 /**
  * @brief create a new diff buffer 
+ * @param reverse the bit indicates if this buffer is a reverse buffer
+ * @param merge if this bit is set, the diff construction function will merge all set value rather than override it
  * @return the created diff buffer, NULL indicates an error
  **/
-cesk_diff_buffer_t* cesk_diff_buffer_new(uint8_t reverse);
+cesk_diff_buffer_t* cesk_diff_buffer_new(uint8_t reverse, uint32_t merge);
 /**
  * @brief free the memory for diff buffer
  * @return nothing

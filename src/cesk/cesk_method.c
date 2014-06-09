@@ -287,7 +287,7 @@ static inline _cesk_method_context_t* _cesk_method_context_new(const dalvik_bloc
 	 * but memset did this, so we wont't do anything here */
 
 	/* then we allocate the result diff buffer */
-	ret->result_buffer = cesk_diff_buffer_new(0);
+	ret->result_buffer = cesk_diff_buffer_new(0, 1);
 	if(NULL == ret->result_buffer)
 	{
 		LOG_ERROR("can not create new diff buffer for analysis result");
@@ -549,7 +549,7 @@ static inline int _cesk_method_return(_cesk_method_context_t* context, const dal
 			{
 				if(cesk_set_merge(context->result_reg, input_diff->data[j].arg.set) < 0)
 				{
-					LOG_ERROR("can not merge the new return value to result");
+					LOG_ERROR("can not merge the new return value to result buffer");
 					return -1;
 				}
 			}
@@ -565,14 +565,40 @@ static inline int _cesk_method_return(_cesk_method_context_t* context, const dal
 				context->result_reg = cesk_diff_buffer_append_peek(context->result_buffer, CESK_DIFF_REG, CESK_FRAME_RESULT_REG, (void*)set);
 				if(NULL == context->result_reg)
 				{
-					LOG_ERROR("can not append new value to the store");
+					LOG_ERROR("can not append new return register value to the result buffer");
 					return -1;
 				}
 			}
 		}
 	}
-	/* all allocation, reuse and store operation should be forward to the callee */
-	/* TODO */
+	/* forward the allocation */
+	uint32_t i;
+	for(i = input_diff->offset[CESK_DIFF_ALLOC]; i < input_diff->offset[CESK_DIFF_ALLOC + 1]; i ++)
+	{
+		if(cesk_diff_buffer_append(context->result_buffer, CESK_DIFF_ALLOC, input_diff->data[i].addr, input_diff->data[i].arg.generic) < 0)
+		{
+			LOG_ERROR("can not append the allocation record the the result buffer");
+			return -1;
+		}
+	}
+	/* forward the reuse flags */
+	for(i = input_diff->offset[CESK_DIFF_REUSE]; i < input_diff->offset[CESK_DIFF_REUSE + 1]; i ++)
+	{
+		if(cesk_diff_buffer_append(context->result_buffer, CESK_DIFF_REUSE, input_diff->data[i].addr, input_diff->data[i].arg.generic) < 0)
+		{
+			LOG_ERROR("can not append the reuse bit record to the result buffer");
+			return -1;
+		}
+	}
+	/* forward the store modification */
+	for(i = input_diff->offset[CESK_DIFF_STORE]; i < input_diff->offset[CESK_DIFF_STORE + 1]; i ++)
+	{
+		if(cesk_diff_buffer_append(context->result_buffer, CESK_DIFF_STORE, input_diff->data[i].addr, input_diff->data[i].arg.generic) < 0)
+		{
+			LOG_ERROR("can not append the store modification record to the result buffer");
+			return -1;
+		}
+	}
 	/* ok everything is done */
 	return 0;
 }

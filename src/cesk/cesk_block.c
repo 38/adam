@@ -446,13 +446,13 @@ int cesk_block_analyze(const dalvik_block_t* code, cesk_frame_t* frame, cesk_rel
 	/* prepare the diff buffers */
 	cesk_diff_buffer_t* dbuf = NULL; 
 	cesk_diff_buffer_t* ibuf = NULL;
-	dbuf = cesk_diff_buffer_new(0);
+	dbuf = cesk_diff_buffer_new(0, 0);
 	if(NULL == dbuf)
 	{
 		LOG_ERROR("can not allocate diff buffer");
 		goto ERR;
 	}
-	ibuf = cesk_diff_buffer_new(1);
+	ibuf = cesk_diff_buffer_new(1, 0);
 	if(NULL == ibuf)
 	{
 		LOG_ERROR("can not allocate inverse diff buffer");

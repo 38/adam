@@ -27,6 +27,6 @@
 		(goto L_BEGIN)
 		(label L_END)
 		;Block 3
-		(return-void)
+		(return-object v0)
 	)
 )

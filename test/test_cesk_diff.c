@@ -6,7 +6,7 @@ int main()
 	/* load the test data */
 	assert(0 == dalvik_loader_from_directory("test/data"));
 	/*test the buffer */
-	cesk_diff_buffer_t* buf = cesk_diff_buffer_new(0);
+	cesk_diff_buffer_t* buf = cesk_diff_buffer_new(0, 0);
 	assert(NULL != buf);
 	/* try to append one */
 	cesk_set_t* set0 = cesk_set_empty_set();
@@ -46,7 +46,7 @@ int main()
 	assert(diff1->offset[CESK_DIFF_NTYPES] - diff1->offset[0] == 2);
 
 	/* create another diff */
-	buf = cesk_diff_buffer_new(0);
+	buf = cesk_diff_buffer_new(0, 0);
 	assert(NULL != buf);
 	assert(0 == cesk_diff_buffer_append(buf, CESK_DIFF_REG, 3, set1));
 	assert(0 == cesk_diff_buffer_append(buf, CESK_DIFF_STORE, 0x123, cesk_value_empty_set()));
@@ -87,10 +87,10 @@ int main()
 	cesk_frame_set_alloctab(frame3, atab);
 
 	/* now we use 2 gourps of diff buffers to keep tracking the modification */
-	cesk_diff_buffer_t *db1 = cesk_diff_buffer_new(0);
-	cesk_diff_buffer_t *ib1 = cesk_diff_buffer_new(1);
-	cesk_diff_buffer_t *db2 = cesk_diff_buffer_new(0);
-	cesk_diff_buffer_t *ib2 = cesk_diff_buffer_new(1);
+	cesk_diff_buffer_t *db1 = cesk_diff_buffer_new(0, 0);
+	cesk_diff_buffer_t *ib1 = cesk_diff_buffer_new(1, 0);
+	cesk_diff_buffer_t *db2 = cesk_diff_buffer_new(0, 0);
+	cesk_diff_buffer_t *ib2 = cesk_diff_buffer_new(1, 0);
 
 	assert(NULL != db1 && NULL != db2  &&
 	       NULL != ib1 && NULL != ib2 );
@@ -108,7 +108,7 @@ int main()
 	const char* field = stringpool_query("literals");
 
 	/* to make frame1 and frame2 different first we make some untracked changes */
-	cesk_diff_buffer_t *btmp = cesk_diff_buffer_new(0);
+	cesk_diff_buffer_t *btmp = cesk_diff_buffer_new(0, 0);
 	uint32_t addr1 = cesk_frame_store_new_object(frame1, rtab, inst1, classpath, btmp, NULL);  
 	assert(CESK_STORE_ADDR_NULL != addr1);
 	assert(0 == cesk_frame_register_load(frame1, 3, addr1, NULL, NULL));

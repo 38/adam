@@ -334,6 +334,7 @@ int cesk_frame_gc(cesk_frame_t* frame)
 	free(fb);
 	return 0;
 }
+#include <stdio.h>
 hashval_t cesk_frame_hashcode(const cesk_frame_t* frame)
 {
 	hashval_t ret = CESK_FRAME_INIT_HASH;

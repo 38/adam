@@ -5,8 +5,8 @@
 
 #include <cesk/cesk_store.h>
 
-#define HASH_INC(addr,val,reuse) ((addr * MH_MULTIPLY + cesk_value_hashcode(val))^(reuse * ~MH_MULTIPLY))
-#define HASH_CMP(addr,val,reuse) ((addr * MH_MULTIPLY + cesk_value_compute_hashcode(val))^(reuse * ~MH_MULTIPLY))
+#define HASH_INC(addr,val,reuse) ((addr * MH_MULTIPLY + cesk_value_hashcode(val))^((reuse) * ~MH_MULTIPLY))
+#define HASH_CMP(addr,val,reuse) ((addr * MH_MULTIPLY + cesk_value_compute_hashcode(val))^((reuse) * ~MH_MULTIPLY))
 /** 
  * @brief make a copy of a store block, but *do not touch store-block refcnt*
  * @note caller is responsible for update the ref-counts
@@ -443,12 +443,14 @@ int cesk_store_set_reuse(cesk_store_t* store, uint32_t addr)
 		return -1;
 	}
 	cesk_store_block_t* block = _cesk_store_getblock_rw(store, addr);
+	store->hashcode ^= HASH_INC(addr, block->slots[offset].value, block->slots[offset].reuse);
 	if(NULL == block)
 	{
 		LOG_ERROR("what's wrong?");
 		return -1;
 	}
 	block->slots[offset].reuse = 1;
+	store->hashcode ^= HASH_INC(addr, block->slots[offset].value, block->slots[offset].reuse);
 	return 0;
 }
 int cesk_store_clear_reuse(cesk_store_t* store, uint32_t addr)
@@ -462,12 +464,14 @@ int cesk_store_clear_reuse(cesk_store_t* store, uint32_t addr)
 		return -1;
 	}
 	cesk_store_block_t* block = _cesk_store_getblock_rw(store, addr);
+	store->hashcode ^= HASH_INC(addr, block->slots[offset].value, block->slots[offset].reuse);
 	if(NULL == block)
 	{
 		LOG_ERROR("can not aquire an writable pointer to the block");
 		return -1;
 	}
 	block->slots[offset].reuse = 0;
+	store->hashcode ^= HASH_INC(addr, block->slots[offset].value, block->slots[offset].reuse);
 	return 0;
 }
 cesk_value_t* cesk_store_get_rw(cesk_store_t* store, uint32_t addr, int noval)
