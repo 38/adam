@@ -157,6 +157,7 @@ int cesk_frame_register_load(
  * @param frame
  * @param dst_reg destination register
  * @param src_addr the source constant
+ * @param incref if this param is 1 then this function will change the refcount
  * @param diff_buf the diff buffer
  * @param inv_buf the inverse diff buffer
  * @return < 0 indicates errors
@@ -165,6 +166,7 @@ int cesk_frame_register_push(
 		cesk_frame_t* frame,
 		uint32_t dst_reg,
 		uint32_t src_addr,
+		uint32_t incref,
 		cesk_diff_buffer_t* diff_buf,
 		cesk_diff_buffer_t* inv_buf);
 

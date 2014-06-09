@@ -362,18 +362,18 @@ hashval_t cesk_frame_compute_hashcode(const cesk_frame_t* frame)
 	return ret;
 }
 /**
- * @brief free the register, this function should be called before modifying the value of register to a new set
+ * @brief free a value set, this function should be called before modifying the value of register to a new set
  * @param frame 
- * @param reg the register number
+ * @param set the set to be freed
  * @return < 0 indicates error
  **/
-static inline int _cesk_frame_free_reg(cesk_frame_t* frame, uint32_t reg)
+static inline int _cesk_frame_free_set(cesk_frame_t* frame, cesk_set_t* set)
 {
 	cesk_set_iter_t iter;
 	
-	if(NULL == cesk_set_iter(frame->regs[reg], &iter))
+	if(NULL == cesk_set_iter(set, &iter))
 	{
-		LOG_ERROR("can not aquire iterator for destination register %d", reg);
+		LOG_ERROR("can not aquire iterator for the vlaue set");
 		return -1;
 	}
 	
@@ -382,22 +382,22 @@ static inline int _cesk_frame_free_reg(cesk_frame_t* frame, uint32_t reg)
 	while(CESK_STORE_ADDR_NULL != (set_addr = cesk_set_iter_next(&iter)))
 		cesk_store_decref(frame->store, set_addr);
 	
-	cesk_set_free(frame->regs[reg]);
+	cesk_set_free(set);
 
 	return 0;
 }
 /**
  * @brief make the new value in the register referencing to the store
  * @param frame 
- * @param reg
+ * @param set 
  * @return < 0 indicates error 
  **/
-static inline int _cesk_frame_init_reg(cesk_frame_t* frame, uint32_t reg)
+static inline int _cesk_frame_set_ref(cesk_frame_t* frame, const cesk_set_t* set)
 {
 	cesk_set_iter_t iter;
-	if(NULL == cesk_set_iter(frame->regs[reg], &iter))
+	if(NULL == cesk_set_iter(set, &iter))
 	{
-		LOG_ERROR("can not aquire iterator for the register %d", reg);
+		LOG_ERROR("can not aquire iterator for set");
 		return -1;
 	}
 	
@@ -516,7 +516,17 @@ int cesk_frame_apply_diff(
 						return -1;
 					}
 					ret ++;
-					if(_cesk_frame_free_reg(frame, rec->addr) < 0)
+					/* we need to make reference to the new values before the old register is freed, because
+					 * if we don't do this, some value which contains in both old register value and new register
+					 * value will die at after this, which leads the new register reference to a invalid address,
+					 * But if we initialize the refcount at this point, this won't happen */
+					if(_cesk_frame_set_ref(frame, rec->arg.set) < 0)
+					{
+						LOG_ERROR("can not make reference from the register %d", rec->addr);
+						return -1;
+					}
+
+					if(_cesk_frame_free_set(frame, frame->regs[rec->addr]) < 0)
 					{
 						LOG_ERROR("can not clean the old value in the register %d", rec->addr);
 						return -1;
@@ -524,11 +534,6 @@ int cesk_frame_apply_diff(
 					if(NULL == (frame->regs[rec->addr] = cesk_set_fork(rec->arg.set)))
 					{
 						LOG_ERROR("can not set the new value for register %d", rec->addr);
-						return -1;
-					}
-					if(_cesk_frame_init_reg(frame, rec->addr) < 0)
-					{
-						LOG_ERROR("can not make reference from the register %d", rec->addr);
 						return -1;
 					}
 					break;
@@ -551,13 +556,8 @@ int cesk_frame_apply_diff(
 						LOG_ERROR("can not append a new record to the foward diff buffer");
 						return -1;
 					}
-					ret ++;
-					if(cesk_store_attach(frame->store, rec->addr, rec->arg.value) < 0)
-					{
-						LOG_ERROR("can not attach value to store address @%x in store %p", rec->addr, frame->store);
-						return -1;
-					}
-					/* update the refcnt */
+					
+					/* update the refcnt first, so that we can keep the value we want */
 					cesk_set_iter_t iter;
 					if(cesk_set_iter(rec->arg.value->pointer.set, &iter) < 0)
 					{
@@ -568,7 +568,15 @@ int cesk_frame_apply_diff(
 					uint32_t addr;
 					while(CESK_STORE_ADDR_NULL != (addr = cesk_set_iter_next(&iter)))
 						cesk_store_incref(frame->store, addr);
+
+					/* replace the value */
+					if(cesk_store_attach(frame->store, rec->addr, rec->arg.value) < 0)
+					{
+						LOG_ERROR("can not attach value to store address @%x in store %p", rec->addr, frame->store);
+						return -1;
+					}
 					cesk_store_release_rw(frame->store, rec->addr);
+					ret ++;
 					break;
 				case CESK_DIFF_DEALLOC:
 					LOG_DEBUG("ignore deallocation section");
@@ -634,21 +642,22 @@ int cesk_frame_register_move(
 	}
 	
 	_SNAPSHOT(inv_buf, CESK_DIFF_REG, dst_reg, frame->regs[dst_reg]);
-	
+
+	/* increase the refcount here, otherwise the object in use might die after _cesk_frame_free_reg */
+	if(_cesk_frame_set_ref(frame, frame->regs[src_reg]) < 0)
+	{
+		LOG_ERROR("can not incref for the new register value");
+		return -1;
+	}
+
 	/* as once we write one register, the previous infomation store in the register is lost */
-	if(_cesk_frame_free_reg(frame, dst_reg) < 0)
+	if(_cesk_frame_free_set(frame, frame->regs[dst_reg]) < 0)
 	{
 		LOG_ERROR("can not free the old value of register %d", dst_reg);
 		return -1;
 	}
 	/* and then we just fork the vlaue of source */
 	frame->regs[dst_reg] = cesk_set_fork(frame->regs[src_reg]);
-
-	if(_cesk_frame_init_reg(frame, dst_reg) < 0)
-	{
-		LOG_ERROR("can not incref for the new register value");
-		return -1;
-	}
 
 	_SNAPSHOT(diff_buf, CESK_DIFF_REG, dst_reg, frame->regs[dst_reg]);
 
@@ -673,7 +682,7 @@ int cesk_frame_register_clear(
 	
 	_SNAPSHOT(inv_buf, CESK_DIFF_REG, dst_reg, frame->regs[dst_reg]);
 	
-	if(_cesk_frame_free_reg(frame,dst_reg) < 0)
+	if(_cesk_frame_free_set(frame, frame->regs[dst_reg]) < 0)
 	{
 		LOG_ERROR("can not free the old value of register %d", dst_reg);
 		return -1;
@@ -695,6 +704,7 @@ int cesk_frame_register_push(
 		cesk_frame_t* frame,
 		uint32_t dst_reg,
 		uint32_t src_addr,
+		uint32_t incref,
 		cesk_diff_buffer_t* diff_buf,
 		cesk_diff_buffer_t* inv_buf)
 {
@@ -718,7 +728,7 @@ int cesk_frame_register_push(
 		return -1;
 	}
 
-	cesk_store_incref(frame->store, src_addr);
+	if(incref) cesk_store_incref(frame->store, src_addr);
 
 	_SNAPSHOT(diff_buf, CESK_DIFF_REG, dst_reg, frame->regs[dst_reg]);
 
@@ -740,6 +750,13 @@ int cesk_frame_register_load(
 
 	_SNAPSHOT(inv_buf, CESK_DIFF_REG, dst_reg, frame->regs[dst_reg]);
 
+	/* incref first, the reason see comment in cesk_frame_apply_diff the part operates the register */
+	if(cesk_store_incref(frame->store, src_addr) < 0)
+	{
+		LOG_ERROR("can not decref for the cell @%x", src_addr);
+		return -1;
+	}
+
 	/* clear the register first */
 	if(cesk_frame_register_clear(frame, dst_reg, NULL, NULL) < 0)
 	{
@@ -750,12 +767,6 @@ int cesk_frame_register_load(
 	if(cesk_set_push(frame->regs[dst_reg], src_addr) < 0)
 	{
 		LOG_ERROR("can not push address @%x to register %d", src_addr, dst_reg);
-		return -1;
-	}
-
-	if(cesk_store_incref(frame->store, src_addr) < 0)
-	{
-		LOG_ERROR("can not decref for the cell @%x", src_addr);
 		return -1;
 	}
 
@@ -804,7 +815,7 @@ int cesk_frame_register_append_from_store(
 	uint32_t addr;
 	while(CESK_STORE_ADDR_NULL != (addr = cesk_set_iter_next(&iter)))
 	{
-		if(cesk_frame_register_push(frame, dst_reg, addr, NULL, NULL) < 0)
+		if(cesk_frame_register_push(frame, dst_reg, addr, 1, NULL, NULL) < 0)
 		{
 			LOG_WARNING("can not push value %x to register %d", addr, dst_reg);
 		}
@@ -841,10 +852,15 @@ int cesk_frame_register_load_from_object(
 		return -1;
 	}
 
-	if(cesk_frame_register_clear(frame, dst_reg, NULL, NULL) < 0)
+	/* we firstly clear the the value set, but keep the refcount */
+	cesk_set_t* old_val = frame->regs[dst_reg];
+	if(cesk_set_size(old_val) > 0)
 	{
-		LOG_ERROR("can not erase the destination register #%d before we start", dst_reg);
-		return -1;
+		if(NULL == (frame->regs[dst_reg] = cesk_set_empty_set()))
+		{
+			LOG_ERROR("can not allocate empty set for cleared register %d", dst_reg);
+			return -1;
+		}
 	}
 
 	uint32_t obj_addr;
@@ -879,6 +895,12 @@ int cesk_frame_register_load_from_object(
 						obj_addr);
 			continue;
 		}
+	}
+	/* now we fix the refcount */
+	if(old_val != frame->regs[dst_reg] && _cesk_frame_free_set(frame, old_val) < 0)
+	{
+		LOG_ERROR("can not fix the refcount after a reigster assignment");
+		return -1;
 	}
 	_SNAPSHOT(diff_buf, CESK_DIFF_REG, dst_reg, frame->regs[dst_reg]);
 
@@ -1129,67 +1151,88 @@ int cesk_frame_store_put_field(
 		/* this address is used by mutliple objects, so we can not dicard old value */
 		/* get the address of the value set */
 		LOG_DEBUG("this is a reused object, just keep the old value");
+		if(NULL == value_set)
+		{
+			LOG_ERROR("unknown error, but value_set should not be NULL");
+			return -1;
+		}
+		cesk_set_t* set = value_set->pointer.set;
+
+		/* of course, the refcount should be increased */
+		cesk_set_iter_t iter;
+		if(NULL == cesk_set_iter(frame->regs[src_reg], &iter))
+		{
+			LOG_ERROR("can not aquire iterator for register %d", src_reg);
+			return -1;
+		}
+		uint32_t tmp_addr;
+		while(CESK_STORE_ADDR_NULL != (tmp_addr = cesk_set_iter_next(&iter)))
+		{
+			/* the duplicated one do not need incref */
+			if(cesk_set_contain(set, tmp_addr) == 1) continue;
+			if(cesk_store_incref(frame->store, tmp_addr) < 0)
+			{
+				LOG_WARNING("can not incref at address @%x", tmp_addr);
+			}
+			if(CESK_STORE_ADDR_IS_RELOC(tmp_addr))
+				value_set->reloc = 1;
+		}
+
+		/* okay, append the value of registers to the set */
+		if(cesk_set_merge(set, frame->regs[src_reg]) < 0)
+		{
+			LOG_ERROR("can not merge set");
+			return -1;
+		}
+
+		/* ok take the snapshot here */
+		_SNAPSHOT(diff_buf, CESK_DIFF_STORE, *paddr, value_set);
 	}
 	else
 	{
-		/* we are going to drop the old value, so that we should release the writable pointer first*/
+		/* we first incref */
+		cesk_set_iter_t iter;
+		if(NULL == cesk_set_iter(frame->regs[src_reg], &iter))
+		{
+			LOG_ERROR("can not aquire iterator for register %d", src_reg);
+			return -1;
+		}
+		uint32_t tmp_addr;
+		while(CESK_STORE_ADDR_NULL != (tmp_addr = cesk_set_iter_next(&iter)))
+		{
+			if(cesk_store_incref(frame->store, tmp_addr) < 0)
+			{
+				LOG_WARNING("can not incref at address @%x", tmp_addr);
+			}
+			if(CESK_STORE_ADDR_IS_RELOC(tmp_addr))
+				value->reloc = 1;
+		}
+
 		cesk_store_release_rw(frame->store, *paddr);
-		
-		/* this address is used by single object, so we will lose the old value after we write the field */
-		LOG_DEBUG("this address is used by signle object, drop the old value");
-		value_set = cesk_value_empty_set();
-		if(NULL == value_set)
+
+		/* make a copy of source register */
+		cesk_set_t* set = cesk_set_fork(frame->regs[src_reg]);
+		if(NULL == set)
 		{
-			LOG_ERROR("can not create an empty set for field %s/%s", clspath, fldname);
+			LOG_ERROR("can not copy the source register #%u", src_reg);
 			return -1;
 		}
-
-		/* because cesk_store_attach is responsible for decref to the old value,
-		 * And if the set is used only by this object, this will trigger the dispose
-		 * function, and this will eventually decref all address that this set 
-		 * refered */
-		if(cesk_store_attach(frame->store, *paddr, value_set) < 0)   /* we just cover the old set with an empty set */
+		/* using this copy make a value */
+		cesk_value_t* newval = cesk_value_from_set(set);
+		if(NULL == set)
 		{
-			LOG_ERROR("can not attach empty set to address %x", *paddr);
+			cesk_set_free(set);
+			LOG_ERROR("can not make a new value");
 			return -1;
 		}
-	}
-	if(NULL == value_set)
-	{
-		LOG_ERROR("unknown error, but value_set should not be NULL");
-		return -1;
-	}
-	cesk_set_t* set = value_set->pointer.set;
-
-	/* of course, the refcount should be increased */
-	cesk_set_iter_t iter;
-	if(NULL == cesk_set_iter(frame->regs[src_reg], &iter))
-	{
-		LOG_ERROR("can not aquire iterator for register %d", src_reg);
-		return -1;
-	}
-	uint32_t tmp_addr;
-	while(CESK_STORE_ADDR_NULL != (tmp_addr = cesk_set_iter_next(&iter)))
-	{
-		/* the duplicated one do not need incref */
-		if(cesk_set_contain(set, tmp_addr) == 1) continue;
-		if(cesk_store_incref(frame->store, tmp_addr) < 0)
+		if(cesk_store_attach(frame->store, *paddr, newval) < 0)
 		{
-			LOG_WARNING("can not incref at address @%x", tmp_addr);
+			LOG_ERROR("can not set new value to the field %s.%s", clspath, fldname);
+			return -1;
 		}
-		if(CESK_STORE_ADDR_IS_RELOC(tmp_addr))
-			value_set->reloc = 1;
-	}
+		_SNAPSHOT(diff_buf, CESK_DIFF_STORE, *paddr, newval);
 
-	/* okay, append the value of registers to the set */
-	if(cesk_set_merge(set, frame->regs[src_reg]) < 0)
-	{
-		LOG_ERROR("can not merge set");
-		return -1;
 	}
-
-	/* ok take the snapshot here */
-	_SNAPSHOT(diff_buf, CESK_DIFF_STORE, *paddr, cesk_value_fork(value_set));
 
 	/* release the write pointer */
 	cesk_store_release_rw(frame->store, *paddr);

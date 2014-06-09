@@ -207,9 +207,11 @@ static inline int _cesk_diff_gc(cesk_diff_t* diff, uint8_t* emap)
 	int reg_end = diff->offset[CESK_DIFF_REG + 1];
 	int store_begin = diff->offset[CESK_DIFF_STORE];
 	int store_end = diff->offset[CESK_DIFF_STORE + 1];
+	int reuse_begin = diff->offset[CESK_DIFF_REUSE];
+	int reuse_end = diff->offset[CESK_DIFF_REUSE + 1];
 	int dealloc_begin = diff->offset[CESK_DIFF_DEALLOC];
 	int dealloc_end = diff->offset[CESK_DIFF_DEALLOC + 1];
-	int alloc_ptr, reg_ptr, store_ptr, dealloc_ptr, alloc_free, store_free;
+	int alloc_ptr, reg_ptr, store_ptr, reuse_ptr,dealloc_ptr, alloc_free, store_free, reuse_free;
 	static uint8_t bitmap[(CESK_STORE_ADDR_RELOC_SIZE + 7)/8];
 	static uint8_t bm_store[(CESK_STORE_ADDR_RELOC_SIZE + 7)/8];
 	memset(bitmap, 0, sizeof(bitmap));
@@ -381,6 +383,7 @@ static inline int _cesk_diff_gc(cesk_diff_t* diff, uint8_t* emap)
 			bm_store[idx/8] |= (1<<(idx%8));
 		}
 	}
+
 	store_free = store_begin;
 	for(store_ptr = store_begin; store_ptr < store_end; store_ptr ++)
 	{
@@ -407,6 +410,28 @@ static inline int _cesk_diff_gc(cesk_diff_t* diff, uint8_t* emap)
 	/* update offset */
 	for(i = CESK_DIFF_STORE + 1; i <= CESK_DIFF_NTYPES; i ++)
 		diff->offset[i] -= (store_end - store_free);
+
+	reuse_free = reuse_begin;
+	for(reuse_ptr = reuse_begin; reuse_ptr < reuse_end; reuse_ptr ++)
+	{
+		int alive = 1;
+		uint32_t addr = diff->data[reuse_ptr].addr;
+		if(CESK_STORE_ADDR_IS_RELOC(addr))
+		{
+			uint32_t idx = CESK_STORE_ADDR_RELOC_IDX(addr);
+			if(bm_store[idx/8] & (1<<(idx%8))) 
+				alive = 0;
+		}
+		if(alive)
+			diff->data[reuse_free ++] = diff->data[reuse_ptr];
+	}
+	j = reuse_free;
+	/* compact the arrary*/
+	for(i = reuse_end; i < diff->offset[CESK_DIFF_NTYPES]; i ++)
+		diff->data[j++] = diff->data[i];
+	/* update offset */
+	for(i = CESK_DIFF_REUSE + 1; i <= CESK_DIFF_NTYPES; i ++)
+		diff->offset[i] -= (reuse_end - reuse_free);
 	return 0;
 }
 cesk_diff_t* cesk_diff_from_buffer(cesk_diff_buffer_t* buffer)
