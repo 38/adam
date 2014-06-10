@@ -57,6 +57,9 @@ typedef struct _cesk_store_t cesk_store_t;
  * This address does not actually exists, the address it self 
  * constains information about the value 
  */
+
+/* CESK_STORE_ADDR_NULL must be 0xffffffff */
+CONST_ASSERTION_EQ(CESK_STORE_ADDR_NULL, 0xffffffff);
 /** @brief negative numeric value */
 #define CESK_STORE_ADDR_NEG   (CESK_STORE_ADDR_CONST_PREFIX | 0x01ul)
 /** @brief zero numeric value */
@@ -103,6 +106,7 @@ typedef struct {
 	uint32_t		parent;			  /*!<the parent address of this slot */
 	uint32_t		field;		      /*!<filed name of the member */
 	uint32_t        retaddr;          /*!<if this object is returned from the invoke instruction, this is the address in the subroutine's store */
+	const char*     class;            /*!< the class path */
 	cesk_value_t*   value;			  /*!<the data payload */
 } cesk_store_slot_t;
 /** @brief the store block of virtual store */
@@ -204,9 +208,10 @@ int cesk_store_clear_reuse(cesk_store_t* store, uint32_t addr);
  * @param retaddr if this address is for an object which is returned from a invoke instruction,
  *        this should be the address the object in the subroutine store, otherwise, this parameter
  *        remains CESK_STORE_ADDR_NULL
+ * @param class the class path of which this address is going attach, if the value is a set, this will be NULL
  * @return the fresh address for this value
  */
-uint32_t cesk_store_allocate(cesk_store_t* store, const dalvik_instruction_t* inst, uint32_t parent, uint32_t field_ofs, uint32_t retaddr);
+uint32_t cesk_store_allocate(cesk_store_t* store, const dalvik_instruction_t* inst, uint32_t parent, uint32_t field_ofs, uint32_t retaddr, const char* class);
 
 /* attach a value to an address, >0 means success, <0 error. If the value is NULL, means
  * dettach the address.

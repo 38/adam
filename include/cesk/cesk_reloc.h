@@ -44,6 +44,7 @@ typedef struct {
 	uint32_t      parent_addr;					/*!< the parent address */
 	uint32_t      field_offset;					/*!< the field offset */
 	uint32_t      retaddr;                      /*!< CESK_STORE_ADDR_NULL, or the address in the subroutine store */
+	const char*   class;                        /*!< the class path, NULL for set value */
 } cesk_reloc_item_t;
 
 /**
@@ -67,6 +68,7 @@ void cesk_reloc_table_free(cesk_reloc_table_t* mem);
  * @param field_offset the offset of this field
  * @param retaddr if this object is an object returned from inovke function, this address is the address the object in
  *        the subroutine store, otherwise remain this value to CESK_STORE_ADDR_NULL
+ * @param class the class path
  * @return the index of this value, CESK_STORE_ADDR_NULL indicates error 
  **/
 uint32_t cesk_reloc_table_append(
@@ -74,7 +76,8 @@ uint32_t cesk_reloc_table_append(
 		const dalvik_instruction_t* inst,
 		uint32_t parent_addr,
 		uint32_t field_offset,
-		uint32_t retaddr);
+		uint32_t retaddr,
+		const char* class);
 /**
  * @brief allocate a `fresh' relocated address and attach it to the global relocate allocate table
  * 		  (but do not install the value in the store if it's new) useful when creating new object
@@ -85,6 +88,7 @@ uint32_t cesk_reloc_table_append(
  * @param field the field offset
  * @param retaddr if this object is an object returned from inovke function, this address is the address the object in
  *        the subroutine store, otherwise remain this value to CESK_STORE_ADDR_NULL
+ * @param class the class path
  * @return the relocated address of the vlaue, CESK_STORE_ADDR_NULL means error
  * @note   DO NOT FORGET SET THE INITIAL VALUE TO THIS RELOCATED ADDRESS
  **/
@@ -94,7 +98,8 @@ uint32_t cesk_reloc_allocate(
 		const dalvik_instruction_t* inst,
 		uint32_t parent,
 		uint32_t field,
-		uint32_t retaddr);
+		uint32_t retaddr,
+		const char* class);
 
 /**
  * @brief init a relocated address in one store, this is used by the allocation diff items
