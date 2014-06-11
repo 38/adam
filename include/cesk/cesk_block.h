@@ -25,7 +25,8 @@ typedef struct {
  * @param frame the stack frame
  * @param rtab  the relocation table 
  * @param buf the output buffer
+ * @param context the caller context
  * @return < 0 indicates erorrs
  **/
-int cesk_block_analyze(const dalvik_block_t* code, cesk_frame_t* frame, cesk_reloc_table_t* rtab, cesk_block_result_t* buf);
+int cesk_block_analyze(const dalvik_block_t* code, cesk_frame_t* frame, cesk_reloc_table_t* rtab, cesk_block_result_t* buf, const void* context);
 #endif

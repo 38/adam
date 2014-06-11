@@ -232,6 +232,12 @@ static inline int _cesk_block_handler_instance(
 			}
 			while(CESK_STORE_ADDR_NULL != (addr = cesk_set_iter_next(&it)))
 			{
+				if(CESK_STORE_ADDR_IS_CONST(addr))
+				{
+					/* TODO exception */
+					LOG_DEBUG("throw exception java.lang.nullPointerException");
+					continue;
+				}
 				if(cesk_frame_store_put_field(frame, addr, sour, clspath, fldname, keep_old, D, I) < 0)
 				{
 					LOG_ERROR("failed to write filed %s/%s at store address @%x", clspath, fldname, addr);
@@ -369,10 +375,10 @@ static inline int _cesk_block_invoke_result_allocate_bsearch(const cesk_diff_t* 
 	while(r - l > 1)
 	{
 		int m = (l + r) / 2;
-		if(data[m].addr < addr)
-			r = m;
-		else
+		if(data[m].addr <= addr)
 			l = m;
+		else
+			r = m;
 	}
 	if(r - l > 0) return l;
 	else return -1;
@@ -438,7 +444,7 @@ static inline cesk_set_t* _cesk_block_invoke_result_set_translate(
 		return NULL;
 	}
 	uint32_t addr;
-	while(CESK_STORE_ADDR_NULL == (addr = cesk_set_iter_next(&iter)))
+	while(CESK_STORE_ADDR_NULL != (addr = cesk_set_iter_next(&iter)))
 	{
 		uint32_t i_addr = _cesk_block_invoke_result_addr_translate(addr, frame, diff, addrmap);
 		if(CESK_STORE_ADDR_NULL == i_addr)
@@ -453,6 +459,57 @@ static inline cesk_set_t* _cesk_block_invoke_result_set_translate(
 		}
 	}
 	return set;
+}
+/**
+ * @brief translate the value
+ * @param value the value to translate
+ * @param freame current stack frame
+ * @param diff the result idf
+ * @param addrmap the address map
+ * @return the translated value
+ * @note the return value actually is the input address.
+ **/
+static inline cesk_value_t* _cesk_block_invoke_result_value_translate(
+		cesk_value_t* value,
+		const cesk_frame_t* frame,
+		const cesk_diff_t* diff,
+		const uint32_t* addrmap)
+{
+	if(CESK_TYPE_SET == value->type)
+	{
+		if(NULL == _cesk_block_invoke_result_set_translate(value->pointer.set, frame, diff, addrmap))
+		{
+			LOG_ERROR("can not translate value of set");
+			return NULL;
+		}
+		return value;
+	}
+	if(CESK_TYPE_OBJECT != value->type)
+	{
+		LOG_ERROR("unsupported value type %x", value->type);
+		return NULL;
+	}
+	/* translate an object */
+	cesk_object_t* object = value->pointer.object;
+	cesk_object_struct_t* this = object->members;
+	int i;
+	for(i = 0; i < object->depth; i ++)
+	{
+		int j;
+		for(j = 0; j < this->num_members; j ++)
+		{
+			uint32_t addr = this->addrtab[j];
+			uint32_t r_addr = _cesk_block_invoke_result_addr_translate(addr, frame, diff, addrmap);
+			if(CESK_STORE_ADDR_NULL == addr)
+			{
+				LOG_ERROR("can not translate result address @%x to interal address", addr);
+				return NULL;
+			}
+			this->addrtab[j] = r_addr;
+		}
+		CESK_OBJECT_STRUCT_ADVANCE(this);
+	}
+	return value;
 }
 /**
  * @brief translate a invocation result to the interal diff
@@ -474,40 +531,35 @@ static inline cesk_diff_t* _cesk_block_invoke_result_translate(
 		LOG_ERROR("can not create a new diff buffer for the traslation result");
 		return NULL;
 	}
+	result = cesk_diff_prepare_to_write(result);
+	if(NULL == result)
+	{
+		LOG_ERROR("can not duplicate the result diff");
+		return NULL;
+	}
 	size_t nallocation = result->offset[CESK_DIFF_ALLOC + 1] - result->offset[CESK_DIFF_ALLOC];
 	uint32_t interal_addr[nallocation];
 	memset(interal_addr, 0xff, sizeof(uint32_t) * nallocation);
-	/* proceed the allocation section */
+	/* first we need a address map */
 	uint32_t i;
+	/* the minimal address which should emit an allocation record */
+	uint32_t raddr_limit = cesk_reloc_next_addr(rtab);
 	for(i = result->offset[CESK_DIFF_ALLOC]; i < result->offset[CESK_DIFF_ALLOC + 1]; i ++)
 	{
 		/* append the allocation the relocation table and aquire a fresh relocated address for this allocation */
 		uint32_t iaddr;
-		if(CESK_TYPE_OBJECT == result->data[i].arg.value->type)
-			iaddr = cesk_reloc_table_append(
-					rtab, inst, 
-					CESK_STORE_ADDR_NULL, 
-					0, result->data[i].addr, 
-					cesk_object_classpath(result->data[i].arg.value->pointer.object));
-		else
-			iaddr = cesk_reloc_table_append(
-					rtab, inst,
-					CESK_STORE_ADDR_NULL,
-					0, result->data[i].addr,
-					NULL);
+		/* allocate a new relocated address for this object */
+		iaddr = cesk_reloc_allocate(rtab, frame->store, inst, CESK_STORE_ADDR_NULL, 0); 
 		if(CESK_STORE_ADDR_NULL == iaddr)
 		{
 			LOG_ERROR("can not append a new relocated address in the relocation table for result allocation @%u", result->data[i].addr);
 			goto ERR;
 		}
 		interal_addr[i - result->offset[CESK_DIFF_ALLOC]] = iaddr;
-		if(cesk_diff_buffer_append(buf, CESK_DIFF_ALLOC, iaddr, result->data[i].arg.value) < 0)
-		{
-			LOG_ERROR("can not append allocation record to the diff buffer");
-			goto ERR;
-		}
+		LOG_DEBUG("new address map @%x --> @%x", result->data[i].addr, iaddr);
 	}
-	/* then proceed the reuse section, perform an address translation */
+
+	/* process the reuse section first, perform an address translation */
 	for(i = result->offset[CESK_DIFF_REUSE]; i < result->offset[CESK_DIFF_REUSE + 1]; i ++)
 	{
 		uint32_t ret_addr = result->data[i].addr;
@@ -516,6 +568,63 @@ static inline cesk_diff_t* _cesk_block_invoke_result_translate(
 		{
 			LOG_ERROR("can not append reuse record to the diff buffer");
 			goto ERR;
+		}
+	}
+	/* then allocation section */
+	for(i = result->offset[CESK_DIFF_ALLOC]; i < result->offset[CESK_DIFF_ALLOC + 1]; i ++)
+	{
+		uint32_t iaddr = interal_addr[i - result->offset[CESK_DIFF_ALLOC]];
+		if(raddr_limit > iaddr) 
+		{
+			LOG_DEBUG("address @%x is already allocated in this frame, just setup reuse flag", iaddr);
+			if(cesk_diff_buffer_append(buf, CESK_DIFF_REUSE, iaddr, CESK_DIFF_REUSE_VALUE(1)) < 0)
+			{
+				LOG_ERROR("can not append reuse record in the diff buffer");
+				goto ERR;
+			}
+			/* after we reuse that address, we need to merge the new value to the address, but object value 
+			 * do not need to do this, because if an object is allocated by the same instruction, the field
+			 * set will have the same address, what we need to do this take care about the set */
+			if(CESK_TYPE_SET == result->data[i].arg.value->type)
+			{
+				cesk_value_t* value = _cesk_block_invoke_result_value_translate(result->data[i].arg.value, frame, result, interal_addr);
+				if(NULL == value) 
+				{
+					LOG_ERROR("can not translate the value @%x", result->data[i].addr);
+					goto ERR;
+				}
+				/* after the address translation, we are to merge this value with the old store value */
+				cesk_value_const_t* store_value = cesk_store_get_ro(frame->store, iaddr);
+				if(NULL == store_value)
+				{
+					LOG_ERROR("can not get the value at reused address @%x", iaddr);
+					goto ERR;
+				}
+				if(cesk_set_merge(value->pointer.set, store_value->pointer.set) < 0)
+				{
+					LOG_ERROR("can not merge the value set");
+					goto ERR;
+				}
+				if(cesk_diff_buffer_append(buf, CESK_DIFF_STORE, iaddr, value) < 0)
+				{
+					LOG_ERROR("can not append the new value to the diff buffer at address @%x", iaddr);
+					goto ERR;
+				}
+			}
+		}
+		else
+		{
+			cesk_value_t* value = _cesk_block_invoke_result_value_translate(result->data[i].arg.value, frame, result, interal_addr);
+			if(NULL == value)
+			{
+				LOG_ERROR("can not translate the value");
+				goto ERR;
+			}
+			if(cesk_diff_buffer_append(buf, CESK_DIFF_ALLOC, iaddr, result->data[i].arg.value) < 0)
+			{
+				LOG_ERROR("can not append allocation record to the diff buffer");
+				goto ERR;
+			}
 		}
 	}
 	/* okay, register section */
@@ -555,7 +664,22 @@ static inline cesk_diff_t* _cesk_block_invoke_result_translate(
 			LOG_ERROR("can not translate the value set");
 			goto ERR;
 		}
-		if(cesk_diff_buffer_append(buf, CESK_DIFF_STORE, addr, set) < 0)
+		/* if this is an allocation that merged to existing address, we need to merge the old value */
+		if(CESK_STORE_ADDR_IS_RELOC(result->data[i].addr) && CESK_STORE_ADDR_IS_RELOC(addr) && raddr_limit > addr)
+		{
+			cesk_value_const_t* store_value = cesk_store_get_ro(frame->store, addr);
+			if(NULL == store_value)
+			{
+				LOG_ERROR("can not read store value at address @%x", addr);
+				goto ERR;
+			}
+			if(cesk_set_merge(set, store_value->pointer.set) < 0)
+			{
+				LOG_ERROR("can not merge old value with the new value");
+				goto ERR;
+			}
+		}
+		if(cesk_diff_buffer_append(buf, CESK_DIFF_STORE, addr, result->data[i].arg.value) < 0)
 		{
 			LOG_ERROR("can not append store record to the diff buffer");
 			goto ERR;
@@ -582,6 +706,7 @@ ERR:
  * @param rtab the relocation table
  * @param D the diff buffer to track the modification
  * @param I the diff buffer to tacck the how to revert the modification
+ * @param context the caller context
  * @return the result of execution, < 0 indicates failure
  **/
 static inline int _cesk_block_handler_invoke(
@@ -589,7 +714,8 @@ static inline int _cesk_block_handler_invoke(
 		cesk_frame_t* frame, 
 		cesk_reloc_table_t* rtab, 
 		cesk_diff_buffer_t* D, 
-		cesk_diff_buffer_t* I)
+		cesk_diff_buffer_t* I,
+		const void* context)
 {
 	const char* classpath = ins->operands[0].payload.methpath;
 	const char* methodname = ins->operands[1].payload.methpath;
@@ -648,13 +774,22 @@ PARAMERR:
 		LOG_ERROR("can not invoke the function");
 		goto ERR;
 	}
-	cesk_diff_t* result = cesk_method_analyze(code, callee_frame);
+	static int cnt = 0;
+	cnt ++;
+	cesk_reloc_table_t* rtable = cesk_reloc_table_new();
+	if(NULL == rtable)
+	{
+		LOG_ERROR("can not allocate relocation table");
+		goto ERR;
+	}
+	cesk_diff_t* result = cesk_method_analyze(code, callee_frame, context, rtable);
 	if(NULL == result)
 	{
 		LOG_ERROR("can not analyze the function invocation");
 		goto ERR;
 	}
 	result = _cesk_block_invoke_result_translate(ins, frame, rtab, result);
+	cesk_reloc_table_free(rtable);
 	if(NULL == result)
 	{
 		LOG_ERROR("can not traslate the result diff to interal diff");
@@ -672,7 +807,7 @@ PARAMERR:
 ERR:
 	return -1;
 }
-int cesk_block_analyze(const dalvik_block_t* code, cesk_frame_t* frame, cesk_reloc_table_t* rtab, cesk_block_result_t* buf)
+int cesk_block_analyze(const dalvik_block_t* code, cesk_frame_t* frame, cesk_reloc_table_t* rtab, cesk_block_result_t* buf, const void* caller_ctx)
 {
 	if(NULL == code || NULL == frame || NULL == buf || NULL == rtab)
 	{
@@ -719,8 +854,7 @@ int cesk_block_analyze(const dalvik_block_t* code, cesk_frame_t* frame, cesk_rel
 				if(_cesk_block_handler_instance(ins, frame, rtab, dbuf, ibuf) < 0) goto EXE_ERR;
 				break;
 			case DVM_INVOKE:
-				/* TODO */
-				if(_cesk_block_handler_invoke(ins, frame, rtab, dbuf, ibuf) < 0) goto EXE_ERR;
+				if(_cesk_block_handler_invoke(ins, frame, rtab, dbuf, ibuf, caller_ctx) < 0) goto EXE_ERR;
 				break;
 			case DVM_UNOP:
 				if(_cesk_block_handler_unop(ins, frame, dbuf, ibuf) < 0) goto EXE_ERR;

@@ -118,7 +118,7 @@ cesk_value_t* cesk_value_from_set(cesk_set_t* set)
 		LOG_ERROR("invalid set pointer");
 		return NULL;
 	}
-
+	
 	cesk_value_t* ret = _cesk_value_alloc(CESK_TYPE_SET);
 
 	if(NULL == ret)
@@ -161,6 +161,7 @@ cesk_value_t* cesk_value_fork(const cesk_value_t* value)
 			LOG_ERROR("unsupported type");
 			goto ERROR;
 	}
+	newval->reloc = value->reloc;
 	return newval;
 ERROR:
 	LOG_ERROR("error during forking a value");

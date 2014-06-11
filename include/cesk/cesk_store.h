@@ -105,8 +105,6 @@ typedef struct {
 	uint32_t        idx;              /*!<instruction index created this object */
 	uint32_t		parent;			  /*!<the parent address of this slot */
 	uint32_t		field;		      /*!<filed name of the member */
-	uint32_t        retaddr;          /*!<if this object is returned from the invoke instruction, this is the address in the subroutine's store */
-	const char*     class;            /*!< the class path */
 	cesk_value_t*   value;			  /*!<the data payload */
 } cesk_store_slot_t;
 /** @brief the store block of virtual store */
@@ -205,13 +203,9 @@ int cesk_store_clear_reuse(cesk_store_t* store, uint32_t addr);
  * @param inst current instruction
  * @param parent address of parent object
  * @param field_ofs the field offset
- * @param retaddr if this address is for an object which is returned from a invoke instruction,
- *        this should be the address the object in the subroutine store, otherwise, this parameter
- *        remains CESK_STORE_ADDR_NULL
- * @param class the class path of which this address is going attach, if the value is a set, this will be NULL
  * @return the fresh address for this value
  */
-uint32_t cesk_store_allocate(cesk_store_t* store, const dalvik_instruction_t* inst, uint32_t parent, uint32_t field_ofs, uint32_t retaddr, const char* class);
+uint32_t cesk_store_allocate(cesk_store_t* store, const dalvik_instruction_t* inst, uint32_t parent, uint32_t field_ofs);
 
 /* attach a value to an address, >0 means success, <0 error. If the value is NULL, means
  * dettach the address.
@@ -289,31 +283,18 @@ uint32_t cesk_store_get_refcnt(const cesk_store_t* store, uint32_t addr);
  */
 int cesk_store_clear_refcnt(cesk_store_t* store, uint32_t addr);
 
-/** @brief   merge the source store to the destination store
- *  @details the merge operation actually compares the host address of the blocks and values. If the address is same,
- *  		 the function just ignore them. 
- *  		 
- *  		 If the address are different, then perform an actually merge operations. 
- *
- *  		 This is reasonable, because it's likely that most of the memory in a store are shared. So the function 
- *  		 is not likely slow. 
- *
- *  		 But there's an issue is if there are two different instructions which allocated the same memory. The 
- *  		 solution is to reallocate the object in the source store before merge. 
- *  		 This operation is actually safe, and reasonable. Because all shared memory between two store has been
- *  		 allocated before the two stores split. At that time, the conflict store address is valid in none of two
- *  		 stores. As a result of this fact, all reference to the conflict address should be assigned after the 
- *  		 store is splited. 
- *  		 Since we have copy-on-write policy, their(the object which is using confict address) address must be 
- *  		 different. 
- *
- *  		 So what we should do for the relocation of the object is just simply change a different address if we 
- *  		 are mergering confict store address.  Therefore, we should scan the different part of source store 
- *  		 and dicide what to reallocate first, and then perform an actually merge
- *   @param  p_dest destination store
- *   @param  sour source store
- *   @return the number of values has been modified, negative return value means errors during merge
- *   @todo   implementation
- */
-int cesk_store_merge(cesk_store_t** p_dest, const cesk_store_t* sour);
+/**
+ * @brief store to string
+ * @param store the input store
+ * @param buf buffer
+ * @param sz buffer size
+ * @return the result string
+ **/
+const char* cesk_store_to_string(const cesk_store_t* store, char* buf, size_t sz);
+/**
+ * @brief print human readable context in the log file
+ * @param store 
+ * @return nothing
+ **/
+void cesk_store_print_debug(const cesk_store_t* store);
 #endif

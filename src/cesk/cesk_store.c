@@ -1,5 +1,6 @@
 #include <string.h>
 #include <inttypes.h>
+#include <stdio.h>
 
 #include <log.h>
 
@@ -124,11 +125,9 @@ static inline int _cesk_store_swipe(cesk_store_t* store, cesk_store_block_t* blo
  * @param inst the instruction
  * @param parent the parent object
  * @param field_ofs the field offset
- * @param retaddr if this is an object which is returned from a subroutine, this address is
- *        the relocated address in the store for the subroutine
  * @return the hashcode
  **/
-static inline hashval_t _cesk_store_address_hashcode(const dalvik_instruction_t* inst, uint32_t parent, uint32_t field_ofs, uint32_t retaddr, const char* clspath)
+static inline hashval_t _cesk_store_address_hashcode(const dalvik_instruction_t* inst, uint32_t parent, uint32_t field_ofs)
 {
 	uint32_t idx;
 	
@@ -136,8 +135,7 @@ static inline hashval_t _cesk_store_address_hashcode(const dalvik_instruction_t*
 	//dalvik_instruction_read_annotation(inst, &idx, sizeof(idx));
 	idx = dalvik_instruction_get_index(inst);
 
-	return (idx * idx * MH_MULTIPLY + parent * 100007 * MH_MULTIPLY + (field_ofs * MH_MULTIPLY * MH_MULTIPLY)) ^ 
-		   (MH_MULTIPLY * MH_MULTIPLY * MH_MULTIPLY * retaddr) ^ ~(MH_MULTIPLY * (uintptr_t)clspath);
+	return (idx * idx * MH_MULTIPLY + parent * 100007 * MH_MULTIPLY + (field_ofs * MH_MULTIPLY * MH_MULTIPLY)); 
 
 }
 /** @brief get a block in a store and prepare to write */
@@ -564,11 +562,11 @@ hashval_t cesk_store_compute_hashcode(const cesk_store_t* store)
 /**
  * @note caller should update the reuse flag manually 
  **/
-uint32_t cesk_store_allocate(cesk_store_t* store, const dalvik_instruction_t* inst, uint32_t parent, uint32_t field_ofs, uint32_t retaddr, const char* class)
+uint32_t cesk_store_allocate(cesk_store_t* store, const dalvik_instruction_t* inst, uint32_t parent, uint32_t field_ofs)
 {
 	uint32_t idx;
 	idx = dalvik_instruction_get_index(inst);
-	uint32_t  init_slot = _cesk_store_address_hashcode(inst, parent, field_ofs, retaddr, class)  % CESK_STORE_BLOCK_NSLOTS;
+	uint32_t  init_slot = _cesk_store_address_hashcode(inst, parent, field_ofs)  % CESK_STORE_BLOCK_NSLOTS;
 	uint32_t  slot = init_slot;
 	/* here we perform a quadratic probing inside each block
 	 * But we do not jump more than 5 times in one block
@@ -595,9 +593,7 @@ uint32_t cesk_store_allocate(cesk_store_t* store, const dalvik_instruction_t* in
 			if(store->blocks[block]->slots[slot].value != NULL && 
 			   store->blocks[block]->slots[slot].idx == idx && 
 			   store->blocks[block]->slots[slot].parent == parent &&
-			   store->blocks[block]->slots[slot].field == field_ofs &&
-			   store->blocks[block]->slots[slot].retaddr == retaddr &&
-			   store->blocks[block]->slots[slot].class == class)
+			   store->blocks[block]->slots[slot].field == field_ofs)
 			{
 				LOG_DEBUG("find the equal slot @(block = %d, offset = %d)", block, slot);
 				equal_block = block;
@@ -651,8 +647,6 @@ uint32_t cesk_store_allocate(cesk_store_t* store, const dalvik_instruction_t* in
 			store->blocks[empty_block]->slots[empty_offset].parent = parent;
 			store->blocks[empty_block]->slots[empty_offset].field = field_ofs;
 			store->blocks[empty_block]->slots[empty_offset].reuse = 0;
-			store->blocks[empty_block]->slots[empty_offset].retaddr = retaddr;
-			store->blocks[empty_block]->slots[empty_offset].class = class;
 			return empty_block * CESK_STORE_BLOCK_NSLOTS + empty_offset;
 		}
 		else
@@ -896,3 +890,59 @@ int cesk_store_clear_refcnt(cesk_store_t* store, uint32_t addr)
 	block->slots[ofs].refcnt = 0;
 	return 0;
 }
+#define __PR(fmt, args...) do{\
+	int pret = snprintf(p, buf + sz - p, fmt, ##args);\
+	if(pret > buf + sz - p) pret = buf + sz - p;\
+	p += pret;\
+}while(0)
+const char* cesk_store_to_string(const cesk_store_t* store, char* buf, size_t sz)
+{
+	static char _buf[1024];
+	if(NULL == buf)
+	{
+		buf = _buf;
+		sz = sizeof(_buf);
+	}
+	char* p = buf;
+	uint32_t blkidx;
+	for(blkidx = 0; blkidx < store->nblocks; blkidx ++)
+	{
+		const cesk_store_block_t* blk = store->blocks[blkidx];
+		uint32_t ofs;
+		for(ofs = 0; ofs < CESK_STORE_BLOCK_NSLOTS; ofs ++)
+		{
+			if(blk->slots[ofs].value == NULL) continue;
+			uint32_t addr = blkidx * CESK_STORE_BLOCK_NSLOTS + ofs;
+			uint32_t reloc_addr = cesk_alloctab_query(store->alloc_tab, store, addr);
+			if(reloc_addr != CESK_STORE_ADDR_NULL)
+				__PR("([@%x --> @%x] %s) ", reloc_addr, addr, cesk_value_to_string(blk->slots[ofs].value, NULL, 0));
+			else
+				__PR("(@%x: %s)", addr, cesk_value_to_string(blk->slots[ofs].value, NULL, 0));
+		}
+	}
+	return buf;
+}
+#undef __PR
+void cesk_store_print_debug(const cesk_store_t* store)
+#if LOG_LEVEL >= 6
+{
+	uint32_t blkidx;
+	for(blkidx = 0; blkidx < store->nblocks; blkidx ++)
+	{
+		const cesk_store_block_t* blk = store->blocks[blkidx];
+		uint32_t ofs;
+		for(ofs = 0; ofs < CESK_STORE_BLOCK_NSLOTS; ofs ++)
+		{
+			if(blk->slots[ofs].value == NULL) continue;
+			uint32_t addr = blkidx * CESK_STORE_BLOCK_NSLOTS + ofs;
+			uint32_t reloc_addr = cesk_alloctab_query(store->alloc_tab, store, addr);
+			if(reloc_addr != CESK_STORE_ADDR_NULL)
+				LOG_DEBUG("\t@%x(@%x)\t%s", reloc_addr, addr,cesk_value_to_string(blk->slots[ofs].value, NULL, 0));
+			else
+				LOG_DEBUG("\t@%x\t%s", addr, cesk_value_to_string(blk->slots[ofs].value, NULL, 0));
+		}
+	}
+}
+#else
+{}
+#endif

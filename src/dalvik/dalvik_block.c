@@ -28,6 +28,8 @@ typedef struct _dalvik_block_cache_node_t{
 	dalvik_block_t* block;	/*!<the analysis result. */
 	struct _dalvik_block_cache_node_t * next; /*!<the next pointer used in hash table */
 } dalvik_block_cache_node_t;
+CONST_ASSERTION_FIRST(dalvik_block_cache_node_t, methodname);
+CONST_ASSERTION_FOLLOWS(dalvik_block_cache_node_t, methodname, classpath);
 
 static dalvik_block_cache_node_t* _dalvik_block_cache[DALVIK_BLOCK_CACHE_SIZE];
 
@@ -732,6 +734,16 @@ dalvik_block_t* dalvik_block_from_method(const char* classpath, const char* meth
 	memset(key, 0, sizeof(key));
 	/* ok, DFS the graph */
 	_dalvik_block_graph_dfs(blocks[0], visit_flags);
+	
+	/* insert the block graph to the cache */
+	dalvik_block_cache_node_t* node = _dalvik_block_cache_node_alloc(classpath, methodname, typelist ,blocks[0]);
+	if(NULL == node) 
+	{
+		LOG_ERROR("can not allocte memory for cache node, the block is to be freed");
+		_dalvik_block_graph_free(blocks[0]);
+		return NULL;
+	}
+
 #if LOG_LEVEL >= 6
 	int block_cnt = 0;
 #endif
@@ -747,20 +759,13 @@ dalvik_block_t* dalvik_block_from_method(const char* classpath, const char* meth
 		else
 		{
 			blocks[i]->nregs = method->num_regs;
+			*(void**)&blocks[i]->info = node;
 #if LOG_LEVEL >= 6
 			block_cnt ++;
 #endif
 		}
 	}
 
-	/* insert the block graph to the cache */
-	dalvik_block_cache_node_t* node = _dalvik_block_cache_node_alloc(classpath, methodname, typelist ,blocks[0]);
-	if(NULL == node) 
-	{
-		LOG_ERROR("can not allocte memory for cache node, the block is to be freed");
-		_dalvik_block_graph_free(blocks[0]);
-		return NULL;
-	}
 	node->next = _dalvik_block_cache[h];
 	_dalvik_block_cache[h] = node;
 

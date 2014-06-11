@@ -286,4 +286,19 @@ int cesk_frame_store_peek_field(const cesk_frame_t* frame,
  * @return the newly created frame
  */
 cesk_frame_t* cesk_frame_make_invoke(const cesk_frame_t* frame, uint32_t nregs, uint32_t nargs, cesk_set_t** args);
+
+/**
+ * @brief print human readable frame content of the frame
+ * @param frame the frame
+ * @param buf the string buffer
+ * @param sz the buffer size
+ * @return a string describes this frame
+ **/
+const char* cesk_frame_to_string(const cesk_frame_t* frame, char* buf, size_t sz); 
+/**
+ * @brief print human readable context in the log file
+ * @param frame 
+ * @return nothing
+ **/
+void cesk_frame_print_debug(const cesk_frame_t* frame);
 #endif /* __CESK_FRAME_H__ */

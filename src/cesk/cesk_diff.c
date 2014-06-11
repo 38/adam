@@ -864,12 +864,6 @@ cesk_diff_t* cesk_diff_factorize(int N, cesk_diff_t** diffs, const cesk_frame_t*
 					ret->data[ret->offset[section + 1]].arg.boolean = diffs[cur_i]->data[diffs[cur_i]->_index].arg.boolean;
 					break;
 				case CESK_DIFF_REG:
-					if(1 == count)
-					{
-						ret->data[ret->offset[section + 1]].arg.set = 
-							cesk_set_fork(diffs[cur_i]->data[diffs[cur_i]->_index].arg.set);
-						break;
-					}
 					result = cesk_set_empty_set();
 					for(i = 0; i < N; i ++)
 					{
@@ -880,12 +874,6 @@ cesk_diff_t* cesk_diff_factorize(int N, cesk_diff_t** diffs, const cesk_frame_t*
 					ret->data[ret->offset[section + 1]].arg.set = result; 
 					break;
 				case CESK_DIFF_STORE:
-					if(1 == count)
-					{
-						ret->data[ret->offset[section + 1]].arg.value =
-							diffs[cur_i]->data[diffs[cur_i]->_index].arg.value;
-						cesk_value_incref(ret->data[ret->offset[section + 1]].arg.value);
-					}
 					/* the only way to modify object value is using allocation instruction
 					 * so there's no need for processing object value at this point */
 					result = cesk_set_empty_set();
@@ -948,6 +936,88 @@ cesk_diff_t* cesk_diff_fork(cesk_diff_t* diff)
 	if(NULL == diff) return NULL;
 	diff->refcnt ++;
 	return diff;
+}
+cesk_diff_t* cesk_diff_prepare_to_write(cesk_diff_t* diff)
+{
+	int i, j, k = 0;
+	if(NULL == diff) return NULL;
+	/* it's safe to make type cast */
+	if(1 == diff->refcnt) return (cesk_diff_t*)diff;
+	/* otherwise make a copy */
+	size_t size = diff->offset[CESK_DIFF_NTYPES] - diff->offset[0];
+	cesk_diff_t* ret = (cesk_diff_t*)malloc(sizeof(cesk_diff_t) + sizeof(cesk_diff_rec_t) * size);
+	if(NULL == ret)
+	{
+		LOG_ERROR("failed to allocate new value for the copy of input diff");
+		return NULL;
+	}
+	ret->offset[0] = 0;
+	uint32_t section;
+	uint32_t offset;
+	for(section = 0; section < CESK_DIFF_NTYPES; section ++)
+	{
+		ret->offset[section + 1] = ret->offset[section];
+		for(offset = diff->offset[section]; offset < diff->offset[section + 1]; offset ++)
+		{
+			uint32_t current = ret->offset[section + 1]++;
+			ret->data[current] = diff->data[offset];
+			switch(section)
+			{
+				case CESK_DIFF_ALLOC:
+				case CESK_DIFF_STORE:
+					{
+						cesk_value_t* newval = cesk_value_fork(ret->data[current].arg.value);
+						if(NULL == newval)
+						{
+							LOG_ERROR("can not fork value");
+							goto ERR;
+						}
+						cesk_value_incref(newval);
+						ret->data[current].arg.value = newval;
+					}
+					break;
+				case CESK_DIFF_REG:
+					ret->data[current].arg.set = cesk_set_fork(ret->data[current].arg.set);
+					if(NULL == ret->data[current].arg.set)
+					{
+						LOG_ERROR("can not fork set");
+						goto ERR;
+					}
+					break;
+				case CESK_DIFF_REUSE:
+				case CESK_DIFF_DEALLOC:
+					/* do nothing */
+					break;
+			}
+		}
+	}
+	ret->refcnt = 1;
+	cesk_diff_free(diff);
+	return ret;
+	
+ERR:
+	for(i = 0; i <= section; i ++)
+	{
+		for(j = diff->offset[i]; j < offset && j < diff->offset[i + 1]; j ++, k ++)
+		{
+			switch(section)
+			{
+				case CESK_DIFF_STORE:
+				case CESK_DIFF_ALLOC:
+					cesk_value_decref(ret->data[k].arg.value);
+					break;
+				case CESK_DIFF_REG:
+					cesk_set_free(ret->data[k].arg.set);
+					break;
+				case CESK_DIFF_REUSE:
+				case CESK_DIFF_DEALLOC:
+					/* do nothing */
+					break;
+			}
+		}
+	}
+	free(ret);
+	return NULL;
 }
 int cesk_diff_identity(const cesk_diff_t* diff, const cesk_diff_t* inv)
 {

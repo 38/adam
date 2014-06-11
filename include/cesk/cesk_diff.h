@@ -179,4 +179,11 @@ int cesk_diff_identity(const cesk_diff_t* diff, const cesk_diff_t* inv);
  * @return result of this operation, < 0 indicates an error 
  **/
 int cesk_diff_sub(cesk_diff_t* dest, const cesk_diff_t* sour);
+/**
+ * @brief because some of the diff is reused, so we have to run this function 
+ *        to make sure that our modification on diff records has no side effects
+ * @param diff the input diff
+ * @return the output diff, NULL for error
+ **/
+cesk_diff_t* cesk_diff_prepare_to_write(cesk_diff_t* diff);
 #endif

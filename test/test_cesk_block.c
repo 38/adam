@@ -22,7 +22,7 @@ void case1()
 	cesk_frame_set_alloctab(frame, atab);
 	/* run the block */
 	cesk_block_result_t result;
-	assert(0 == cesk_block_analyze(block, frame, rtab, &result)); 
+	assert(0 == cesk_block_analyze(block, frame, rtab, &result, NULL)); 
 	/* check the result */
 	rc = cesk_frame_register_peek(frame, CESK_FRAME_GENERAL_REG(0), buf, 10);
 	assert(rc == 1);
@@ -89,7 +89,7 @@ void case2()
 	
 	/* run the block */
 	cesk_block_result_t result;
-	assert(0 == cesk_block_analyze(block, frame, rtab, &result)); 
+	assert(0 == cesk_block_analyze(block, frame, rtab, &result, NULL)); 
 	
 	/* verify the registers */
 	rc = cesk_frame_register_peek(frame, CESK_FRAME_GENERAL_REG(0), buf, 10);
@@ -159,7 +159,7 @@ void case3()
 	
 	/* run the block */
 	cesk_block_result_t result;
-	assert(0 == cesk_block_analyze(block, frame, rtab, &result)); 
+	assert(0 == cesk_block_analyze(block, frame, rtab, &result, NULL)); 
 	
 	/* verify the registers */
 	rc = cesk_frame_register_peek(frame, CESK_FRAME_GENERAL_REG(0), buf, 10);

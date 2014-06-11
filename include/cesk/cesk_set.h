@@ -123,5 +123,10 @@ hashval_t cesk_set_compute_hashcode(const cesk_set_t* set);
  * @return the result string NULL indicates error
  **/
 const char* cesk_set_to_string(const cesk_set_t* set, char* buffer, int size);
-
+/**
+ * @brief how many relocated address in the set
+ * @param set
+ * @return the number of relocated addfress
+ **/
+uint32_t cesk_set_get_reloc(const cesk_set_t* set);
 #endif /* __CESK_SET_H__ */

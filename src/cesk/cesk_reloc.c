@@ -20,9 +20,7 @@ uint32_t cesk_reloc_table_append(
 		cesk_reloc_table_t* table, 
 		const dalvik_instruction_t* inst,
 		uint32_t parent_addr,
-		uint32_t field_offset,
-		uint32_t retaddr,
-		const char* class)
+		uint32_t field_offset)
 {
 	if(NULL == table)
 	{
@@ -33,8 +31,6 @@ uint32_t cesk_reloc_table_append(
 		.instruction = inst,
 		.parent_addr = parent_addr,
 		.field_offset = field_offset,
-		.retaddr = retaddr,
-		.class = class
 	}; 
 	uint32_t ret = vector_size(table);
 	if(0 != (ret & CESK_STORE_ADDR_RELOC_PREFIX))
@@ -65,9 +61,7 @@ uint32_t cesk_reloc_allocate(
 		cesk_store_t* store, 
 		const dalvik_instruction_t* inst,
 		uint32_t parent,
-		uint32_t field,
-		uint32_t retaddr,
-		const char* class)
+		uint32_t field)
 {
 	if(NULL == store || NULL == value_tab)
 	{
@@ -82,7 +76,7 @@ uint32_t cesk_reloc_allocate(
 		return CESK_STORE_ADDR_NULL;
 	}
 	/* first try to allocate an object address for this */
-	uint32_t obj_addr = cesk_store_allocate(store, inst, parent, field, retaddr, class);
+	uint32_t obj_addr = cesk_store_allocate(store, inst, parent, field);
 	if(CESK_STORE_ADDR_NULL == obj_addr)
 	{
 		LOG_ERROR("can not allocate an object address for this value, aborting");
@@ -98,7 +92,7 @@ uint32_t cesk_reloc_allocate(
 		return rel_addr;
 	}
 	/* otherwise, this address is new to allocation table, so create a new relocation address for it */
-	rel_addr = cesk_reloc_table_append(value_tab, inst, parent, field, retaddr, class);
+	rel_addr = cesk_reloc_table_append(value_tab, inst, parent, field);
 	if(CESK_STORE_ADDR_NULL == rel_addr)
 	{
 		LOG_ERROR("can not create an new relocated address for this object");
@@ -140,7 +134,7 @@ uint32_t cesk_reloc_addr_init(const cesk_reloc_table_t* table, cesk_store_t* sto
 		return CESK_STORE_ADDR_NULL;
 	}
 	/* try to allocate a OA for the value */
-	uint32_t obj_addr = cesk_store_allocate(store, item->instruction, item->parent_addr, item->field_offset, item->retaddr, item->class);
+	uint32_t obj_addr = cesk_store_allocate(store, item->instruction, item->parent_addr, item->field_offset);
 	if(CESK_STORE_ADDR_NULL == obj_addr)
 	{
 		LOG_ERROR("can not allocate OA for the relocated object #%d", value_idx);
@@ -149,7 +143,7 @@ uint32_t cesk_reloc_addr_init(const cesk_reloc_table_t* table, cesk_store_t* sto
 	/* check if there's a object already there */
 	if(cesk_alloctab_query(store->alloc_tab, store, obj_addr) != CESK_STORE_ADDR_NULL)
 	{
-		LOG_ERROR("can not place value in store");
+		LOG_ERROR("can not place value in store, because there's already a value there");
 		return CESK_STORE_ADDR_NULL;
 	}
 	/* if it's new, insert it to allocation table */

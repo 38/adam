@@ -171,8 +171,7 @@ cesk_frame_t* cesk_frame_make_invoke(const cesk_frame_t* frame, uint32_t nregs, 
 		{
 			if(CESK_STORE_ADDR_IS_RELOC(addr))
 			{
-				uint32_t idx = CESK_STORE_ADDR_RELOC_IDX(addr);
-				uint32_t naddr = cesk_alloctab_query(ret->store->alloc_tab, ret->store, idx);
+				uint32_t naddr = cesk_alloctab_query(ret->store->alloc_tab, ret->store, addr);
 				if(CESK_STORE_ADDR_NULL == naddr)
 				{
 					LOG_ERROR("can not find the relocated address @%x", addr);
@@ -442,7 +441,7 @@ int cesk_frame_apply_diff(
 						LOG_ERROR("can not append a new record to the inverse diff buf");
 						return -1;
 					}
-					if(NULL != fwdbuf && cesk_diff_buffer_append(fwdbuf, CESK_DIFF_ALLOC, rec->addr, NULL) < 0)
+					if(NULL != fwdbuf && cesk_diff_buffer_append(fwdbuf, CESK_DIFF_ALLOC, rec->addr, rec->arg.value) < 0)
 					{
 						LOG_ERROR("can not append a new record to the foward diff buffer");
 						return -1;
@@ -541,12 +540,12 @@ int cesk_frame_apply_diff(
 						break;
 					}
 					if(NULL != invbuf && CESK_TYPE_SET == oldval->type && 
-					   cesk_diff_buffer_append(invbuf, CESK_DIFF_STORE, rec->addr, (cesk_set_t*)oldval->pointer.set) < 0)
+					   cesk_diff_buffer_append(invbuf, CESK_DIFF_STORE, rec->addr, oldval) < 0)
 					{
 						LOG_ERROR("can not append a new record for the inverse diff buf");
 						return -1;
 					}
-					if(NULL != fwdbuf && cesk_diff_buffer_append(fwdbuf, CESK_DIFF_REG, rec->addr, rec->arg.set) < 0)
+					if(NULL != fwdbuf && cesk_diff_buffer_append(fwdbuf, CESK_DIFF_STORE, rec->addr, rec->arg.value) < 0)
 					{
 						LOG_ERROR("can not append a new record to the foward diff buffer");
 						return -1;
@@ -838,6 +837,7 @@ int cesk_frame_register_load_from_object(
 
 	_SNAPSHOT(inv_buf, CESK_DIFF_REG, dst_reg, frame->regs[dst_reg]);
 
+
 	const cesk_set_t* src_set = frame->regs[src_reg];
 	cesk_set_iter_t iter;
 
@@ -861,6 +861,13 @@ int cesk_frame_register_load_from_object(
 	uint32_t obj_addr;
 	while(CESK_STORE_ADDR_NULL != (obj_addr = cesk_set_iter_next(&iter)))
 	{
+		/* constant address should be ignored */
+		if(CESK_STORE_ADDR_IS_CONST(obj_addr))
+		{
+			/* TODO: set exception register */
+			LOG_DEBUG("throw exception java.lang.nullPointerException");
+			continue;
+		}
 		cesk_value_const_t* obj_val = cesk_store_get_ro(frame->store, obj_addr);
 		if(NULL == obj_val)
 		{
@@ -917,7 +924,7 @@ uint32_t cesk_frame_store_new_object(
 
 	LOG_DEBUG("creat new object from class %s", clspath);
 	/* allocate address */
-	uint32_t addr = cesk_reloc_allocate(reloctab, frame->store, inst, CESK_STORE_ADDR_NULL, 0, CESK_STORE_ADDR_NULL, clspath); 
+	uint32_t addr = cesk_reloc_allocate(reloctab, frame->store, inst, CESK_STORE_ADDR_NULL, 0); 
 
 	if(CESK_STORE_ADDR_NULL == addr)
 	{
@@ -1034,8 +1041,8 @@ uint32_t cesk_frame_store_new_object(
 							frame->store, 
 							inst, 
 							CESK_STORE_ADDR_NULL, 
-							CESK_OBJECT_FIELD_OFS(object, this->addrtab + j),
-							CESK_STORE_ADDR_NULL, NULL);
+							CESK_OBJECT_FIELD_OFS(object, this->addrtab + j));
+					/* set the reloc flag */
 					if(CESK_STORE_ADDR_NULL == faddr)
 					{
 						LOG_ERROR("can not allocate value set for field %s/%s", this->class.path->value, this->class.udef->members[j]);
@@ -1180,6 +1187,8 @@ int cesk_frame_store_put_field(
 			return -1;
 		}
 
+		if(cesk_set_get_reloc(set) > 0) value_set->reloc = 1;
+
 		/* ok take the snapshot here */
 		_SNAPSHOT(diff_buf, CESK_DIFF_STORE, *paddr, value_set);
 	}
@@ -1199,8 +1208,6 @@ int cesk_frame_store_put_field(
 			{
 				LOG_WARNING("can not incref at address @%x", tmp_addr);
 			}
-			if(CESK_STORE_ADDR_IS_RELOC(tmp_addr))
-				value->reloc = 1;
 		}
 
 		cesk_store_release_rw(frame->store, *paddr);
@@ -1220,6 +1227,7 @@ int cesk_frame_store_put_field(
 			LOG_ERROR("can not make a new value");
 			return -1;
 		}
+		if(cesk_set_get_reloc(newval->pointer.set) > 0) newval->reloc = 1;
 		if(cesk_store_attach(frame->store, *paddr, newval) < 0)
 		{
 			LOG_ERROR("can not set new value to the field %s.%s", clspath, fldname);
@@ -1307,3 +1315,38 @@ int cesk_frame_store_peek_field(const cesk_frame_t* frame,
 	}
 	return _cesk_frame_load_set(set_value->pointer.set, buf, size);
 }
+#define __PR(fmt, args...) do{\
+	int pret = snprintf(p, buf + sz - p, fmt, ##args);\
+	if(pret > buf + sz - p) pret = buf + sz - p;\
+	p += pret;\
+}while(0)
+const char* cesk_frame_to_string(const cesk_frame_t* frame, char* buf, size_t sz)
+{
+	static char _buf[1024];
+	if(NULL == buf)
+	{
+		buf = _buf;
+		sz = sizeof(_buf);
+	}
+	char* p = buf;
+	int i;
+	__PR("[register ");
+	for(i = 0; i < frame->size; i ++)
+		__PR("(v%d %s) ", i, cesk_set_to_string(frame->regs[i], NULL, 0));
+	__PR("] [store %s]", cesk_store_to_string(frame->store, NULL, 0));
+	return buf;
+}
+void cesk_frame_print_debug(const cesk_frame_t* frame)
+#if LOG_LEVEL >= 6
+{
+	int i;
+	LOG_DEBUG("Registers");
+	for(i = 0; i < frame->size; i ++)
+		LOG_DEBUG("\tv%d\t%s", i, cesk_set_to_string(frame->regs[i], NULL, 0));
+	LOG_DEBUG("Store");
+	cesk_store_print_debug(frame->store);
+}
+#else
+{}
+#endif
+#undef __PR

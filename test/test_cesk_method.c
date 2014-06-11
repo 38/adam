@@ -7,16 +7,22 @@ int main()
 	assert(0 == dalvik_loader_from_directory("./test/cases/analyzer"));
 	const char* classpath = stringpool_query("testClass");
 	const char* methodname = stringpool_query("sum");
+	cesk_frame_t* frame;
+	cesk_diff_t* ret;
 	
 	const dalvik_type_t  *  type[2] = {};
 
-	const dalvik_block_t*  graph = dalvik_block_from_method(classpath, methodname, type);
+	const dalvik_block_t*  graph;
+
+	cesk_reloc_table_t* rtable;
+#if 0
+	graph = dalvik_block_from_method(classpath, methodname, type);
 	assert(NULL != graph);
 
-	cesk_frame_t* frame = cesk_frame_new(graph->nregs);
+	frame = cesk_frame_new(graph->nregs);
 	assert(NULL != frame);
 
-	cesk_diff_t* ret = cesk_method_analyze(graph, frame);
+	ret = cesk_method_analyze(graph, frame);
 	puts(cesk_diff_to_string(ret, NULL, 0));
 	assert(0 == strcmp("[][][(register v0 {@ffffff04,@ffffff02})][][]", cesk_diff_to_string(ret, NULL, 0)));
 	cesk_frame_free(frame);
@@ -67,7 +73,25 @@ int main()
 	puts(cesk_diff_to_string(ret, NULL, 0));
 	cesk_frame_free(frame);
 	cesk_diff_free(ret);
+#endif
+	classpath = stringpool_query("treeNode");
+	methodname = stringpool_query("run");
+	type[0] = NULL;
+	graph = dalvik_block_from_method(classpath, methodname, type);
 
+	frame = cesk_frame_new(graph->nregs);
+	assert(NULL != frame);
+
+	rtable = cesk_reloc_table_new();
+	assert(NULL != rtable);
+
+	ret = cesk_method_analyze(graph, frame, NULL, rtable);
+
+	cesk_reloc_table_free(rtable);
+	puts(cesk_diff_to_string(ret, NULL, 0));
+	cesk_frame_free(frame);
+	cesk_diff_free(ret);
+	
 	adam_finalize();
 	return 0;
 }

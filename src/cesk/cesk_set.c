@@ -26,6 +26,7 @@ typedef struct {
 typedef struct {
 	uint32_t size;          /*!<how many element in the set */
 	uint32_t refcnt;        /*!<the reference count of this, indicates how many cesk_set_t for this set are returned */
+	uint32_t reloc;         /*!<if this set contains relocated address */
 	hashval_t hashcode;     /*!<the hash code of the set */
 	cesk_set_node_t* first; /*!<first element of the set */
 } cesk_set_info_entry_t;
@@ -297,6 +298,7 @@ static inline uint32_t _cesk_set_duplicate(cesk_set_info_entry_t* info, cesk_set
 	}
 	new_info->size = info->size;
 	new_info->hashcode = info->hashcode;
+	new_info->reloc = info->reloc;
 
 	new_info->refcnt = 1;
 	info->refcnt --;
@@ -384,6 +386,13 @@ int cesk_set_modify(cesk_set_t* dest, uint32_t from, uint32_t to)
 		this->prev = NULL;
 		info->hashcode ^= (from * MH_MULTIPLY) ^ (to * MH_MULTIPLY);   /* update the hash code */
 	}
+	if(CESK_STORE_ADDR_IS_RELOC(from) ^ CESK_STORE_ADDR_IS_RELOC(to))
+	{
+		if(CESK_STORE_ADDR_IS_RELOC(from))
+			info->reloc --;
+		else 
+			info->reloc ++;
+	}
 	return 0;
 }
 int cesk_set_push(cesk_set_t* dest, uint32_t addr)
@@ -432,6 +441,7 @@ int cesk_set_push(cesk_set_t* dest, uint32_t addr)
 		info->first = node;
 		info->hashcode ^= addr * MH_MULTIPLY;   /* update the hash code */
 		info->size ++;
+		if(CESK_STORE_ADDR_IS_RELOC(addr)) info->reloc ++;
 	}
 	return 0;
 }
@@ -497,6 +507,7 @@ int cesk_set_merge(cesk_set_t* dest, const cesk_set_t* sour)
 			info_dst->first = node;
 			info_dst->hashcode ^= addr * MH_MULTIPLY;
 			info_dst->size ++;
+			if(CESK_STORE_ADDR_IS_RELOC(addr)) info_dst->reloc ++;
 		}
 	}
 	return 0;
@@ -543,6 +554,12 @@ hashval_t cesk_set_compute_hashcode(const cesk_set_t* set)
 		ret ^= (this * MH_MULTIPLY);
 	}
 	return ret;
+}
+uint32_t cesk_set_get_reloc(const cesk_set_t* set)
+{
+	cesk_set_info_entry_t* info = (cesk_set_info_entry_t*)_cesk_set_hash_find(set->set_idx, CESK_STORE_ADDR_NULL);
+	if(NULL == info) return 0;
+	return info->reloc;
 }
 const char* cesk_set_to_string(const cesk_set_t* set, char* buf, int sz)
 {

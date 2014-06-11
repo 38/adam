@@ -109,6 +109,10 @@ struct _dalvik_block_t{
 	uint32_t   end;      /*!<the last instruction of this block  + 1. The range of the block is [begin,end) */
 	size_t     nbranches; /*!<how many possible executing path after this block is done */
 	uint16_t   nregs;     /*!<number of registers the block can use */
+	struct {
+		const char* method;   /*!<the method name */
+		const char* class;    /*!<the class path */
+	} *info;                  /*!<info*/
 	dalvik_block_branch_t branches[0]; /*!<all possible executing path */
 };
 CONST_ASSERTION_LAST(dalvik_block_t, branches);
