@@ -959,14 +959,6 @@ uint32_t cesk_frame_store_new_object(
 					  clspath);
 			return CESK_STORE_ADDR_NULL;
 		}
-		/* reuse */
-		_SNAPSHOT(inv_buf, CESK_DIFF_REUSE, addr, CESK_DIFF_REUSE_VALUE((uintptr_t)cesk_store_get_reuse(frame->store, addr)));
-
-		if(cesk_store_set_reuse(frame->store, addr) < 0)
-		{
-			LOG_ERROR("can not reuse the address @ %x", addr);
-			return CESK_STORE_ADDR_NULL;
-		}
 
 		/* push default zero to the class */
 		int i;
@@ -984,6 +976,16 @@ uint32_t cesk_frame_store_new_object(
 						LOG_WARNING("uninitialized field %s in an initialize object @%x", this->class.udef->members[j], addr);
 						continue;
 					}
+					
+					/* reuse */
+					_SNAPSHOT(inv_buf, CESK_DIFF_REUSE, addr, CESK_DIFF_REUSE_VALUE((uintptr_t)cesk_store_get_reuse(frame->store, addr)));
+
+					if(cesk_store_set_reuse(frame->store, addr) < 0)
+					{
+						LOG_ERROR("can not reuse the address @ %x", addr);
+						return CESK_STORE_ADDR_NULL;
+					}
+
 					cesk_value_t* value = cesk_store_get_rw(frame->store, addr, 0);
 					if(NULL == value)
 					{
@@ -1004,13 +1006,14 @@ uint32_t cesk_frame_store_new_object(
 					_SNAPSHOT(diff_buf, CESK_DIFF_STORE, addr, value);
 
 					cesk_store_release_rw(frame->store, addr);
+					
+					_SNAPSHOT(diff_buf, CESK_DIFF_REUSE, addr, CESK_DIFF_REUSE_VALUE(1));
 				}
 				/* no default zero for a built-in class */
 			}
 			CESK_OBJECT_STRUCT_ADVANCE(this);
 		}
 
-		_SNAPSHOT(diff_buf, CESK_DIFF_REUSE, addr, CESK_DIFF_REUSE_VALUE(1));
 	}
 	else
 	{
@@ -1148,7 +1151,7 @@ int cesk_frame_store_put_field(
 
 	_SNAPSHOT(inv_buf, CESK_DIFF_STORE, *paddr, cesk_value_fork(value_set));  /* because we need refcount to be 1 */
 
-	if(keep_old_vlaue || cesk_store_get_reuse(frame->store, dst_addr) == 1)
+	if(keep_old_vlaue || cesk_store_get_reuse(frame->store, *paddr) == 1)
 	{
 		/* this address is used by mutliple objects, so we can not dicard old value */
 		/* get the address of the value set */
