@@ -82,12 +82,8 @@ int main()
 	frame = cesk_frame_new(graph->nregs);
 	assert(NULL != frame);
 
-	rtable = cesk_reloc_table_new();
-	assert(NULL != rtable);
+	ret = cesk_method_analyze(graph, frame, NULL, &rtable);
 
-	ret = cesk_method_analyze(graph, frame, NULL, rtable);
-
-	cesk_reloc_table_free(rtable);
 	puts(cesk_diff_to_string(ret, NULL, 0));
 	cesk_frame_free(frame);
 	cesk_diff_free(ret);

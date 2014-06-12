@@ -123,11 +123,11 @@ static inline int _cesk_store_swipe(cesk_store_t* store, cesk_store_block_t* blo
 /** 
  * @brief addressing hash code
  * @param inst the instruction
- * @param parent the parent object
  * @param field_ofs the field offset
+ * @param tick the context time stamp
  * @return the hashcode
  **/
-static inline hashval_t _cesk_store_address_hashcode(const dalvik_instruction_t* inst, uint32_t parent, uint32_t field_ofs)
+static inline hashval_t _cesk_store_address_hashcode(const dalvik_instruction_t* inst, uint32_t field_ofs)
 {
 	uint32_t idx;
 	
@@ -135,7 +135,7 @@ static inline hashval_t _cesk_store_address_hashcode(const dalvik_instruction_t*
 	//dalvik_instruction_read_annotation(inst, &idx, sizeof(idx));
 	idx = dalvik_instruction_get_index(inst);
 
-	return (idx * idx * MH_MULTIPLY + parent * 100007 * MH_MULTIPLY + (field_ofs * MH_MULTIPLY * MH_MULTIPLY)); 
+	return (idx * idx * MH_MULTIPLY + (field_ofs * MH_MULTIPLY * MH_MULTIPLY)); 
 
 }
 /** @brief get a block in a store and prepare to write */
@@ -303,15 +303,6 @@ static inline int _cesk_store_apply_alloc_tab(cesk_store_t* store, uint32_t base
 			default:
 				LOG_ERROR("invalid value typecode(%d)", value->type);
 				return -1;
-		}
-		/* apply the allocation table to parent address */
-		if(CESK_STORE_ADDR_IS_RELOC(blk->slots[ofs].parent))
-		{
-			uint32_t addr = cesk_alloctab_query(store->alloc_tab, store, blk->slots[ofs].parent);
-			if(CESK_STORE_ADDR_NULL == addr)
-				LOG_ERROR("failed to quiery allocation table for relocated address @%x", blk->slots[ofs].parent);
-			else
-				blk->slots[ofs].parent = addr;
 		}
 		value->reloc = 0;
 		/* release the write pointer */
@@ -562,11 +553,11 @@ hashval_t cesk_store_compute_hashcode(const cesk_store_t* store)
 /**
  * @note caller should update the reuse flag manually 
  **/
-uint32_t cesk_store_allocate(cesk_store_t* store, const dalvik_instruction_t* inst, uint32_t parent, uint32_t field_ofs)
+uint32_t cesk_store_allocate(cesk_store_t* store, const dalvik_instruction_t* inst, uint32_t field_ofs)
 {
 	uint32_t idx;
 	idx = dalvik_instruction_get_index(inst);
-	uint32_t  init_slot = _cesk_store_address_hashcode(inst, parent, field_ofs)  % CESK_STORE_BLOCK_NSLOTS;
+	uint32_t  init_slot = _cesk_store_address_hashcode(inst, field_ofs)  % CESK_STORE_BLOCK_NSLOTS;
 	uint32_t  slot = init_slot;
 	/* here we perform a quadratic probing inside each block
 	 * But we do not jump more than 5 times in one block
@@ -592,7 +583,6 @@ uint32_t cesk_store_allocate(cesk_store_t* store, const dalvik_instruction_t* in
 			}
 			if(store->blocks[block]->slots[slot].value != NULL && 
 			   store->blocks[block]->slots[slot].idx == idx && 
-			   store->blocks[block]->slots[slot].parent == parent &&
 			   store->blocks[block]->slots[slot].field == field_ofs)
 			{
 				LOG_DEBUG("find the equal slot @(block = %d, offset = %d)", block, slot);
@@ -644,7 +634,6 @@ uint32_t cesk_store_allocate(cesk_store_t* store, const dalvik_instruction_t* in
 						(uint32_t)(empty_block * CESK_STORE_BLOCK_NSLOTS + empty_offset), 
                         empty_block, empty_offset, idx);
 			store->blocks[empty_block]->slots[empty_offset].idx = idx;
-			store->blocks[empty_block]->slots[empty_offset].parent = parent;
 			store->blocks[empty_block]->slots[empty_offset].field = field_ofs;
 			store->blocks[empty_block]->slots[empty_offset].reuse = 0;
 			return empty_block * CESK_STORE_BLOCK_NSLOTS + empty_offset;

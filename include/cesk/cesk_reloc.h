@@ -29,6 +29,7 @@
 */
 #ifndef __CESK_RELOC_H__
 #define __CESK_RELOC_H__
+#include <const_assertion.h>
 #include <cesk/cesk_store.h>
 #include <cesk/cesk_value.h>
 #include <dalvik/dalvik_instruction.h>
@@ -41,9 +42,20 @@ typedef vector_t cesk_reloc_table_t;
  **/
 typedef struct {
 	const dalvik_instruction_t* instruction;	/*!< the instruction that allocate this item */
-	uint32_t      parent_addr;					/*!< the parent address */
 	uint32_t      field_offset;					/*!< the field offset */
+	uint32_t      tick;                         /*!< the context time stamp */
 } cesk_reloc_item_t;
+
+/**
+ * @brief initialize the reloc module
+ * @return the result of initialization, < 0 indicates error
+ **/
+int cesk_reloc_init();
+/**
+ * @brief finalize the reloc module
+ * @return nothing
+ **/
+void cesk_reloc_finalize();
 
 /**
  * @brief create a newy value table
@@ -62,14 +74,13 @@ void cesk_reloc_table_free(cesk_reloc_table_t* mem);
  * @brief append a new value to the value table
  * @param table the value table 
  * @param inst  the instruction that allocates this object
- * @param parent_addr the address of parent object
  * @param field_offset the offset of this field
+ * @param tick the time stamp
  * @return the index of this value, CESK_STORE_ADDR_NULL indicates error 
  **/
 uint32_t cesk_reloc_table_append(
 		cesk_reloc_table_t* table, 
 		const dalvik_instruction_t* inst,
-		uint32_t parent_addr,
 		uint32_t field_offset);
 /**
  * @brief allocate a `fresh' relocated address and attach it to the global relocate allocate table
@@ -79,6 +90,8 @@ uint32_t cesk_reloc_table_append(
  * @param inst the instruction that allocate the object
  * @param parent the address of parent object
  * @param field the field offset
+ * @param tick the context time stamp
+ * @param dry_run if dry_run is set, the function won't change the allocation table
  * @return the relocated address of the vlaue, CESK_STORE_ADDR_NULL means error
  * @note   DO NOT FORGET SET THE INITIAL VALUE TO THIS RELOCATED ADDRESS
  **/
@@ -86,8 +99,8 @@ uint32_t cesk_reloc_allocate(
 		cesk_reloc_table_t* value_tab, 
 		cesk_store_t* store, 
 		const dalvik_instruction_t* inst,
-		uint32_t parent,
-		uint32_t field);
+		uint32_t field,
+		int dry_run);
 
 /**
  * @brief init a relocated address in one store, this is used by the allocation diff items
@@ -109,5 +122,17 @@ static inline uint32_t cesk_reloc_next_addr(const cesk_reloc_table_t* table)
 	uint32_t ret = (CESK_STORE_ADDR_RELOC_PREFIX | vector_size(table));
 	if(!CESK_STORE_ADDR_IS_RELOC(ret)) return CESK_STORE_ADDR_NULL;
 	else return ret;
+}
+/**
+ * @brief get the relocation item
+ * @param table the relocation table
+ * @param addr the relocated address
+ * @return the relocation item in the relocation table
+ **/
+static inline const cesk_reloc_item_t* cesk_reloc_addr_info(const cesk_reloc_table_t* table, uint32_t addr)
+{
+	if(!CESK_STORE_ADDR_IS_RELOC(addr)) return NULL;
+	uint32_t idx = CESK_STORE_ADDR_RELOC_IDX(addr);
+	return (cesk_reloc_item_t*)vector_get(table, idx);
 }
 #endif /*__CESK_RELOC_H__*/

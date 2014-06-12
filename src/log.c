@@ -133,7 +133,10 @@ void log_write(int level, const char* file, const char* function, int line, cons
 	static const char LevelChar[] = "FEWNITD";
 	FILE* fp = _log_fp[level];
 	va_list ap;
-	fprintf(fp,"%c[%s@%s:%3d] ",LevelChar[level],function,file,line);
+	const char* p;
+	for(p = file; *p ; p ++)
+		if(*p == '/') file = p + 1;
+	fprintf(fp,"%c[%s@%s:%d] ",LevelChar[level],function,file,line);
 	va_start(ap,fmt);
 	vfprintf(fp, fmt, ap);
 	va_end(ap);

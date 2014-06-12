@@ -113,7 +113,7 @@ int main()
 	assert(CESK_STORE_ADDR_NULL != addr1);
 	assert(0 == cesk_frame_register_load(frame1, 3, addr1, NULL, NULL));
 
-	uint32_t addr2 = cesk_frame_store_new_object(frame2, rtab, inst2, classpath, btmp, NULL);  
+	uint32_t addr2 = cesk_frame_store_new_object(frame2, rtab, inst2,  classpath, btmp, NULL);  
 	assert(CESK_STORE_ADDR_NULL != addr2);
 	assert(0 == cesk_frame_register_load(frame2, 3, addr2, NULL, NULL));
 	/* make a record that can set reg #3 to {addd1, addr2} */

@@ -29,7 +29,7 @@ void cesk_method_finalize();
  * @param rtab the relocation table
  * @return a diff for the frame of its caller stack
  **/
-cesk_diff_t* cesk_method_analyze(const dalvik_block_t* code, cesk_frame_t* frame, const void* caller_ctx, cesk_reloc_table_t* rtab);
+cesk_diff_t* cesk_method_analyze(const dalvik_block_t* code, cesk_frame_t* frame, const void* caller_ctx, cesk_reloc_table_t** p_rtab);
 /**
  * @brief print backtrace in the log
  * @param method_context the method context

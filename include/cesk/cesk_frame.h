@@ -211,6 +211,7 @@ int cesk_frame_register_load_from_object(
  * @param frame
  * @param reloctab the relocation table
  * @param inst current instruction
+ * @param tick the time stamp
  * @param clspath the class path
  * @param diff_buf
  * @param inv_buf

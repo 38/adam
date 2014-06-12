@@ -208,8 +208,8 @@ int main()
 	/* now test the gc function, which dectect the matually refering garabage in memory */
 	/* create 3 objects */
 	uint32_t obj1 = cesk_frame_store_new_object(frame, reloc, inst, classpath, dif, inv);
-	uint32_t obj2 = cesk_frame_store_new_object(frame, reloc, inst2, classpath, dif, inv);
-	uint32_t obj3 = cesk_frame_store_new_object(frame, reloc, inst3, classpath, dif, inv);
+	uint32_t obj2 = cesk_frame_store_new_object(frame, reloc, inst2,classpath, dif, inv);
+	uint32_t obj3 = cesk_frame_store_new_object(frame, reloc, inst3,classpath, dif, inv);
 	/* check 3 addresses are not same */
 	assert(obj1 != obj2);
 	assert(obj1 != obj3);

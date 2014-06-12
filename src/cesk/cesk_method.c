@@ -8,6 +8,7 @@ typedef struct _cesk_method_cache_node_t{
 	const dalvik_block_t* code;  /*!< the code block */
 	cesk_frame_t* frame;          /*!< the stack frame */
 	cesk_diff_t* result;          /*!< the analyze result */
+	cesk_reloc_table_t* rtable;   /*!< the relocation table */
 	struct _cesk_method_cache_node_t* next;  /*!< next pointer for the hash table */
 } _cesk_method_cache_node_t;
 
@@ -43,6 +44,7 @@ struct _cesk_method_block_context_t{
  * @brief an analyzer context 
  **/
 typedef struct _cesk_method_context_t{
+	uint32_t tick;
 	const cesk_frame_t* input_frame;     /*!< the input frame for this context */
 	uint32_t Q[CESK_METHOD_MAX_NBLOCKS]; /*!< the analyzer queue */ 
 	uint32_t front;                      /*!< the earlist timestamp in the queue */
@@ -104,6 +106,7 @@ void cesk_method_finalize()
 			node = node->next;
 			if(current->frame) cesk_frame_free(current->frame);
 			if(current->result) cesk_diff_free(current->result);
+			if(current->rtable) cesk_reloc_table_free(current->rtable);
 			free(current);
 		}
 	}
@@ -247,15 +250,14 @@ static inline void _cesk_method_context_free(_cesk_method_context_t* context)
  * @param entry the entry point of this method
  * @param frame the stack frame
  * @param caller the caller context
- * @param rtab the rtable
  * @return the analyzer context
  **/
 static inline _cesk_method_context_t* _cesk_method_context_new(
 		const dalvik_block_t* entry, 
 		const cesk_frame_t* frame, 
-		const _cesk_method_context_t* caller,
-		cesk_reloc_table_t* rtab)
+		const _cesk_method_context_t* caller)
 {
+	static uint32_t tick = 0;
 	_cesk_method_context_t* ret;
 	_cesk_method_block_max_ninputs = 0;
 	_cesk_method_block_max_idx = 0xfffffffful;
@@ -278,13 +280,11 @@ static inline _cesk_method_context_t* _cesk_method_context_new(
 	}
 	memset(ret, 0, context_size);
 	ret->nslots = _cesk_method_block_max_idx + 1;
+	ret->tick = tick ++;
 	/* set the input frame */
 	ret->input_frame = frame;
 	/* create allocation table and relocation table */
-#if 0
 	ret->rtable = cesk_reloc_table_new();
-#endif
-	ret->rtable = rtab;
 	if(NULL == ret->rtable)
 	{
 		LOG_ERROR("invalid relocation table");
@@ -402,6 +402,7 @@ static inline _cesk_method_context_t* _cesk_method_context_new(
 DIFFERR:
 	LOG_ERROR("failed to initialize diffs");
 ERR:
+	if(NULL != ret && NULL != ret->rtable) cesk_reloc_table_free(ret->rtable);
 	if(NULL != ret) _cesk_method_context_free(ret);
 	return NULL;
 }
@@ -450,11 +451,6 @@ static inline int _cesk_method_compute_next_input(_cesk_method_context_t* ctx, _
 			LOG_ERROR("can not compute prv_inversion * input_diff * cur_diff");
 			goto ERR;
 		}
-		if(cesk_diff_sub(term_diff[nways], blkctx->input_diff) < 0)
-		{
-			LOG_ERROR("can not strip the output diff");
-			goto ERR;
-		}
 		term_frame[nways] = input->frame;
 		nways ++;
 	}
@@ -468,6 +464,13 @@ static inline int _cesk_method_compute_next_input(_cesk_method_context_t* ctx, _
 	/* clean up */
 	for(i = 0; i < nways; i ++)
 		cesk_diff_free(term_diff[i]);
+	
+	if(cesk_diff_sub(result, blkctx->input_diff) < 0)
+	{
+		LOG_ERROR("can not strip the output diff");
+		goto ERR;
+	}
+
 	cesk_diff_free(blkctx->input_diff);
 	blkctx->input_diff = result;
 	blkctx->timestamp = ctx->rear;
@@ -596,7 +599,7 @@ static inline int _cesk_method_return(
 	return 0;
 }
 /* TODO: exception return */
-cesk_diff_t* cesk_method_analyze(const dalvik_block_t* code, cesk_frame_t* frame, const void* caller, cesk_reloc_table_t* rtab)
+cesk_diff_t* cesk_method_analyze(const dalvik_block_t* code, cesk_frame_t* frame, const void* caller, cesk_reloc_table_t** p_rtab)
 {
 	LOG_DEBUG("start analyzing code block graph at %p with frame %p (hashcode = %u)", code, frame, cesk_frame_hashcode(frame));
 	/* first we try to find in the cache for this state */
@@ -607,11 +610,13 @@ cesk_diff_t* cesk_method_analyze(const dalvik_block_t* code, cesk_frame_t* frame
 		if(NULL == node->result)
 		{
 			LOG_DEBUG("oh? This context won't return, it's a trap. I don't wanna go inside it");
+			*p_rtab = NULL;
 			return cesk_diff_empty();
 		}
 		else
 		{
 			LOG_DEBUG("I find I did previous work on this invocation context!");
+			*p_rtab = node->rtable;
 			return cesk_diff_fork(node->result);
 		}
 	}
@@ -621,7 +626,7 @@ cesk_diff_t* cesk_method_analyze(const dalvik_block_t* code, cesk_frame_t* frame
 
 	/* create a result buffer */
 	cesk_diff_t* result = NULL;
-	_cesk_method_context_t* context = _cesk_method_context_new(code, frame, (const _cesk_method_context_t*)caller, rtab);
+	_cesk_method_context_t* context = _cesk_method_context_new(code, frame, (const _cesk_method_context_t*)caller);
 	if(NULL == context)
 	{
 		LOG_ERROR("can not create context");
@@ -765,6 +770,7 @@ cesk_diff_t* cesk_method_analyze(const dalvik_block_t* code, cesk_frame_t* frame
 
 	/* cache the result diff */
 	node->result = result;
+	*p_rtab = node->rtable = context->rtable;
 	_cesk_method_context_free(context);
 	LOG_DEBUG("result diff = %s", cesk_diff_to_string(result, NULL, 0));
 	return cesk_diff_fork(result);
@@ -782,18 +788,37 @@ void cesk_method_print_backtrace(const void* method_context)
 	{
 		uint32_t blk = context->Q[(context->front - 1)%CESK_METHOD_MAX_NBLOCKS];
 		if(context->front == 0)  blk = 0;
-		LOG_DEBUG("%s.%s @ block#%d(from instruction #%d to #%d)", 
+		LOG_DEBUG("%s.%s @ block#%d(from instruction 0x%x to 0x%x)", 
 				context->blocks[blk].code->info->class, 
 				context->blocks[blk].code->info->method,
 				blk,
 				context->blocks[blk].code->begin,
 				context->blocks[blk].code->end);
-		LOG_DEBUG("code:");
+		LOG_DEBUG("Code");
 		uint32_t insidx;
 		for(insidx = context->blocks[blk].code->begin; insidx < context->blocks[blk].code->end; insidx ++)
 			LOG_DEBUG("\t0x%x\t%s", insidx, dalvik_instruction_to_string(dalvik_instruction_get(insidx), NULL, 0));
-		LOG_DEBUG("frame:");
-		cesk_frame_print_debug(context->input_frame);
+		int i;
+		LOG_DEBUG("Registers");
+		for(i = 0; i < context->input_frame->size; i ++)
+			LOG_DEBUG("\tv%d\t%s", i, cesk_set_to_string(context->input_frame->regs[i], NULL, 0));
+		LOG_DEBUG("Store");
+		uint32_t blkidx;
+		for(blkidx = 0; blkidx < context->input_frame->store->nblocks; blkidx ++)
+		{
+			const cesk_store_block_t* blk = context->input_frame->store->blocks[blkidx];
+			uint32_t ofs;
+			for(ofs = 0; ofs < CESK_STORE_BLOCK_NSLOTS; ofs ++)
+			{
+				if(blk->slots[ofs].value == NULL) continue;
+				uint32_t addr = blkidx * CESK_STORE_BLOCK_NSLOTS + ofs;
+				uint32_t reloc_addr = cesk_alloctab_query(context->input_frame->store->alloc_tab, context->input_frame->store, addr);
+				if(reloc_addr != CESK_STORE_ADDR_NULL)
+					LOG_DEBUG("\t@%x(@%x)\t%s", reloc_addr, addr,cesk_value_to_string(blk->slots[ofs].value, NULL, 0));
+				else
+					LOG_DEBUG("\t@%x\t%s", addr, cesk_value_to_string(blk->slots[ofs].value, NULL, 0));
+			}
+		}
 		LOG_DEBUG("---------------------------------------------------");
 	}
 	LOG_DEBUG("==================end bracktrace====================");

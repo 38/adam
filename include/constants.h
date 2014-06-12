@@ -118,6 +118,11 @@
 #	define CESK_METHOD_CAHCE_SIZE 100007
 #endif
 
+#ifndef CESK_RELOC_HASH_SIZE
+/** @brief the number of slots for the relocated hash **/
+#	define CESK_RELOC_HASH_SIZE 655217
+#endif
+
 /** @brief the magic number used for Knuth Multiplicative Hash */
 #define MH_MULTIPLY (2654435761ul)
 

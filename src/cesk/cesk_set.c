@@ -21,6 +21,7 @@ struct _cesk_set_t {
 /**@brief data that the some set holds */
 typedef struct {
 	cesk_set_node_t *next;  /*!<next pointer*/
+	cesk_set_node_t *prev;
 } cesk_set_data_entry_t;
 /**@brief the entry that holds metadata of a set */
 typedef struct {
@@ -316,6 +317,7 @@ static inline uint32_t _cesk_set_duplicate(cesk_set_info_entry_t* info, cesk_set
 		 */
 		cesk_set_node_t* node = (cesk_set_node_t*)(((char*)_cesk_set_hash_insert(new_idx, addr)) - sizeof(cesk_set_node_t));
 		node->data_entry->next = new_info->first;
+		if(NULL != new_info->first) new_info->first->data_entry->prev = node;
 		new_info->first = node;
 	}
 
@@ -325,6 +327,7 @@ static inline uint32_t _cesk_set_duplicate(cesk_set_info_entry_t* info, cesk_set
 }
 int cesk_set_modify(cesk_set_t* dest, uint32_t from, uint32_t to)
 {
+	if(from == to) return 0;
 	if(NULL == dest || CESK_STORE_ADDR_NULL == from || CESK_STORE_ADDR_NULL == to)
 	{
 		LOG_ERROR("invalid argument");
@@ -374,7 +377,14 @@ int cesk_set_modify(cesk_set_t* dest, uint32_t from, uint32_t to)
 	if(_cesk_set_hash_find(dest->set_idx, to))
 	{
 		/* if the destination element is duplicated, just free this node */
+		if(this->data_entry->prev)
+			this->data_entry->prev->data_entry->next = this->data_entry->next;
+		else
+			info->first = this->data_entry->next;
+		if(this->data_entry->next)
+			this->data_entry->next->data_entry->prev = this->data_entry->prev;
 		free(this);
+		info->hashcode ^= (from * MH_MULTIPLY);
 	}
 	else
 	{
