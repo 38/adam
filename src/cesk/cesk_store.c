@@ -127,7 +127,7 @@ static inline int _cesk_store_swipe(cesk_store_t* store, cesk_store_block_t* blo
  * @param tick the context time stamp
  * @return the hashcode
  **/
-static inline hashval_t _cesk_store_address_hashcode(const dalvik_instruction_t* inst, uint32_t field_ofs)
+static inline hashval_t _cesk_store_address_hashcode(const dalvik_instruction_t* inst, uint32_t field_ofs, uint32_t context)
 {
 	uint32_t idx;
 	
@@ -135,7 +135,7 @@ static inline hashval_t _cesk_store_address_hashcode(const dalvik_instruction_t*
 	//dalvik_instruction_read_annotation(inst, &idx, sizeof(idx));
 	idx = dalvik_instruction_get_index(inst);
 
-	return (idx * idx * MH_MULTIPLY + (field_ofs * MH_MULTIPLY * MH_MULTIPLY)); 
+	return (idx * idx * MH_MULTIPLY + (field_ofs * MH_MULTIPLY * MH_MULTIPLY)) ^((context * context * context) * MH_MULTIPLY); 
 
 }
 /** @brief get a block in a store and prepare to write */
@@ -553,11 +553,11 @@ hashval_t cesk_store_compute_hashcode(const cesk_store_t* store)
 /**
  * @note caller should update the reuse flag manually 
  **/
-uint32_t cesk_store_allocate(cesk_store_t* store, const dalvik_instruction_t* inst, uint32_t field_ofs)
+uint32_t cesk_store_allocate(cesk_store_t* store, const dalvik_instruction_t* inst, uint32_t field_ofs, uint32_t context)
 {
 	uint32_t idx;
 	idx = dalvik_instruction_get_index(inst);
-	uint32_t  init_slot = _cesk_store_address_hashcode(inst, field_ofs)  % CESK_STORE_BLOCK_NSLOTS;
+	uint32_t  init_slot = _cesk_store_address_hashcode(inst, field_ofs, context)  % CESK_STORE_BLOCK_NSLOTS;
 	uint32_t  slot = init_slot;
 	/* here we perform a quadratic probing inside each block
 	 * But we do not jump more than 5 times in one block
@@ -583,7 +583,8 @@ uint32_t cesk_store_allocate(cesk_store_t* store, const dalvik_instruction_t* in
 			}
 			if(store->blocks[block]->slots[slot].value != NULL && 
 			   store->blocks[block]->slots[slot].idx == idx && 
-			   store->blocks[block]->slots[slot].field == field_ofs)
+			   store->blocks[block]->slots[slot].field == field_ofs &&
+			   store->blocks[block]->slots[slot].context == context)
 			{
 				LOG_DEBUG("find the equal slot @(block = %d, offset = %d)", block, slot);
 				equal_block = block;
@@ -635,6 +636,7 @@ uint32_t cesk_store_allocate(cesk_store_t* store, const dalvik_instruction_t* in
                         empty_block, empty_offset, idx);
 			store->blocks[empty_block]->slots[empty_offset].idx = idx;
 			store->blocks[empty_block]->slots[empty_offset].field = field_ofs;
+			store->blocks[empty_block]->slots[empty_offset].context = context;
 			store->blocks[empty_block]->slots[empty_offset].reuse = 0;
 			return empty_block * CESK_STORE_BLOCK_NSLOTS + empty_offset;
 		}

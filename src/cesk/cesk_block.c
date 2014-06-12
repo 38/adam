@@ -178,6 +178,7 @@ static inline int _cesk_block_handler_cmp(const dalvik_instruction_t* ins, cesk_
  * @brief the instruction handler for instance operating instructions 
  * @param ins current instruction
  * @param frame current stack frame
+ * @param context the context ID
  * @param rtab the relocation table
  * @param D the diff buffer to track the modification
  * @param I the diff buffer to tacck the how to revert the modification
@@ -186,6 +187,7 @@ static inline int _cesk_block_handler_cmp(const dalvik_instruction_t* ins, cesk_
 static inline int _cesk_block_handler_instance(
 		const dalvik_instruction_t* ins, 
 		cesk_frame_t* frame, 
+		uint32_t context,
 		cesk_reloc_table_t* rtab, 
 		cesk_diff_buffer_t* D, 
 		cesk_diff_buffer_t* I)
@@ -203,7 +205,7 @@ static inline int _cesk_block_handler_instance(
 		case DVM_FLAG_INSTANCE_NEW:
 			dest = _cesk_block_operand_to_regidx(ins->operands + 0);
 			clspath = ins->operands[1].payload.string;
-			ret = cesk_frame_store_new_object(frame, rtab, ins, clspath, D, I);
+			ret = cesk_frame_store_new_object(frame, rtab, ins, context, clspath, D, I);
 			if(CESK_STORE_ADDR_NULL == ret)
 			{
 				LOG_ERROR("can not allocate new instance of class %s in frame %p", clspath, frame);
@@ -557,7 +559,7 @@ static inline cesk_diff_t* _cesk_block_invoke_result_translate(
 			goto ERR;
 		}
 		/* allocate a new relocated address for this object */
-		iaddr = cesk_reloc_allocate(rtab, frame->store, info->instruction, info->field_offset, 1); 
+		iaddr = cesk_reloc_allocate(rtab, frame->store, info->instruction, info->field_offset, info->context ,1); 
 		if(CESK_STORE_ADDR_NULL == iaddr)
 		{
 			LOG_ERROR("can not append a new relocated address in the relocation table for result allocation @%u", result->data[i].addr);
@@ -809,7 +811,12 @@ PARAMERR:
 ERR:
 	return -1;
 }
-int cesk_block_analyze(const dalvik_block_t* code, cesk_frame_t* frame, cesk_reloc_table_t* rtab, cesk_block_result_t* buf, const void* caller_ctx)
+int cesk_block_analyze(
+		const dalvik_block_t* code, 
+		cesk_frame_t* frame, 
+		cesk_reloc_table_t* rtab, 
+		cesk_block_result_t* buf, 
+		const void* caller_ctx)
 {
 	if(NULL == code || NULL == frame || NULL == buf || NULL == rtab)
 	{
@@ -835,6 +842,9 @@ int cesk_block_analyze(const dalvik_block_t* code, cesk_frame_t* frame, cesk_rel
 	}
 	/* ok, let's go */
 	int i;
+	uint32_t ctx_id;
+	if(NULL != caller_ctx) ctx_id = *(uint32_t*)caller_ctx;
+	else ctx_id = 0;
 	for(i = code->begin; i < code->end; i ++)
 	{
 		const dalvik_instruction_t* ins = dalvik_instruction_get(i);
@@ -853,7 +863,7 @@ int cesk_block_analyze(const dalvik_block_t* code, cesk_frame_t* frame, cesk_rel
 				if(_cesk_block_handler_cmp(ins, frame, dbuf, ibuf) < 0) goto EXE_ERR;
 				break;
 			case DVM_INSTANCE:
-				if(_cesk_block_handler_instance(ins, frame, rtab, dbuf, ibuf) < 0) goto EXE_ERR;
+				if(_cesk_block_handler_instance(ins, frame, ctx_id, rtab, dbuf, ibuf) < 0) goto EXE_ERR;
 				break;
 			case DVM_INVOKE:
 				if(_cesk_block_handler_invoke(ins, frame, rtab, dbuf, ibuf, caller_ctx) < 0) goto EXE_ERR;

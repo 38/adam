@@ -109,11 +109,11 @@ int main()
 
 	/* to make frame1 and frame2 different first we make some untracked changes */
 	cesk_diff_buffer_t *btmp = cesk_diff_buffer_new(0, 0);
-	uint32_t addr1 = cesk_frame_store_new_object(frame1, rtab, inst1, classpath, btmp, NULL);  
+	uint32_t addr1 = cesk_frame_store_new_object(frame1, rtab, inst1,0 ,classpath, btmp, NULL);  
 	assert(CESK_STORE_ADDR_NULL != addr1);
 	assert(0 == cesk_frame_register_load(frame1, 3, addr1, NULL, NULL));
 
-	uint32_t addr2 = cesk_frame_store_new_object(frame2, rtab, inst2,  classpath, btmp, NULL);  
+	uint32_t addr2 = cesk_frame_store_new_object(frame2, rtab, inst2,0 , classpath, btmp, NULL);  
 	assert(CESK_STORE_ADDR_NULL != addr2);
 	assert(0 == cesk_frame_register_load(frame2, 3, addr2, NULL, NULL));
 	/* make a record that can set reg #3 to {addd1, addr2} */
@@ -132,9 +132,9 @@ int main()
 
 	/* now track changes in frame1 and frame2 */
 	/* allocate a new object in frame1 */
-	uint32_t addr3 = cesk_frame_store_new_object(frame1, rtab, inst3, classpath, db1, ib1);
+	uint32_t addr3 = cesk_frame_store_new_object(frame1, rtab, inst3, 0,classpath, db1, ib1);
 	/* allocate another object in frame2 */
-	uint32_t addr4 = cesk_frame_store_new_object(frame2, rtab, inst4, classpath, db2, ib2);
+	uint32_t addr4 = cesk_frame_store_new_object(frame2, rtab, inst4, 0,classpath, db2, ib2);
 
 
 	assert(CESK_STORE_ADDR_NULL != addr4);

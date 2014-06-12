@@ -912,6 +912,7 @@ uint32_t cesk_frame_store_new_object(
 		cesk_frame_t* frame,
 		cesk_reloc_table_t* reloctab,
 		const dalvik_instruction_t* inst,
+		uint32_t context,
 		const char* clspath,
 		cesk_diff_buffer_t* diff_buf,
 		cesk_diff_buffer_t* inv_buf)
@@ -924,7 +925,7 @@ uint32_t cesk_frame_store_new_object(
 
 	LOG_DEBUG("creat new object from class %s", clspath);
 	/* allocate address */
-	uint32_t addr = cesk_reloc_allocate(reloctab, frame->store, inst, 0, 0); 
+	uint32_t addr = cesk_reloc_allocate(reloctab, frame->store, inst, 0, context, 0); 
 
 	if(CESK_STORE_ADDR_NULL == addr)
 	{
@@ -1040,7 +1041,7 @@ uint32_t cesk_frame_store_new_object(
 							reloctab, 
 							frame->store, 
 							inst, 
-							CESK_OBJECT_FIELD_OFS(object, this->addrtab + j), 0);
+							CESK_OBJECT_FIELD_OFS(object, this->addrtab + j), context ,0);
 					/* set the reloc flag */
 					if(CESK_STORE_ADDR_NULL == faddr)
 					{

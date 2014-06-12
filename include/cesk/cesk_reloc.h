@@ -43,7 +43,7 @@ typedef vector_t cesk_reloc_table_t;
 typedef struct {
 	const dalvik_instruction_t* instruction;	/*!< the instruction that allocate this item */
 	uint32_t      field_offset;					/*!< the field offset */
-	uint32_t      tick;                         /*!< the context time stamp */
+	uint32_t      context;                         /*!< the context time stamp */
 } cesk_reloc_item_t;
 
 /**
@@ -75,13 +75,14 @@ void cesk_reloc_table_free(cesk_reloc_table_t* mem);
  * @param table the value table 
  * @param inst  the instruction that allocates this object
  * @param field_offset the offset of this field
- * @param tick the time stamp
+ * @param context the frame context ID
  * @return the index of this value, CESK_STORE_ADDR_NULL indicates error 
  **/
 uint32_t cesk_reloc_table_append(
 		cesk_reloc_table_t* table, 
 		const dalvik_instruction_t* inst,
-		uint32_t field_offset);
+		uint32_t field_offset,
+		uint32_t context);
 /**
  * @brief allocate a `fresh' relocated address and attach it to the global relocate allocate table
  * 		  (but do not install the value in the store if it's new) useful when creating new object
@@ -90,7 +91,7 @@ uint32_t cesk_reloc_table_append(
  * @param inst the instruction that allocate the object
  * @param parent the address of parent object
  * @param field the field offset
- * @param tick the context time stamp
+ * @param context the context ID
  * @param dry_run if dry_run is set, the function won't change the allocation table
  * @return the relocated address of the vlaue, CESK_STORE_ADDR_NULL means error
  * @note   DO NOT FORGET SET THE INITIAL VALUE TO THIS RELOCATED ADDRESS
@@ -100,6 +101,7 @@ uint32_t cesk_reloc_allocate(
 		cesk_store_t* store, 
 		const dalvik_instruction_t* inst,
 		uint32_t field,
+		uint32_t context,
 		int dry_run);
 
 /**
