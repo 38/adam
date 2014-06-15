@@ -58,6 +58,7 @@ static cesk_set_node_t* _cesk_set_hash[CESK_SET_HASH_SIZE];
 
 #define INFO_ADDR CESK_STORE_ADDR_NULL  /* this is a dumb address to distingush between data_entry and info_entry */
 static inline void _cesk_verify_hash_structure()
+#if 0
 {
 	int i, j = 0;
 	cesk_set_node_t* ptr;
@@ -92,6 +93,9 @@ static inline void _cesk_verify_hash_structure()
 ERR:
 	LOG_ERROR("set hash table corruption with corruption reason = %d", j);
 }
+#else
+{}
+#endif
 static inline cesk_set_node_t* _cesk_set_node_alloc(int type)
 {
 	size_t size = sizeof(cesk_set_node_t);

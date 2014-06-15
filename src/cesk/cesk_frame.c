@@ -199,11 +199,14 @@ cesk_frame_t* cesk_frame_make_invoke(const cesk_frame_t* frame, uint32_t nregs, 
 	}
 	return ret;
 ERR:
-	for(i = 0; i < frame->size; i ++)
-		if(NULL != frame->regs[i])
-			cesk_set_free(frame->regs[i]);
-	if(NULL != frame->store)
-		cesk_store_free(frame->store);
+	if(NULL != ret)
+	{
+		for(i = 0; i < ret->size; i ++)
+			if(NULL != ret->regs[i])
+				cesk_set_free(ret->regs[i]);
+		if(NULL != ret->store)
+			cesk_store_free(ret->store);
+	}
 	return NULL;
 }
 
