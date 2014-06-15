@@ -218,11 +218,13 @@ static inline int _cesk_diff_gc(cesk_diff_t* diff, uint8_t* emap)
 	memset(bm_store, 0, sizeof(bm_store));
 	for(store_ptr = store_begin; store_ptr < store_end; store_ptr ++)
 	{
+#if 0
 		if(CESK_STORE_ADDR_IS_RELOC(diff->data[store_ptr].addr))
 		{
 			uint32_t idx = CESK_STORE_ADDR_RELOC_IDX(diff->data[store_ptr].addr);
 			if(emap && (emap[idx/8] & (1 << (idx%8)))) continue;
 		}
+#endif 
 		cesk_value_t* value = diff->data[store_ptr].arg.value;
 		if(NULL == value || CESK_TYPE_SET != value->type)
 		{
@@ -285,7 +287,9 @@ static inline int _cesk_diff_gc(cesk_diff_t* diff, uint8_t* emap)
 			continue;
 		}
 		uint32_t idx = CESK_STORE_ADDR_RELOC_IDX(addr);
+#if 0
 		if(emap && (emap[idx/8] & (1<<(idx%8)))) continue;
+#endif
 		if(bitmap[idx/8] & (1<<(idx%8)))
 		{
 			switch(value->type)
@@ -393,7 +397,9 @@ static inline int _cesk_diff_gc(cesk_diff_t* diff, uint8_t* emap)
 		{
 			uint32_t idx = CESK_STORE_ADDR_RELOC_IDX(addr);
 			if(bm_store[idx/8] & (1<<(idx%8))) alive = 0;
+#if 0
 			if(emap && (emap[idx/8] & (1 << (idx%8)))) alive = 0;
+#endif
 		}
 		if(alive)
 			diff->data[store_free ++] = diff->data[store_ptr];

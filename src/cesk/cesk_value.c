@@ -109,6 +109,7 @@ cesk_value_t* cesk_value_empty_set()
 		return NULL;
 	}
 	ret->pointer.set = empty_set;
+	ret->reloc = 0;
 	return ret;
 }
 cesk_value_t* cesk_value_from_set(cesk_set_t* set)
@@ -128,6 +129,8 @@ cesk_value_t* cesk_value_from_set(cesk_set_t* set)
 	}
 
 	ret->pointer.set = set;
+
+	ret->reloc = (cesk_set_get_reloc(set) > 0);
 	return ret;
 }
 cesk_value_t* cesk_value_fork(const cesk_value_t* value)
@@ -161,7 +164,11 @@ cesk_value_t* cesk_value_fork(const cesk_value_t* value)
 			LOG_ERROR("unsupported type");
 			goto ERROR;
 	}
-	newval->reloc = value->reloc;
+	if(value->reloc)
+		newval->reloc = 1;
+	else
+		newval->reloc = 0;
+	//newval->reloc = value->reloc;
 	return newval;
 ERROR:
 	LOG_ERROR("error during forking a value");

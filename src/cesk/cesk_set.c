@@ -57,7 +57,41 @@ static cesk_set_node_t* _cesk_set_hash[CESK_SET_HASH_SIZE];
 #define INFO_ENTRY 1
 
 #define INFO_ADDR CESK_STORE_ADDR_NULL  /* this is a dumb address to distingush between data_entry and info_entry */
-
+static inline void _cesk_verify_hash_structure()
+{
+	int i, j = 0;
+	cesk_set_node_t* ptr;
+	for(i = 0; i < CESK_SET_HASH_SIZE; i ++)
+	{
+		for(ptr = _cesk_set_hash[i]; NULL != ptr; ptr = ptr->next)
+		{
+			if(ptr->prev != NULL)
+			{
+				if(ptr->prev->next != ptr) 
+				{
+					goto ERR;
+				}
+			}
+			else
+				if(_cesk_set_hash[i] != ptr)
+				{
+					j = 1;
+					goto ERR;
+				}
+			if(ptr->next != NULL)
+			{
+				if(ptr->next->prev != ptr)
+				{
+					j = 2;
+					goto ERR;
+				}
+			}
+		}
+	}
+	return;
+ERR:
+	LOG_ERROR("set hash table corruption with corruption reason = %d", j);
+}
 static inline cesk_set_node_t* _cesk_set_node_alloc(int type)
 {
 	size_t size = sizeof(cesk_set_node_t);
@@ -93,6 +127,8 @@ static inline uint32_t _cesk_set_idx_hashcode(uint32_t hashidx, uint32_t addr)
  **/
 static inline void* _cesk_set_hash_insert(uint32_t setidx, uint32_t addr)
 {
+	_cesk_verify_hash_structure();
+	
 	/* if addr == CESK_STORE_ADDR_NULL, the node is a info node */
 	uint32_t h = _cesk_set_idx_hashcode(setidx, addr) % CESK_SET_HASH_SIZE;
 	int type = DATA_ENTRY;
@@ -105,6 +141,10 @@ static inline void* _cesk_set_hash_insert(uint32_t setidx, uint32_t addr)
 	ret->addr = addr;
 	if(_cesk_set_hash[h]) _cesk_set_hash[h]->prev = ret;
 	_cesk_set_hash[h] = ret;
+	
+
+	_cesk_verify_hash_structure();
+
 	return ret->data_section;
 }
 /** @brief look for a value in the hash table, return the address of data section */
@@ -210,6 +250,8 @@ size_t cesk_set_size(const cesk_set_t* set)
 }
 void cesk_set_free(cesk_set_t* set)
 {
+	_cesk_verify_hash_structure();
+	
 	if(NULL == set) return;
 	cesk_set_info_entry_t* info = (cesk_set_info_entry_t*)_cesk_set_hash_find(set->set_idx, CESK_STORE_ADDR_NULL);
 	if(NULL == info) return;
@@ -229,6 +271,7 @@ void cesk_set_free(cesk_set_t* set)
 				/* first element of the slot */
 				uint32_t h = _cesk_set_idx_hashcode(data_node->set_idx, data_node->addr) % CESK_SET_HASH_SIZE;
 				_cesk_set_hash[h] = data_node->next;
+				data_node->prev = NULL;
 			}
 			if(NULL != data_node->next) 
 				data_node->next->prev = data_node->prev;
@@ -249,6 +292,9 @@ void cesk_set_free(cesk_set_t* set)
 		free(info_node);
 	}
 	free(set);
+	
+	_cesk_verify_hash_structure();
+	
 	return;
 }
 
@@ -327,6 +373,8 @@ static inline uint32_t _cesk_set_duplicate(cesk_set_info_entry_t* info, cesk_set
 }
 int cesk_set_modify(cesk_set_t* dest, uint32_t from, uint32_t to)
 {
+	_cesk_verify_hash_structure();
+	
 	if(from == to) return 0;
 	if(NULL == dest || CESK_STORE_ADDR_NULL == from || CESK_STORE_ADDR_NULL == to)
 	{
@@ -392,6 +440,7 @@ int cesk_set_modify(cesk_set_t* dest, uint32_t from, uint32_t to)
 		this->addr = to;
 		int h = _cesk_set_idx_hashcode(dest->set_idx, to) % CESK_SET_HASH_SIZE;
 		this->next = _cesk_set_hash[h];
+		if(NULL != _cesk_set_hash[h]) _cesk_set_hash[h]->prev = this;
 		_cesk_set_hash[h] = this;
 		this->prev = NULL;
 		info->hashcode ^= (from * MH_MULTIPLY) ^ (to * MH_MULTIPLY);   /* update the hash code */
@@ -403,6 +452,10 @@ int cesk_set_modify(cesk_set_t* dest, uint32_t from, uint32_t to)
 		else 
 			info->reloc ++;
 	}
+
+	_cesk_verify_hash_structure();
+
+
 	return 0;
 }
 int cesk_set_push(cesk_set_t* dest, uint32_t addr)
