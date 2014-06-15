@@ -316,7 +316,7 @@ int cesk_store_apply_alloctab(cesk_store_t* store)
 	if(NULL == store->alloc_tab) return 0;   /* no allocation table availible, so just return success */
 	uint32_t base_addr;
 	int i;
-	for(i = 0, base_addr = 0; i < store->nblocks; i ++, base_addr += CESK_STORE_BLOCK_SIZE)
+	for(i = 0, base_addr = 0; i < store->nblocks; i ++, base_addr += CESK_STORE_BLOCK_NSLOTS)
 	{
 		if(store->blocks[i]->reloc)
 		{
