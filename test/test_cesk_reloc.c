@@ -28,7 +28,7 @@ int main()
 	sexp_free(sexp);
 
 	/* okay, try to allocate a new relocated object */
-	uint32_t ra1 = cesk_reloc_allocate(reloc_tab, store1, ins, 0, 0 ,0 );
+	uint32_t ra1 = cesk_reloc_allocate(reloc_tab, store1, ins, 0, 0);
 	assert(CESK_STORE_ADDR_NULL != ra1);
 
 	/* find out the object address */
@@ -45,7 +45,7 @@ int main()
 	cesk_store_t* store2 = cesk_store_empty_store();
 
 	/* set another value there */
-	uint32_t _unused = cesk_store_allocate(store2, ins, 1, 0);   /* just make the store allocate a new block */
+	uint32_t _unused = cesk_store_allocate(store2, ins, 1);   /* just make the store allocate a new block */
 	assert(CESK_STORE_ADDR_NULL != _unused);
 	cesk_value_t* setval = cesk_value_empty_set();
 	assert(NULL != setval);

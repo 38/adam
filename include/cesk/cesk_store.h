@@ -104,7 +104,6 @@ typedef struct {
 	uint8_t         reuse:1;          /*!<if this address is reused, because same insturction should allocate same address */
 	uint32_t        idx;              /*!<instruction index created this object */
 	uint32_t		field;		      /*!<filed name of the member */
-	uint32_t        context;          /*!<the call context */
 	cesk_value_t*   value;			  /*!<the data payload */
 } cesk_store_slot_t;
 /** @brief the store block of virtual store */
@@ -202,10 +201,9 @@ int cesk_store_clear_reuse(cesk_store_t* store, uint32_t addr);
  * @param store the store
  * @param inst current instruction
  * @param field_ofs the field offset
- * @param context the context id of this frame
  * @return the fresh address for this value
  */
-uint32_t cesk_store_allocate(cesk_store_t* store, const dalvik_instruction_t* inst, uint32_t field_ofs, uint32_t context);
+uint32_t cesk_store_allocate(cesk_store_t* store, const dalvik_instruction_t* inst, uint32_t field_ofs);
 
 /* attach a value to an address, >0 means success, <0 error. If the value is NULL, means
  * dettach the address.

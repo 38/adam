@@ -559,7 +559,7 @@ static inline cesk_diff_t* _cesk_block_invoke_result_translate(
 			goto ERR;
 		}
 		/* allocate a new relocated address for this object */
-		iaddr = cesk_reloc_allocate(rtab, frame->store, info->instruction, info->field_offset, info->context ,1); 
+		iaddr = cesk_reloc_allocate(rtab, frame->store, info->instruction, info->field_offset ,1); 
 		if(CESK_STORE_ADDR_NULL == iaddr)
 		{
 			LOG_ERROR("can not append a new relocated address in the relocation table for result allocation @%u", result->data[i].addr);

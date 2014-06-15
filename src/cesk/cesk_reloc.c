@@ -6,7 +6,6 @@ typedef struct _cesk_reloc_reverse_hash_node_t _cesk_reloc_reverse_hash_node_t;
 struct _cesk_reloc_reverse_hash_node_t{
 	uint32_t inst;                      /*!< the instruction index */
 	uint32_t offset;                    /*!< the field offset */
-	uint32_t context;                   /*!< the context */
 	const cesk_reloc_table_t* table;    /*!< the relocation table */
 	uint32_t addr;                      /*!< relocated address */
 	_cesk_reloc_reverse_hash_node_t* next; /*!< next node */
@@ -40,13 +39,11 @@ void cesk_reloc_finalize()
  * @param table the relocation table
  * @param inst the instruction index
  * @param offset the field offset
- * @param context the frame context ID
  * @return the hashcode for this input
  **/
-static inline hashval_t _cesk_reloc_reverse_hash(const cesk_reloc_table_t* table, uint32_t inst, uint32_t offset, uint32_t context)
+static inline hashval_t _cesk_reloc_reverse_hash(const cesk_reloc_table_t* table, uint32_t inst, uint32_t offset)
 {
-	return (((((uintptr_t)table)%2147483647) * MH_MULTIPLY * MH_MULTIPLY) + inst * inst * MH_MULTIPLY + offset * MH_MULTIPLY * MH_MULTIPLY)^
-		   ((~context) * context * MH_MULTIPLY);
+	return (((((uintptr_t)table)%2147483647) * MH_MULTIPLY * MH_MULTIPLY) + inst * inst * MH_MULTIPLY + offset * MH_MULTIPLY * MH_MULTIPLY);
 }
 /**
  * @brief look for the table
@@ -59,13 +56,12 @@ static inline hashval_t _cesk_reloc_reverse_hash(const cesk_reloc_table_t* table
 static inline _cesk_reloc_reverse_hash_node_t* _cesk_reloc_reverse_hash_find(
 		const cesk_reloc_table_t* table, 
 		uint32_t inst, 
-		uint32_t offset, 
-		uint32_t context)
+		uint32_t offset) 
 {
-	hashval_t h = _cesk_reloc_reverse_hash(table, inst, offset, context) % CESK_RELOC_HASH_SIZE;
+	hashval_t h = _cesk_reloc_reverse_hash(table, inst, offset) % CESK_RELOC_HASH_SIZE;
 	_cesk_reloc_reverse_hash_node_t* ptr;
 	for(ptr = _hash[h]; NULL != ptr; ptr = ptr->next)
-		if(ptr->inst == inst && ptr->offset == offset && ptr->table == table && ptr->context == context) 
+		if(ptr->inst == inst && ptr->offset == offset && ptr->table == table) 
 			return ptr;
 	return NULL;
 }
@@ -82,16 +78,14 @@ static inline _cesk_reloc_reverse_hash_node_t* _cesk_reloc_reverse_hash_insert(
 		const cesk_reloc_table_t* table, 
 		uint32_t inst, 
 		uint32_t offset, 
-		uint32_t context,
 		uint32_t addr)
 {
-	hashval_t h = _cesk_reloc_reverse_hash(table, inst, offset, context) % CESK_RELOC_HASH_SIZE;
+	hashval_t h = _cesk_reloc_reverse_hash(table, inst, offset) % CESK_RELOC_HASH_SIZE;
 	_cesk_reloc_reverse_hash_node_t* ptr = (_cesk_reloc_reverse_hash_node_t*)malloc(sizeof(_cesk_reloc_reverse_hash_node_t));
 	if(NULL == ptr) return NULL;
 	ptr->inst = inst;
 	ptr->offset = offset;
 	ptr->table = table;
-	ptr->context = context;
 	ptr->addr = addr;
 	ptr->next = _hash[h];
 	_hash[h] = ptr;
@@ -105,14 +99,14 @@ static inline _cesk_reloc_reverse_hash_node_t* _cesk_reloc_reverse_hash_insert(
  * @param context the context ID
  * @return nothing
  **/
-static inline void _cesk_reloc_reverse_hash_delete(const cesk_reloc_table_t* table, uint32_t inst, uint32_t offset, uint32_t context)
+static inline void _cesk_reloc_reverse_hash_delete(const cesk_reloc_table_t* table, uint32_t inst, uint32_t offset)
 {
-	hashval_t h = _cesk_reloc_reverse_hash(table, inst, offset, context) % CESK_RELOC_HASH_SIZE;
+	hashval_t h = _cesk_reloc_reverse_hash(table, inst, offset) % CESK_RELOC_HASH_SIZE;
 	_cesk_reloc_reverse_hash_node_t *prev,*ptr,*next;
 	prev = NULL;
 	for(ptr = _hash[h]; NULL != ptr; ptr = ptr->next)
 	{
-		if(ptr->inst == inst && ptr->offset == offset && ptr->table == table && ptr->context == context)
+		if(ptr->inst == inst && ptr->offset == offset && ptr->table == table)
 			break;
 		prev = ptr;
 	}
@@ -143,7 +137,7 @@ void cesk_reloc_table_free(cesk_reloc_table_t* mem)
 	{
 		cesk_reloc_item_t* item = (cesk_reloc_item_t*)vector_get(mem, i);
 		if(NULL != item)
-			_cesk_reloc_reverse_hash_delete(mem, dalvik_instruction_get_index(item->instruction), item->field_offset, item->context);
+			_cesk_reloc_reverse_hash_delete(mem, dalvik_instruction_get_index(item->instruction), item->field_offset);
 	}
 	vector_free(mem);
 	return;
@@ -151,8 +145,7 @@ void cesk_reloc_table_free(cesk_reloc_table_t* mem)
 uint32_t cesk_reloc_table_append(
 		cesk_reloc_table_t* table, 
 		const dalvik_instruction_t* inst,
-		uint32_t field_offset,
-		uint32_t context)
+		uint32_t field_offset)
 {
 	if(NULL == table)
 	{
@@ -162,7 +155,6 @@ uint32_t cesk_reloc_table_append(
 	cesk_reloc_item_t buf = {
 		.instruction = inst,
 		.field_offset = field_offset,
-		.context = context
 	}; 
 	uint32_t ret = vector_size(table);
 	if(0 != (ret & CESK_STORE_ADDR_RELOC_PREFIX))
@@ -193,7 +185,6 @@ uint32_t cesk_reloc_allocate(
 		cesk_store_t* store, 
 		const dalvik_instruction_t* inst,
 		uint32_t field,
-		uint32_t context,
 		int dry_run)
 {
 	if(NULL == store || NULL == value_tab)
@@ -209,14 +200,14 @@ uint32_t cesk_reloc_allocate(
 		return CESK_STORE_ADDR_NULL;
 	}
 	/* first try to allocate an object address for this */
-	uint32_t obj_addr = cesk_store_allocate(store, inst, field, context);
+	uint32_t obj_addr = cesk_store_allocate(store, inst, field);
 	if(CESK_STORE_ADDR_NULL == obj_addr)
 	{
 		LOG_ERROR("can not allocate an object address for this value, aborting");
 		return CESK_STORE_ADDR_NULL;
 	}
 	uint32_t rel_addr;
-	_cesk_reloc_reverse_hash_node_t* node = _cesk_reloc_reverse_hash_find(value_tab, dalvik_instruction_get_index(inst), field, context);
+	_cesk_reloc_reverse_hash_node_t* node = _cesk_reloc_reverse_hash_find(value_tab, dalvik_instruction_get_index(inst), field);
 	if(NULL != node)
 	{
 		/* try to find this address in the allocation table, if it's already there means this
@@ -234,13 +225,13 @@ uint32_t cesk_reloc_allocate(
 	else
 	{
 		/* otherwise, this address is new to allocation table, so create a new relocation address for it */
-		rel_addr = cesk_reloc_table_append(value_tab, inst, field, context);
+		rel_addr = cesk_reloc_table_append(value_tab, inst, field);
 		if(CESK_STORE_ADDR_NULL == rel_addr)
 		{
 			LOG_ERROR("can not create an new relocated address for this object");
 			return CESK_STORE_ADDR_NULL;
 		}
-		if(_cesk_reloc_reverse_hash_insert(value_tab, dalvik_instruction_get_index(inst), field, context ,rel_addr) == NULL)
+		if(_cesk_reloc_reverse_hash_insert(value_tab, dalvik_instruction_get_index(inst), field ,rel_addr) == NULL)
 		{
 			LOG_ERROR("can not insert new record to hash table");
 			return CESK_STORE_ADDR_NULL;
@@ -282,7 +273,7 @@ uint32_t cesk_reloc_addr_init(const cesk_reloc_table_t* table, cesk_store_t* sto
 		return CESK_STORE_ADDR_NULL;
 	}
 	/* try to allocate a OA for the value */
-	uint32_t obj_addr = cesk_store_allocate(store, item->instruction, item->field_offset, item->context);
+	uint32_t obj_addr = cesk_store_allocate(store, item->instruction, item->field_offset);
 	if(CESK_STORE_ADDR_NULL == obj_addr)
 	{
 		LOG_ERROR("can not allocate OA for the relocated object #%d", value_idx);
