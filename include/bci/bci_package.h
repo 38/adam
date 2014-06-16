@@ -1,20 +1,27 @@
+/**
+ * @brief Bulitin Class Package
+ * @detials Each API is a BCI Package
+ */
 #ifndef __BCI_PACKAGE_H__
 #define __BCI_PACKAGE_H__
-#include <constant.h>
+#include <constants.h>
 #include <const_assertion.h>
 
 #include <log.h>
 
 #include <bci/bci_nametab.h>
+/* @brief the shared object contains the package the analyzer to load */
+extern const char* bci_package_path;
+
 /**
- * @brief the type for a buildin class package 
- * @note in the design, different pacakge implmements different version of APIs
+ * @brief initalize the API package
+ * @return < 0 indicates an error 
  **/
-typedef struct {
-	struct {
-		uint32_t maj;      /*!< the major version number */
-		uint32_t min;      /*!< the minor version number */
-	} api_version;         /*!< the api version this package provides */
-	bci_nametab_t* ntab;   /*!< the name lookup table */
-} bci_package_t;
+int bci_package_init();
+
+/**
+ * @brief finalize the API package
+ * @return nothing
+ **/
+void bci_package_fianlize();
 #endif /*__BCI_PACKAGE_H__*/

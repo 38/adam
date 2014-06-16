@@ -128,6 +128,11 @@
 #	define CESK_RELOC_HASH_SIZE 655217
 #endif
 
+#ifndef BCI_NAMETAB_SIZE
+/** @brief the size of BCI Name Table */
+#	define BCI_NAMETAB_SIZE 100007
+#endif
+
 /** @brief the magic number used for Knuth Multiplicative Hash */
 #define MH_MULTIPLY (2654435761ul)
 
