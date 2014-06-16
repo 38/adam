@@ -27,9 +27,10 @@ typedef struct _cesk_alloctab_t cesk_alloctab_t;
 #include <cesk/cesk_arithmetic.h>
 /**
  * @brief create a new allocation table
+ * @param old the old allocation table
  * @return the pointer to the allocation table
  **/
-cesk_alloctab_t* cesk_alloctab_new();
+cesk_alloctab_t* cesk_alloctab_new(cesk_alloctab_t* old);
 
 /**
  * @brief free the memory used by the allocation table

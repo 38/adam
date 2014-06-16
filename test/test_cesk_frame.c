@@ -25,7 +25,7 @@ int main()
 
 	/* set reloc table and alloc table */
 	cesk_reloc_table_t* reloc = cesk_reloc_table_new();
-	cesk_alloctab_t *alloc    = cesk_alloctab_new();
+	cesk_alloctab_t *alloc    = cesk_alloctab_new(NULL);
 
 	assert(NULL != reloc);
 	assert(NULL != alloc);

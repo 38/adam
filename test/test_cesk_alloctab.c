@@ -6,7 +6,7 @@ int main()
 	int i;
 	cesk_store_t* store = cesk_store_empty_store(); 
 	assert(NULL != store);
-	cesk_alloctab_t* tab = cesk_alloctab_new();
+	cesk_alloctab_t* tab = cesk_alloctab_new(NULL);
 	assert(NULL != tab);
 	/* insert 10000 address pair */
 	for(i = 0; i < 10000; i ++)

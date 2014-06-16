@@ -290,8 +290,8 @@ static inline _cesk_method_context_t* _cesk_method_context_new(
 		LOG_ERROR("invalid relocation table");
 		goto ERR;
 	}
-	ret->atable = cesk_alloctab_new();
 	ret->caller = caller;
+	ret->atable = cesk_alloctab_new(caller==NULL?NULL:caller->atable);
 	if(NULL == ret->atable)
 	{
 		LOG_ERROR("can not create new allocation table");

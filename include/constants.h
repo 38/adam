@@ -108,6 +108,11 @@
 #	define CESK_ALLOC_TABLE_NSLOTS 100007
 #endif
 
+#ifndef CESK_ALLOC_TABLE_MAX_CHAIN_SIZE
+/** @the maximum length of chain in an allocation table */
+#	define CESK_ALLOC_TABLE_MAX_CHAIN_SIZE 5
+#endif
+
 #ifndef CESK_DIFF_REDUCE_HASH_SIZE
 /** @brief the size of the hash table used for diff reduction */
 #	define CESK_DIFF_HASH_SIZE 1023

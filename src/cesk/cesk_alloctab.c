@@ -10,37 +10,53 @@ typedef struct _cesk_alloc_node_t{
 } cesk_alloc_node_t;
 struct _cesk_alloctab_t{
 	cesk_alloc_node_t* slot[CESK_ALLOC_TABLE_NSLOTS];
+	uint32_t chain_size[CESK_ALLOC_TABLE_NSLOTS];
 	uint32_t next_token;
+	uint32_t max_chain_size;
+	uint32_t using;
 };
-cesk_alloctab_t* cesk_alloctab_new()
+cesk_alloctab_t* cesk_alloctab_new(cesk_alloctab_t* old)
 {
-	cesk_alloctab_t* ret = (cesk_alloctab_t*)malloc(sizeof(cesk_alloctab_t));
-	if(NULL == ret)
+	if(NULL == old || old->max_chain_size > CESK_ALLOC_TABLE_MAX_CHAIN_SIZE)
 	{
-		LOG_ERROR("can not allocate memory for allocation table");
-		return NULL;
+		cesk_alloctab_t* ret = (cesk_alloctab_t*)malloc(sizeof(cesk_alloctab_t));
+		if(NULL == ret)
+		{
+			LOG_ERROR("can not allocate memory for allocation table");
+			return NULL;
+		}
+		memset(ret, 0, sizeof(cesk_alloctab_t));
+		ret->using = 1;
+		return ret;
 	}
-	memset(ret, 0, sizeof(cesk_alloctab_t));
-	return ret;
+	else
+	{
+		old->using ++;
+		return old;
+	}
 }
 void cesk_alloctab_free(cesk_alloctab_t* mem)
 {
 	if(NULL == mem) return;
-	int i;
-	for(i = 0; i < CESK_ALLOC_TABLE_NSLOTS; i ++)
+	mem->using --;
+	if(0 == mem->using)
 	{
-		if(mem->slot[i])
+		int i;
+		for(i = 0; i < CESK_ALLOC_TABLE_NSLOTS; i ++)
 		{
-			cesk_alloc_node_t* ptr;
-			for(ptr = mem->slot[i]; NULL != ptr;)
+			if(mem->slot[i])
 			{
-				cesk_alloc_node_t* node = ptr;
-				ptr = ptr->next;
-				free(node);
+				cesk_alloc_node_t* ptr;
+				for(ptr = mem->slot[i]; NULL != ptr;)
+				{
+					cesk_alloc_node_t* node = ptr;
+					ptr = ptr->next;
+					free(node);
+				}
 			}
 		}
+		free(mem);
 	}
-	free(mem);
 }
 /**
  * @brief the hashcode for key <store, address> pair
@@ -85,6 +101,9 @@ int cesk_alloctab_insert(cesk_alloctab_t* table, const cesk_store_t* store, uint
 	ptr->token = store->alloc_token;
 	ptr->next = table->slot[h];
 	table->slot[h] = ptr;
+	table->chain_size[h] ++;
+	if(table->chain_size[h] > table->max_chain_size) 
+		table->max_chain_size = table->chain_size[h];
 	return 0;
 }
 
