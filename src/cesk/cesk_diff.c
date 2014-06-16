@@ -645,14 +645,16 @@ void cesk_diff_free(cesk_diff_t* diff)
  * @brief allocate a memory for the result
  * @param N how many inputs
  * @param args the arguments
+ * @param new_reuse wether or not the caller is going to create new reuse record
  * @return the newly created memory, NULL indcates error
  **/
-static inline cesk_diff_t* _cesk_diff_allocate_result(int N, cesk_diff_t* args[])
+static inline cesk_diff_t* _cesk_diff_allocate_result(int N, cesk_diff_t* args[], int new_reuse)
 {
 	size_t size = 0;
 	int i, section;
 	for(i = 0; i < N; i ++)
 		args[i]->_index = args[i]->offset[0];
+	uint32_t nreuse = 0;
 	for(section = 0; section < CESK_DIFF_NTYPES; section ++)
 	{
 		uint32_t prev_addr = CESK_STORE_ADDR_NULL;
@@ -672,7 +674,9 @@ static inline cesk_diff_t* _cesk_diff_allocate_result(int N, cesk_diff_t* args[]
 			if(prev_addr != cur_addr) size ++;
 			prev_addr = cur_addr;
 		}
+		if(new_reuse && CESK_DIFF_ALLOC == section) nreuse = size / 2;
 	}
+	size += nreuse;
 	cesk_diff_t* ret = (cesk_diff_t*) malloc(sizeof(cesk_diff_t) + size * sizeof(_cesk_diff_node_t));
 	LOG_DEBUG("created a new diff struct with %zu slots", size);
 	if(NULL == ret)
@@ -687,7 +691,9 @@ static inline cesk_diff_t* _cesk_diff_allocate_result(int N, cesk_diff_t* args[]
 cesk_diff_t* cesk_diff_apply(int N, cesk_diff_t** args)
 {
 	int i;
-	cesk_diff_t* ret = _cesk_diff_allocate_result(N, args);
+	if(0 == N)
+		return cesk_diff_empty();
+	cesk_diff_t* ret = _cesk_diff_allocate_result(N, args, 0);
 	if(NULL == ret)
 	{
 		LOG_ERROR("can not allocate memory for the newly created diff");
@@ -698,6 +704,7 @@ cesk_diff_t* cesk_diff_apply(int N, cesk_diff_t** args)
 		args[i]->_index = args[i]->offset[0];
 	/* ok, let's go */
 	int section;
+
 	/* for each section */
 	for(section = 0; section < CESK_DIFF_NTYPES; section ++)
 	{
@@ -749,7 +756,6 @@ cesk_diff_t* cesk_diff_apply(int N, cesk_diff_t** args)
 				_cesk_diff_record_to_string(section, 
 					ret->data[ret->offset[section + 1]].addr, 
 					ret->data[ret->offset[section + 1]].arg.generic, NULL, 0));
-		
 			ret->offset[section + 1] ++;
 		}
 	}
@@ -805,7 +811,9 @@ cesk_diff_t* cesk_diff_apply(int N, cesk_diff_t** args)
 }
 cesk_diff_t* cesk_diff_factorize(int N, cesk_diff_t** diffs, const cesk_frame_t** current_frame)
 {
-	cesk_diff_t* ret = _cesk_diff_allocate_result(N, diffs);
+	if(0 == N)
+		return cesk_diff_empty();
+	cesk_diff_t* ret = _cesk_diff_allocate_result(N, diffs, 1);
 	if(NULL == ret)
 	{
 		LOG_ERROR("can not allocate memory for the result");
@@ -814,12 +822,19 @@ cesk_diff_t* cesk_diff_factorize(int N, cesk_diff_t** diffs, const cesk_frame_t*
 
 	/* initialize the _index for each input */
 	int i;
+	uint32_t max_n_alloc_reuse = 0;
 	for(i = 0; i < N; i ++)
+	{
 		diffs[i]->_index = diffs[i]->offset[0];
+		uint32_t alloc_sz = diffs[i]->offset[CESK_DIFF_ALLOC + 1] - diffs[i]->offset[CESK_DIFF_ALLOC];
+		if(max_n_alloc_reuse < alloc_sz) max_n_alloc_reuse = alloc_sz;
+	}
 	ret->offset[0] = 0;
 	/* start working */
 	int section;
 	cesk_set_t* result;
+	uint32_t alloc_reuse_addr[max_n_alloc_reuse];
+	uint32_t n_alloc_reuse = 0, alloc_reuse_ptr = 0;
 	for(section = 0; section < CESK_DIFF_NTYPES; section ++)
 	{
 		ret->offset[section + 1] = ret->offset[section];
@@ -838,6 +853,17 @@ cesk_diff_t* cesk_diff_factorize(int N, cesk_diff_t** diffs, const cesk_frame_t*
 					cur_i = i;
 				}
 
+			if(CESK_DIFF_REUSE == section)
+			{
+				for(;alloc_reuse_ptr < n_alloc_reuse && alloc_reuse_addr[alloc_reuse_ptr] < cur_addr; alloc_reuse_ptr ++)
+				{
+					ret->data[ret->offset[section + 1]].addr = alloc_reuse_addr[alloc_reuse_ptr];
+					ret->data[ret->offset[section + 1]].arg.generic = CESK_DIFF_REUSE_VALUE(1);
+					ret->offset[section + 1] ++;
+				}
+				if(alloc_reuse_ptr < n_alloc_reuse && alloc_reuse_addr[alloc_reuse_ptr] == cur_addr)
+					alloc_reuse_ptr ++;
+			}
 			if(CESK_STORE_ADDR_NULL == cur_addr) break;
 			ret->data[ret->offset[section + 1]].addr = cur_addr;
 			
@@ -850,6 +876,8 @@ cesk_diff_t* cesk_diff_factorize(int N, cesk_diff_t** diffs, const cesk_frame_t*
 				case CESK_DIFF_ALLOC:
 					ret->data[ret->offset[section + 1]].arg.value = diffs[cur_i]->data[diffs[cur_i]->_index].arg.value;
 					cesk_value_incref(ret->data[ret->offset[section + 1]].arg.value);
+					if(count > 1)
+						alloc_reuse_addr[n_alloc_reuse ++] = cur_addr;
 					break;
 				case CESK_DIFF_REUSE:
 					ret->data[ret->offset[section + 1]].arg.generic = NULL;

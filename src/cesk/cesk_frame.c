@@ -1017,6 +1017,8 @@ uint32_t cesk_frame_store_new_object(
 			CESK_OBJECT_STRUCT_ADVANCE(this);
 		}
 
+		_SNAPSHOT(diff_buf, CESK_DIFF_REUSE, addr, CESK_DIFF_REUSE_VALUE(1));
+		_SNAPSHOT(inv_buf, CESK_DIFF_REUSE, addr, CESK_DIFF_REUSE_VALUE(0));
 	}
 	else
 	{

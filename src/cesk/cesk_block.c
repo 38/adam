@@ -675,8 +675,8 @@ static inline cesk_diff_t* _cesk_block_invoke_result_translate(
 		}
 		cesk_value_const_t* store_value;
 		/* if this is an allocation that merged to existing address, we need to merge the old value */
-		if(CESK_STORE_ADDR_IS_RELOC(result->data[i].addr) && CESK_STORE_ADDR_IS_RELOC(addr) && 
-		   raddr_limit > addr && (store_value = cesk_store_get_ro(frame->store, addr)) != NULL )
+		if(CESK_STORE_ADDR_IS_RELOC(result->data[i].addr) && raddr_limit > addr && 
+		   (store_value = cesk_store_get_ro(frame->store, addr)) != NULL )
 		{
 			if(NULL == store_value)
 			{
@@ -689,6 +689,7 @@ static inline cesk_diff_t* _cesk_block_invoke_result_translate(
 				goto ERR;
 			}
 		}
+		if(cesk_set_get_reloc(set) > 0) result->data[i].arg.value->reloc = 1;
 		if(cesk_diff_buffer_append(buf, CESK_DIFF_STORE, addr, result->data[i].arg.value) < 0)
 		{
 			LOG_ERROR("can not append store record to the diff buffer");

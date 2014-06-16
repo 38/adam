@@ -221,6 +221,11 @@ uint32_t cesk_reloc_allocate(
 		}
 		else
 			rel_addr = node->addr;
+	} 
+	else if(cesk_store_get_ro(store, obj_addr) != NULL)
+	{
+		/* if this address is a fixed object address, just return that */
+		return obj_addr;
 	}
 	else
 	{
