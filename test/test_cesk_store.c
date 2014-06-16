@@ -71,7 +71,7 @@ int main()
 
 	/* now we test store with allocation table */
 	cesk_store_t* store4 = cesk_store_empty_store();
-	cesk_alloctab_t* alloc_tab = cesk_alloctab_new();
+	cesk_alloctab_t* alloc_tab = cesk_alloctab_new(NULL);
 	assert(NULL != store4);
 	assert(NULL != alloc_tab);
 	assert(cesk_store_set_alloc_table(store4, alloc_tab) == 0);

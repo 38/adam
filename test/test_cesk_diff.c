@@ -79,7 +79,7 @@ int main()
 	cesk_frame_t* frame3 = cesk_frame_new(32);
 	assert(NULL != frame1 && NULL != frame2 && NULL != frame3);
 	
-	cesk_alloctab_t* atab    = cesk_alloctab_new();
+	cesk_alloctab_t* atab    = cesk_alloctab_new(NULL);
 	cesk_reloc_table_t* rtab = cesk_reloc_table_new();
 	
 	cesk_frame_set_alloctab(frame1, atab);

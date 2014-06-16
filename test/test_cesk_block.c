@@ -7,7 +7,7 @@ void case1()
 	/* set up environment */
 	rtab = cesk_reloc_table_new();
 	assert(NULL != rtab);
-	atab = cesk_alloctab_new();
+	atab = cesk_alloctab_new(NULL);
 	assert(NULL != atab);
 	
 	int rc;
@@ -72,7 +72,7 @@ void case2()
 	/* set up environment */
 	rtab = cesk_reloc_table_new();
 	assert(NULL != rtab);
-	atab = cesk_alloctab_new();
+	atab = cesk_alloctab_new(NULL);
 	assert(NULL != atab);
 
 	uint32_t buf[10];
@@ -142,7 +142,7 @@ void case3()
 	/* set up environment */
 	rtab = cesk_reloc_table_new();
 	assert(NULL != rtab);
-	atab = cesk_alloctab_new();
+	atab = cesk_alloctab_new(NULL);
 	assert(NULL != atab);
 
 	uint32_t buf[10];

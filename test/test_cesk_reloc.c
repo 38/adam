@@ -14,7 +14,7 @@ int main()
 	assert(NULL != store1);
 
 	/* allocate a allocation table */
-	cesk_alloctab_t *alloc_tab = cesk_alloctab_new();
+	cesk_alloctab_t *alloc_tab = cesk_alloctab_new(NULL);
 	assert(NULL != alloc_tab);
 
 	/* set up the store */
