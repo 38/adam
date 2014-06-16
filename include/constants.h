@@ -133,6 +133,11 @@
 #	define BCI_NAMETAB_SIZE 100007
 #endif
 
+#ifndef BCI_PACKAGE_DEFAULT_FILENAME
+/** @brief the default file name of the class package */
+#	define BCI_PACKAGE_DEFAULT_FILENAME "bin/builtins/libbuiltins.so"
+#endif
+
 /** @brief the magic number used for Knuth Multiplicative Hash */
 #define MH_MULTIPLY (2654435761ul)
 
