@@ -32,11 +32,10 @@ void bci_nametab_finialize()
 			ptr = ptr->next;
 			if(NULL == this->methname)
 			{
-				bci_class_t* class = (bci_class_t*)ptr->def;
-				if(class->ondelete) class->ondelete();
+				bci_class_t* class = (bci_class_t*)this->def;
+				if(class->ondelete) class->ondelete(this->clspath);
 			}
-			free(ptr->def);
-			free(ptr);
+			free(this);
 		}
 	}
 }

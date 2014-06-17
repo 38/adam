@@ -15,5 +15,6 @@ int bci_init()
 }
 void bci_finalize()
 {
+	bci_package_finalize();
 	bci_nametab_finialize();
 }

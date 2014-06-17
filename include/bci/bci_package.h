@@ -10,8 +10,6 @@
 #include <log.h>
 
 #include <bci/bci_nametab.h>
-/* @brief the shared object contains the package the analyzer to load */
-extern const char* bci_package_path;
 
 /**
  * @brief initalize the API package
@@ -23,5 +21,5 @@ int bci_package_init();
  * @brief finalize the API package
  * @return nothing
  **/
-void bci_package_fianlize();
+void bci_package_finalize();
 #endif /*__BCI_PACKAGE_H__*/

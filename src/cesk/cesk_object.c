@@ -9,11 +9,19 @@
 
 #include <cesk/cesk_set.h>
 #include <cesk/cesk_object.h>
+
+#include <bci/bci_nametab.h>
 cesk_object_t* cesk_object_new(const char* classpath)
 {
 	int field_count = 0;
 	int class_count = 0;
+	size_t builtin_size = 0;
 	dalvik_class_t* classes[1024]; 
+	/* because BCI Classes can not use a user defined class as superclass,
+	 * So that if we can see an built-in class here, that means there's no
+	 * super class anymore, so we only need one slot for that */
+	const bci_class_t*    bci_classes = NULL;
+	const char*     bci_classname = NULL;
 	/* find classes inherent relationship, and determine its memory layout */
 	for(;;)
 	{
@@ -21,15 +29,22 @@ cesk_object_t* cesk_object_new(const char* classpath)
 		dalvik_class_t* target_class = dalvik_memberdict_get_class(classpath);
 		if(NULL == target_class)
 		{
-			/* TODO: built-in classes support here*/
-			if(0 == field_count)
+			const bci_class_t* class = bci_nametab_get_class(classpath);
+			if(NULL != class)
+			{
+				LOG_DEBUG("found built-in class %s", classpath);
+				builtin_size += class->size;
+				bci_classname = classpath;
+				bci_classes = class;
+				break;
+			}
+			if(0 == class_count)
 			{
 				/* if we can't find the first class, this is an error */
 				LOG_ERROR("can not find class %s", classpath);
 				return NULL;
 			}
 			LOG_WARNING("can not find class %s", classpath);
-			LOG_NOTICE("fixme: here we should handle the built-in classes");
 			break;
 		}
 		int i;
@@ -47,7 +62,8 @@ cesk_object_t* cesk_object_new(const char* classpath)
 	/* compute the size required for this instance */
 	size_t size = sizeof(cesk_object_t) +                   	   /* header */
 				  sizeof(cesk_object_struct_t) * class_count +     /* class header */
-				  sizeof(cesk_set_t*) * field_count;   			   /* fields */
+				  sizeof(cesk_set_t*) * field_count +              /* fields */
+				  builtin_size;                                    /* memory for built-ins */         
 	/* okay, create the new object */
 	cesk_object_t* object = (cesk_object_t*)malloc(size);
 	cesk_object_struct_t* base = object->members; 
@@ -59,6 +75,7 @@ cesk_object_t* cesk_object_new(const char* classpath)
 	int i;
 	for(i = 0; i < class_count; i ++)
 	{
+		/* if this is a user defined class */
 		int j;
 		for(j = 0; classes[i]->members[j]; j ++)
 		{
@@ -78,6 +95,15 @@ cesk_object_t* cesk_object_new(const char* classpath)
 		base->class.udef = classes[i];
 		base->num_members = j;
 		CESK_OBJECT_STRUCT_ADVANCE(base);
+	}
+	if(NULL != bci_classes)
+	{
+		if(bci_class_initialize(base->bcidata, bci_classes, bci_classname) < 0)
+		{
+			LOG_ERROR("failed to initialize Built-in Class %s", bci_classname);
+			free(object);
+			return NULL;
+		}
 	}
 	object->depth = class_count;
 	object->size = size;
