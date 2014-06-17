@@ -1,5 +1,5 @@
 (class (attrs public) testClass
-	(super java/lang/object)
+	(super java/lang/Object)
 	(source "testClass.java")
 	(method (attrs public) sum() int
 	 	(limit-registers 10)

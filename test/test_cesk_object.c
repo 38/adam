@@ -9,11 +9,11 @@ int main()
 	
 	/* test creating a new object */
 	cesk_object_t* object = cesk_object_new(stringpool_query("antlr/ANTLRTokdefParser"));
-	uint32_t* res1 = cesk_object_get(object, stringpool_query("antlr/Parser"), stringpool_query("tokenName"));
+	uint32_t* res1 = cesk_object_get(object, stringpool_query("antlr/Parser"), stringpool_query("tokenName"),NULL,NULL);
 	assert(NULL == res1);
 
 	/* now try to get a field */
-	uint32_t* res2 = cesk_object_get(object, stringpool_query("antlr/Parser"), stringpool_query("tokenNames"));
+	uint32_t* res2 = cesk_object_get(object, stringpool_query("antlr/Parser"), stringpool_query("tokenNames"),NULL,NULL);
 	assert(res2 != NULL);
 	assert(*res2 == 0xfffffffful);
 	LOG_ERROR("object dump: %s", cesk_object_to_string(object, NULL, 0, 0));
@@ -39,7 +39,7 @@ int main()
 	assert(0 == cesk_object_equal(object, object_clone));
 
 	/* now also modify the cloned one */
-	res2 = cesk_object_get(object_clone, stringpool_query("antlr/Parser"), stringpool_query("tokenNames"));
+	res2 = cesk_object_get(object_clone, stringpool_query("antlr/Parser"), stringpool_query("tokenNames"),NULL,NULL);
 	assert(NULL != res2);
 	assert(0xfffffffful == *res2);
 	*res2 = 0;

@@ -1,5 +1,5 @@
 (class (attrs public) treeNode
-	(super java/lang/object)
+	(super java/lang/Object)
 	(source "treeNode.java")
 	(field (attrs public) key int)
 	(field (attrs public) left [object listNode])

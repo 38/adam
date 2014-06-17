@@ -43,7 +43,7 @@ int main()
 	LOG_DEBUG("object dump: %s", cesk_object_to_string(object, NULL, 0, 0));
 	LOG_DEBUG("value hash: %x", cesk_value_hashcode(value_rw));
 	LOG_DEBUG("object hash: %x", cesk_object_hashcode(object));
-	*cesk_object_get(object, stringpool_query("antlr/ANTLRTokdefParser"), stringpool_query("antlrTool")) = 0;
+	*cesk_object_get(object, stringpool_query("antlr/ANTLRTokdefParser"), stringpool_query("antlrTool"),NULL,NULL) = 0;
 
 	cesk_store_release_rw(store3, addr);
 

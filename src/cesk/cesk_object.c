@@ -20,8 +20,6 @@ cesk_object_t* cesk_object_new(const char* classpath)
 	/* because BCI Classes can not use a user defined class as superclass,
 	 * So that if we can see an built-in class here, that means there's no
 	 * super class anymore, so we only need one slot for that */
-	const bci_class_t*    bci_classes = NULL;
-	const char*     bci_classname = NULL;
 	/* find classes inherent relationship, and determine its memory layout */
 	for(;;)
 	{
@@ -34,8 +32,6 @@ cesk_object_t* cesk_object_new(const char* classpath)
 			{
 				LOG_DEBUG("found built-in class %s", classpath);
 				builtin_size += class->size;
-				bci_classname = classpath;
-				bci_classes = class;
 				break;
 			}
 			if(0 == class_count)
@@ -96,20 +92,17 @@ cesk_object_t* cesk_object_new(const char* classpath)
 		base->num_members = j;
 		CESK_OBJECT_STRUCT_ADVANCE(base);
 	}
-	if(NULL != bci_classes)
-	{
-		if(bci_class_initialize(base->bcidata, bci_classes, bci_classname) < 0)
-		{
-			LOG_ERROR("failed to initialize Built-in Class %s", bci_classname);
-			free(object);
-			return NULL;
-		}
-	}
+	/* We do not initalize the built-in class here, we do it when the field object of user defined class assigned*/
 	object->depth = class_count;
 	object->size = size;
 	return object;
 }
-uint32_t* cesk_object_get(cesk_object_t* object, const char* classpath, const char* field_name)
+uint32_t* cesk_object_get(
+		cesk_object_t* object, 
+		const char* classpath, 
+		const char* field_name, 
+		const bci_class_t** p_bci_class,
+		void** p_bci_data)
 {
 	if(NULL == object    ||
 	   NULL == classpath ||
@@ -118,6 +111,8 @@ uint32_t* cesk_object_get(cesk_object_t* object, const char* classpath, const ch
 		LOG_ERROR("invalid arguments");
 		return NULL;
 	}
+	if(NULL != p_bci_class) *p_bci_class = NULL;
+	if(NULL != p_bci_data) *p_bci_data = NULL;
 	int i;
 	cesk_object_struct_t* this = object->members;
 	for(i = 0; i < object->depth; i ++)
@@ -136,8 +131,17 @@ uint32_t* cesk_object_get(cesk_object_t* object, const char* classpath, const ch
 	}
 	if(this->built_in)
 	{
-		LOG_FATAL("TODO fetch a pointer to the built-in class field");
-		return NULL;
+		if(NULL == p_bci_class || NULL == p_bci_data)
+		{
+			LOG_ERROR("built-in class does not support this interface");
+			return NULL;
+		}
+		else
+		{
+			if(NULL != p_bci_class) *p_bci_class = this->class.bci;
+			if(NULL != p_bci_data) *p_bci_data = this->bcidata;
+			return NULL;
+		}
 	}
 	else
 	{

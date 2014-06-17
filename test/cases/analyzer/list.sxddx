@@ -1,5 +1,5 @@
 (class (attrs public) listNode
-	(super java/lang/object)
+	(super java/lang/Object)
 	(source "listNode.java")
 	(field (attrs public) value int)
 	(field (attrs public) next [object listNode])
