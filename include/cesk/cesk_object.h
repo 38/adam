@@ -26,7 +26,7 @@ typedef struct _cesk_object_t cesk_object_t;
 typedef struct {
 	union{
 		const dalvik_class_t*	 udef;		   /*!< the user defined class*/
-		const bci_class_t*       bci;          /*!< the built-in class interface */
+		const bci_class_wrap_t*       bci;          /*!< the built-in class interface */
 		const struct {
 			const char* value;                 /*!< value of class path */
 		}*path;                                /*!< the class path */
@@ -50,6 +50,7 @@ CONST_ASSERTION_LAST(cesk_object_struct_t, bcidata);
 struct _cesk_object_t {
 	uint16_t         	  depth;      /*!<the depth in inherence tree */
 	size_t				  size;       /*!<the size of the object useful when clone an object */
+	cesk_object_struct_t* builtin;    /*!< a pointer to the built-in class structure, if this object has one */
 	cesk_object_struct_t  members[0]; /*!<the length of the tree */
 };
 CONST_ASSERTION_LAST(cesk_object_t, members);

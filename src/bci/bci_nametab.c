@@ -32,8 +32,9 @@ void bci_nametab_finialize()
 			ptr = ptr->next;
 			if(NULL == this->methname)
 			{
-				bci_class_t* class = (bci_class_t*)this->def;
-				if(class->ondelete) class->ondelete(this->clspath);
+				bci_class_wrap_t* class_wrap = (bci_class_wrap_t*)this->def;
+				if(class_wrap->class->ondelete) class_wrap->class->ondelete(this->clspath);
+				free(class_wrap);	
 			}
 			free(this);
 		}
@@ -70,7 +71,15 @@ static inline _bci_nametab_node_t* _bci_nametab_node_alloc(const char* class, co
 	}
 	ret->clspath = class;
 	ret->methname = method;
-	ret->def = object;
+	if(NULL == method)
+	{
+		bci_class_wrap_t* wrap = (bci_class_wrap_t*)malloc(sizeof(bci_class_wrap_t));
+		wrap->class = (bci_class_t*) object;
+		wrap->path = class;
+		ret->def = wrap;
+	}
+	else
+		ret->def = object;
 	ret->next = NULL;
 	return ret;
 }
@@ -117,11 +126,11 @@ int bci_nametab_register_method(const char* clspath, const char* mthname, bci_me
 	return _bci_nametab_insert(clspath, mthname, def);
 }
 
-const bci_class_t* bci_nametab_get_class(const char* clspath)
+const bci_class_wrap_t* bci_nametab_get_class(const char* clspath)
 {
 	_bci_nametab_node_t* ret = _bci_nametab_find(clspath, NULL);
 	if(NULL == ret) return NULL;
-	return (const bci_class_t*)ret->def;
+	return (const bci_class_wrap_t*)ret->def;
 }
 
 const bci_method_t* bci_nametab_get_method(const char* clspath, const char* methname)

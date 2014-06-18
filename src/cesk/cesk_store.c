@@ -475,7 +475,7 @@ cesk_value_t* cesk_store_get_rw(cesk_store_t* store, uint32_t addr, int noval)
 	cesk_value_t* val = block->slots[offset].value;
 	if(NULL == val)
 	{
-		LOG_ERROR("the address is not in use (@%x)", addr);
+		//LOG_ERROR("the address is not in use (@%x)", addr);
 		return NULL;
 	}
 	if(val->refcnt > 1 && noval == 0)

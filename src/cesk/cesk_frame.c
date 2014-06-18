@@ -1042,7 +1042,7 @@ uint32_t cesk_frame_store_new_object(
 			}
 			else
 			{
-				if(bci_class_initialize(this->bcidata, this->class.bci) < 0)
+				if(bci_class_initialize(this->bcidata, this->class.bci->class) < 0)
 				{
 					LOG_WARNING("failed to initlaize the built-in class");
 				}
@@ -1122,7 +1122,7 @@ uint32_t cesk_frame_store_new_object(
 			}
 			else
 			{
-				if(bci_class_initialize(this->bcidata, this->class.bci) < 0)
+				if(bci_class_initialize(this->bcidata, this->class.bci->class) < 0)
 				{
 					LOG_WARNING("failed to initlaize the built-in class");
 				}

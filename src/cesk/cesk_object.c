@@ -16,6 +16,8 @@ cesk_object_t* cesk_object_new(const char* classpath)
 	int field_count = 0;
 	int class_count = 0;
 	size_t builtin_size = 0;
+	int has_bci = 0;
+	const bci_class_wrap_t* bci_class = NULL;
 	dalvik_class_t* classes[1024]; 
 	/* because BCI Classes can not use a user defined class as superclass,
 	 * So that if we can see an built-in class here, that means there's no
@@ -27,11 +29,13 @@ cesk_object_t* cesk_object_new(const char* classpath)
 		dalvik_class_t* target_class = dalvik_memberdict_get_class(classpath);
 		if(NULL == target_class)
 		{
-			const bci_class_t* class = bci_nametab_get_class(classpath);
-			if(NULL != class)
+			const bci_class_wrap_t* class_wrap = bci_nametab_get_class(classpath);
+			if(NULL != class_wrap)
 			{
 				LOG_DEBUG("found built-in class %s", classpath);
-				builtin_size += class->size;
+				builtin_size += class_wrap->class->size;
+				has_bci = 1;
+				bci_class = class_wrap;
 				break;
 			}
 			if(0 == class_count)
@@ -93,7 +97,15 @@ cesk_object_t* cesk_object_new(const char* classpath)
 		CESK_OBJECT_STRUCT_ADVANCE(base);
 	}
 	/* We do not initalize the built-in class here, we do it when the field object of user defined class assigned*/
-	object->depth = class_count;
+	if(has_bci)
+	{
+		base->built_in = 1;
+		base->class.bci = bci_class;
+		object->builtin = base;
+	}
+	else
+		object->builtin = NULL;
+	object->depth = class_count + has_bci;
 	object->size = size;
 	return object;
 }
@@ -138,7 +150,7 @@ uint32_t* cesk_object_get(
 		}
 		else
 		{
-			if(NULL != p_bci_class) *p_bci_class = this->class.bci;
+			if(NULL != p_bci_class) *p_bci_class = this->class.bci->class;
 			if(NULL != p_bci_data) *p_bci_data = this->bcidata;
 			return NULL;
 		}
@@ -170,6 +182,16 @@ cesk_object_t* cesk_object_fork(const cesk_object_t* object)
 		return NULL;
 	}
 	memcpy(newobj, object, objsize);
+	/* we have a builtin class struct, duplicate it */
+	if(NULL != object->builtin)
+	{
+		if(bci_class_duplicate(newobj->builtin->bcidata, object->builtin->bcidata, object->builtin->class.bci->class) < 0)
+		{
+			LOG_ERROR("failed to initalize builtin class %s", object->builtin->class.path->value);
+			free(newobj);
+			return NULL;
+		}
+	}
 	return newobj;
 }
 
@@ -186,8 +208,7 @@ hashval_t cesk_object_hashcode(const cesk_object_t* object)
 		mul ^= (uintptr_t)this->class.path;
 		if(this->built_in)
 		{
-			//LOG_FATAL("TODO compute hashcode of built-in instances");
-			hashval_t h = 0x73658217ul * bci_class_hashcode(this->bcidata, this->class.bci) * MH_MULTIPLY ;
+			hashval_t h = 0x73658217ul * bci_class_hashcode(this->bcidata, this->class.bci->class) * MH_MULTIPLY ;
 			hash ^= (h * h);
 		}
 		else
@@ -289,14 +310,13 @@ const char* cesk_object_to_string(const cesk_object_t* object, char* buf, size_t
 	}
 	for(i = 0; i < object->depth; i ++)
 	{
-		__PR("[class %s (", this->class.path->value);
 		if(this->built_in)
 		{
-			LOG_FATAL("TODO built-in class to string");
-
+			continue;
 		}
 		else
 		{
+			__PR("[class %s (", this->class.path->value);
 			int j;
 			for(j = 0; j < this->num_members; j ++)
 			{

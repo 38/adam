@@ -49,7 +49,7 @@ int bci_nametab_register_method(const char* clspath, const char* mthname, bci_me
  * @param clspath the class path
  * @return the class object, NULL if not found
  **/
-const bci_class_t* bci_nametab_get_class(const char* clspath);
+const bci_class_wrap_t* bci_nametab_get_class(const char* clspath);
 
 /**
  * @brief look for a method definition
