@@ -25,7 +25,8 @@ struct _bci_class_t {
 	cesk_set_t* (*get_field)(const void* this, const char* fieldname);  /*!< callback that get a pointer to a field return an new set contains the field*/
 	int (*put_field)(void* this, const char* fieldname, const cesk_set_t* set, cesk_store_t* store, int keep); /*!< set the field value */
 
-	int (*get_addr_list)(void* this, uint32_t* buf,size_t sz);              /*!< get the reference list address, return the number of address copied to buffer, < 0 when error */
+	int (*get_addr_list)(const void* this, uint32_t* buf,size_t sz);              /*!< get the reference list address, return the number of address copied to buffer, < 0 when error */
+	hashval_t (*hash)(const void* this);                            /*!< return the hashcode of this object */
 	const char* provides[BCI_CLASS_MAX_PROVIDES];             /*!< the class that this build-in class provides, end with a NULL */
 }; 
 
@@ -65,5 +66,13 @@ int bci_class_put_field(void* this, const char* fieldname, const cesk_set_t* set
  * @param class the class def
  * @return the value copied to the buffer < 0 means error
  **/
-int bci_class_get_addr_list(void* this, uint32_t* buf, size_t sz, const bci_class_t* class);
+int bci_class_get_addr_list(const void* this, uint32_t* buf, size_t sz, const bci_class_t* class);
+
+/**
+ * @brief return the hashcode of an given built-in instance
+ * @param this the object
+ * @param class the class def
+ * @return the hash code
+ **/
+hashval_t bci_class_hashcode(const void* this, const bci_class_t* class);
 #endif

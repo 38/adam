@@ -186,7 +186,9 @@ hashval_t cesk_object_hashcode(const cesk_object_t* object)
 		mul ^= (uintptr_t)this->class.path;
 		if(this->built_in)
 		{
-			LOG_FATAL("TODO compute hashcode of built-in instances");
+			//LOG_FATAL("TODO compute hashcode of built-in instances");
+			hashval_t h = 0x73658217ul * bci_class_hashcode(this->bcidata, this->class.bci) * MH_MULTIPLY ;
+			hash ^= (h * h);
 		}
 		else
 		{

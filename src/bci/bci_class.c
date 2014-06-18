@@ -31,10 +31,18 @@ int bci_class_put_field(void* this, const char* fieldname, const cesk_set_t* set
 		   -1:
 		   class->put_field(this, fieldname, set, store, keep);
 }
-int bci_class_get_addr_list(void* this, uint32_t* buf, size_t sz, const bci_class_t* class)
+int bci_class_get_addr_list(const void* this, uint32_t* buf, size_t sz, const bci_class_t* class)
 {
 	if(NULL == this || NULL == buf || NULL == class) return -1;
 	return (class->get_addr_list == NULL)?
 		   -1:
 		   class->get_addr_list(this, buf, sz);
+}
+hashval_t bci_class_hashcode(const void* this, const bci_class_t* class)
+{
+	if(NULL == this || NULL == class) 
+		return 0;
+	return (NULL == class->hash)?
+	       0:
+		   class->hash(this);
 }
