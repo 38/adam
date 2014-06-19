@@ -497,17 +497,44 @@ static inline cesk_value_t* _cesk_block_invoke_result_value_translate(
 	int i;
 	for(i = 0; i < object->depth; i ++)
 	{
-		int j;
-		for(j = 0; j < this->num_members; j ++)
+		if(this->built_in)
 		{
-			uint32_t addr = this->addrtab[j];
-			uint32_t r_addr = _cesk_block_invoke_result_addr_translate(addr, frame, diff, addrmap);
-			if(CESK_STORE_ADDR_NULL == addr)
+			uint32_t buf[128];
+			uint32_t offset = 0;
+			for(;;)
 			{
-				LOG_ERROR("can not translate result address @%x to interal address", addr);
-				return NULL;
+				int rc = bci_class_get_addr_list(this->bcidata, offset, buf, sizeof(buf)/sizeof(buf[0]), this->class.bci->class);
+				if(rc < 0)
+				{
+					LOG_ERROR("can not get the address list of built-in class instance %s", this->class.path->value);
+					return NULL;
+				}
+				if(0 == rc) break;
+				int j;
+				for(j = 0; j < rc; j ++)
+					buf[j] = _cesk_block_invoke_result_addr_translate(buf[j], frame, diff, addrmap);
+				if(bci_class_modify(this->bcidata, offset, buf, rc, this->class.bci->class) < 0)
+				{
+					LOG_ERROR("can not modify the address list of built-in class instance %s", this->class.path->value);
+					return NULL;
+				}
+				offset += rc;
 			}
-			this->addrtab[j] = r_addr;
+		}
+		else
+		{
+			int j;
+			for(j = 0; j < this->num_members; j ++)
+			{
+				uint32_t addr = this->addrtab[j];
+				uint32_t r_addr = _cesk_block_invoke_result_addr_translate(addr, frame, diff, addrmap);
+				if(CESK_STORE_ADDR_NULL == addr)
+				{
+					LOG_ERROR("can not translate result address @%x to interal address", addr);
+					return NULL;
+				}
+				this->addrtab[j] = r_addr;
+			}
 		}
 		CESK_OBJECT_STRUCT_ADVANCE(this);
 	}
@@ -662,34 +689,64 @@ static inline cesk_diff_t* _cesk_block_invoke_result_translate(
 			LOG_ERROR("can not translate address");
 			goto ERR;
 		}
+		
+		cesk_value_t* value = _cesk_block_invoke_result_value_translate(result->data[i].arg.value, frame, result, interal_addr);
+		
+		if(NULL == value)
+		{
+			LOG_ERROR("can not translate the value");
+			goto ERR;
+		}
+		
 		if(CESK_TYPE_OBJECT == result->data[i].arg.value->type)
 		{
-			LOG_ERROR("invalid store section, only set value allowed");
-			goto ERR;
-		}
-		cesk_set_t* set = _cesk_block_invoke_result_set_translate(result->data[i].arg.value->pointer.set, frame, result, interal_addr);
-		if(NULL == set)
-		{
-			LOG_ERROR("can not translate the value set");
-			goto ERR;
-		}
-		cesk_value_const_t* store_value;
-		/* if this is an allocation that merged to existing address, we need to merge the old value */
-		if(CESK_STORE_ADDR_IS_RELOC(result->data[i].addr) && raddr_limit > addr && 
-		   (store_value = cesk_store_get_ro(frame->store, addr)) != NULL )
-		{
-			if(NULL == store_value)
+			cesk_value_const_t* store_value;
+			cesk_object_t* dest = value->pointer.object;
+			
+			/* if this is an allocation that merged to existing address, we need to merge the old value */
+			if(CESK_STORE_ADDR_IS_RELOC(result->data[i].addr) && raddr_limit > addr && 
+			   (store_value = cesk_store_get_ro(frame->store, addr)) != NULL )
 			{
-				LOG_ERROR("can not read store value at address @%x", addr);
-				goto ERR;
+				const cesk_object_t* sour = store_value->pointer.object;
+				if(NULL == sour->builtin || NULL == dest->builtin)
+				{
+					LOG_ERROR("can not merge two object instance that is non-built-in one");
+					goto ERR;
+				}
+				if(sour->builtin->class.bci->class != dest->builtin->class.bci->class)
+				{
+					LOG_ERROR("can not merge two object instance that is not the same type");
+					goto ERR;
+				}
+				if(bci_class_merge(dest->builtin->bcidata, sour->builtin->bcidata, dest->builtin->class.bci->class) < 0)
+				{
+					LOG_ERROR("can not merge the built-in instance %s", dest->builtin->class.path->value);
+					goto ERR;
+				}
 			}
-			if(cesk_set_merge(set, store_value->pointer.set) < 0)
-			{
-				LOG_ERROR("can not merge old value with the new value");
-				goto ERR;
-			}
+			if(bci_class_get_relocation_flag(dest->builtin->bcidata, dest->builtin->class.bci->class) > 0) result->data[i].arg.value->reloc = 1;
 		}
-		if(cesk_set_get_reloc(set) > 0) result->data[i].arg.value->reloc = 1;
+		else
+		{
+			cesk_set_t* set = value->pointer.set;
+			cesk_value_const_t* store_value;
+			/* if this is an allocation that merged to existing address, we need to merge the old value */
+			if(CESK_STORE_ADDR_IS_RELOC(result->data[i].addr) && raddr_limit > addr && 
+			   (store_value = cesk_store_get_ro(frame->store, addr)) != NULL )
+			{
+				if(NULL == store_value)
+				{
+					LOG_ERROR("can not read store value at address @%x", addr);
+					goto ERR;
+				}
+				if(cesk_set_merge(set, store_value->pointer.set) < 0)
+				{
+					LOG_ERROR("can not merge old value with the new value");
+					goto ERR;
+				}
+			}
+			if(cesk_set_get_reloc(set) > 0) result->data[i].arg.value->reloc = 1;
+		}
 		if(cesk_diff_buffer_append(buf, CESK_DIFF_STORE, addr, result->data[i].arg.value) < 0)
 		{
 			LOG_ERROR("can not append store record to the diff buffer");

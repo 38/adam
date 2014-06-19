@@ -1,6 +1,22 @@
 The Built-In Class Interface
-
-Built-In Class Functions
+Basic Concept
+==
+	Address List Model:
+		The instance of built-in class is logically a Address List, in which
+		we can access each address using an offset O which indicates the address
+		is the O-th address in the object. 
+		But it's just logically, that means the implementation of the built-in
+		class is not necessary to have an address list. But the class should
+		have following properties:
+			1) We can use an interger to locate the address
+			2) If the same interger given, the object must return the same
+			address
+			3) If address at this offset has been modified, after this, all
+			address peeking at this offset should be the modified value
+			4) The offset must starts from 0
+			5) If non-zero offset X is a valid offset, X-1 must be a valid
+			offset
+Built-In Class Callback Functions
 ==
 	Prototype: int onload()
 	Description: This function is the callback function after this class 
@@ -118,3 +134,24 @@ Built-In Class Functions
 	Parameter:
 		this	the 'this' pointer
 	Return:  < 0 indicates an error, otherwise indicates the relocated flag
+--
+	Prototype int merge(void* this, const void* that)
+	Description: merge two built-in object instances 'this' and 'that', and
+	the result object instance should be 'this'
+	Parameter:
+		this	the 'this' pointer
+		that	the second operand
+--
+	Prototype int modify(
+			void* this, 
+			uint32_t offset, 
+			uint32_t* new,
+			size_t N)
+	Description: Modify the address using by 'this' object instance. And the
+	target value is stored in array new_addrs.
+	Parameter:
+		this	the 'this' pointer
+		offset	the first address offset that to be modified
+		new 	the new addresses want to modify. 
+		N   	how many addresses we want to change
+

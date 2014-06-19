@@ -994,8 +994,6 @@ cesk_diff_t* cesk_diff_factorize(int N, cesk_diff_t** diffs, const cesk_frame_t*
 						error = 1;
 						break;
 					}
-
-					
 					if(CESK_TYPE_SET == first->type)
 					{
 						result = cesk_set_fork(first->pointer.set);

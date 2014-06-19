@@ -49,6 +49,8 @@ struct _bci_class_t {
 	int (*get_relocation_flag)(const void* this);/*!< how to get the relocation flag for this object */
 
 	int (*merge)(void* this, const void* that);  /*!< merge the two built-in instances */
+
+	int (*modify)(void* this, uint32_t offset, uint32_t* new, size_t N);  /*!< how to modify the address list */
 	const char* provides[BCI_CLASS_MAX_PROVIDES];/*!< the class that this build-in class provides, end with a NULL */
 }; 
 
@@ -153,4 +155,15 @@ int bci_class_get_relocation_flag(const void* this, const bci_class_t* class);
  * @return < 0 ==> errors
  **/
 int bci_class_merge(void* this, const void* that, const bci_class_t* class);
+
+/**
+ * @brief modify the address lit
+ * @param this the 'this' pointer
+ * @param offset the offset of the first address we want to modify
+ * @param new the new address list
+ * @param N how many new address in the list
+ * @param class the class def
+ * @return < 0 indicates errors
+ **/
+int bci_class_modify(void* this, uint32_t offset, uint32_t* new, size_t N, const bci_class_t* class);
 #endif
