@@ -303,7 +303,6 @@ static inline void _cesk_frame_store_dfs(uint32_t addr,cesk_store_t* store, uint
 								_cesk_frame_store_dfs(buf[i], store, f);
 						}
 					}
-					//LOG_FATAL("TODO dfs thru a built_in class");
 				}
 				else
 				{
@@ -317,10 +316,6 @@ static inline void _cesk_frame_store_dfs(uint32_t addr,cesk_store_t* store, uint
 				CESK_OBJECT_STRUCT_ADVANCE(this);
 			}
 			break;
-#if 0
-		case CESK_TYPE_ARRAY:
-			LOG_INFO("fixme : array support");
-#endif
 	}
 }
 int cesk_frame_gc(cesk_frame_t* frame)
@@ -554,16 +549,20 @@ int cesk_frame_apply_diff(
 					}
 					break;
 				case CESK_DIFF_STORE:
-					/* TODO: apply an object value, because we have built-in values */
 					LOG_DEBUG("setting store address @%x to value %s", rec->addr, cesk_value_to_string(rec->arg.value, NULL, 0));
 					cesk_value_const_t* oldval = cesk_store_get_ro(frame->store, rec->addr);
-					if(NULL != oldval && CESK_TYPE_SET == oldval->type && cesk_set_equal(rec->arg.value->pointer.set, oldval->pointer.set))
+					if(oldval->type != rec->arg.value->type)
+					{
+						LOG_ERROR("the diff record value and the target value was supposed to be the same type, but they are not");
+						return -1;
+					}
+					/* TODO: elimiate this dirty hack */
+					if(NULL != oldval && cesk_value_equal(rec->arg.value, (const cesk_value_t*)oldval))
 					{
 						LOG_DEBUG("the target value is already there, no nothing to patch");
 						break;
 					}
-					if(NULL != invbuf && CESK_TYPE_SET == oldval->type && 
-					   cesk_diff_buffer_append(invbuf, CESK_DIFF_STORE, rec->addr, oldval) < 0)
+					if(NULL != invbuf && cesk_diff_buffer_append(invbuf, CESK_DIFF_STORE, rec->addr, oldval) < 0)
 					{
 						LOG_ERROR("can not append a new record for the inverse diff buf");
 						return -1;
@@ -573,18 +572,56 @@ int cesk_frame_apply_diff(
 						LOG_ERROR("can not append a new record to the foward diff buffer");
 						return -1;
 					}
-					
+				
 					/* update the refcnt first, so that we can keep the value we want */
-					cesk_set_iter_t iter;
-					if(cesk_set_iter(rec->arg.value->pointer.set, &iter) < 0)
+					/* if this value is a type */
+					if(CESK_TYPE_SET == oldval->type)
 					{
-						LOG_ERROR("can not aquire the iterator for set");
-						cesk_store_release_rw(frame->store, rec->addr);
-						return -1;
+						cesk_set_iter_t iter;
+						if(cesk_set_iter(rec->arg.value->pointer.set, &iter) < 0)
+						{
+							LOG_ERROR("can not aquire the iterator for set");
+							cesk_store_release_rw(frame->store, rec->addr);
+							return -1;
+						}
+						uint32_t addr;
+						while(CESK_STORE_ADDR_NULL != (addr = cesk_set_iter_next(&iter)))
+							cesk_store_incref(frame->store, addr);
 					}
-					uint32_t addr;
-					while(CESK_STORE_ADDR_NULL != (addr = cesk_set_iter_next(&iter)))
-						cesk_store_incref(frame->store, addr);
+					else
+					{
+						int i;
+						const cesk_object_t* object = rec->arg.value->pointer.object;
+						const cesk_object_struct_t* this = object->members;
+						for(i = 0; i < object->depth; i ++)
+						{
+							if(this->built_in)
+							{
+								uint32_t offset = 0;
+								uint32_t buf[128];
+								for(;;)
+								{
+									int rc = bci_class_get_addr_list(this->bcidata, offset, buf, sizeof(buf)/sizeof(buf[0]), this->class.bci->class);
+									if(rc < 0)
+									{
+										LOG_ERROR("can not get the address list for this object");
+									}
+									if(rc == 0) break;
+									offset += rc;
+									int j;
+									for(j = 0; j < rc; j ++)
+										cesk_store_incref(frame->store, buf[j]);
+								}
+							}
+							else
+							{
+								int j;
+								for(j = 0; j < this->num_members; j ++)
+									cesk_store_incref(frame->store, this->addrtab[j]);
+							}
+							CESK_OBJECT_STRUCT_ADVANCE(this);
+						}
+					}
 
 					/* replace the value */
 					if(cesk_store_attach(frame->store, rec->addr, rec->arg.value) < 0)
@@ -618,9 +655,30 @@ int cesk_frame_apply_diff(
 				this = obj->members;
 				for(i = 0; i < obj->depth; i ++)
 				{
-					int j;
-					for(j = 0; j < this->num_members; j ++)
-						cesk_store_incref(frame->store, this->addrtab[j]);
+					if(this->built_in)
+					{
+						uint32_t offset = 0;
+						uint32_t buf[128];
+						for(;;)
+						{
+							int rc = bci_class_get_addr_list(this->bcidata, offset, buf, sizeof(buf)/sizeof(buf[0]), this->class.bci->class);
+							if(rc < 0)
+							{
+								LOG_ERROR("can not get the address list for this object");
+							}
+							if(rc == 0) break;
+							offset += rc;
+							int j;
+							for(j = 0; j < rc; j ++)
+								cesk_store_incref(frame->store, buf[j]);
+						}
+					}
+					else
+					{
+						int j;
+						for(j = 0; j < this->num_members; j ++)
+							cesk_store_incref(frame->store, this->addrtab[j]);
+					}
 					CESK_OBJECT_STRUCT_ADVANCE(this);
 				}
 				break;

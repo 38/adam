@@ -225,10 +225,6 @@ int cesk_value_equal(const cesk_value_t* first, const cesk_value_t* second)
 			return cesk_object_equal(first->pointer.object, second->pointer.object);
 		case CESK_TYPE_SET:
 			return cesk_set_equal(first->pointer.set, second->pointer.set);
-#if 0
-		case CESK_TYPE_ARRAY:
-			LOG_INFO("fixme : array type support");
-#endif
 		default:
 			LOG_WARNING("can not compare value type %d", first->type);
 			return 1;
