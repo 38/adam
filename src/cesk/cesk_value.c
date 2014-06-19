@@ -168,6 +168,7 @@ cesk_value_t* cesk_value_fork(const cesk_value_t* value)
 		newval->reloc = 1;
 	else
 		newval->reloc = 0;
+	newval->write_count = 0;
 	//newval->reloc = value->reloc;
 	return newval;
 ERROR:

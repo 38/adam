@@ -66,3 +66,8 @@ int bci_class_apply_atable(void* this, const cesk_store_t* store, const bci_clas
 	if(NULL == this || NULL == store || NULL == class) return -1;
 	return (NULL == class->apply_atable)?0:class->apply_atable(this, store);
 }
+int bci_class_get_relocation_flag(const void* this, const bci_class_t* class)
+{
+	if(NULL == this || NULL == class) return -1;
+	return (NULL == class->get_relocation_flag)?0:class->get_relocation_flag(this);
+}

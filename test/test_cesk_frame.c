@@ -133,7 +133,7 @@ int main()
 	/* check hashcode again */
 	assert(cesk_frame_hashcode(frame) == cesk_frame_compute_hashcode(frame));
 	/* check the reuse flag */
-	assert(0 == cesk_store_get_reuse(frame->store, addr3));
+	assert(1 == cesk_store_get_reuse(frame->store, addr3));
 	/* TODO test the set value is reused */
 	/* ok, let's test the logic of reuse */
 	/* at the same time, we test the decref on old value when a new value are to be loaded to the register */

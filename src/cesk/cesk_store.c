@@ -434,14 +434,16 @@ int cesk_store_set_reuse(cesk_store_t* store, uint32_t addr)
 		return -1;
 	}
 	cesk_store_block_t* block = _cesk_store_getblock_rw(store, addr);
-	store->hashcode ^= HASH_INC(addr, block->slots[offset].value, block->slots[offset].reuse);
+	if(block->slots[offset].value->write_count == 0)
+		store->hashcode ^= HASH_INC(addr, block->slots[offset].value, block->slots[offset].reuse);
 	if(NULL == block)
 	{
 		LOG_ERROR("what's wrong?");
 		return -1;
 	}
 	block->slots[offset].reuse = 1;
-	store->hashcode ^= HASH_INC(addr, block->slots[offset].value, block->slots[offset].reuse);
+	if(block->slots[offset].value->write_count == 0)
+		store->hashcode ^= HASH_INC(addr, block->slots[offset].value, block->slots[offset].reuse);
 	return 0;
 }
 int cesk_store_clear_reuse(cesk_store_t* store, uint32_t addr)
@@ -503,7 +505,7 @@ cesk_value_t* cesk_store_get_rw(cesk_store_t* store, uint32_t addr, int noval)
 	 * After finish updating, you should call the function release the 
 	 * value and update the hashcode */
 	store->hashcode ^= HASH_INC(addr, val, block->slots[offset].reuse);
-	val->write_status = 1;
+	val->write_count ++;
 	return val;
 }
 void cesk_store_release_rw(cesk_store_t* store, uint32_t addr)
@@ -523,16 +525,20 @@ void cesk_store_release_rw(cesk_store_t* store, uint32_t addr)
 		return;
 	}
 	cesk_value_t* val = block->slots[offset].value;
-	if(val->write_status == 0)
+	if(val->write_count == 0)
 	{
 		LOG_WARNING("there's no writable pointer accociated to this status");
 		return;
 	}
-	val->write_status = 0;
-	/* update the relocation bit */
-	block->reloc |= val->reloc;
-	/* update the hashcode */
-	store->hashcode ^= HASH_INC(addr, val, block->slots[offset].reuse);
+	val->write_count --;
+	/* flush the modification result to the store */
+	if(0 == val->write_count)
+	{
+		/* update the relocation bit */
+		block->reloc |= val->reloc;
+		/* update the hashcode */
+		store->hashcode ^= HASH_INC(addr, val, block->slots[offset].reuse);
+	}
 }
 /* just for debug purpose */
 hashval_t cesk_store_compute_hashcode(const cesk_store_t* store)
@@ -543,7 +549,7 @@ hashval_t cesk_store_compute_hashcode(const cesk_store_t* store)
 	{
 		for(j = 0; j < CESK_STORE_BLOCK_NSLOTS; j ++)
 		{
-			if(NULL != store->blocks[i]->slots[j].value && store->blocks[i]->slots[j].value->write_status == 0)
+			if(NULL != store->blocks[i]->slots[j].value && store->blocks[i]->slots[j].value->write_count == 0)
 			{
 				uint32_t addr = i * CESK_STORE_BLOCK_NSLOTS + j;
 				ret ^= HASH_CMP(addr, store->blocks[i]->slots[j].value, store->blocks[i]->slots[j].reuse);
@@ -699,7 +705,7 @@ int cesk_store_attach(cesk_store_t* store, uint32_t addr, cesk_value_t* value)
 	{
 		/* reference to new value */
 		cesk_value_incref(value);
-		value->write_status = 1;
+		value->write_count = 1;
 		/* we do not update new hash code here, that means we should use cesk_store_release_rw function
 		 * After we finish modifiying the store */
 	}

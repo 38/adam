@@ -23,6 +23,7 @@
  * 		 than the old value. If the register continas this value, we should override all value with new as timestamp
  * 		 should be replace.
  */
+#include <stdio.h>
 #include <log.h>
 #include <cesk/cesk_frame.h>
 #include <cesk/cesk_store.h>
@@ -230,16 +231,21 @@ int cesk_frame_equal(const cesk_frame_t* first, const cesk_frame_t* second)
 	int i;
 	for(i = 0; i < first->size; i ++)
 	{
+		/* if the register are not equal, they are not the same frame */
 		if(0 == cesk_set_equal(first->regs[i], second->regs[i]))
 		{
-			/* if the register are not equal */
 			return 0;
 		}
 	}
 	return cesk_store_equal(first->store, second->store);
 }
-/** @brief depth first search the store, and figure out what is unreachable from the register */
-static inline void _cesk_frame_store_dfs(uint32_t addr,cesk_store_t* store, uint8_t* f)
+/** 
+ * @brief depth first search the store, and figure out what is unreachable from the register
+ * @param addr the start address
+ * @param store the target store
+ * @param f the bit map used to flag reachibilities of each addresses
+ **/
+static inline void _cesk_frame_store_dfs(uint32_t addr, cesk_store_t* store, uint8_t* f)
 {
 #define BITAT(f,n) (((f)[n/8]&(1<<(n%8))) != 0)
 	if(CESK_STORE_ADDR_NULL == addr) return;
@@ -282,6 +288,7 @@ static inline void _cesk_frame_store_dfs(uint32_t addr,cesk_store_t* store, uint
 			this = obj->members;
 			for(i = 0; i < obj->depth; i ++)
 			{
+				/* if this instance is a built-in instance */
 				if(this->built_in)
 				{
 					uint32_t buf[1024];
@@ -350,7 +357,6 @@ int cesk_frame_gc(cesk_frame_t* frame)
 	free(fb);
 	return 0;
 }
-#include <stdio.h>
 hashval_t cesk_frame_hashcode(const cesk_frame_t* frame)
 {
 	hashval_t ret = CESK_FRAME_INIT_HASH;
@@ -1127,8 +1133,9 @@ uint32_t cesk_frame_store_new_object(
 			CESK_OBJECT_STRUCT_ADVANCE(this);
 		}
 
+		_SNAPSHOT(inv_buf, CESK_DIFF_REUSE, addr, CESK_DIFF_REUSE_VALUE((uintptr_t)cesk_store_get_reuse(frame->store, addr)));
+		cesk_store_set_reuse(frame->store, addr);
 		_SNAPSHOT(diff_buf, CESK_DIFF_REUSE, addr, CESK_DIFF_REUSE_VALUE(1));
-		_SNAPSHOT(inv_buf, CESK_DIFF_REUSE, addr, CESK_DIFF_REUSE_VALUE(0));
 		cesk_store_release_rw(frame->store, addr);
 	}
 	else

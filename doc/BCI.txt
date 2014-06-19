@@ -1,0 +1,120 @@
+The Built-In Class Interface
+
+Built-In Class Functions
+==
+	Prototype: int onload()
+	Description: This function is the callback function after this class 
+	definition is loaded. This function will be called only once during the 
+	BCI system initialization.
+	Return: < 0 indicates an error
+--	
+	Prototype: int onunload()
+	Description: This function is the callback function before this class 
+	definition is to be deleted. This function will be called only once during 
+	the BCI system finalization.
+	Return: < 0 indicates an error
+--	
+	Prototype: int initialization(void* this)
+	Description: This function is called during a new built-in instance
+	initialzation. 
+	Note: If the object is to be reused, this function will be called on a
+	instance which is already initialized. So that we can use this to
+	distinguish the reused instance.
+	Parameter:
+		this	the 'this' pointer
+	Return: < 0 indicates an error
+--
+	Prototype: int finalization(void* this)
+	Description: The callback function called during the instance deletion
+	Parameter:
+		this	the 'this' pointer
+	Return: < 0 indicates an error
+--
+	Prototype: cesk_set_t* get_field(const void* this, const char* name)
+	Description: Read the field of 'this' object instance, return a set
+	Note: This function is supposed to construct a new set object rather that
+	pass an existing set.(We actually dispose the return value in other part)
+	So that make sure that your returning set is a newly created one or a
+	forked one.
+	Parameter:
+		this	the 'this' pointer
+		name	the name of field user want to get
+	Return: the newly created set, NULL indicates an error
+--
+	Prototype: int put_field(
+		const void* this, 
+		const char* name,
+		const cesk_set_t* set,
+		cesk_store_t* store,
+		int keep)
+	Description: Set a value of an object instance to given value set. We
+	actually maintain the store refcount inside this method. So that it's our
+	responsibility to correct the refcount change that caused by field
+	assignment
+	Paramter: 
+		this	the 'this' pointer
+		name	the field of the name
+		set 	the new vlaue set
+		store	the store that we should work on
+		keep	if this is 1, even though this value is not reused by multiple
+		    	allocaton the caller should keep the old value.
+	Return: < 0 indicates an error
+--
+	Prototype: int get_addr_list(
+		const void* this, 
+		uint32_t offest, 
+		const char* buf,
+		size_t sz)
+	Description: Sometimes the analyzer need to know what addresses this
+	object is referencing. This function make this query possible.
+	Note: the parameter offset is used to skip the first N addresses, so that
+	we can use a loop to tranverse all addresses using limited buffer memory
+	Parameter:
+		this	the 'this' pointer
+		offset	the offset of start point
+		buf 	the value buffer
+		sz  	the size of value buffer
+	Return: the number of addresses that copied this time, < 0 indicates an
+	error. == 0 indicates that there's no more address
+--
+	Prototype: hashval_t hash(const void* this)
+	Description: Get the hash code for this function
+	Parameter:
+		this	the 'this' pointer
+	Return: the hash code for this instance
+--
+	Prototype: int equal(const void* this, const void* that)
+	Description: Compare wether or not two object instance are actually the
+	same
+	Note: This is different from the comparasion function in Java language.
+	The comparasion function in Java language is to compare the logical value
+	of two object. But this function means object 'this' and object 'that' are
+	the same thing
+	Parameter:
+		this	the 'this' pointer
+		that	the 'that' pointer, which contains the second operand
+	Return: < 0 indicates an error, == 0 indicates that two object instance
+	are not the same, > 0 indicates that two object are actually the same
+	thing
+--
+	Prototype: const char* to_string(const void* this, char* buf, size_t sz)
+	Description: convert 'this' object instance into a human-readable form
+	Parameter:
+		this	the 'this' pointer
+		buf 	the string buffer for the output string
+		sz  	the size of the string
+	Return: the result string, NULL indicates an error
+--
+	Prototype: int apply_atable(void* this, const cesk_store_t* store)
+	Description: Apply the allocation table to 'this' object instance
+	Parameter:
+		this	the 'this' pointer
+		store	the store that contains carries this pointer
+	Return: < 0 indicates an error
+--
+	Prototype: int get_relocation_flag(void* this)
+	Description: Check wether or not 'this' object contains a relocated
+	address
+	Parameter:
+		this	the 'this' pointer
+	Return:  < 0 indicates an error, otherwise indicates the relocated flag
