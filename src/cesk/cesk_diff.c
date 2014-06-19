@@ -952,6 +952,9 @@ cesk_diff_t* cesk_diff_factorize(int N, cesk_diff_t** diffs, const cesk_frame_t*
 			if(CESK_STORE_ADDR_NULL == cur_addr) break;
 			ret->data[ret->offset[section + 1]].addr = cur_addr;
 			
+			const cesk_value_const_t* first = NULL;
+			uint32_t error = 0;
+			cesk_value_t* result_value = NULL;
 
 			switch(section)
 			{
@@ -981,25 +984,79 @@ cesk_diff_t* cesk_diff_factorize(int N, cesk_diff_t** diffs, const cesk_frame_t*
 				case CESK_DIFF_STORE:
 					/* the only way to modify object value is using allocation instruction
 					 * so there's no need for processing object value at this point */
-					result = cesk_set_empty_set();
-					for(i = 0; i < N; i ++)
+					
+					first = NULL;
+					for(i = 0; i < N && NULL == first; i ++)
+						first = cesk_store_get_ro(current_frame[i]->store, cur_addr);
+					if(NULL == first)
 					{
-						const cesk_value_const_t *val = cesk_store_get_ro(current_frame[i]->store, cur_addr);
-						if(NULL == val) continue;
-						if(CESK_TYPE_SET != val->type)
+						LOG_ERROR("nothing to change, ignore this record");
+						error = 1;
+						break;
+					}
+
+					
+					if(CESK_TYPE_SET == first->type)
+					{
+						result = cesk_set_fork(first->pointer.set);
+						for(; i < N; i ++)
 						{
-							LOG_WARNING("ignore non-set value at store address @%x in store %p",
-							            cur_addr, 
-							            current_frame[i]->store);
+							const cesk_value_const_t *val = cesk_store_get_ro(current_frame[i]->store, cur_addr);
+							if(NULL == val) continue;
+							if(CESK_TYPE_SET != val->type)
+							{
+								LOG_WARNING("ignore non-set value at store address @%x in store %p",
+											cur_addr, 
+											current_frame[i]->store);
+								continue;
+							}
+							if(cesk_set_merge(result, val->pointer.set) < 0)
+								LOG_WARNING("failed to merge the value of store together");
+						}
+						result_value = cesk_value_from_set(result);
+					}
+					else
+					{
+						if(NULL == first->pointer.object->builtin)
+						{
+							LOG_WARNING("An object that do not contains built-in structure supposed not to occur in the store section");
 							continue;
 						}
-						if(cesk_set_merge(result, val->pointer.set) < 0)
-							LOG_WARNING("failed to merge the value of store together");
+						result_value = cesk_value_fork((const cesk_value_t*)first);
+						if(NULL == result_value)
+						{
+							LOG_WARNING("can not fork the value that is subject to modification");
+							break;
+						}
+						for(; i < N; i ++)
+						{
+							const cesk_value_const_t* val = cesk_store_get_ro(current_frame[i]->store, cur_addr);
+							if(NULL == val) continue;
+							if(CESK_TYPE_OBJECT != val->type)
+							{
+								LOG_WARNING("ignore non-object value at store address @%x in store %p",
+								             cur_addr,
+											 current_frame[i]->store);
+							}
+							else if(NULL == val->pointer.object->builtin || 
+							   val->pointer.object->builtin->class.bci->class != result_value->pointer.object->builtin->class.bci->class)
+							{
+								LOG_WARNING("ignore two objects that are not in the same type");
+							}
+							else if(bci_class_merge(result_value->pointer.object->builtin->bcidata, 
+							                   val->pointer.object->builtin,
+											   result_value->pointer.object->builtin->class.bci->class) < 0)
+							{
+								LOG_WARNING("can not merge the built-in object value");
+							}
+						}
 					}
-					if(NULL == (ret->data[ret->offset[section + 1]].arg.value = cesk_value_from_set(result)))
+
+					if(NULL == (ret->data[ret->offset[section + 1]].arg.value = result_value))
 					{
 						LOG_WARNING("can not create value struct for the new value");
-						continue;
+						error = 1;
+						break;
 					}
 					cesk_value_incref(ret->data[ret->offset[section + 1]].arg.value);
 					break;
@@ -1010,7 +1067,7 @@ cesk_diff_t* cesk_diff_factorize(int N, cesk_diff_t** diffs, const cesk_frame_t*
 				if(diffs[i]->_index < diffs[i]->offset[section + 1] &&
 				   diffs[i]->data[diffs[i]->_index].addr == cur_addr)
 					diffs[i]->_index ++;
-			ret->offset[section + 1]++;
+			if(!error) ret->offset[section + 1]++;
 		}
 	}
 	LOG_DEBUG("result : %s", cesk_diff_to_string(ret, NULL, 0));
