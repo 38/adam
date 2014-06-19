@@ -11,6 +11,7 @@
 typedef struct _bci_class_t bci_class_t;
 typedef struct _bci_class_wrap_t bci_class_wrap_t;
 #include <cesk/cesk_set.h>
+#include <cesk/cesk_store.h>
 
 /**
  * @brief the wrapper type for a built-in class
@@ -37,12 +38,13 @@ struct _bci_class_t {
 	cesk_set_t* (*get_field)(const void* this, const char* fieldname);  /*!< callback that get a pointer to a field return an new set contains the field*/
 	int (*put_field)(void* this, const char* fieldname, const cesk_set_t* set, cesk_store_t* store, int keep); /*!< set the field value */
 
-	int (*get_addr_list)(const void* this, uint32_t* buf,size_t sz);              /*!< get the reference list address, return the number of address copied to buffer, < 0 when error */
+	int (*get_addr_list)(const void* this, uint32_t offset, uint32_t* buf,size_t sz);              /*!< get the reference list address, return the number of address copied to buffer, < 0 when error */
 	hashval_t (*hash)(const void* this);                            /*!< return the hashcode of this object */
 
 	int (*equal)(const void* this, const void* that);          /*!< if two instance are the same */
 
 	const char* (*to_string)(const void* this, char* buf, size_t size);  /* convert this object instance to string */
+	int (*apply_atable)(void* this, const cesk_store_t* store);        /* apply a relocated address mapping to this object */
 	const char* provides[BCI_CLASS_MAX_PROVIDES];             /*!< the class that this build-in class provides, end with a NULL */
 }; 
 
@@ -82,7 +84,7 @@ int bci_class_put_field(void* this, const char* fieldname, const cesk_set_t* set
  * @param class the class def
  * @return the value copied to the buffer < 0 means error
  **/
-int bci_class_get_addr_list(const void* this, uint32_t* buf, size_t sz, const bci_class_t* class);
+int bci_class_get_addr_list(const void* this, uint32_t offset, uint32_t* buf, size_t sz, const bci_class_t* class);
 
 /**
  * @brief return the hashcode of an given built-in instance
@@ -122,4 +124,13 @@ int bci_class_equal(const void* this, const void* that, const bci_class_t* class
  * @return the converted string, if it's NULL, an error is happend
  **/
 const char* bci_class_to_string(const void* this, char* buf, size_t size, const bci_class_t* class);
+
+/**
+ * @brief apply a relocated address mapping to this object
+ * @param this the object instanace
+ * @param store the store holds this object
+ * @param class the class def
+ * @return the result of application < 0 indicates errors
+ **/
+int bci_class_apply_atable(void* this, const cesk_store_t* store, const bci_class_t* class);
 #endif

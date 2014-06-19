@@ -262,7 +262,13 @@ int cesk_object_equal(const cesk_object_t* first, const cesk_object_t* second)
 		}
 		if(this->built_in)
 		{
-			LOG_FATAL("TODO compare two built-in class");
+			//LOG_FATAL("TODO compare two built-in class");
+			int rc = bci_class_equal(this->bcidata, that->bcidata, this->class.bci->class);
+			if(rc < 0)
+			{
+				LOG_WARNING("failed to compare this two object");
+			}
+			else if(rc > 0) return 1;
 		}
 		else
 		{
@@ -339,7 +345,7 @@ int cesk_object_instance_of(const cesk_object_t* object, const char* classpath)
 		if(this->class.path->value == classpath) return 1;
 		if(this->built_in)
 		{
-			LOG_FATAL("TODO if this built-in implements the interface");
+			LOG_DEBUG("we do not support built-in class implements any class");
 		}
 		else
 		{

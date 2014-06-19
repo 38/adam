@@ -275,7 +275,10 @@ static inline int _cesk_store_apply_alloc_tab(cesk_store_t* store, uint32_t base
 				{
 					if(object_base->built_in)
 					{
-						LOG_FATAL("TODO apply relocation table to a built_in class");
+						if(bci_class_apply_atable(object_base->bcidata, store,object_base->class.bci->class) < 0)
+						{
+							LOG_WARNING("failed to apply the allocation table for object %s", object_base->class.path->value);
+						}
 					}
 					else
 					{

@@ -3,7 +3,7 @@ hashval_t java_lang_Object_hash(const void* data)
 {
 	return 0x38745c6;
 }
-int java_lang_Object_get_addr_list(const void* data, uint32_t* buf, size_t sz)
+int java_lang_Object_get_addr_list(const void* data, uint32_t offset, uint32_t* buf, size_t sz)
 {
 	if(NULL == data || NULL == buf) return -1;
 	return 0;

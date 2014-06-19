@@ -35,7 +35,7 @@ cesk_frame_t* cesk_frame_new(uint16_t size)
 		return NULL;
 	}
 	size += 2;   /* because we need a result register and an expcetion register */
-	LOG_DEBUG("create a frame with %d registers", size);
+	LOG_DEBUG("create an empty frame with %d registers", size);
 	cesk_frame_t* ret = (cesk_frame_t*)malloc(sizeof(cesk_frame_t) + size * sizeof(cesk_set_t*));
 	if(NULL == ret)
 	{
@@ -284,7 +284,26 @@ static inline void _cesk_frame_store_dfs(uint32_t addr,cesk_store_t* store, uint
 			{
 				if(this->built_in)
 				{
-					LOG_FATAL("TODO dfs thru a built_in class");
+					uint32_t buf[1024];
+					uint32_t offset = 0;
+					for(;;)
+					{
+						int rc = bci_class_get_addr_list(this->bcidata, offset, buf, sizeof(buf)/sizeof(buf[0]), this->class.bci->class);
+						if(rc < 0)
+						{
+							LOG_WARNING("can not get the address list");
+							continue;
+						}
+						else
+						{
+							if(rc == 0) break;
+							offset += rc;
+							int i;
+							for(i = 0; i < rc; i ++)
+								_cesk_frame_store_dfs(buf[i], store, f);
+						}
+					}
+					//LOG_FATAL("TODO dfs thru a built_in class");
 				}
 				else
 				{

@@ -25,12 +25,12 @@ cesk_set_t* bci_class_get_field(const void* this, const char* fieldname, const b
 int bci_class_put_field(void* this, const char* fieldname, const cesk_set_t* set, cesk_store_t* store, int keep, const bci_class_t *class)
 {
 	if(NULL == this || NULL == fieldname || NULL == set || NULL == store || NULL == class) return -1;
-	return (class->put_field == NULL)?-1:class->put_field(this, fieldname, set, store, keep);
+	return (class->put_field == NULL)?0:class->put_field(this, fieldname, set, store, keep);
 }
-int bci_class_get_addr_list(const void* this, uint32_t* buf, size_t sz, const bci_class_t* class)
+int bci_class_get_addr_list(const void* this, uint32_t offset, uint32_t* buf, size_t sz, const bci_class_t* class)
 {
 	if(NULL == this || NULL == buf || NULL == class) return -1;
-	return (class->get_addr_list == NULL)?-1:class->get_addr_list(this, buf, sz);
+	return (class->get_addr_list == NULL)?0:class->get_addr_list(this, offset, buf, sz);
 }
 hashval_t bci_class_hashcode(const void* this, const bci_class_t* class)
 {
@@ -42,7 +42,7 @@ int bci_class_duplicate(const void* this, void* that, const bci_class_t* class)
 {
 	if(NULL == this || NULL == that || NULL == class)
 		return -1;
-	return (NULL == class->duplicate)?-1:class->duplicate(this, that);
+	return (NULL == class->duplicate)?0:class->duplicate(this, that);
 }
 int bci_class_equal(const void* this, const void* that, const bci_class_t* class)
 {
@@ -60,4 +60,9 @@ const char* bci_class_to_string(const void* this, char* buf, size_t size, const 
 		size = sizeof(_buf);
 	}
 	return (NULL == class->to_string)?"":class->to_string(this, buf, size);
+}
+int bci_class_apply_atable(void* this, const cesk_store_t* store, const bci_class_t* class)
+{
+	if(NULL == this || NULL == store || NULL == class) return -1;
+	return (NULL == class->apply_atable)?0:class->apply_atable(this, store);
 }
