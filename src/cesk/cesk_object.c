@@ -310,13 +310,13 @@ const char* cesk_object_to_string(const cesk_object_t* object, char* buf, size_t
 	}
 	for(i = 0; i < object->depth; i ++)
 	{
+		__PR("[class %s (", this->class.path->value);
 		if(this->built_in)
 		{
-			continue;
+			__PR("%s)]", bci_class_to_string(this->bcidata, NULL, 0, this->class.bci->class));
 		}
 		else
 		{
-			__PR("[class %s (", this->class.path->value);
 			int j;
 			for(j = 0; j < this->num_members; j ++)
 			{

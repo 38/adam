@@ -41,6 +41,8 @@ struct _bci_class_t {
 	hashval_t (*hash)(const void* this);                            /*!< return the hashcode of this object */
 
 	int (*equal)(const void* this, const void* that);          /*!< if two instance are the same */
+
+	const char* (*to_string)(const void* this, char* buf, size_t size);  /* convert this object instance to string */
 	const char* provides[BCI_CLASS_MAX_PROVIDES];             /*!< the class that this build-in class provides, end with a NULL */
 }; 
 
@@ -110,4 +112,14 @@ int bci_class_duplicate(const void* this, void* that, const bci_class_t* class);
  * @return result of comparasion, 1 indicates equal, 0 means non-equal, < 0 indicates error
  **/
 int bci_class_equal(const void* this, const void* that, const bci_class_t* class);
+
+/**
+ * @breif convert an object instance to string
+ * @param this the object instance
+ * @param buf the output buffer, if the buffer is NULL means use default buffer
+ * @param size the buffer size
+ * @param class the class def
+ * @return the converted string, if it's NULL, an error is happend
+ **/
+const char* bci_class_to_string(const void* this, char* buf, size_t size, const bci_class_t* class);
 #endif

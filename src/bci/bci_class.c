@@ -50,3 +50,14 @@ int bci_class_equal(const void* this, const void* that, const bci_class_t* class
 		return -1;
 	return (NULL == class->equal)?-1:class->equal(this, that);
 }
+const char* bci_class_to_string(const void* this, char* buf, size_t size, const bci_class_t* class)
+{
+	if(NULL == this) return NULL;
+	static char _buf[1024];
+	if(NULL == buf)
+	{
+		buf = _buf;
+		size = sizeof(_buf);
+	}
+	return (NULL == class->to_string)?"":class->to_string(this, buf, size);
+}

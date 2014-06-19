@@ -12,11 +12,23 @@ int java_lang_Object_equal(const void* this, const void* that)
 {
 	return 1;
 }
+int java_lang_Object_duplicate(const void* this, void* that)
+{
+	return 0;
+}
+const char* java_lang_Object_to_string(const void* this, char* buf, size_t sz)
+{
+	if(0 == sz) return NULL;
+	buf[0] = 0;
+	return buf;
+}
 bci_class_t java_lang_Object_metadata = {
 	.size = 0,
 	.get_addr_list = java_lang_Object_get_addr_list,
 	.hash = java_lang_Object_hash,
 	.equal = java_lang_Object_equal,
+	.duplicate = java_lang_Object_duplicate,
+	.to_string = java_lang_Object_to_string,
 	.provides = {
 		"java/lang/Object",
 		NULL
