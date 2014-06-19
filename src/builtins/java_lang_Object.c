@@ -22,6 +22,10 @@ const char* java_lang_Object_to_string(const void* this, char* buf, size_t sz)
 	buf[0] = 0;
 	return buf;
 }
+int java_lang_Object_merge(void* this, const void* that)
+{
+	return 0;
+}
 bci_class_t java_lang_Object_metadata = {
 	.size = 0,
 	.get_addr_list = java_lang_Object_get_addr_list,
@@ -29,6 +33,7 @@ bci_class_t java_lang_Object_metadata = {
 	.equal = java_lang_Object_equal,
 	.duplicate = java_lang_Object_duplicate,
 	.to_string = java_lang_Object_to_string,
+	.merge = java_lang_Object_merge,
 	.provides = {
 		"java/lang/Object",
 		NULL

@@ -71,3 +71,8 @@ int bci_class_get_relocation_flag(const void* this, const bci_class_t* class)
 	if(NULL == this || NULL == class) return -1;
 	return (NULL == class->get_relocation_flag)?0:class->get_relocation_flag(this);
 }
+int bci_class_merge(void* this, const void* that, const bci_class_t* class)
+{
+	if(NULL == this || NULL == that || NULL == class) return -1;
+	return (NULL == class->merge)?0:class->merge(this, that);
+}

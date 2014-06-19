@@ -1267,6 +1267,13 @@ int cesk_frame_store_put_field(
 			LOG_ERROR("can not get field %s/%s", clspath, fldname);
 			return -1;
 		}
+		int rc;
+		if((rc = bci_class_get_relocation_flag(builtin_data, builtin_class)) < 0)
+		{
+			LOG_ERROR("can not get the relocation flag");
+			return -1;
+		}
+		if(rc > 0) value->reloc = 1;
 		_SNAPSHOT(inv_buf, CESK_DIFF_STORE, dst_addr, value);
 	}
 	else

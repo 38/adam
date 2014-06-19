@@ -505,7 +505,10 @@ cesk_value_t* cesk_store_get_rw(cesk_store_t* store, uint32_t addr, int noval)
 	 * After finish updating, you should call the function release the 
 	 * value and update the hashcode */
 	store->hashcode ^= HASH_INC(addr, val, block->slots[offset].reuse);
-	val->write_count ++;
+	if(val->write_count > 15) 
+		LOG_WARNING("too many write pointer aquired, which up to 15 at store address @%x", addr);
+	else
+		val->write_count ++;
 	return val;
 }
 void cesk_store_release_rw(cesk_store_t* store, uint32_t addr)

@@ -47,6 +47,8 @@ struct _bci_class_t {
 	int (*apply_atable)(void* this, const cesk_store_t* store);/*!< apply a relocated address mapping to this object */
 
 	int (*get_relocation_flag)(const void* this);/*!< how to get the relocation flag for this object */
+
+	int (*merge)(void* this, const void* that);  /*!< merge the two built-in instances */
 	const char* provides[BCI_CLASS_MAX_PROVIDES];/*!< the class that this build-in class provides, end with a NULL */
 }; 
 
@@ -142,4 +144,13 @@ int bci_class_apply_atable(void* this, const cesk_store_t* store, const bci_clas
  * @return the relocation flag bit, < 0 indicates an error
  **/
 int bci_class_get_relocation_flag(const void* this, const bci_class_t* class);
+
+/**
+ * @brief merge two built-in instances
+ * @param this the 'this' pointer
+ * @param that the second operand
+ * @param class the class def
+ * @return < 0 ==> errors
+ **/
+int bci_class_merge(void* this, const void* that, const bci_class_t* class);
 #endif

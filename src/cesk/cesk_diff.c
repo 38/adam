@@ -190,7 +190,7 @@ static int _cesk_diff_buffer_cmp(const void* left, const void* right)
 	return lnode->time - rnode->time;
 }
 /**
- * @brief collect the garbage allocation
+ * @brief remove the garbage allocation
  * @details If the newly created object is dereferenced in this block, the 
  *          diff will contains an allocation instruction at that address, 
  *          but without corresponding register/store reference. In this case
@@ -211,12 +211,7 @@ static inline int _cesk_diff_gc(cesk_diff_t* diff)
 	int dealloc_begin = diff->offset[CESK_DIFF_DEALLOC];
 	int dealloc_end = diff->offset[CESK_DIFF_DEALLOC + 1];
 	int alloc_ptr, reg_ptr, store_ptr, reuse_ptr,dealloc_ptr, alloc_free, store_free, reuse_free;
-#if 0
-	static uint8_t bitmap[(CESK_STORE_ADDR_RELOC_SIZE + 7)/8];
-	static uint8_t bm_store[(CESK_STORE_ADDR_RELOC_SIZE + 7)/8];
-	memset(bitmap, 0, sizeof(bitmap));
-	memset(bm_store, 0, sizeof(bm_store));
-#endif
+	
 	static uint32_t flags[CESK_STORE_ADDR_RELOC_SIZE];
 	static uint32_t store_flags[CESK_STORE_ADDR_RELOC_SIZE];
 	static uint32_t tick = 0;
@@ -230,21 +225,79 @@ static inline int _cesk_diff_gc(cesk_diff_t* diff)
 			LOG_WARNING("ignore invalid value");
 			continue;
 		}
-		cesk_set_t* set = value->pointer.set;
-		cesk_set_iter_t iter;
-		if(NULL == cesk_set_iter(set, &iter))
+		/* if this is a value */
+		if(CESK_TYPE_SET == value->type)
 		{
-			LOG_WARNING("can not aquire the set iterator");
-			continue;
-		}
-		uint32_t addr;
-		while(CESK_STORE_ADDR_NULL != (addr = cesk_set_iter_next(&iter)))
-		{
-			if(CESK_STORE_ADDR_IS_RELOC(addr))
+			cesk_set_t* set = value->pointer.set;
+			cesk_set_iter_t iter;
+			if(NULL == cesk_set_iter(set, &iter))
 			{
-				uint32_t idx = CESK_STORE_ADDR_RELOC_IDX(addr);
-				flags[idx] = tick;
-				LOG_DEBUG("address @%x is safe", addr);
+				LOG_WARNING("can not aquire the set iterator");
+				continue;
+			}
+			uint32_t addr;
+			while(CESK_STORE_ADDR_NULL != (addr = cesk_set_iter_next(&iter)))
+			{
+				if(CESK_STORE_ADDR_IS_RELOC(addr))
+				{
+					uint32_t idx = CESK_STORE_ADDR_RELOC_IDX(addr);
+					flags[idx] = tick;
+					LOG_DEBUG("address @%x is safe", addr);
+				}
+			}
+		}
+		else
+		{
+			cesk_object_t* object = value->pointer.object;
+			cesk_object_struct_t* this = object->members;
+			int i;
+			for(i = 0; i < object->depth; i ++)
+			{
+				/* if this is an instance of a built-in class */
+				if(this->built_in)
+				{
+					uint32_t buf[128];
+					uint32_t offset = 0;
+					int rc;
+					for(;;)
+					{
+						rc = bci_class_get_addr_list(this->bcidata, offset, buf, sizeof(buf)/sizeof(buf[0]), this->class.bci->class);
+						if(rc < 0)
+						{
+							LOG_WARNING("failed to get the address list");
+							break;
+						}
+						if(rc == 0) break;
+						offset += rc;
+						int j;
+						for(j = 0; j < rc; j ++)
+						{
+							uint32_t addr = buf[j];
+							if(CESK_STORE_ADDR_IS_RELOC(addr))
+							{
+								uint32_t idx = CESK_STORE_ADDR_RELOC_IDX(addr);
+								flags[idx] = tick;
+								LOG_DEBUG("address @%x is safe", addr);
+							}
+						}
+					}
+				}
+				/* otherwise this is an instance of user defined class */
+				else
+				{
+					int j;
+					for(j = 0; j < this->num_members; j ++)
+					{
+						uint32_t addr = this->addrtab[j];
+						if(CESK_STORE_ADDR_IS_RELOC(addr))
+						{
+							uint32_t idx = CESK_STORE_ADDR_RELOC_IDX(addr);
+							flags[idx] = tick;
+							LOG_DEBUG("address @%x is safe", addr);
+						}
+					}
+				}
+				CESK_OBJECT_STRUCT_ADVANCE(this);
 			}
 		}
 	}
@@ -273,9 +326,7 @@ static inline int _cesk_diff_gc(cesk_diff_t* diff)
 			}
 		}
 	}
-	/* because some allocation is used by other allocation, therefore, we need
-	 * to keep them
-	 */
+	/* because some allocation is used by other allocation, therefore, we need to keep them */
 	for(alloc_ptr = alloc_begin; alloc_ptr < alloc_end; alloc_ptr ++)
 	{
 		uint32_t addr = diff->data[alloc_ptr].addr;
@@ -299,8 +350,29 @@ static inline int _cesk_diff_gc(cesk_diff_t* diff)
 						{
 							if(this->built_in)
 							{
-								LOG_FATAL("TODO set bit map for a built-in class refernce");
-
+								uint32_t buf[128];
+								uint32_t offset = 0;
+								int rc;
+								for(;;)
+								{
+									rc = bci_class_get_addr_list(this->bcidata, offset, buf, sizeof(buf)/sizeof(buf[0]), this->class.bci->class);
+									if(rc < 0)
+									{
+										LOG_WARNING("failed to tranverse the address list for built-in class %s", this->class.path->value);
+										break;
+									}
+									if(rc == 0) break;
+									int j;
+									for(j = 0; j < rc; j ++)
+									{
+										if(CESK_STORE_ADDR_IS_RELOC(buf[j]))
+										{
+											uint32_t idx = CESK_STORE_ADDR_RELOC_IDX(buf[j]);
+											flags[idx] = tick;
+											LOG_DEBUG("address @%x is safe", buf[j]);
+										}
+									}
+								}
 							}
 							else
 							{
@@ -555,36 +627,49 @@ cesk_diff_t* cesk_diff_from_buffer(cesk_diff_buffer_t* buffer)
 								else
 								{
 									int type = ((cesk_value_t*)node->value)->type;
-									/* object type? this record must be wrong since the object structure itself can not changed during the run time */
+									cesk_value_t* value = ret->data[ret->offset[section + 1]].arg.value;
+									/* if current value is used by multiple users, fork it before merge */
+									if(value->refcnt > 1)
+									{
+										cesk_value_t* new_value = cesk_value_fork(value);
+										if(NULL == new_value)
+										{
+											LOG_WARNING("can not fork the old value to make changes, item ignored");
+											break;
+										}
+										cesk_value_decref(value);
+										cesk_value_incref(new_value);
+										value = new_value;
+										ret->data[ret->offset[section + 1]].arg.value = value;
+									}
+
+									/* now we can safely merge the value without affecting other value */
 									if(type == CESK_TYPE_OBJECT)
 									{
-										LOG_WARNING("it seems no way to set a store address in which there's an object instance");
+										/* only built-in parts needs to be merged */
+										cesk_object_t *dest = value->pointer.object;
+										const cesk_object_t* sour = ((cesk_value_const_t*)node->value)->pointer.object;
+										if(NULL == dest->builtin || NULL == sour->builtin)
+										{
+											LOG_WARNING("impossible to merge a non-built-in value");
+										}
+										else if(dest->builtin->class.bci->class != dest->builtin->class.bci->class)
+										{
+											LOG_WARNING("trying to merge two values of different types");
+										}
+										else if(bci_class_merge(dest->builtin->bcidata, sour->builtin->bcidata, dest->builtin->class.bci->class) < 0)
+										{
+											LOG_ERROR("can not merge result values, some return value is ignired");
+										}
 									}
-									/* the type is a set as expected, so that we need to copy on write before this used */
 									else if(type == CESK_TYPE_SET)
 									{
-										cesk_value_t* value = ret->data[ret->offset[section + 1]].arg.value;
-										/* if current value is used by multiple users, fork it before merge */
-										if(value->refcnt > 1)
-										{
-											cesk_value_t* new_value = cesk_value_fork(value);
-											if(NULL == new_value)
-											{
-												LOG_WARNING("can not fork the old value to make changes, item ignored");
-												break;
-											}
-											cesk_value_decref(value);
-											cesk_value_incref(new_value);
-											value = new_value;
-											ret->data[ret->offset[section + 1]].arg.value = value;
-										}
-										/* now we can safely merge the value without affecting other value */
 										if(cesk_set_merge(value->pointer.set, ((cesk_value_t*)node->value)->pointer.set) < 0)
 										{
-											LOG_ERROR("can not merge return store diff item the result store item, some values in the store is ignored");
+											LOG_WARNING("can not merge return store diff item the result store item, some values in the store is ignored");
 										}
-										cesk_value_decref((cesk_value_t*) node->value);
 									}
+									cesk_value_decref((cesk_value_t*) node->value);
 								}
 							}
 							else

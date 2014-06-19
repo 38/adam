@@ -33,7 +33,7 @@ cesk_object_t* cesk_object_new(const char* classpath)
 			if(NULL != class_wrap)
 			{
 				LOG_DEBUG("found built-in class %s", classpath);
-				builtin_size += class_wrap->class->size;
+				builtin_size += class_wrap->class->size + sizeof(cesk_object_struct_t);
 				has_bci = 1;
 				bci_class = class_wrap;
 				break;
