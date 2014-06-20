@@ -24,7 +24,6 @@
 		(iput v4 v3 listNode.next [object listNode])
 		(move-object v3 v4)
 		(add-int/lit16 v1 v1 1)
-		(new-instance v5 listNode)
 		(goto L_BEGIN)
 		(label L_END)
 		;Block 3

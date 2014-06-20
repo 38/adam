@@ -41,8 +41,8 @@ aux_source_directory(src/builtins adam_FILES)
 set_source_files_properties(${adam_FILES} PROPERTIES COMPILE_FLAGS ${CFLAGS})
 add_library(adam ${adam_FILES})
 
-set_source_files_properties(${adam_FILES} PROPERTIES COMPILE_FLAGS "${CFLAGS} -DDEBUGGER")
 add_library(adam_dbg ${adam_FILES})
+set_target_properties(adam_dbg PROPERTIES COMPILE_DEFINITIONS "DEBUGGER")
 
 
 file(GLOB tools RELATIVE ${CMAKE_CURRENT_BINARY_DIR}/${tools_DIR} "${tools_DIR}/*")

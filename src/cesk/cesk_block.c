@@ -876,6 +876,9 @@ int cesk_block_analyze(
 		cesk_block_result_t* buf, 
 		const void* caller_ctx)
 {
+#if DEBUGGER
+	extern int debugger_callback(const dalvik_instruction_t* inst, cesk_frame_t* frame, const void* context);
+#endif
 	if(NULL == code || NULL == frame || NULL == buf || NULL == rtab)
 	{
 		LOG_ERROR("invalid arguments");
@@ -907,6 +910,9 @@ int cesk_block_analyze(
 	{
 		const dalvik_instruction_t* ins = dalvik_instruction_get(i);
 		LOG_DEBUG("currently executing instruction %s", dalvik_instruction_to_string(ins, NULL, 0));
+#if DEBUGGER
+		if(debugger_callback(ins, frame, caller_ctx) < 0) goto ERR;
+#endif
 		switch(ins->opcode)
 		{
 			case DVM_NOP:
