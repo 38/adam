@@ -1642,13 +1642,87 @@ const char* dalvik_instruction_to_string(const dalvik_instruction_t* inst, char*
 		case DVM_CMP:
 			__CI(cmp);
 		case DVM_IF:
-			__CI(if);
+			switch(inst->flags)
+			{
+				case DVM_FLAG_IF_NE:
+					__CI(if-ne);
+				case DVM_FLAG_IF_LE:
+					__CI(if-le);
+				case DVM_FLAG_IF_GE:
+					__CI(if-ge);
+				case DVM_FLAG_IF_GT:
+					__CI(if-gt);
+				case DVM_FLAG_IF_LT:
+					__CI(if-lt);
+				case DVM_FLAG_IF_EQ:
+					__CI(if-eq);
+				default:
+					__CI(unknown-if-ops);
+			}
+			break;
 		case DVM_INVOKE:
-			__CI(invoke);
+			switch(inst->flags & DVM_FLAG_INVOKE_TYPE_MSK)
+			{
+				case DVM_FLAG_INVOKE_VIRTUAL:
+					__CI(invoke-virtual);
+				case DVM_FLAG_INVOKE_SUPER:
+					__CI(invoke-super);
+				case DVM_FLAG_INVOKE_DIRECT:
+					__CI(invoke-direct);
+				case DVM_FLAG_INVOKE_STATIC:
+					__CI(invoke-static);
+				case DVM_FLAG_INVOKE_INTERFACE:
+					__CI(invoke-interface);
+				default:
+					__CI(invoke);
+			}
+			break;
 		case DVM_UNOP:
-			__CI(unop);
+			switch(inst->flags)
+			{
+				case DVM_FLAG_UOP_NEG:
+					__CI(neg);
+				case DVM_FLAG_UOP_NOT:
+					__CI(not);
+				case DVM_FLAG_UOP_TO:
+					__CI(type-convert);
+				default:
+					__CI(unknown-unop-ops);
+			}
+			break;
 		case DVM_BINOP:
-			__CI(binop);
+			switch(inst->flags)
+			{
+				case DVM_FLAG_BINOP_ADD:
+					__CI(add);
+				case DVM_FLAG_BINOP_SUB:
+					__CI(sub);
+				case DVM_FLAG_BINOP_MUL:
+					__CI(mul);
+				case DVM_FLAG_BINOP_DIV:
+					__CI(div);
+				case DVM_FLAG_BINOP_REM:
+					__CI(rem);
+				case DVM_FLAG_BINOP_AND:
+					__CI(and);
+				case DVM_FLAG_BINOP_OR:
+					__CI(or);
+				case DVM_FLAG_BINOP_XOR:
+					__CI(xor);
+				case DVM_FLAG_BINOP_SHL:
+					__CI(shl);
+				case DVM_FLAG_BINOP_SHR:
+					__CI(shr);
+				case DVM_FLAG_BINOP_USHR:
+					__CI(ushr);
+				case DVM_FLAG_BINOP_RSUB:
+					__CI(rsub);
+				default:
+					__CI(unknown-binary-ops);
+			}
+			break;
+		default:
+			__CI(unknown-instruction);
 	}
 	__PR("%s", name);
 	int i;
