@@ -39,14 +39,20 @@ static inline void cli_do_load(sexpression_t* sexp)
 	}
 	else
 	{
-		cli_error("invailid command format");
+		cli_error("usage:\t(load/dir <dirname>)");
 	}
+}
+static inline void cli_do_help(sexpression_t* sexp)
+{
 }
 int main()
 {
 	adam_init();
 	const char* kw_load = stringpool_query("load");
 	const char* kw_quit = stringpool_query("quit");
+	const char* kw_help = stringpool_query("help");
+	cli_error("ADB - the ADAM Debugger");
+	cli_error("type `(help)' for more infomation"); 
 	for(;;)
 	{
 		const char* cmdline = cli_readline(PROMPT);
@@ -66,6 +72,8 @@ int main()
 				if(verb == kw_quit) goto QUIT;
 				else if(verb == kw_load)
 					cli_do_load(sexp);
+				else if(verb == kw_help) 
+					cli_do_help(sexp);
 			}
 			else 
 				cli_error("invalid command `%s'", sexp_to_string(sexp, NULL));

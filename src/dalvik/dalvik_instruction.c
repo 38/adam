@@ -1583,13 +1583,56 @@ const char* dalvik_instruction_to_string(const dalvik_instruction_t* inst, char*
 		case DVM_CONST:
 			__CI(const);
 		case DVM_MONITOR:
-			__CI(monitor);
+			switch(inst->flags)
+			{
+				case DVM_FLAG_MONITOR_ENT:
+					__CI(monitor-enter);
+				case DVM_FLAG_MONITOR_EXT:
+					__CI(monitor-exit);
+				default:
+					__CI(unknown-monitor-ops);
+			}
+			break;
 		case DVM_CHECK_CAST:
 			__CI(check-cast);
 		case DVM_INSTANCE:
-			__CI(instance);
+			switch(inst->flags)
+			{
+				case DVM_FLAG_INSTANCE_GET:
+					__CI(get);
+				case DVM_FLAG_INSTANCE_PUT:
+					__CI(put);
+				case DVM_FLAG_INSTANCE_SGET:
+					__CI(sget);
+				case DVM_FLAG_INSTANCE_SPUT:
+					__CI(sput);
+				case DVM_FLAG_INSTANCE_OF:
+					__CI(instance-of);
+				case DVM_FLAG_INSTANCE_NEW:
+					__CI(new-instance);
+				default:
+					__CI(unknown-instance-ops);
+			}
+			break;
 		case DVM_ARRAY:
-			__CI(array);
+			switch(inst->flags)
+			{
+				case DVM_FLAG_ARRAY_GET:
+					__CI(aget);
+				case DVM_FLAG_ARRAY_PUT:
+					__CI(aput);
+				case DVM_FLAG_ARRAY_NEW:
+					__CI(array-new);
+				case DVM_FLAG_ARRAY_LENGTH:
+					__CI(array-length);
+				case DVM_FLAG_ARRAY_FILLED_NEW:
+					__CI(array-filled-new);
+				case DVM_FLAG_ARRAY_FILLED_NEW_RANGE:
+					__CI(array-filled-new/range);
+				default:
+					__CI(unknown-array-ops);
+			}
+			break;
 		case DVM_THROW:
 			__CI(throw);
 		case DVM_GOTO:

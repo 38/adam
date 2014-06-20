@@ -74,13 +74,31 @@ static inline int _cesk_store_free_object(cesk_store_t* store, cesk_object_t* ob
 				/* decrease the intra-store refcount */
 				if(cesk_store_decref(store, this->addrtab[j]) < 0)
 				{
-					LOG_WARNING("can not decref at address %x", this->addrtab[j]);
+					LOG_WARNING("can not decref at address @%x", this->addrtab[j]);
 				}
 			}
 		}
 		else
 		{
-			LOG_FATAL("TODO decref all in built-in class");
+			uint32_t offset = 0;
+			uint32_t buf[128];
+			for(;;)
+			{
+				int rc = bci_class_get_addr_list(this->bcidata, offset, buf, sizeof(buf)/sizeof(buf[0]), this->class.bci->class);
+				if(rc < 0)
+				{
+					LOG_WARNING("can not get the address list, ignoring");
+					break;
+				}
+				if(0 == rc) break;
+				offset += rc;
+				int j;
+				for(j = 0; j < rc; j ++)
+					if(cesk_store_decref(store, buf[j]) < 0)
+					{
+						LOG_WARNING("can not decref address at @%x", buf[j]);
+					}
+			}
 		}
 		CESK_OBJECT_STRUCT_ADVANCE(this);
 	}

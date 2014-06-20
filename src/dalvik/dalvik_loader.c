@@ -2,6 +2,8 @@
 #include <unistd.h>
 #include <dirent.h>
 #include <stdio.h>
+#include <errno.h>
+#include <string.h>
 
 #include <dalvik/dalvik_loader.h>
 #include <dalvik/dalvik_class.h>
@@ -48,6 +50,11 @@ int dalvik_loader_from_directory(const char* path)
 			LOG_DEBUG("Scanning file %s/%s", path, result[i]->d_name);
 			sprintf(buf, "%s/%s", path, result[i]->d_name);
 			FILE* fp = fopen(buf, "r");
+			if(NULL == fp)
+			{
+				LOG_WARNING("can not open file \"%s\", %s", buf, strerror(errno));
+				continue;
+			}
 			fseek(fp, 0, SEEK_END);
 			int len = ftell(fp) + 1;
 			while(len > bufsize)
