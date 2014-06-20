@@ -20,6 +20,7 @@ file(MAKE_DIRECTORY bin/test)
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY bin)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY bin/lib)
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY bin/lib)
 set(tools_DIR "tools")
 
 set(LOG     6)  # log level can be 0 to 6, 0 means no log, 6 means the most enable debug log 
@@ -40,18 +41,22 @@ aux_source_directory(src/builtins adam_FILES)
 set_source_files_properties(${adam_FILES} PROPERTIES COMPILE_FLAGS ${CFLAGS})
 add_library(adam ${adam_FILES})
 
+set_source_files_properties(${adam_FILES} PROPERTIES COMPILE_FLAGS "${CFLAGS} -DDEBUGGER")
+add_library(adam_dbg ${adam_FILES})
+
 
 file(GLOB tools RELATIVE ${CMAKE_CURRENT_BINARY_DIR}/${tools_DIR} "${tools_DIR}/*")
 foreach(tool ${tools})
 	if(IS_DIRECTORY ${tools_DIR}/${tool})
 		set(tool_FILES "" )
 		aux_source_directory(${tools_DIR}/${tool} tool_FILES)
-		set_source_files_properties(${tool_FILES} PROPERTIES COMPILE_FLAGS ${CFLAGS})
+		include(${tools_DIR}/${tool}/build.cmake)
+		set_source_files_properties(${tool_FILES} PROPERTIES COMPILE_FLAGS "${CFLAGS} ${LOCAL_CFLAGS}")
 		add_executable(${tool} ${tool_FILES})
-		target_link_libraries(${tool} adam)
-		target_link_libraries(${tool} readline)
+		target_link_libraries(${tool} ${LOCAL_LIBS})
 	endif(IS_DIRECTORY ${tools_DIR}/${tool})
 endforeach(tool ${tools})
+
 
 file(GLOB UnitTests "test/test_*.c")
 foreach(test ${UnitTests})

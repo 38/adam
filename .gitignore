@@ -30,7 +30,7 @@ tags
 CMakeCache.txt
 CMakeFiles/*
 cmake_install.cmake
-*.cmake
+CTestTestfile.cmake
 Makefile
 install_manifest.txt
 Testing/*
