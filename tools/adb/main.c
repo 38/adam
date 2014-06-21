@@ -355,14 +355,10 @@ static inline void cli_do_run(sexpression_t* sexp)
 	}
 	else cli_error("invalid command");
 }
-static int cli()
+static int do_command(const char* cmdline)
 {
-	const char* cmdline = cli_readline(PROMPT);
-	static char last_command[1024] = {};
-	if(cmdline && strcmp(cmdline , "") == 0) cmdline = last_command;
-	else if(cmdline) strcpy(last_command, cmdline);
-	sexpression_t* sexp;
 	if(NULL == cmdline) return 0;
+	sexpression_t* sexp;
 	for(;;)
 	{
 		if((cmdline = sexp_parse(cmdline, &sexp)) == NULL)
@@ -423,7 +419,15 @@ static int cli()
 	}
 	return 1;
 }
-int main()
+static int cli()
+{
+	const char* cmdline = cli_readline(PROMPT);
+	static char last_command[1024] = {};
+	if(cmdline && strcmp(cmdline , "") == 0) cmdline = last_command;
+	else if(cmdline) strcpy(last_command, cmdline);
+	return do_command(cmdline);
+}
+int main(int argc, char** argv)
 {
 	adam_init();
 	
@@ -453,6 +457,16 @@ int main()
 
 	cli_error("ADB - the ADAM Debugger");
 	cli_error("type `(help)' for more infomation");
+	int i;
+	for(i = 1; i <argc; i ++)
+	{
+		FILE* fp = fopen(argv[i], "r");
+		if(NULL == fp) continue;
+		char buf[1024];
+		while(NULL != fgets(buf, sizeof(buf), fp))
+			do_command(buf);
+		fclose(fp);
+	}
 	while(cli());
 	if(NULL != input_frame) cesk_frame_free(input_frame);
 	adam_finalize();
