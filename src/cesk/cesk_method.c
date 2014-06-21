@@ -814,9 +814,9 @@ void cesk_method_print_backtrace(const void* method_context)
 				uint32_t addr = blkidx * CESK_STORE_BLOCK_NSLOTS + ofs;
 				uint32_t reloc_addr = cesk_alloctab_query(context->input_frame->store->alloc_tab, context->input_frame->store, addr);
 				if(reloc_addr != CESK_STORE_ADDR_NULL)
-					LOG_DEBUG("\t@%x(@%x)\t%s", reloc_addr, addr,cesk_value_to_string(blk->slots[ofs].value, NULL, 0));
+					LOG_DEBUG("\t"PRSAddr"("PRSAddr")\t%s", reloc_addr, addr,cesk_value_to_string(blk->slots[ofs].value, NULL, 0));
 				else
-					LOG_DEBUG("\t@%x\t%s", addr, cesk_value_to_string(blk->slots[ofs].value, NULL, 0));
+					LOG_DEBUG("\t"PRSAddr"\t%s", addr, cesk_value_to_string(blk->slots[ofs].value, NULL, 0));
 			}
 		}
 		LOG_DEBUG("---------------------------------------------------");
@@ -826,3 +826,23 @@ void cesk_method_print_backtrace(const void* method_context)
 #else
 {}
 #endif
+const cesk_frame_t* cesk_method_context_get_input_frame(const void* context)
+{
+	if(NULL == context) return NULL;
+	const _cesk_method_context_t *frame_context = (const _cesk_method_context_t*)context;
+	return frame_context->input_frame;
+}
+const dalvik_block_t* cesk_method_context_get_current_block(const void* context)
+{
+	if(NULL == context) return NULL;
+	const _cesk_method_context_t *frame_context = (const _cesk_method_context_t*)context;
+	uint32_t blk = frame_context->Q[(frame_context->front - 1)%CESK_METHOD_MAX_NBLOCKS];
+	if(frame_context->front == 0)  blk = 0;
+	return frame_context->blocks[blk].code;
+}
+const void* cesk_method_context_get_caller_context(const void* context)
+{
+	if(NULL == context) return NULL;
+	const _cesk_method_context_t *frame_context = (const _cesk_method_context_t*)context;
+	return frame_context->caller;
+}

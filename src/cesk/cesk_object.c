@@ -326,7 +326,7 @@ const char* cesk_object_to_string(const cesk_object_t* object, char* buf, size_t
 			int j;
 			for(j = 0; j < this->num_members; j ++)
 			{
-				__PR("(%s @%x) ", this->class.udef->members[j] ,this->addrtab[j]);
+				__PR("(%s "PRSAddr") ", this->class.udef->members[j] ,this->addrtab[j]);
 			}
 			__PR(")]");
 		}

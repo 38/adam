@@ -84,19 +84,19 @@ static inline const char* _cesk_diff_record_to_string(int type, int addr, void* 
 	switch(type)
 	{
 		case CESK_DIFF_ALLOC:
-			__PR("(allocate @%x %s)", addr, cesk_value_to_string((cesk_value_t*)value, NULL, 0));
+			__PR("(allocate "PRSAddr" %s)", addr, cesk_value_to_string((cesk_value_t*)value, NULL, 0));
 			break;
 		case CESK_DIFF_DEALLOC:
-			__PR("(deallocate @%x)", addr);
+			__PR("(deallocate "PRSAddr")", addr);
 			break;
 		case CESK_DIFF_REG:
 			__PR("(register v%d %s)", addr, cesk_set_to_string((cesk_set_t*)value, NULL, 0));
 			break;
 		case CESK_DIFF_STORE:
-			__PR("(store @%x %s)", addr, cesk_value_to_string((cesk_value_t*)value, NULL, 0));
+			__PR("(store "PRSAddr" %s)", addr, cesk_value_to_string((cesk_value_t*)value, NULL, 0));
 			break;
 		case CESK_DIFF_REUSE:
-			__PR("(reuse @%x %d)", addr, (value != NULL));
+			__PR("(reuse "PRSAddr" %d)", addr, (value != NULL));
 			break;
 		default:
 			__PR("(unknown-record)");
@@ -242,7 +242,7 @@ static inline int _cesk_diff_gc(cesk_diff_t* diff)
 				{
 					uint32_t idx = CESK_STORE_ADDR_RELOC_IDX(addr);
 					flags[idx] = tick;
-					LOG_DEBUG("address @%x is safe", addr);
+					LOG_DEBUG("address "PRSAddr" is safe", addr);
 				}
 			}
 		}
@@ -277,7 +277,7 @@ static inline int _cesk_diff_gc(cesk_diff_t* diff)
 							{
 								uint32_t idx = CESK_STORE_ADDR_RELOC_IDX(addr);
 								flags[idx] = tick;
-								LOG_DEBUG("address @%x is safe", addr);
+								LOG_DEBUG("address "PRSAddr" is safe", addr);
 							}
 						}
 					}
@@ -293,7 +293,7 @@ static inline int _cesk_diff_gc(cesk_diff_t* diff)
 						{
 							uint32_t idx = CESK_STORE_ADDR_RELOC_IDX(addr);
 							flags[idx] = tick;
-							LOG_DEBUG("address @%x is safe", addr);
+							LOG_DEBUG("address "PRSAddr" is safe", addr);
 						}
 					}
 				}
@@ -322,7 +322,7 @@ static inline int _cesk_diff_gc(cesk_diff_t* diff)
 			{
 				uint32_t idx = CESK_STORE_ADDR_RELOC_IDX(addr);
 				flags[idx] = tick;
-				LOG_DEBUG("address @%x is safe", addr);
+				LOG_DEBUG("address "PRSAddr" is safe", addr);
 			}
 		}
 	}
@@ -369,7 +369,7 @@ static inline int _cesk_diff_gc(cesk_diff_t* diff)
 										{
 											uint32_t idx = CESK_STORE_ADDR_RELOC_IDX(buf[j]);
 											flags[idx] = tick;
-											LOG_DEBUG("address @%x is safe", buf[j]);
+											LOG_DEBUG("address "PRSAddr" is safe", buf[j]);
 										}
 									}
 								}
@@ -384,7 +384,7 @@ static inline int _cesk_diff_gc(cesk_diff_t* diff)
 									{
 										uint32_t midx = CESK_STORE_ADDR_RELOC_IDX(maddr);
 										flags[midx] = tick;
-										LOG_DEBUG("address @%x is safe", maddr);
+										LOG_DEBUG("address "PRSAddr" is safe", maddr);
 									}
 								}
 							}
@@ -408,7 +408,7 @@ static inline int _cesk_diff_gc(cesk_diff_t* diff)
 							{
 								uint32_t eidx = CESK_STORE_ADDR_RELOC_IDX(eaddr);
 								flags[eidx] = tick;
-								LOG_DEBUG("address @%x is safe", eaddr);
+								LOG_DEBUG("address "PRSAddr" is safe", eaddr);
 							}
 						}
 					}
@@ -434,12 +434,12 @@ static inline int _cesk_diff_gc(cesk_diff_t* diff)
 
 		if(alive)
 		{
-			LOG_DEBUG("keep living allocation record @%x", addr);
+			LOG_DEBUG("keep living allocation record "PRSAddr"", addr);
 			diff->data[alloc_free--] = diff->data[alloc_ptr];
 		}
 		else
 		{
-			LOG_DEBUG("delete garbage allocation record @%x", addr);
+			LOG_DEBUG("delete garbage allocation record "PRSAddr"", addr);
 			/* mark store ops on this address can be deleted */
 			store_flags[idx] = tick;
 			cesk_value_decref(diff->data[alloc_ptr].arg.value);
@@ -470,7 +470,7 @@ static inline int _cesk_diff_gc(cesk_diff_t* diff)
 			diff->data[store_free ++] = diff->data[store_ptr];
 		else
 		{
-			LOG_DEBUG("delete store operation on a garbage address @%x", addr);
+			LOG_DEBUG("delete store operation on a garbage address "PRSAddr"", addr);
 			cesk_value_decref(diff->data[store_ptr].arg.value);
 		}
 	}
@@ -582,14 +582,14 @@ cesk_diff_t* cesk_diff_from_buffer(cesk_diff_buffer_t* buffer)
 					switch(section)
 					{
 						case CESK_DIFF_ALLOC:
-							LOG_DEBUG("ignore the duplicated allocation record at the same store address @%x", prev_addr);
+							LOG_DEBUG("ignore the duplicated allocation record at the same store address "PRSAddr"", prev_addr);
 							/* we have to drop the reference */
 							if(NULL != ret->data[ret->offset[section + 1]].arg.value)
 								cesk_value_decref(ret->data[ret->offset[section + 1]].arg.value);
 							ret->data[ret->offset[section + 1]].arg.value = (cesk_value_t*) node->value;
 							break;
 						case CESK_DIFF_DEALLOC:
-							LOG_WARNING("ignore the dumplicated deallocation record at the same store address @%x", prev_addr);
+							LOG_WARNING("ignore the dumplicated deallocation record at the same store address "PRSAddr"", prev_addr);
 							break;
 						case CESK_DIFF_REUSE:
 							if(buffer->merge)
@@ -860,7 +860,7 @@ cesk_diff_t* cesk_diff_apply(int N, cesk_diff_t** args)
 				if(!matches)
 					ret->data[--dealloc_free] = ret->data[dealloc_ptr];
 				else
-					LOG_DEBUG("elimiate deallocation record %d at store address @%x", dealloc_ptr, ret->data[dealloc_ptr].addr);
+					LOG_DEBUG("elimiate deallocation record %d at store address "PRSAddr"", dealloc_ptr, ret->data[dealloc_ptr].addr);
 				matches = 0;
 			}
 			if(ret->data[dealloc_ptr].addr != ret->data[alloc_ptr].addr)
@@ -869,7 +869,7 @@ cesk_diff_t* cesk_diff_apply(int N, cesk_diff_t** args)
 			}
 			else
 			{
-				LOG_DEBUG("elimiate allocation record %d at store address @%x", alloc_ptr, ret->data[alloc_ptr].addr);
+				LOG_DEBUG("elimiate allocation record %d at store address "PRSAddr"", alloc_ptr, ret->data[alloc_ptr].addr);
 				/* we should elimiate the reference also */
 				cesk_value_decref(ret->data[alloc_ptr].arg.value);
 				matches = 1;
@@ -1003,7 +1003,7 @@ cesk_diff_t* cesk_diff_factorize(int N, cesk_diff_t** diffs, const cesk_frame_t*
 							if(NULL == val) continue;
 							if(CESK_TYPE_SET != val->type)
 							{
-								LOG_WARNING("ignore non-set value at store address @%x in store %p",
+								LOG_WARNING("ignore non-set value at store address "PRSAddr" in store %p",
 											cur_addr, 
 											current_frame[i]->store);
 								continue;
@@ -1032,7 +1032,7 @@ cesk_diff_t* cesk_diff_factorize(int N, cesk_diff_t** diffs, const cesk_frame_t*
 							if(NULL == val) continue;
 							if(CESK_TYPE_OBJECT != val->type)
 							{
-								LOG_WARNING("ignore non-object value at store address @%x in store %p",
+								LOG_WARNING("ignore non-object value at store address "PRSAddr" in store %p",
 								             cur_addr,
 											 current_frame[i]->store);
 							}
@@ -1240,7 +1240,7 @@ int cesk_diff_sub(cesk_diff_t* dest, const cesk_diff_t* sour)
 			for(; j >= sour_begin && sour->data[j].addr > dest->data[i].addr; j --);
 			if(sour->data[j].addr == dest->data[i].addr)
 			{
-				LOG_DEBUG("allocation @%x is deleted", sour->data[j].addr); 
+				LOG_DEBUG("allocation "PRSAddr" is deleted", sour->data[j].addr); 
 			}
 			else
 			{
@@ -1264,7 +1264,7 @@ int cesk_diff_sub(cesk_diff_t* dest, const cesk_diff_t* sour)
 			for(; j < sour_end && dest->data[i].addr > sour->data[j].addr; j ++);
 			if(sour->data[j].addr == dest->data[i].addr)
 			{
-				LOG_ERROR("deallocation @%x is deleted", sour->data[j].addr);
+				LOG_ERROR("deallocation "PRSAddr" is deleted", sour->data[j].addr);
 			}
 			else
 			{

@@ -164,7 +164,7 @@ static inline void* _cesk_set_hash_find(uint32_t setidx, uint32_t addr)
 			 return p->data_section;
 		 }
 	}
-	LOG_TRACE("can not find the set hash entry (%d, @%x)", setidx, addr);
+	LOG_TRACE("can not find the set hash entry (%d, "PRSAddr")", setidx, addr);
 	return NULL;
 }
 /** @brief allocate a fresh set index, and append the info entry to hash table */
@@ -658,9 +658,9 @@ const char* cesk_set_to_string(const cesk_set_t* set, char* buf, int sz)
 	while(CESK_STORE_ADDR_NULL != (this = cesk_set_iter_next(&iter)))
 	{
 		if(first)
-			__PR("{@%x", this);
+			__PR("{"PRSAddr"", this);
 		else
-			__PR(",@%x", this);
+			__PR(","PRSAddr"", this);
 		first = 0;
 	}
 	if(first) __PR("{");

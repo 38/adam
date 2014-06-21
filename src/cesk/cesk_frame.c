@@ -175,12 +175,12 @@ cesk_frame_t* cesk_frame_make_invoke(const cesk_frame_t* frame, uint32_t nregs, 
 				uint32_t naddr = cesk_alloctab_query(ret->store->alloc_tab, ret->store, addr);
 				if(CESK_STORE_ADDR_NULL == naddr)
 				{
-					LOG_ERROR("can not find the relocated address @%x", addr);
+					LOG_ERROR("can not find the relocated address "PRSAddr"", addr);
 					goto ERR;
 				}
 				if(cesk_set_modify(reg, addr, naddr) < 0)
 				{
-					LOG_ERROR("can not update relocated address @%x --> @%x", addr, naddr);
+					LOG_ERROR("can not update relocated address "PRSAddr" --> "PRSAddr"", addr, naddr);
 					goto ERR;
 				}
 			}
@@ -451,10 +451,10 @@ int cesk_frame_apply_diff(
 			switch(section)
 			{
 				case CESK_DIFF_ALLOC:
-					LOG_DEBUG("allocating object %s at store address @%x", cesk_value_to_string(rec->arg.value, NULL, 0) ,rec->addr);
+					LOG_DEBUG("allocating object %s at store address "PRSAddr"", cesk_value_to_string(rec->arg.value, NULL, 0) ,rec->addr);
 					if(cesk_reloc_addr_init(reloctab, frame->store, rec->addr, rec->arg.value) == CESK_STORE_ADDR_NULL)
 					{
-						LOG_ERROR("can not initialize relocated address @%x in store %p", rec->addr, frame->store);
+						LOG_ERROR("can not initialize relocated address "PRSAddr" in store %p", rec->addr, frame->store);
 						return -1;
 					}
 					else
@@ -471,7 +471,7 @@ int cesk_frame_apply_diff(
 					}
 					break;
 				case CESK_DIFF_REUSE:
-					LOG_DEBUG("setting reuse flag at store address @%x to %u", rec->addr, rec->arg.boolean);
+					LOG_DEBUG("setting reuse flag at store address "PRSAddr" to %u", rec->addr, rec->arg.boolean);
 					if(rec->arg.boolean == cesk_store_get_reuse(frame->store, rec->addr)) 
 					{
 						LOG_DEBUG("the value reuse bit is already as excepted, no operation needed");
@@ -482,7 +482,7 @@ int cesk_frame_apply_diff(
 					{
 						if(cesk_store_set_reuse(frame->store, rec->addr) < 0)
 						{
-							LOG_ERROR("can not set reuse bit for @%x in store %p", rec->addr, frame->store);
+							LOG_ERROR("can not set reuse bit for "PRSAddr" in store %p", rec->addr, frame->store);
 							return -1;
 						}
 						if(NULL != invbuf && cesk_diff_buffer_append(invbuf, CESK_DIFF_REUSE, rec->addr, CESK_DIFF_REUSE_VALUE(0)) < 0)
@@ -500,7 +500,7 @@ int cesk_frame_apply_diff(
 					{
 						if(cesk_store_clear_reuse(frame->store, rec->addr) < 0)
 						{
-							LOG_ERROR("can not clear reuse bit for @%x in store %p", rec->addr, frame->store);
+							LOG_ERROR("can not clear reuse bit for "PRSAddr" in store %p", rec->addr, frame->store);
 							return -1;
 						}
 						if(NULL != invbuf && cesk_diff_buffer_append(invbuf, CESK_DIFF_REUSE, rec->addr, CESK_DIFF_REUSE_VALUE(1)) < 0)
@@ -555,7 +555,7 @@ int cesk_frame_apply_diff(
 					}
 					break;
 				case CESK_DIFF_STORE:
-					LOG_DEBUG("setting store address @%x to value %s", rec->addr, cesk_value_to_string(rec->arg.value, NULL, 0));
+					LOG_DEBUG("setting store address "PRSAddr" to value %s", rec->addr, cesk_value_to_string(rec->arg.value, NULL, 0));
 					cesk_value_const_t* oldval = cesk_store_get_ro(frame->store, rec->addr);
 					if(oldval->type != rec->arg.value->type)
 					{
@@ -632,7 +632,7 @@ int cesk_frame_apply_diff(
 					/* replace the value */
 					if(cesk_store_attach(frame->store, rec->addr, rec->arg.value) < 0)
 					{
-						LOG_ERROR("can not attach value to store address @%x in store %p", rec->addr, frame->store);
+						LOG_ERROR("can not attach value to store address "PRSAddr" in store %p", rec->addr, frame->store);
 						return -1;
 					}
 					cesk_store_release_rw(frame->store, rec->addr);
@@ -834,7 +834,7 @@ int cesk_frame_register_load(
 	/* incref first, the reason see comment in cesk_frame_apply_diff the part operates the register */
 	if(cesk_store_incref(frame->store, src_addr) < 0)
 	{
-		LOG_ERROR("can not decref for the cell @%x", src_addr);
+		LOG_ERROR("can not decref for the cell "PRSAddr"", src_addr);
 		return -1;
 	}
 
@@ -847,7 +847,7 @@ int cesk_frame_register_load(
 
 	if(cesk_set_push(frame->regs[dst_reg], src_addr) < 0)
 	{
-		LOG_ERROR("can not push address @%x to register %d", src_addr, dst_reg);
+		LOG_ERROR("can not push address "PRSAddr" to register %d", src_addr, dst_reg);
 		return -1;
 	}
 
@@ -958,13 +958,13 @@ int cesk_frame_register_load_from_object(
 		cesk_value_const_t* obj_val = cesk_store_get_ro(frame->store, obj_addr);
 		if(NULL == obj_val)
 		{
-			LOG_WARNING("can not aquire readonly pointer to store address @%x", obj_addr);
+			LOG_WARNING("can not aquire readonly pointer to store address "PRSAddr"", obj_addr);
 			continue;
 		}
 		const cesk_object_t* object = obj_val->pointer.object;
 		if(NULL == object)
 		{
-			LOG_WARNING("ignore NULL object pointer at store address @%x", obj_addr);
+			LOG_WARNING("ignore NULL object pointer at store address "PRSAddr"", obj_addr);
 			continue;
 		}
 		uint32_t fld_addr;
@@ -988,7 +988,7 @@ int cesk_frame_register_load_from_object(
 					cesk_store_incref(frame->store, addr);
 				continue;
 			}
-			LOG_WARNING("failed to fetch field %s/%s at store address @%x, ignoring this object",
+			LOG_WARNING("failed to fetch field %s/%s at store address "PRSAddr", ignoring this object",
 						clspath,
 						fldname,
 						obj_addr);
@@ -999,7 +999,7 @@ int cesk_frame_register_load_from_object(
 		{
 			if(cesk_frame_register_append_from_store(frame, dst_reg, fld_addr, NULL, NULL) < 0)
 			{
-				LOG_WARNING("can not append field value in %s/%s at store address @%x", 
+				LOG_WARNING("can not append field value in %s/%s at store address "PRSAddr"", 
 							clspath,
 							fldname,
 							obj_addr);
@@ -1085,7 +1085,7 @@ uint32_t cesk_frame_store_new_object(
 					uint32_t addr = this->addrtab[j];
 					if(CESK_STORE_ADDR_NULL == addr) 
 					{
-						LOG_WARNING("uninitialized field %s in an initialize object @%x", this->class.udef->members[j], addr);
+						LOG_WARNING("uninitialized field %s in an initialize object "PRSAddr"", this->class.udef->members[j], addr);
 						continue;
 					}
 					
@@ -1101,12 +1101,12 @@ uint32_t cesk_frame_store_new_object(
 					cesk_value_t* value = cesk_store_get_rw(frame->store, addr, 0);
 					if(NULL == value)
 					{
-						LOG_WARNING("can not get writable pointer to store address @%x in store %p", addr, frame->store);
+						LOG_WARNING("can not get writable pointer to store address "PRSAddr" in store %p", addr, frame->store);
 						continue;
 					}
 					if(CESK_TYPE_SET != value->type)
 					{
-						LOG_WARNING("expecting a set at store address @%x in store %p", addr, frame->store);
+						LOG_WARNING("expecting a set at store address "PRSAddr" in store %p", addr, frame->store);
 						continue;
 					}
 					_SNAPSHOT(inv_buf, CESK_DIFF_STORE, addr, value);
@@ -1195,7 +1195,7 @@ uint32_t cesk_frame_store_new_object(
 					this->addrtab[j] = faddr;
 					if(cesk_store_incref(frame->store, faddr) < 0)
 					{
-						LOG_ERROR("can not maniuplate the reference counter at store address @%x", faddr);
+						LOG_ERROR("can not maniuplate the reference counter at store address "PRSAddr"", faddr);
 						return -1;
 					}
 					new_val->reloc = 1;
@@ -1242,7 +1242,7 @@ int cesk_frame_store_put_field(
 	
 	if(NULL == value)
 	{
-		LOG_ERROR("can not find object @%x", dst_addr);
+		LOG_ERROR("can not find object "PRSAddr"", dst_addr);
 		return -1;
 	}
 
@@ -1321,7 +1321,7 @@ int cesk_frame_store_put_field(
 				if(cesk_set_contain(set, tmp_addr) == 1) continue;
 				if(cesk_store_incref(frame->store, tmp_addr) < 0)
 				{
-					LOG_WARNING("can not incref at address @%x", tmp_addr);
+					LOG_WARNING("can not incref at address "PRSAddr"", tmp_addr);
 				}
 				if(CESK_STORE_ADDR_IS_RELOC(tmp_addr))
 					value_set->reloc = 1;
@@ -1353,7 +1353,7 @@ int cesk_frame_store_put_field(
 			{
 				if(cesk_store_incref(frame->store, tmp_addr) < 0)
 				{
-					LOG_WARNING("can not incref at address @%x", tmp_addr);
+					LOG_WARNING("can not incref at address "PRSAddr"", tmp_addr);
 				}
 			}
 

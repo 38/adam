@@ -74,7 +74,7 @@ static inline int _cesk_store_free_object(cesk_store_t* store, cesk_object_t* ob
 				/* decrease the intra-store refcount */
 				if(cesk_store_decref(store, this->addrtab[j]) < 0)
 				{
-					LOG_WARNING("can not decref at address @%x", this->addrtab[j]);
+					LOG_WARNING("can not decref at address "PRSAddr"", this->addrtab[j]);
 				}
 			}
 		}
@@ -96,7 +96,7 @@ static inline int _cesk_store_free_object(cesk_store_t* store, cesk_object_t* ob
 				for(j = 0; j < rc; j ++)
 					if(cesk_store_decref(store, buf[j]) < 0)
 					{
-						LOG_WARNING("can not decref address at @%x", buf[j]);
+						LOG_WARNING("can not decref address at "PRSAddr"", buf[j]);
 					}
 			}
 		}
@@ -498,7 +498,7 @@ cesk_value_t* cesk_store_get_rw(cesk_store_t* store, uint32_t addr, int noval)
 	cesk_value_t* val = block->slots[offset].value;
 	if(NULL == val)
 	{
-		//LOG_ERROR("the address is not in use (@%x)", addr);
+		//LOG_ERROR("the address is not in use ("PRSAddr")", addr);
 		return NULL;
 	}
 	if(val->refcnt > 1 && noval == 0)
@@ -524,7 +524,7 @@ cesk_value_t* cesk_store_get_rw(cesk_store_t* store, uint32_t addr, int noval)
 	 * value and update the hashcode */
 	store->hashcode ^= HASH_INC(addr, val, block->slots[offset].reuse);
 	if(val->write_count > 15) 
-		LOG_WARNING("too many write pointer aquired, which up to 15 at store address @%x", addr);
+		LOG_WARNING("too many write pointer aquired, which up to 15 at store address "PRSAddr"", addr);
 	else
 		val->write_count ++;
 	return val;
@@ -601,12 +601,12 @@ uint32_t cesk_store_allocate(cesk_store_t* store, const dalvik_instruction_t* in
 	for(attempt = 0; attempt < CESK_STORE_ALLOC_ATTEMPT; attempt ++)
 	{
 		int block;
-		LOG_DEBUG("attempt #%d : slot @%d for instruction %d", attempt, slot, idx);
+		LOG_DEBUG("attempt #%d : slot "PRSAddr" for instruction 0x%x", attempt, slot, idx);
 		for(block = 0; block < store->nblocks; block ++)
 		{
 			if(store->blocks[block]->slots[slot].value == NULL && empty_offset == -1)
 			{
-				LOG_DEBUG("find an empty slot @(block = %d, offset = %d)", block, slot);
+				LOG_DEBUG("find an empty slot @(block = 0x%x, offset = 0x%x)", block, slot);
 				empty_block = block;
 				empty_offset = slot;
 			}
@@ -614,7 +614,7 @@ uint32_t cesk_store_allocate(cesk_store_t* store, const dalvik_instruction_t* in
 			   store->blocks[block]->slots[slot].idx == idx && 
 			   store->blocks[block]->slots[slot].field == field_ofs)
 			{
-				LOG_DEBUG("find the equal slot @(block = %d, offset = %d)", block, slot);
+				LOG_DEBUG("find the equal slot @(block = 0x%x, offset = 0x%x)", block, slot);
 				equal_block = block;
 				equal_offset = slot;
 			}
@@ -659,7 +659,7 @@ uint32_t cesk_store_allocate(cesk_store_t* store, const dalvik_instruction_t* in
 	{
 		if(empty_offset != -1)
 		{
-			LOG_DEBUG("allocate %"PRIu32" (block=%d, offset = %d) for instruction %d", 
+			LOG_DEBUG("allocate 0x%"PRIx32" (block=0x%x, offset = 0x%x) for instruction 0x%x", 
 						(uint32_t)(empty_block * CESK_STORE_BLOCK_NSLOTS + empty_offset), 
                         empty_block, empty_offset, idx);
 			store->blocks[empty_block]->slots[empty_offset].idx = idx;
@@ -676,7 +676,7 @@ uint32_t cesk_store_allocate(cesk_store_t* store, const dalvik_instruction_t* in
 	else
 	{
 		/* some equal entry */
-		LOG_DEBUG("reuse %"PRIu32" (block = %d, offset = %d for instruction %d",
+		LOG_DEBUG("reuse %"PRIx32" (block = 0x%x, offset = 0x%x for instruction 0x%x",
 			      (uint32_t)(equal_block * CESK_STORE_BLOCK_NSLOTS + equal_offset), equal_block, equal_offset, idx);
 		/* do not set the reuse bit here */
 		//store->blocks[equal_block]->slots[equal_offset].reuse = 1;   
@@ -771,7 +771,7 @@ int cesk_store_incref(cesk_store_t* store, uint32_t addr)
 	}
 	else
 	{
-		LOG_ERROR("the object @%x is alread dead", addr);
+		LOG_ERROR("the object "PRSAddr" is alread dead", addr);
 		return -1;
 	}
 }
@@ -933,9 +933,9 @@ const char* cesk_store_to_string(const cesk_store_t* store, char* buf, size_t sz
 			uint32_t addr = blkidx * CESK_STORE_BLOCK_NSLOTS + ofs;
 			uint32_t reloc_addr = cesk_alloctab_query(store->alloc_tab, store, addr);
 			if(reloc_addr != CESK_STORE_ADDR_NULL)
-				__PR("([@%x --> @%x] %s) ", reloc_addr, addr, cesk_value_to_string(blk->slots[ofs].value, NULL, 0));
+				__PR("(["PRSAddr" --> "PRSAddr"] %s) ", reloc_addr, addr, cesk_value_to_string(blk->slots[ofs].value, NULL, 0));
 			else
-				__PR("(@%x: %s)", addr, cesk_value_to_string(blk->slots[ofs].value, NULL, 0));
+				__PR("("PRSAddr": %s)", addr, cesk_value_to_string(blk->slots[ofs].value, NULL, 0));
 		}
 	}
 	return buf;
@@ -955,9 +955,9 @@ void cesk_store_print_debug(const cesk_store_t* store)
 			uint32_t addr = blkidx * CESK_STORE_BLOCK_NSLOTS + ofs;
 			uint32_t reloc_addr = cesk_alloctab_query(store->alloc_tab, store, addr);
 			if(reloc_addr != CESK_STORE_ADDR_NULL)
-				LOG_DEBUG("\t@%x(@%x)\t%s", reloc_addr, addr,cesk_value_to_string(blk->slots[ofs].value, NULL, 0));
+				LOG_DEBUG("\t"PRSAddr"("PRSAddr")\t%s", reloc_addr, addr,cesk_value_to_string(blk->slots[ofs].value, NULL, 0));
 			else
-				LOG_DEBUG("\t@%x\t%s", addr, cesk_value_to_string(blk->slots[ofs].value, NULL, 0));
+				LOG_DEBUG("\t"PRSAddr"\t%s", addr, cesk_value_to_string(blk->slots[ofs].value, NULL, 0));
 		}
 	}
 }

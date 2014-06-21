@@ -51,7 +51,7 @@ static inline uint32_t _cesk_block_register_const_merge(const cesk_frame_t* fram
 	{
 		if(!CESK_STORE_ADDR_IS_CONST(current))
 		{
-			LOG_WARNING("ignoring non-constant address @%x", current);
+			LOG_WARNING("ignoring non-constant address "PRSAddr"", current);
 			continue;
 		}
 		input |= current;
@@ -110,7 +110,7 @@ static inline int _cesk_block_handler_const(const dalvik_instruction_t* ins, ces
 	/* TODO const-string and const-class */
 	if(cesk_frame_register_load(frame, dest, sour, D, I) < 0)
 	{
-		LOG_ERROR("can not load the value @%x to register %u", sour, dest);
+		LOG_ERROR("can not load the value "PRSAddr" to register %u", sour, dest);
 		return -1;
 	}
 	return 0;
@@ -211,7 +211,7 @@ static inline int _cesk_block_handler_instance(
 				LOG_ERROR("can not allocate new instance of class %s in frame %p", clspath, frame);
 				return -1;
 			}
-			LOG_DEBUG("allocated new instance of class %s at store address @%x", clspath, ret);
+			LOG_DEBUG("allocated new instance of class %s at store address "PRSAddr"", clspath, ret);
 			return cesk_frame_register_load(frame, dest, ret, D, I);
 		case DVM_FLAG_INSTANCE_GET:
 			dest = _cesk_block_operand_to_regidx(ins->operands + 0);
@@ -242,7 +242,7 @@ static inline int _cesk_block_handler_instance(
 				}
 				if(cesk_frame_store_put_field(frame, addr, sour, clspath, fldname, keep_old, D, I) < 0)
 				{
-					LOG_ERROR("failed to write filed %s/%s at store address @%x", clspath, fldname, addr);
+					LOG_ERROR("failed to write filed %s/%s at store address "PRSAddr"", clspath, fldname, addr);
 					return -1;
 				}
 			}
@@ -413,7 +413,7 @@ static inline uint32_t _cesk_block_invoke_result_addr_translate(
 		uint32_t i_addr = addrmap[idx];
 		if(CESK_STORE_ADDR_NULL == i_addr)
 		{
-			LOG_ERROR("there's no map between result address @%x to interal address, stopping translating", i_addr);
+			LOG_ERROR("there's no map between result address "PRSAddr" to interal address, stopping translating", i_addr);
 			return CESK_STORE_ADDR_NULL;
 		}
 		r_addr = i_addr;
@@ -421,7 +421,7 @@ static inline uint32_t _cesk_block_invoke_result_addr_translate(
 	/* if this address is not a relocated address in this store, then the translated address is the address itself */ 
 	else if(CESK_STORE_ADDR_NULL == (r_addr = cesk_alloctab_query(frame->store->alloc_tab, frame->store, addr)))
 		r_addr = addr;
-	LOG_DEBUG("invocation result translation: @%x --> @%x", addr, r_addr);
+	LOG_DEBUG("invocation result translation: "PRSAddr" --> "PRSAddr"", addr, r_addr);
 	return r_addr;
 }
 /**
@@ -451,12 +451,12 @@ static inline cesk_set_t* _cesk_block_invoke_result_set_translate(
 		uint32_t i_addr = _cesk_block_invoke_result_addr_translate(addr, frame, diff, addrmap);
 		if(CESK_STORE_ADDR_NULL == i_addr)
 		{
-			LOG_ERROR("can not translate result address @%x", addr);
+			LOG_ERROR("can not translate result address "PRSAddr"", addr);
 			return NULL;
 		}
 		if(cesk_set_modify(set, addr, i_addr) < 0)
 		{
-			LOG_ERROR("can not modify address @%x to address @%x", addr, i_addr);
+			LOG_ERROR("can not modify address "PRSAddr" to address "PRSAddr"", addr, i_addr);
 			return NULL;
 		}
 	}
@@ -530,7 +530,7 @@ static inline cesk_value_t* _cesk_block_invoke_result_value_translate(
 				uint32_t r_addr = _cesk_block_invoke_result_addr_translate(addr, frame, diff, addrmap);
 				if(CESK_STORE_ADDR_NULL == addr)
 				{
-					LOG_ERROR("can not translate result address @%x to interal address", addr);
+					LOG_ERROR("can not translate result address "PRSAddr" to interal address", addr);
 					return NULL;
 				}
 				this->addrtab[j] = r_addr;
@@ -582,7 +582,7 @@ static inline cesk_diff_t* _cesk_block_invoke_result_translate(
 		const cesk_reloc_item_t* info = cesk_reloc_addr_info(callee_rtab, result->data[i].addr);
 		if(NULL == info)
 		{
-			LOG_ERROR("can not get the info for relocated address @%x", result->data[i].addr);
+			LOG_ERROR("can not get the info for relocated address "PRSAddr"", result->data[i].addr);
 			goto ERR;
 		}
 		/* allocate a new relocated address for this object */
@@ -593,7 +593,7 @@ static inline cesk_diff_t* _cesk_block_invoke_result_translate(
 			goto ERR;
 		}
 		interal_addr[i - result->offset[CESK_DIFF_ALLOC]] = iaddr;
-		LOG_DEBUG("new address map @%x --> @%x", result->data[i].addr, iaddr);
+		LOG_DEBUG("new address map "PRSAddr" --> "PRSAddr"", result->data[i].addr, iaddr);
 	}
 
 	/* process the reuse section first, perform an address translation */
@@ -614,7 +614,7 @@ static inline cesk_diff_t* _cesk_block_invoke_result_translate(
 		cesk_value_const_t* store_value;
 		if(raddr_limit > iaddr && (store_value = cesk_store_get_ro(frame->store, iaddr)) != NULL) 
 		{
-			LOG_DEBUG("address @%x is already allocated in this frame, just setup reuse flag", iaddr);
+			LOG_DEBUG("address "PRSAddr" is already allocated in this frame, just setup reuse flag", iaddr);
 			if(cesk_diff_buffer_append(buf, CESK_DIFF_REUSE, iaddr, CESK_DIFF_REUSE_VALUE(1)) < 0)
 			{
 				LOG_ERROR("can not append reuse record in the diff buffer");
@@ -628,13 +628,13 @@ static inline cesk_diff_t* _cesk_block_invoke_result_translate(
 				cesk_value_t* value = _cesk_block_invoke_result_value_translate(result->data[i].arg.value, frame, result, interal_addr);
 				if(NULL == value) 
 				{
-					LOG_ERROR("can not translate the value @%x", result->data[i].addr);
+					LOG_ERROR("can not translate the value "PRSAddr"", result->data[i].addr);
 					goto ERR;
 				}
 				/* after the address translation, we are to merge this value with the old store value */
 				if(NULL == store_value)
 				{
-					LOG_DEBUG("nothing in the address address @%x", iaddr);
+					LOG_DEBUG("nothing in the address address "PRSAddr"", iaddr);
 				}
 				else if(cesk_set_merge(value->pointer.set, store_value->pointer.set) < 0)
 				{
@@ -643,7 +643,7 @@ static inline cesk_diff_t* _cesk_block_invoke_result_translate(
 				}
 				if(cesk_diff_buffer_append(buf, CESK_DIFF_STORE, iaddr, value) < 0)
 				{
-					LOG_ERROR("can not append the new value to the diff buffer at address @%x", iaddr);
+					LOG_ERROR("can not append the new value to the diff buffer at address "PRSAddr"", iaddr);
 					goto ERR;
 				}
 			}
@@ -736,7 +736,7 @@ static inline cesk_diff_t* _cesk_block_invoke_result_translate(
 			{
 				if(NULL == store_value)
 				{
-					LOG_ERROR("can not read store value at address @%x", addr);
+					LOG_ERROR("can not read store value at address "PRSAddr"", addr);
 					goto ERR;
 				}
 				if(cesk_set_merge(set, store_value->pointer.set) < 0)
