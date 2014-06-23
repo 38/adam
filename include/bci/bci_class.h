@@ -30,7 +30,7 @@ struct _bci_class_t {
 	int (*onload)();/*!< actions after this class is loaded from the package return value < 0 means error */
 	int (*ondelete)();/*!< actions before this class remove from the name table return value < 0 means error */
 	
-	int (*initialization)(void* this);/*!< how to initialize the data used by this instance, this is NOT CONSTRUCTOR return value < 0 means error */
+	int (*initialization)(void* this, const void* init_param);/*!< how to initialize the data used by this instance, this is NOT CONSTRUCTOR return value < 0 means error */
 	int (*finalization)(void* this);/*!< how to clean up this instance, NOT DESTRUCTOR return value < 0 means error*/
 
 	int (*duplicate)(const void* this, void* that);/*!< how to make a duplicate return value < 0 means error*/
@@ -58,10 +58,11 @@ struct _bci_class_t {
  * @brief initialize a built-in instance
  * @param mem the memory for this instance
  * @param class the class def
+ * @param the initialzation parameter
  * @param classpath the class path
  * @return result of initialization, < 0 indicates an error
  **/
-int bci_class_initialize(void* mem, const bci_class_t* class);
+int bci_class_initialize(void* mem, const void* init_param, const bci_class_t* class);
 /**
  * @brief get the value of the field
  * @param this the object memory

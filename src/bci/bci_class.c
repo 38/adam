@@ -1,5 +1,5 @@
 #include <bci/bci_class.h>
-int bci_class_initialize(void* mem, const bci_class_t* class)
+int bci_class_initialize(void* mem, const void* init_param, const bci_class_t* class)
 {
 	if(NULL == mem || NULL == class)
 	{
@@ -8,7 +8,7 @@ int bci_class_initialize(void* mem, const bci_class_t* class)
 	}
 	if(NULL != class->initialization)
 	{
-		if(class->initialization(mem) < 0)
+		if(class->initialization(mem, init_param) < 0)
 		{
 			LOG_ERROR("failed initlaize the new built-in class");
 			return -1;

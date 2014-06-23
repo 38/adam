@@ -972,11 +972,10 @@ int cesk_frame_register_load_from_object(
 		const void* builtin_data;
 		if(cesk_object_get_addr(object, clspath, fldname, &builtin_class, &builtin_data, &fld_addr) < 0)
 		{
-			const cesk_set_t* set;
+			cesk_set_t* set;
 			if(NULL != builtin_class && NULL != builtin_data && NULL != (set = bci_class_get_field(builtin_data, fldname, builtin_class)))
 			{
-				if(frame->regs[dst_reg] != NULL) cesk_set_free(frame->regs[dst_reg]);
-				frame->regs[dst_reg] = cesk_set_fork(set);
+				frame->regs[dst_reg] = set;
 				cesk_set_iter_t iter;
 				uint32_t addr;
 				if(cesk_set_iter(set, &iter) == NULL)
@@ -1022,6 +1021,7 @@ uint32_t cesk_frame_store_new_object(
 		cesk_reloc_table_t* reloctab,
 		const dalvik_instruction_t* inst,
 		const char* clspath,
+		const void* bci_init_param,
 		cesk_diff_buffer_t* diff_buf,
 		cesk_diff_buffer_t* inv_buf)
 {
@@ -1130,7 +1130,7 @@ uint32_t cesk_frame_store_new_object(
 			}
 			else
 			{
-				if(bci_class_initialize(this->bcidata, this->class.bci->class) < 0)
+				if(bci_class_initialize(this->bcidata, bci_init_param, this->class.bci->class) < 0)
 				{
 					LOG_WARNING("failed to initlaize the built-in class");
 				}
@@ -1211,7 +1211,7 @@ uint32_t cesk_frame_store_new_object(
 			}
 			else
 			{
-				if(bci_class_initialize(this->bcidata, this->class.bci->class) < 0)
+				if(bci_class_initialize(this->bcidata, bci_init_param, this->class.bci->class) < 0)
 				{
 					LOG_WARNING("failed to initlaize the built-in class");
 				}

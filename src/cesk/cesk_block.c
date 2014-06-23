@@ -120,7 +120,7 @@ static inline int _cesk_block_handler_const(
 			clspath = stringpool_query("java/lang/String");
 			if(NULL == clspath) return -1;
 		}
-		uint32_t ret = cesk_frame_store_new_object(frame, rtab, ins, clspath, D, I);
+		uint32_t ret = cesk_frame_store_new_object(frame, rtab, ins, clspath, value, D, I);
 		if(CESK_STORE_ADDR_NULL == ret)
 		{
 			LOG_ERROR("can not allocate new instance of class %s in frame %p", clspath, frame);
@@ -140,8 +140,6 @@ static inline int _cesk_block_handler_const(
 			LOG_ERROR("this is impossible!");
 			return -1;
 		}
-
-		*(const char**)store_value->pointer.object->builtin->bcidata = value;
 		
 		return cesk_frame_register_load(frame, dest, ret, D, I);
 		
@@ -248,7 +246,7 @@ static inline int _cesk_block_handler_instance(
 		case DVM_FLAG_INSTANCE_NEW:
 			dest = _cesk_block_operand_to_regidx(ins->operands + 0);
 			clspath = ins->operands[1].payload.string;
-			ret = cesk_frame_store_new_object(frame, rtab, ins, clspath, D, I);
+			ret = cesk_frame_store_new_object(frame, rtab, ins, clspath, NULL, D, I);
 			if(CESK_STORE_ADDR_NULL == ret)
 			{
 				LOG_ERROR("can not allocate new instance of class %s in frame %p", clspath, frame);

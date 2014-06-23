@@ -24,9 +24,12 @@ int java_lang_String_onload()
 	}
 	return 0;
 }
-int java_lang_String_init(void* this)
+int java_lang_String_init(void* this, const void* param)
 {
-	*(const char**)this = stringpool_query("");
+	if(NULL != param)
+		*(const char**)this = (const char*)param;
+	else 
+		*(const char**)this = java_lang_String_empty;
 	return 0;
 }
 int java_lang_String_duplicate(const void* this, void* that)
@@ -48,7 +51,7 @@ cesk_set_t* java_lang_String_get_field(const void* this, const char* fieldname)
 		{
 			cesk_set_push(ret,CESK_STORE_ADDR_ZERO);
 		}
-		else if(NULL == *(const char**)fieldname)
+		else if(NULL == *(const char**)this)
 		{
 			cesk_set_push(ret,CESK_STORE_ADDR_ZERO);
 			cesk_set_push(ret,CESK_STORE_ADDR_POS);

@@ -369,15 +369,22 @@ static int do_command(const char* cmdline)
 	{
 		if((cmdline = sexp_parse(cmdline, &sexp)) == NULL)
 		{
-			if(SEXP_EOF == sexp) break;
-			cli_error("can not parse the input");
+			if(SEXP_EOF != sexp) 
+			{
+				cli_error("can not parse the input");
+				if(NULL != sexp) sexp_free(sexp);
+			}
 			break;
 		}
 		start = sexp;
 		const char* verb;
 		if(sexp_match(sexp ,"(L?A", &verb, &sexp))
 		{
-			if(verb == kw_quit) return 0;
+			if(verb == kw_quit) 
+			{
+				sexp_free(start);
+				return 0;
+			}
 			else if(verb == kw_load)
 				cli_do_load(sexp);
 			else if(verb == kw_help) 
@@ -392,15 +399,18 @@ static int do_command(const char* cmdline)
 				cli_do_run(sexp);
 			else if(verb == kw_continue)
 			{
+				sexp_free(start);
 				return 2;
 			}
 			else if(verb == kw_step)
 			{
+				sexp_free(start);
 				step = 1;
 				return 2;
 			}
 			else if(verb == kw_next)
 			{
+				sexp_free(start);
 				step = 2;
 				break_context = current_context;
 				return 2;
