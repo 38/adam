@@ -20,6 +20,7 @@ static inline cesk_value_t* _cesk_value_alloc(uint32_t type)
 	ret->refcnt = 0;
 	ret->next = _cesk_value_list;
 	ret->prev = NULL;
+	ret->reloc = 0;
 	if(_cesk_value_list) 
 		_cesk_value_list->prev = ret;
 	_cesk_value_list = ret;

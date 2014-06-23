@@ -103,15 +103,58 @@ static inline int _cesk_block_handler_move(const dalvik_instruction_t* ins, cesk
  * @param I the diff buffer to tacck the how to revert the modification
  * @return the result of execution, < 0 indicates failure
  **/
-static inline int _cesk_block_handler_const(const dalvik_instruction_t* ins, cesk_frame_t* frame, cesk_diff_buffer_t* D, cesk_diff_buffer_t* I)
+static inline int _cesk_block_handler_const(
+		const dalvik_instruction_t* ins, 
+		cesk_frame_t* frame, 
+		cesk_reloc_table_t* rtab,
+		cesk_diff_buffer_t* D, 
+		cesk_diff_buffer_t* I)
 {
-	uint32_t dest = _cesk_block_operand_to_regidx(ins->operands + 0);
-	uint32_t sour = cesk_store_const_addr_from_operand(&ins->operands[1]);
-	/* TODO const-string and const-class */
-	if(cesk_frame_register_load(frame, dest, sour, D, I) < 0)
+	if(DVM_OPERAND_TYPE_STRING == ins->operands[1].header.info.type)
 	{
-		LOG_ERROR("can not load the value "PRSAddr" to register %u", sour, dest);
-		return -1;
+		const char* value = ins->operands[1].payload.string;
+		uint32_t dest = _cesk_block_operand_to_regidx(ins->operands + 0);
+		static const char* clspath = NULL;
+		if(NULL == clspath)
+		{
+			clspath = stringpool_query("java/lang/String");
+			if(NULL == clspath) return -1;
+		}
+		uint32_t ret = cesk_frame_store_new_object(frame, rtab, ins, clspath, D, I);
+		if(CESK_STORE_ADDR_NULL == ret)
+		{
+			LOG_ERROR("can not allocate new instance of class %s in frame %p", clspath, frame);
+			return -1;
+		}
+		LOG_DEBUG("allocated new instance of class %s at store address "PRSAddr"", clspath, ret);
+
+		/* default value */
+
+		cesk_value_t* store_value = cesk_store_get_rw(frame->store, ret, 0);
+
+		if(NULL == store_value || 
+		   CESK_TYPE_OBJECT != store_value->type || 
+		   clspath != cesk_object_classpath(store_value->pointer.object) ||
+		   NULL == store_value->pointer.object->builtin)
+		{
+			LOG_ERROR("this is impossible!");
+			return -1;
+		}
+
+		*(const char**)store_value->pointer.object->builtin->bcidata = value;
+		
+		return cesk_frame_register_load(frame, dest, ret, D, I);
+		
+	}
+	else
+	{
+		uint32_t dest = _cesk_block_operand_to_regidx(ins->operands + 0);
+		uint32_t sour = cesk_store_const_addr_from_operand(&ins->operands[1]);
+		if(cesk_frame_register_load(frame, dest, sour, D, I) < 0)
+		{
+			LOG_ERROR("can not load the value "PRSAddr" to register %u", sour, dest);
+			return -1;
+		}
 	}
 	return 0;
 }
@@ -205,7 +248,7 @@ static inline int _cesk_block_handler_instance(
 		case DVM_FLAG_INSTANCE_NEW:
 			dest = _cesk_block_operand_to_regidx(ins->operands + 0);
 			clspath = ins->operands[1].payload.string;
-			ret = cesk_frame_store_new_object(frame, rtab, ins, context, clspath, D, I);
+			ret = cesk_frame_store_new_object(frame, rtab, ins, clspath, D, I);
 			if(CESK_STORE_ADDR_NULL == ret)
 			{
 				LOG_ERROR("can not allocate new instance of class %s in frame %p", clspath, frame);
@@ -921,7 +964,7 @@ int cesk_block_analyze(
 				if(_cesk_block_handler_move(ins, frame, dbuf, ibuf) < 0) goto EXE_ERR;
 				break;
 			case DVM_CONST:
-				if(_cesk_block_handler_const(ins, frame, dbuf, ibuf) < 0) goto EXE_ERR;
+				if(_cesk_block_handler_const(ins, frame, rtab, dbuf, ibuf) < 0) goto EXE_ERR;
 				break;
 			case DVM_CMP:
 				if(_cesk_block_handler_cmp(ins, frame, dbuf, ibuf) < 0) goto EXE_ERR;

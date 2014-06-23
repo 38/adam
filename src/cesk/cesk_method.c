@@ -142,6 +142,7 @@ static inline _cesk_method_cache_node_t* _cesk_method_cache_node_new(const dalvi
 	ret->code = code;
 	ret->result = NULL;
 	ret->next = NULL;
+	ret->rtable = NULL;
 	return ret;
 }
 /**
@@ -623,6 +624,11 @@ cesk_diff_t* cesk_method_analyze(const dalvik_block_t* code, cesk_frame_t* frame
 	
 	/* insert current node to the cache, tell others I've ever been here */
 	node = _cesk_method_cache_insert(code, frame);
+	if(NULL == node)
+	{
+		LOG_ERROR("can not allocate a new node in method analyzer cache");
+		goto ERR;
+	}
 
 	/* create a result buffer */
 	cesk_diff_t* result = NULL;
@@ -776,6 +782,7 @@ cesk_diff_t* cesk_method_analyze(const dalvik_block_t* code, cesk_frame_t* frame
 	return cesk_diff_fork(result);
 ERR:
 	if(result) cesk_diff_free(result);
+	if(context->rtable) cesk_reloc_table_free(context->rtable);
 	if(context) _cesk_method_context_free(context);
 	return NULL;
 }

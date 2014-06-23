@@ -1021,7 +1021,6 @@ uint32_t cesk_frame_store_new_object(
 		cesk_frame_t* frame,
 		cesk_reloc_table_t* reloctab,
 		const dalvik_instruction_t* inst,
-		uint32_t context,
 		const char* clspath,
 		cesk_diff_buffer_t* diff_buf,
 		cesk_diff_buffer_t* inv_buf)
@@ -1050,6 +1049,12 @@ uint32_t cesk_frame_store_new_object(
 	/* if there's some value already there */
 	if((value = cesk_store_get_rw(frame->store, addr, 0)) != NULL)
 	{
+		/* constant allocation? ignore */
+		if(DVM_CONST == inst->opcode) 
+		{
+			LOG_DEBUG("ignore the second time allocation of a constant value");
+			return addr;
+		}
 		/* check validity of the address */
 		if(value->type != CESK_TYPE_OBJECT)
 		{

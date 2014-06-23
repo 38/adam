@@ -301,6 +301,11 @@ static inline void cli_do_frame(sexpression_t* sexp)
 			T[i] = dalvik_type_from_sexp(this);
 		T[i] = NULL;
 		const dalvik_block_t* graph = dalvik_block_from_method(class, name, T);
+		if(NULL == graph)
+		{
+			cli_error("can not find method %s.%s", class, name);
+			return; 
+		}
 		input_frame = cesk_frame_new(graph->nregs);
 	}
 	else if(sexp_match(sexp, "(L=L?A", kw_set, &reg, &sexp))
@@ -337,7 +342,7 @@ static inline void cli_do_run(sexpression_t* sexp)
 	const char* name;
 	const char* class;
 	sexpression_t* tl;
-	if(sexp_match(sexp, "(L?L?C?A", &class, &name, &tl, &sexp))
+	if(sexp_match(sexp, "(L?L?C?A", &class, &name, &tl, &sexp) && NULL != input_frame)
 	{
 		sexpression_t* this;
 		const dalvik_type_t *T[128];
@@ -346,6 +351,7 @@ static inline void cli_do_run(sexpression_t* sexp)
 			T[i] = dalvik_type_from_sexp(this);
 		T[i] = NULL;
 		const dalvik_block_t* graph = dalvik_block_from_method(class, name, T);
+		if(NULL == graph) return;
 		cesk_reloc_table_t* rtab;
 		cesk_diff_t* ret = cesk_method_analyze(graph, input_frame, NULL, &rtab);
 		if(NULL == ret) cli_error("function returns with an error");
@@ -358,7 +364,7 @@ static inline void cli_do_run(sexpression_t* sexp)
 static int do_command(const char* cmdline)
 {
 	if(NULL == cmdline) return 0;
-	sexpression_t* sexp;
+	sexpression_t* sexp, *start;
 	for(;;)
 	{
 		if((cmdline = sexp_parse(cmdline, &sexp)) == NULL)
@@ -367,6 +373,7 @@ static int do_command(const char* cmdline)
 			cli_error("can not parse the input");
 			break;
 		}
+		start = sexp;
 		const char* verb;
 		if(sexp_match(sexp ,"(L?A", &verb, &sexp))
 		{
@@ -412,10 +419,10 @@ static int do_command(const char* cmdline)
 		else
 		{
 			cli_error("invalid command `%s'", sexp_to_string(sexp, NULL));
-			sexp_free(sexp);
+			sexp_free(start);
 			return 1;
 		}
-		sexp_free(sexp);
+		sexp_free(start);
 	}
 	return 1;
 }
@@ -514,5 +521,6 @@ int debugger_callback(const dalvik_instruction_t* inst, cesk_frame_t* frame, con
 			while(cli() == 1);
 		}
 	}
+
 	return 0;
 }
