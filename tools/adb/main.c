@@ -342,7 +342,7 @@ static inline void cli_do_run(sexpression_t* sexp)
 	const char* name;
 	const char* class;
 	sexpression_t* tl;
-	if(sexp_match(sexp, "(L?L?C?A", &class, &name, &tl, &sexp) && NULL != input_frame)
+	if(sexp_match(sexp, "(L?L?C?A", &class, &name, &tl, &sexp) && NULL != input_frame) 
 	{
 		sexpression_t* this;
 		const dalvik_type_t *T[128];
@@ -378,7 +378,7 @@ static int do_command(const char* cmdline)
 		}
 		start = sexp;
 		const char* verb;
-		if(sexp_match(sexp ,"(L?A", &verb, &sexp))
+		if(sexp_match(sexp ,"(L?A", &verb, &sexp)) 
 		{
 			if(verb == kw_quit) 
 			{
@@ -472,18 +472,24 @@ int main(int argc, char** argv)
 	kw_next = stringpool_query("next");
 	kw_backtrace = stringpool_query("backtrace");
 
-	cli_error("ADB - the ADAM Debugger");
-	cli_error("type `(help)' for more infomation");
 	int i;
 	for(i = 1; i <argc; i ++)
 	{
 		FILE* fp = fopen(argv[i], "r");
 		if(NULL == fp) continue;
 		char buf[1024];
-		while(NULL != fgets(buf, sizeof(buf), fp))
-			do_command(buf);
+		int cli_ret = 1;
+		for(;NULL != fgets(buf, sizeof(buf), fp) && cli_ret;)
+			cli_ret = do_command(buf);
 		fclose(fp);
+		if(cli_ret == 0) 
+		{
+			adam_finalize();
+			return 0;
+		}
 	}
+	cli_error("ADB - the ADAM Debugger");
+	cli_error("type `(help)' for more infomation");
 	while(cli());
 	if(NULL != input_frame) cesk_frame_free(input_frame);
 	adam_finalize();

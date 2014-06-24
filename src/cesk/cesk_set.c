@@ -428,7 +428,7 @@ int cesk_set_modify(cesk_set_t* dest, uint32_t from, uint32_t to)
 		this->next->prev = this->prev;
 	if(_cesk_set_hash_find(dest->set_idx, to))
 	{
-		/* if the destination element is duplicated, just free this node */
+		/* if the destination element is duplicated, just delete this node */
 		if(this->data_entry->prev)
 			this->data_entry->prev->data_entry->next = this->data_entry->next;
 		else

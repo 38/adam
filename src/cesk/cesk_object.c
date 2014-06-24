@@ -102,6 +102,7 @@ cesk_object_t* cesk_object_new(const char* classpath)
 		base->built_in = 1;
 		base->class.bci = bci_class;
 		object->builtin = base;
+		memset(base->bcidata, 0, bci_class->class->size);
 	}
 	else
 		object->builtin = NULL;

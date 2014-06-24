@@ -1,6 +1,8 @@
 #include <const_assertion.h>
 
 #include <bci/bci_interface.h>
+
+#define _UNDETERM ((const char*)1)
 extern bci_class_t java_lang_String_metadata;
 
 static const char* java_lang_String_empty = NULL;
@@ -26,10 +28,18 @@ int java_lang_String_onload()
 }
 int java_lang_String_init(void* this, const void* param)
 {
-	if(NULL != param)
-		*(const char**)this = (const char*)param;
-	else 
-		*(const char**)this = java_lang_String_empty;
+	if(*(const char**)this == NULL)
+	{
+		if(NULL != param)
+			*(const char**)this = (const char*)param;
+		else 
+			*(const char**)this = java_lang_String_empty;
+	}
+	else if(*(const char**)this != _UNDETERM)
+	{
+		if(param != *(const char**)this) 
+			*(const char**)this = _UNDETERM;
+	}
 	return 0;
 }
 int java_lang_String_duplicate(const void* this, void* that)
@@ -51,14 +61,18 @@ cesk_set_t* java_lang_String_get_field(const void* this, const char* fieldname)
 		{
 			cesk_set_push(ret,CESK_STORE_ADDR_ZERO);
 		}
-		else if(NULL == *(const char**)this)
+		else if(_UNDETERM == *(const char**)this)
 		{
 			cesk_set_push(ret,CESK_STORE_ADDR_ZERO);
 			cesk_set_push(ret,CESK_STORE_ADDR_POS);
 		}
-		else
+		else if(NULL != *(const char**)this)
 		{
 			cesk_set_push(ret, CESK_STORE_ADDR_POS);
+		}
+		else
+		{
+			LOG_WARNING("uninitialized value");
 		}
 	}
 	else
@@ -73,12 +87,14 @@ ERR:
 }
 const char* java_lang_String_to_string(const void* this, char* buf, size_t size)
 {
-	if(NULL == *(const char**)this) return "(any)";
+	if(NULL == *(const char**)this) return "(uninitialized)";
+	else if(_UNDETERM == *(const char**)this) return "(undetermistic)";
 	else return *(const char**) this;
 }
 int java_lang_String_merge(void* this, const void* that)
 {
-	*(const char**) this = NULL;
+	if(*(const char**)this == *(const char**)that)
+		*(const char**) this = _UNDETERM;
 	return 0;
 }
 hashval_t java_lang_String_hash(const void* this)

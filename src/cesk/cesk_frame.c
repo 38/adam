@@ -1302,7 +1302,7 @@ int cesk_frame_store_put_field(
 
 		if(keep_old_vlaue || cesk_store_get_reuse(frame->store, *paddr) == 1)
 		{
-			/* this address is used by mutliple objects, so we can not dicard old value */
+			/* this address is used by mutliple objects, so we can not discard old value */
 			/* get the address of the value set */
 			LOG_DEBUG("this is a reused object, just keep the old value");
 			if(NULL == value_set)
