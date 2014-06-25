@@ -4,8 +4,10 @@
  **/
 #ifndef __BCI_INTERFACE_H__
 #define __BCI_INTERFACE_H__
+typedef struct _bci_invoke_env_t bci_invoke_env_t;
 #include <bci/bci.h>
 #include <stringpool.h>
+#include <cesk/cesk.h>
 #define PackageInit_Begin \
 int buildin_library_init()\
 {
@@ -35,4 +37,13 @@ void builtin_library_finalize()\
 		}\
 	}\
 }while(0)
+
+/**
+ * @brief a invocation environment
+ **/
+struct _bci_invoke_env_t {
+	cesk_reloc_table_t* rtable;   /*!< relocation table */
+	cesk_frame_t*       frame;    /*!< envrion store */
+	cesk_diff_t*        result;   /*!< result */
+};
 #endif
