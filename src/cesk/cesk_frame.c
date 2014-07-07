@@ -1032,7 +1032,7 @@ uint32_t cesk_frame_store_new_object(
 	}
 
 	LOG_DEBUG("creat new object from class %s", clspath);
-	/* allocate address */
+	/* allocate a relocated address for the new object */
 	uint32_t addr = cesk_reloc_allocate(reloctab, frame->store, inst, 0, 0); 
 
 	if(CESK_STORE_ADDR_NULL == addr)
@@ -1042,11 +1042,10 @@ uint32_t cesk_frame_store_new_object(
 	}
 	
 
-	/* because the built-in class might change it's stauts here, so that
-	 * we need make a r/w pointer here */
+	/* because the built-in class might change the object itself for reuse, so that we need make a r/w pointer here */
 	cesk_value_t* value;
 
-	/* if there's some value already there */
+	/* if there's some value already exist */
 	if((value = cesk_store_get_rw(frame->store, addr, 0)) != NULL)
 	{
 		/* constant allocation? ignore */
@@ -1055,6 +1054,7 @@ uint32_t cesk_frame_store_new_object(
 			LOG_DEBUG("ignore the second time allocation of a constant value");
 			return addr;
 		}
+		
 		/* check validity of the address */
 		if(value->type != CESK_TYPE_OBJECT)
 		{
@@ -1070,7 +1070,7 @@ uint32_t cesk_frame_store_new_object(
 		}
 		if(cesk_object_classpath(object) != clspath)
 		{
-			LOG_ERROR("address %x is for class %s but the new object is a instance of %s", 
+			LOG_ERROR("address %x is for class %s but the new object is a instance of %s (but suppose to be homogenous)", 
 					  addr, 
 					  cesk_object_classpath(object), 
 					  clspath);

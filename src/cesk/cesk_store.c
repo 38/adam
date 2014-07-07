@@ -27,7 +27,7 @@ static inline cesk_store_block_t* _cesk_store_block_fork(cesk_store_block_t* blo
 	int i;
 	for(i = 0; i < CESK_STORE_BLOCK_NSLOTS; i ++)
 		if(new_block->slots[i].value != NULL)
-		cesk_value_incref(new_block->slots[i].value);
+			cesk_value_incref(new_block->slots[i].value);
 	return new_block;
 }
 /** 
@@ -164,21 +164,23 @@ static inline cesk_store_block_t* _cesk_store_getblock_rw(cesk_store_t* store, u
 		return NULL;
 	}
 	uint32_t b_idx = addr / CESK_STORE_BLOCK_NSLOTS;
+	/* check the validity of the input store address */
 	if(b_idx >= store->nblocks)
 	{
-		LOG_ERROR("out of memory");
+		LOG_ERROR("invalid store address, out of memory(requesting block_no = %d in the store with %d blocks)", 
+		          b_idx, store->nblocks);
 		return NULL;
 	}
 	cesk_store_block_t* block = store->blocks[b_idx];
-	/* if the block is used by more than one store so it is not writable, so make a copy of 
-	 * it and replace the old block with new  copy */
+	/* check the refcount, so that future modification won't affect other store */
 	if(block->refcnt > 1)
 	{
-		LOG_DEBUG("more than one store are using this block, fork it");
+		/* used by more than one store? copy it */
+		LOG_DEBUG("%d stores are using this block, copy before modification", block->refcnt);
 		cesk_store_block_t* newblock = _cesk_store_block_fork(block);
 		if(NULL == newblock)
 		{
-			LOG_ERROR("can not fork the block");
+			LOG_ERROR("can not copy the block");
 			return NULL;
 		}
 		newblock->refcnt = 1;
@@ -496,19 +498,16 @@ cesk_value_t* cesk_store_get_rw(cesk_store_t* store, uint32_t addr, int noval)
 		return NULL;
 	}
 	cesk_value_t* val = block->slots[offset].value;
-	if(NULL == val)
-	{
-		//LOG_ERROR("the address is not in use ("PRSAddr")", addr);
-		return NULL;
-	}
+	if(NULL == val) return NULL;
 	if(val->refcnt > 1 && noval == 0)
 	{
 		LOG_DEBUG("this value is refered by other frame block, so fork it first");
 		cesk_value_t* newval = cesk_value_fork(val);
+		
 		if(NULL == newval)
 		{
-		LOG_ERROR("error during fork the value, aborting copy");
-		return NULL;
+			LOG_ERROR("error during copy the value");
+			return NULL;
 		}
 
 		block->slots[offset].value = newval;
@@ -524,7 +523,7 @@ cesk_value_t* cesk_store_get_rw(cesk_store_t* store, uint32_t addr, int noval)
 	 * value and update the hashcode */
 	store->hashcode ^= HASH_INC(addr, val, block->slots[offset].reuse);
 	if(val->write_count > 15) 
-		LOG_WARNING("too many write pointer aquired, which up to 15 at store address "PRSAddr"", addr);
+		LOG_WARNING("too many write pointer aquired, which up to 15 at store address "PRSAddr, addr);
 	else
 		val->write_count ++;
 	return val;
@@ -536,13 +535,13 @@ void cesk_store_release_rw(cesk_store_t* store, uint32_t addr)
 	uint32_t offset    = addr % CESK_STORE_BLOCK_NSLOTS;
 	if(block_idx >= store->nblocks) 
 	{
-		LOG_ERROR("invalid address out of space");
+		LOG_ERROR("invalid address "PRSAddr" out of space", addr);
 		return;
 	}
 	cesk_store_block_t* block = _cesk_store_getblock_rw(store, addr);
 	if(NULL == block)
 	{
-		LOG_ERROR("opps, it should not happen");
+		LOG_ERROR("opps, can not get the writable pointer to store address"PRSAddr, addr);
 		return;
 	}
 	cesk_value_t* val = block->slots[offset].value;

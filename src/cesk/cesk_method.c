@@ -14,10 +14,10 @@ typedef struct _cesk_method_cache_node_t{
 
 typedef struct _cesk_method_block_context_t _cesk_method_block_context_t;
 /**
- * @brief the branch information, because we consider the value assemption we 
- *        flollows into conditional branch. So although the input and the code
- *        are the same, but in different branch, the output value might be different
- *        So that we need this struct to store the branch information
+ * @brief the branch information, because we consider the value that is able to 
+ *        flollow into conditional branch. So although the input and the code
+ *        are the same, different branch might lead different input because of the 
+ *        branch constrains. So that we need this struct to store the branch information
  **/
 typedef struct {
 	uint32_t index;                  /*!< the index of the branch in the code block */
@@ -28,7 +28,7 @@ typedef struct {
 	cesk_diff_t* cur_inversion;      /*!< the current (the youngest result) inversive diff (from branch output to block input) */
 } _cesk_method_block_input_t;
 /**
- * @brief the data structure we used for intermedian data storage
+ * @brief the data structure we used for block context data storage
  **/
 struct _cesk_method_block_context_t{
 	const dalvik_block_t* code;  /*!< the code for this block */
@@ -57,7 +57,6 @@ typedef struct _cesk_method_context_t{
 	_cesk_method_block_context_t blocks[0];  /*!< the block contexts */
 } _cesk_method_context_t;
 CONST_ASSERTION_LAST(_cesk_method_context_t, blocks);
-cesk_diff_t* __deb__ = NULL;
 
 /* static globals */
 
@@ -86,6 +85,9 @@ static int _cesk_method_block_ninputs[CESK_METHOD_MAX_NBLOCKS];
  **/
 static int _cesk_method_block_inputs_used[CESK_METHOD_MAX_NBLOCKS];
 
+/**
+ * @brief a pointer to hold the empty diff, at least one refcount
+ **/
 static cesk_diff_t *_cesk_method_empty_diff = NULL;
 
 int cesk_method_init()

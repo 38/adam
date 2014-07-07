@@ -15,11 +15,12 @@ static inline uint32_t _cesk_block_operand_to_regidx(const dalvik_operand_t* ope
 		LOG_ERROR("can not convert a constant operand to register index");
 		return CESK_STORE_ADDR_NULL;
 	}
-	/* the exception type is special, it just means we want to use the exception register */
+	/* exception register */
 	if(operand->header.info.type == DVM_OPERAND_TYPE_EXCEPTION)
 	{
 		return CESK_FRAME_EXCEPTION_REG;
 	}
+	/* result register */
 	else if(operand->header.info.is_result)
 	{
 		return CESK_FRAME_RESULT_REG;
@@ -31,7 +32,7 @@ static inline uint32_t _cesk_block_operand_to_regidx(const dalvik_operand_t* ope
 	}
 }
 /**
- * @brief merge content of a register contants constants address to a single constant address
+ * @brief merge constant addresses in a register to a single constant address
  * @param frame
  * @param sour the index of source register 
  * @return the merged constant address, CESK_STORE_ADDR_NULL indicates errors
@@ -128,16 +129,14 @@ static inline int _cesk_block_handler_const(
 		}
 		LOG_DEBUG("allocated new instance of class %s at store address "PRSAddr"", clspath, ret);
 
-		/* default value */
-
-		cesk_value_t* store_value = cesk_store_get_rw(frame->store, ret, 0);
+		cesk_value_const_t* store_value = cesk_store_get_ro(frame->store, ret);
 
 		if(NULL == store_value || 
 		   CESK_TYPE_OBJECT != store_value->type || 
 		   clspath != cesk_object_classpath(store_value->pointer.object) ||
 		   NULL == store_value->pointer.object->builtin)
 		{
-			LOG_ERROR("this is impossible!");
+			LOG_ERROR("unexcepted object value");
 			return -1;
 		}
 		
@@ -157,7 +156,7 @@ static inline int _cesk_block_handler_const(
 	return 0;
 }
 /**
- * @brief compare the content of 2 constant address bearing register
+ * @brief compare the content of 2 constant address bearing registers
  * @param frame current stack frame
  * @param left the index of the register which is the left operand
  * @param right the index of the register which is the right operand
@@ -423,7 +422,7 @@ static inline int _cesk_block_invoke_result_allocate_bsearch(const cesk_diff_t* 
 		else
 			r = m;
 	}
-	if(r - l > 0) return l;
+	if(r - l > 0 && data[l].addr == addr) return l;
 	else return -1;
 }
 /**
@@ -454,7 +453,7 @@ static inline uint32_t _cesk_block_invoke_result_addr_translate(
 		uint32_t i_addr = addrmap[idx];
 		if(CESK_STORE_ADDR_NULL == i_addr)
 		{
-			LOG_ERROR("there's no map between result address "PRSAddr" to interal address, stopping translating", i_addr);
+			LOG_ERROR("there's no map from result address "PRSAddr" to interal address, stopping", i_addr);
 			return CESK_STORE_ADDR_NULL;
 		}
 		r_addr = i_addr;
@@ -471,7 +470,7 @@ static inline uint32_t _cesk_block_invoke_result_addr_translate(
  * @param frame current stack frame
  * @param result the result diff
  * @param addrmap the address map 
- * @note  the function will modify the input set, and return the same address
+ * @note  the function will modify the input set, and return the same set instance
  * @return the translated set
  **/
 static inline cesk_set_t* _cesk_block_invoke_result_set_translate(
