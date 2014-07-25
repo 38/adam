@@ -9,7 +9,7 @@ typedef struct _bci_invoke_env_t bci_invoke_env_t;
 #include <stringpool.h>
 #include <cesk/cesk.h>
 #define PackageInit_Begin \
-int buildin_library_init()\
+int builtin_library_init()\
 {
 
 #define PackageInit_End \

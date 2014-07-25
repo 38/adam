@@ -234,7 +234,7 @@ dalvik_method_t* dalvik_method_from_sexp(const sexpression_t* sexp, const char* 
 				int i;
 				for(i = 0; i < label_sp; i++)
 				{
-					LOG_DEBUG("assigned instruction@%p to label #%d", inst, label_stack[i]);
+					LOG_DEBUG("assigned instruction %p to label #%d", inst, label_stack[i]);
 					dalvik_label_jump_table[label_stack[i]] = dalvik_instruction_get_index(inst);
 				}
 				label_sp = 0;

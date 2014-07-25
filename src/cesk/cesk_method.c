@@ -15,9 +15,9 @@ typedef struct _cesk_method_cache_node_t{
 typedef struct _cesk_method_block_context_t _cesk_method_block_context_t;
 /**
  * @brief the branch information, because we consider the value that is able to 
- *        flollow into conditional branch. So although the input and the code
+ *        flow into conditional branch. So although the input and the code
  *        are the same, different branch might lead different input because of the 
- *        branch constrains. So that we need this struct to store the branch information
+ *        branch constraints. So that we need this struct to store the branch information
  **/
 typedef struct {
 	uint32_t index;                  /*!< the index of the branch in the code block */
@@ -38,6 +38,7 @@ struct _cesk_method_block_context_t{
 	uint32_t ninputs;            /*!< number of inputs */
 	_cesk_method_block_input_t* inputs;  /*!< the input branches */
 	cesk_diff_t* result_diff;       /*!< if the block is a return block, this field will be used instead of input_index, becuase return is the only branch*/
+	/* input_index[k] actually means the index of input of target blocks for the k-th output of current block */
 	uint32_t* input_index;      /*!< input_index[k] is the index of struct for the k-th branch blocklist[block.code.index].inputs[block.input_index[k]]*/
 };
 /**
@@ -140,6 +141,7 @@ static inline _cesk_method_cache_node_t* _cesk_method_cache_node_new(const dalvi
 		LOG_ERROR("can not allocate memory for the cesk method cache node");
 		return NULL;
 	}
+	/* we can not make modifications in the input frame, so we need to fork the frame before we start */
 	ret->frame = cesk_frame_fork(frame);
 	ret->code = code;
 	ret->result = NULL;
@@ -179,15 +181,19 @@ static inline _cesk_method_cache_node_t* _cesk_method_cache_find(const dalvik_bl
 	hashval_t h = _cesk_method_cache_hash(code, frame);
 	_cesk_method_cache_node_t* node;
 	for(node = _cesk_method_cache[h%CESK_METHOD_CAHCE_SIZE]; NULL != node; node = node->next)
-		if(node->code == code && cesk_frame_equal(frame, node->frame))
+		/* each piece of code is a signleton in the memory that is why we just compare the address */
+		if(node->code == code && cesk_frame_equal(frame, node->frame))  
 			return node;
 	return NULL;
 }
 
 /** 
  * @brief explore the code block graph and save the pointer to all blocks in
- *        _cesk_method_block_list
+ *        _cesk_method_block_list, so that we can prepare the block context for this
+ *        function. 
  * @param entry the entry pointer
+ * @todo  for perforamnce reason, this funcution should also been cached to accelereate the recursive 
+ *        function calls
  * @return < 0 indicates an error
  **/
 static inline int _cesk_method_explore_code(const dalvik_block_t* entry)
@@ -195,16 +201,18 @@ static inline int _cesk_method_explore_code(const dalvik_block_t* entry)
 	if(NULL == entry) return 0;
 	LOG_DEBUG("found block #%d", entry->index);
 	_cesk_method_block_list[entry->index] = entry;
+	/* update the maximum block index for current function */ 
 	if(_cesk_method_block_max_idx < entry->index || _cesk_method_block_max_idx == 0xffffffffu)
 		_cesk_method_block_max_idx = entry->index;
 	int i;
 	for(i = 0; i < entry->nbranches; i ++)
 	{
 		const dalvik_block_branch_t* branch = entry->branches + i;
-		if(branch->disabled || (0 == branch->conditional && DALVIK_BLOCK_BRANCH_UNCOND_TYPE_IS_RETURN(*branch)))
+		if(branch->disabled ||    /* a disabled branch ? */
+		  (0 == branch->conditional && DALVIK_BLOCK_BRANCH_UNCOND_TYPE_IS_RETURN(*branch))) /* a return branch, which means no target block */
 			continue;
-		_cesk_method_block_ninputs[branch->block->index] ++;
-		if(NULL != _cesk_method_block_list[branch->block->index]) continue;
+		_cesk_method_block_ninputs[branch->block->index] ++;   /* update the number of inputs the target block depends on */
+		if(NULL != _cesk_method_block_list[branch->block->index]) continue;   /* we have visit the target block before? ok skip it */
 		if(_cesk_method_explore_code(branch->block) < 0)
 		{
 			LOG_ERROR("can not explore the code blocks from block #%d", branch->block->index);
@@ -214,7 +222,7 @@ static inline int _cesk_method_explore_code(const dalvik_block_t* entry)
 	return 0;
 }
 /**
- * @brief free a method analyzer context
+ * @brief clean up a method analyzer context
  * @param context the context to be freed
  * @return nothing
  **/
@@ -222,6 +230,7 @@ static inline void _cesk_method_context_free(_cesk_method_context_t* context)
 {
 	if(NULL == context) return;
 	int b;
+	/* first, we clean up each block one by one */
 	for(b = 0; b < context->nslots; b ++)
 	{
 		_cesk_method_block_context_t* block = context->blocks + b;
@@ -300,9 +309,7 @@ static inline _cesk_method_context_t* _cesk_method_context_new(
 		LOG_ERROR("can not create new allocation table");
 		goto ERR;
 	}
-	/* set result register and exception register to NULL, since nothing to return,
-	 * but memset did this, so we wont't do anything here */
-
+	
 	/* then we allocate the result diff buffer */
 	ret->result_buffer = cesk_diff_buffer_new(0, 1);
 	if(NULL == ret->result_buffer)
@@ -316,7 +323,9 @@ static inline _cesk_method_context_t* _cesk_method_context_new(
 	{
 		/* skip block not reachable */
 		if(NULL == _cesk_method_block_list[i]) continue;
+		/* initialize the i-th code block */
 		ret->blocks[i].code = _cesk_method_block_list[i];
+		/* if there's an output, we should allocate the input_index for this block */
 		if(_cesk_method_block_list[i]->nbranches > 1 || !DALVIK_BLOCK_BRANCH_UNCOND_TYPE_IS_RETURN(_cesk_method_block_list[i]->branches[0]))
 		{
 			ret->blocks[i].input_index = (uint32_t*)malloc(ret->blocks[i].code->nbranches * sizeof(uint32_t));
@@ -327,6 +336,7 @@ static inline _cesk_method_context_t* _cesk_method_context_new(
 			}
 			ret->blocks[i].result_diff = NULL;
 		}
+		/* otherwise we do not need to do so */
 		else
 		{
 			if(_cesk_method_block_list[i]->branches[0].left->header.info.type != DVM_OPERAND_TYPE_VOID)
@@ -337,16 +347,20 @@ static inline _cesk_method_context_t* _cesk_method_context_new(
 				ret->blocks[i].result_diff = NULL;
 			ret->blocks[i].input_index = NULL;
 		}
+		/* the initial input diff for this block is an empty diff */
 		ret->blocks[i].input_diff = cesk_diff_empty();
 		if(NULL == ret->blocks[i].input_diff)
 		{
 			LOG_ERROR("can not create an empty diff for intial input diff");
 			goto ERR;
 		}
+		/* initialize each branch that starts from this block */
 		int j;
 		for(j = 0; j < ret->blocks[i].code->nbranches; j ++)
 		{
+			/* the branch description */
 			const dalvik_block_branch_t* branch = ret->blocks[i].code->branches + j;
+			/* it's disabled or do not outputing anything? there's no need to initialize for this branch */
 			if(branch->disabled || DALVIK_BLOCK_BRANCH_UNCOND_TYPE_IS_RETURN(*branch))
 				continue;
 			ret->blocks[i].input_index[j] = 0;
@@ -367,6 +381,9 @@ static inline _cesk_method_context_t* _cesk_method_context_new(
 				memset(ret->blocks[t].inputs, 0, inputs_size);
 			}
 			/* append this branch to the input table */
+			/* so why inputs[0]? because for each time we append one input in the block context,
+			 * we keep moving the input pointer to the next empty slot that is avaliable for the 
+			 * future input branches. */
 			ret->blocks[t].inputs[0].block = ret->blocks + i;
 			ret->blocks[t].inputs[0].index = j;
 			ret->blocks[t].inputs[0].frame = cesk_frame_fork(frame);
@@ -375,6 +392,7 @@ static inline _cesk_method_context_t* _cesk_method_context_new(
 				LOG_ERROR("failed to duplicate the input frame");
 				goto ERR;
 			}
+			/* share the allocation table among all blocks in this method invocation context */
 			cesk_frame_set_alloctab(ret->blocks[t].inputs[0].frame, ret->atable);
 			ret->blocks[t].inputs[0].prv_inversion = cesk_diff_empty();
 			if(NULL == ret->blocks[t].inputs[0].prv_inversion)
@@ -391,7 +409,9 @@ static inline _cesk_method_context_t* _cesk_method_context_new(
 			{
 				goto DIFFERR;
 			}
+			/* now we update the input_index array */
 			ret->blocks[i].input_index[j] = _cesk_method_block_inputs_used[t] ++;
+			/* this is why we use inputs[0] */
 			ret->blocks[t].inputs ++;
 		}
 	}
@@ -420,7 +440,6 @@ static inline int _cesk_method_compute_next_input(_cesk_method_context_t* ctx, _
 {
 	int i;
 	LOG_DEBUG("computing the input frame for block #%d", blkctx->code->index);
-	/* for each input */
 	/* for the multiple way diff, we merge use the factorize function, so we need diff in each way,
 	 * and the output frame applied each diff */
 	uint32_t nways = 0;    /* how many ways of diff needs to be merged */
@@ -434,6 +453,7 @@ static inline int _cesk_method_compute_next_input(_cesk_method_context_t* ctx, _
 		if(blkctx->timestamp > sourctx->timestamp)
 		{
 			LOG_DEBUG("this block uses the input from block #%d, but there's no modification on the block, so skipping", sourctx->code->index);
+			/* we actually needs an empty diff for this, because there's no modification */
 			term_frame[nways] = input->frame;
 			term_diff[nways] = cesk_diff_empty();
 			if(NULL == term_diff[nways])
@@ -446,7 +466,7 @@ static inline int _cesk_method_compute_next_input(_cesk_method_context_t* ctx, _
 		}
 		/* so this is the input that has been modified since last intepration of current block, we need to compute the output diff for that */
 		
-		/* actually the output_diff = prv_inversion * input_diff * cur_diff */
+		/* output_diff = prv_inversion * input_diff * cur_diff */
 		cesk_diff_t* factors[] = {input->prv_inversion, sourctx->input_diff, input->cur_diff};
 		term_diff[nways] = cesk_diff_apply(3, factors);
 		if(NULL == term_diff[nways]) 
@@ -486,7 +506,7 @@ ERR:
 	return -1;
 }
 /**
- * @brief utilze the branch condition information, generate a diff that reflect the constains of this branch
+ * @brief using the branch condition information, generate a diff that reflect the constains of this branch
  * @param block_ctx the context of the input block
  * @param input_ctx the input context
  * @param diff_buf buffer to pass the diff to caller
@@ -570,7 +590,7 @@ static inline int _cesk_method_return(
 			return -1;
 		}
 	}
-	/* forward the allocation */
+	/* forward the allocations */
 	uint32_t i;
 	for(i = input_diff->offset[CESK_DIFF_ALLOC]; i < input_diff->offset[CESK_DIFF_ALLOC + 1]; i ++)
 	{
@@ -743,6 +763,7 @@ cesk_diff_t* cesk_method_analyze(const dalvik_block_t* code, cesk_frame_t* frame
 			LOG_DEBUG("cur_diff = %s", cesk_diff_to_string(input_ctx->cur_diff, NULL, 0));
 			/* finally, update the queue and timestamp */
 			uint32_t target_qp = target_ctx->queue_position;
+			/* if the target context is not in the queue, enqueu */
 			if(target_qp < context->front)
 			{
 				target_ctx->queue_position = context->rear;
