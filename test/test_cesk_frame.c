@@ -60,8 +60,9 @@ int main()
 	/* verify the result */
 	assert(0 == cesk_set_size(frame->regs[0]));
 
+	cesk_alloc_param_t param = CESK_ALLOC_PARAM(CESK_ALLOC_NA, CESK_ALLOC_NA);
 	/* create a new object */
-	uint32_t addr = cesk_frame_store_new_object(frame, reloc, inst, classpath, NULL, dif, inv);
+	uint32_t addr = cesk_frame_store_new_object(frame, reloc, inst, &param, classpath, NULL, dif, inv);
 	/* check the result */
 	assert(CESK_STORE_ADDR_NULL != addr);
 	/* verify hashcode */
@@ -107,7 +108,7 @@ int main()
 	assert(cesk_set_equal(frame->regs[2], frame->regs[3]) == 1);
 
 	/* test for cascade decref */
-	uint32_t addr2 = cesk_frame_store_new_object(frame, reloc, inst2, classpath, NULL, dif, inv);
+	uint32_t addr2 = cesk_frame_store_new_object(frame, reloc, inst2, &param, classpath, NULL, dif, inv);
 	/* check the validity of allocation */
 	assert(addr != addr2);
 	/* check the return value */
@@ -126,7 +127,7 @@ int main()
 	assert(2 == cesk_store_get_refcnt(frame->store, addr2));
 	
 	/* test for reused object */
-	uint32_t addr3 = cesk_frame_store_new_object(frame, reloc, inst, classpath, NULL, dif, inv);
+	uint32_t addr3 = cesk_frame_store_new_object(frame, reloc, inst, &param, classpath, NULL, dif, inv);
 	/* the address should equal to addr1 */
 	assert(addr3 == addr);
 	assert(addr3 != addr2);
@@ -166,7 +167,7 @@ int main()
 	assert(1 == cesk_store_get_refcnt(frame->store, addr));
 	
 	/* okay, test the garbage collector, refcount first */
-	uint32_t addr4 = cesk_frame_store_new_object(frame, reloc, inst3, classpath, NULL, dif, inv);
+	uint32_t addr4 = cesk_frame_store_new_object(frame, reloc, inst3, &param, classpath, NULL, dif, inv);
 	/* check the hash code*/
 	assert(cesk_frame_hashcode(frame) == cesk_frame_compute_hashcode(frame));
 	/* move reg21, addr4 */
@@ -208,9 +209,9 @@ int main()
 
 	/* now test the gc function, which dectect the matually refering garabage in memory */
 	/* create 3 objects */
-	uint32_t obj1 = cesk_frame_store_new_object(frame, reloc, inst, classpath, NULL, dif, inv);
-	uint32_t obj2 = cesk_frame_store_new_object(frame, reloc, inst2, classpath, NULL, dif, inv);
-	uint32_t obj3 = cesk_frame_store_new_object(frame, reloc, inst3, classpath, NULL, dif, inv);
+	uint32_t obj1 = cesk_frame_store_new_object(frame, reloc, inst, &param, classpath, NULL, dif, inv);
+	uint32_t obj2 = cesk_frame_store_new_object(frame, reloc, inst2, &param, classpath, NULL, dif, inv);
+	uint32_t obj3 = cesk_frame_store_new_object(frame, reloc, inst3, &param, classpath, NULL, dif, inv);
 	/* check 3 addresses are not same */
 	assert(obj1 != obj2);
 	assert(obj1 != obj3);

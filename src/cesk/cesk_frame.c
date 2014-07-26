@@ -115,6 +115,7 @@ ERR:
 }
 cesk_frame_t* cesk_frame_make_invoke(const cesk_frame_t* frame, uint32_t nregs, uint32_t nargs, cesk_set_t** args)
 {
+	/* make sure the invocation argument is valid */
 	if(NULL == frame || nregs > 65536 || nargs > nregs || NULL == args)
 	{
 		LOG_ERROR("invalid argument");
@@ -127,6 +128,7 @@ cesk_frame_t* cesk_frame_make_invoke(const cesk_frame_t* frame, uint32_t nregs, 
 		LOG_ERROR("can not allocate memory");
 		return NULL;
 	}
+	/* we have result and exception resiter */
 	ret->size = nregs + 2;
 	/* register init */
 	int i;
@@ -1020,12 +1022,13 @@ uint32_t cesk_frame_store_new_object(
 		cesk_frame_t* frame,
 		cesk_reloc_table_t* reloctab,
 		const dalvik_instruction_t* inst,
+		const cesk_alloc_param_t*   alloc_param,
 		const char* clspath,
 		const void* bci_init_param,
 		cesk_diff_buffer_t* diff_buf,
 		cesk_diff_buffer_t* inv_buf)
 {
-	if(NULL == frame || NULL == inst || NULL == clspath || NULL == reloctab)
+	if(NULL == frame || NULL == inst || NULL == alloc_param || NULL == clspath || NULL == reloctab)
 	{
 		LOG_ERROR("invalid argument");
 		return CESK_STORE_ADDR_NULL;
@@ -1033,7 +1036,10 @@ uint32_t cesk_frame_store_new_object(
 
 	LOG_DEBUG("creat new object from class %s", clspath);
 	/* allocate a relocated address for the new object */
-	uint32_t addr = cesk_reloc_allocate(reloctab, frame->store, inst, 0, 0); 
+	cesk_alloc_param_t param = *alloc_param;
+	param.inst = dalvik_instruction_get_index(inst);
+	param.offset = 0;
+	uint32_t addr = cesk_reloc_allocate(reloctab, frame->store, &param, 0); 
 
 	if(CESK_STORE_ADDR_NULL == addr)
 	{
@@ -1168,11 +1174,8 @@ uint32_t cesk_frame_store_new_object(
 				int j;
 				for(j = 0; j < this->num_members; j ++)
 				{
-					uint32_t faddr = cesk_reloc_allocate(
-							reloctab, 
-							frame->store, 
-							inst, 
-							CESK_OBJECT_FIELD_OFS(object, this->addrtab + j), 0);
+					param.offset = CESK_OBJECT_FIELD_OFS(object, this->addrtab + j);
+					uint32_t faddr = cesk_reloc_allocate(reloctab, frame->store, &param, 0);
 					/* set the reloc flag */
 					if(CESK_STORE_ADDR_NULL == faddr)
 					{

@@ -38,6 +38,8 @@
 #include <const_assertion.h>
 #include <constants.h>
 
+#include <cesk/cesk_alloc_param.h>
+
 /* previous defs */
 typedef struct _cesk_store_t cesk_store_t;
 
@@ -97,13 +99,11 @@ CONST_ASSERTION_EQ(CESK_STORE_ADDR_NULL, 0xffffffff);
 
 #include <cesk/cesk_alloctab.h>
 
-
 /** @brief slot in virtual store */
 typedef struct {
 	uint32_t        refcnt:31;        /*!<this refcnt is the counter inside this frame */
 	uint8_t         reuse:1;          /*!<if this address is reused, because same insturction should allocate same address */
-	uint32_t        idx;              /*!<instruction index created this object */
-	uint32_t		field;		      /*!<filed name of the member */
+	cesk_alloc_param_t param;         /*!<the allocation parameter for this address */
 	cesk_value_t*   value;			  /*!<the data payload */
 } cesk_store_slot_t;
 /** @brief the store block of virtual store */
@@ -199,11 +199,10 @@ int cesk_store_clear_reuse(cesk_store_t* store, uint32_t addr);
  * If it's not a object member, parent = CESK_STORE_ADDR_NULL and field = NULL
  *
  * @param store the store
- * @param inst current instruction
- * @param field_ofs the field offset
+ * @param param the allocation parameter
  * @return the fresh address for this value
  */
-uint32_t cesk_store_allocate(cesk_store_t* store, const dalvik_instruction_t* inst, uint32_t field_ofs);
+uint32_t cesk_store_allocate(cesk_store_t* store, const cesk_alloc_param_t* param);
 
 /* attach a value to an address, >0 means success, <0 error. If the value is NULL, means
  * dettach the address.

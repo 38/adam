@@ -27,8 +27,9 @@ int main()
 	dalvik_instruction_from_sexp(sexp, ins, 0);
 	sexp_free(sexp);
 
+	cesk_alloc_param_t param = CESK_ALLOC_PARAM(dalvik_instruction_get_index(ins), CESK_ALLOC_NA);
 	/* okay, try to allocate a new relocated object */
-	uint32_t ra1 = cesk_reloc_allocate(reloc_tab, store1, ins, 0, 0);
+	uint32_t ra1 = cesk_reloc_allocate(reloc_tab, store1, &param, 0);
 	assert(CESK_STORE_ADDR_NULL != ra1);
 
 	/* find out the object address */
@@ -45,7 +46,8 @@ int main()
 	cesk_store_t* store2 = cesk_store_empty_store();
 
 	/* set another value there */
-	uint32_t _unused = cesk_store_allocate(store2, ins, 1);   /* just make the store allocate a new block */
+	param.offset = 1;
+	uint32_t _unused = cesk_store_allocate(store2, &param);   /* just make the store allocate a new block */
 	assert(CESK_STORE_ADDR_NULL != _unused);
 	cesk_value_t* setval = cesk_value_empty_set();
 	assert(NULL != setval);

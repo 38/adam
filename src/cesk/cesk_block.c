@@ -121,7 +121,12 @@ static inline int _cesk_block_handler_const(
 			clspath = stringpool_query("java/lang/String");
 			if(NULL == clspath) return -1;
 		}
-		uint32_t ret = cesk_frame_store_new_object(frame, rtab, ins, clspath, value, D, I);
+
+		/* the instruction index is determined by current instruction
+		 * and the offset is unknown at this time, so we just use CESK_ALLOC_NA */
+		cesk_alloc_param_t param = CESK_ALLOC_PARAM(CESK_ALLOC_NA, CESK_ALLOC_NA);
+
+		uint32_t ret = cesk_frame_store_new_object(frame, rtab, ins, &param, clspath, value, D, I);
 		if(CESK_STORE_ADDR_NULL == ret)
 		{
 			LOG_ERROR("can not allocate new instance of class %s in frame %p", clspath, frame);
@@ -249,7 +254,9 @@ static inline int _cesk_block_handler_instance(
 			 * itself do not perform any initialization action. So we do not pass any intialization
 			 * data to the creator, because we don't know how to initialize the object at this 
 			 * time. (Notice it's different from the instance created by the const/string instruction`)*/
-			ret = cesk_frame_store_new_object(frame, rtab, ins, clspath, NULL, D, I);
+			cesk_alloc_param_t param = CESK_ALLOC_PARAM(CESK_ALLOC_NA, CESK_ALLOC_NA);
+
+			ret = cesk_frame_store_new_object(frame, rtab, ins, &param, clspath, NULL, D, I);
 			if(CESK_STORE_ADDR_NULL == ret)
 			{
 				LOG_ERROR("can not allocate new instance of class %s in frame %p", clspath, frame);
@@ -666,8 +673,10 @@ static inline cesk_diff_t* _cesk_block_invoke_result_translate(
 		}
 		/* allocate a new relocated address for this object in caller frame 
 		 * (If this allocation context already exists in caller frame, the function
-		 * will return the existed address instead of allocate a new one) */
-		iaddr = cesk_reloc_allocate(rtab, frame->store, info->instruction, info->field_offset ,1); 
+		 * will return the existed address instead of allocate a new one) 
+		 * In addition this allocation is a dry run, because we just want to try 
+		 * what would happend if we allocate with this parameter */
+		iaddr = cesk_reloc_allocate(rtab, frame->store, info, 1); 
 		if(CESK_STORE_ADDR_NULL == iaddr)
 		{
 			LOG_ERROR("can not append a new relocated address in the relocation table for result allocation @%u", result->data[i].addr);

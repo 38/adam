@@ -138,23 +138,6 @@ static inline int _cesk_store_swipe(cesk_store_t* store, cesk_store_block_t* blo
 	cesk_value_decref(value);
 	return 0;
 }
-/** 
- * @brief addressing hash code
- * @param inst the instruction
- * @param field_ofs the field offset
- * @return the hashcode
- **/
-static inline hashval_t _cesk_store_address_hashcode(const dalvik_instruction_t* inst, uint32_t field_ofs)
-{
-	uint32_t idx;
-	
-	/* read the instruction annotation for index */
-	//dalvik_instruction_read_annotation(inst, &idx, sizeof(idx));
-	idx = dalvik_instruction_get_index(inst);
-
-	return (idx * idx * MH_MULTIPLY + (field_ofs * MH_MULTIPLY * MH_MULTIPLY)); 
-
-}
 /** @brief get a block in a store and prepare to write */
 static inline cesk_store_block_t* _cesk_store_getblock_rw(cesk_store_t* store, uint32_t addr)
 {
@@ -581,11 +564,9 @@ hashval_t cesk_store_compute_hashcode(const cesk_store_t* store)
 /**
  * @note caller should update the reuse flag manually 
  **/
-uint32_t cesk_store_allocate(cesk_store_t* store, const dalvik_instruction_t* inst, uint32_t field_ofs)
+uint32_t cesk_store_allocate(cesk_store_t* store, const cesk_alloc_param_t* param)
 {
-	uint32_t idx;
-	idx = dalvik_instruction_get_index(inst);
-	uint32_t  init_slot = _cesk_store_address_hashcode(inst, field_ofs)  % CESK_STORE_BLOCK_NSLOTS;
+	uint32_t  init_slot = cesk_alloc_param_hash(param)  % CESK_STORE_BLOCK_NSLOTS;
 	uint32_t  slot = init_slot;
 	/* here we perform a quadratic probing inside each block
 	 * But we do not jump more than 5 times in one block
@@ -600,7 +581,7 @@ uint32_t cesk_store_allocate(cesk_store_t* store, const dalvik_instruction_t* in
 	for(attempt = 0; attempt < CESK_STORE_ALLOC_ATTEMPT; attempt ++)
 	{
 		int block;
-		LOG_DEBUG("attempt #%d : slot "PRSAddr" for instruction 0x%x", attempt, slot, idx);
+		LOG_DEBUG("attempt #%d : slot "PRSAddr" for instruction 0x%x", attempt, slot, param->inst);
 		for(block = 0; block < store->nblocks; block ++)
 		{
 			if(store->blocks[block]->slots[slot].value == NULL && empty_offset == -1)
@@ -610,8 +591,7 @@ uint32_t cesk_store_allocate(cesk_store_t* store, const dalvik_instruction_t* in
 				empty_offset = slot;
 			}
 			if(store->blocks[block]->slots[slot].value != NULL && 
-			   store->blocks[block]->slots[slot].idx == idx && 
-			   store->blocks[block]->slots[slot].field == field_ofs)
+			   cesk_alloc_param_equal(param, &store->blocks[block]->slots[slot].param))
 			{
 				LOG_DEBUG("find the equal slot @(block = 0x%x, offset = 0x%x)", block, slot);
 				equal_block = block;
@@ -660,9 +640,8 @@ uint32_t cesk_store_allocate(cesk_store_t* store, const dalvik_instruction_t* in
 		{
 			LOG_DEBUG("allocate 0x%"PRIx32" (block=0x%x, offset = 0x%x) for instruction 0x%x", 
 						(uint32_t)(empty_block * CESK_STORE_BLOCK_NSLOTS + empty_offset), 
-                        empty_block, empty_offset, idx);
-			store->blocks[empty_block]->slots[empty_offset].idx = idx;
-			store->blocks[empty_block]->slots[empty_offset].field = field_ofs;
+                        empty_block, empty_offset, param->inst);
+			store->blocks[empty_block]->slots[empty_offset].param = *param;
 			store->blocks[empty_block]->slots[empty_offset].reuse = 0;
 			return empty_block * CESK_STORE_BLOCK_NSLOTS + empty_offset;
 		}
@@ -676,7 +655,7 @@ uint32_t cesk_store_allocate(cesk_store_t* store, const dalvik_instruction_t* in
 	{
 		/* some equal entry */
 		LOG_DEBUG("reuse %"PRIx32" (block = 0x%x, offset = 0x%x for instruction 0x%x",
-			      (uint32_t)(equal_block * CESK_STORE_BLOCK_NSLOTS + equal_offset), equal_block, equal_offset, idx);
+			      (uint32_t)(equal_block * CESK_STORE_BLOCK_NSLOTS + equal_offset), equal_block, equal_offset, param->inst);
 		/* do not set the reuse bit here */
 		//store->blocks[equal_block]->slots[equal_offset].reuse = 1;   
 		return equal_block * CESK_STORE_BLOCK_NSLOTS  + equal_offset;
