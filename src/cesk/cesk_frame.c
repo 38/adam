@@ -356,6 +356,11 @@ int cesk_frame_gc(cesk_frame_t* frame)
 			cesk_store_clear_refcnt(store, addr);
 		}
 	}
+	/* finally, dereference all unused block in the end of the store */
+	if(cesk_store_compact_store(frame->store) < 0)
+	{
+		LOG_WARNING("failed to compact the store, something might be wrong");
+	}
 	free(fb);
 	return 0;
 }

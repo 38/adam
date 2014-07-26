@@ -339,12 +339,9 @@ static inline _cesk_method_context_t* _cesk_method_context_new(
 		/* otherwise we do not need to do so */
 		else
 		{
-			if(_cesk_method_block_list[i]->branches[0].left->header.info.type != DVM_OPERAND_TYPE_VOID)
-			{
-				ret->blocks[i].result_diff = cesk_diff_empty();
-			}
-			else
-				ret->blocks[i].result_diff = NULL;
+			/* even though the return statement is return-void, the value can be passed to the caller by
+			 * static member or exceptions. Therefore, we need result diff for any return function */
+			ret->blocks[i].result_diff = cesk_diff_empty();
 			ret->blocks[i].input_index = NULL;
 		}
 		/* the initial input diff for this block is an empty diff */
@@ -694,6 +691,7 @@ cesk_diff_t* cesk_method_analyze(const dalvik_block_t* code, cesk_frame_t* frame
 			/* if current branch is return */
 			if(0 == blkctx->code->branches[i].conditional && DALVIK_BLOCK_BRANCH_UNCOND_TYPE_IS_RETURN(blkctx->code->branches[i]))
 			{
+				if(NULL == blkctx->result_diff) continue;
 				cesk_diff_t* tmp[] = {blkctx->result_diff, blkctx->input_diff};
 				cesk_diff_t* new_res = cesk_diff_apply(2, tmp);
 				if(NULL == new_res)

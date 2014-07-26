@@ -185,6 +185,7 @@ cesk_store_t* cesk_store_empty_store()
    ret->num_ent = 0;
    ret->hashcode = CESK_STORE_EMPTY_HASH;
    ret->alloc_tab = NULL;
+   ret->blocks = NULL;
    return ret;
 }
 int cesk_store_set_alloc_table(cesk_store_t* store, cesk_alloctab_t* table)
@@ -794,7 +795,7 @@ int cesk_store_decref(cesk_store_t* store, uint32_t addr)
 int cesk_store_equal(const cesk_store_t* first, const cesk_store_t* second)
 {
 	if(NULL == first || NULL == second) return first != second;
-	if(first->nblocks != second->nblocks) return 0;   /* because there must be an occupied address that another store does not have */
+	if(first->nblocks != second->nblocks) return 0;
 	if(cesk_store_hashcode(first) != cesk_store_hashcode(second)) return 0;
 	int i;
 	for(i = 0; i < first->nblocks; i ++)
@@ -871,6 +872,7 @@ uint32_t cesk_store_get_refcnt(const cesk_store_t* store, uint32_t addr)
 	if(CESK_STORE_ADDR_NULL == (addr = _cesk_store_make_object_address(store, addr))) return -1;  /* TODO: is it OK to return -1? */
 	uint32_t idx = addr / CESK_STORE_BLOCK_NSLOTS;
 	uint32_t ofs = addr % CESK_STORE_BLOCK_NSLOTS;
+	if(store->nblocks <= idx) return 0;
 	return store->blocks[idx]->slots[ofs].refcnt;
 }
 int cesk_store_clear_refcnt(cesk_store_t* store, uint32_t addr)
@@ -942,3 +944,25 @@ void cesk_store_print_debug(const cesk_store_t* store)
 #else
 {}
 #endif
+int cesk_store_compact_store(cesk_store_t* store)
+{
+	if(NULL == store)
+	{
+		LOG_ERROR("invalid argument");
+		return -1;
+	}
+	for(; store->nblocks > 0 && 0 == store->blocks[store->nblocks - 1]->num_ent; store->nblocks --)
+	{
+		cesk_store_block_t* blk = store->blocks[store->nblocks - 1];
+		/* because this block is empty, so that we do not need to decref for the values in the block */
+		if(-- blk->refcnt == 0)  free(blk);
+	}
+	/* if this store is actually empty, we should free the blocks array */
+	if(0 == store->nblocks && store->blocks)
+	{
+		free(store->blocks);
+		store->blocks = NULL;
+	}
+	LOG_DEBUG("the number of blocks after compact is %d", store->nblocks);
+	return 0;
+}

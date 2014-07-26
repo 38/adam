@@ -294,4 +294,10 @@ const char* cesk_store_to_string(const cesk_store_t* store, char* buf, size_t sz
  * @return nothing
  **/
 void cesk_store_print_debug(const cesk_store_t* store);
+/**
+ * @brief compact the store, strip all empty blocks in the end of the blocks list
+ * @param store 
+ * @return the result of operation, < 0 indicates errors
+ **/
+int cesk_store_compact_store(cesk_store_t* store);
 #endif

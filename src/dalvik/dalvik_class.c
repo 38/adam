@@ -54,7 +54,7 @@ dalvik_class_t* dalvik_class_from_sexp(const sexpression_t* sexp)
 	
 	if(NULL == (class_path = sexp_get_object_path(sexp, &sexp)))
 	{
-		LOG_ERROR("invalid attribute");
+		LOG_ERROR("invalid class path");
 		goto ERR;
 	}
 
