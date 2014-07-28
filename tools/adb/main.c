@@ -425,6 +425,8 @@ static int do_command(const char* cmdline)
 					printf("#%d\t%s.%s Block #%d\n", i++, block->info->class, block->info->method, block->index);
 				}
 			}
+			else
+				cli_error("unknown action %s", verb);
 		}
 		else
 		{

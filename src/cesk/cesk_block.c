@@ -891,6 +891,7 @@ static inline int _cesk_block_handler_invoke(
 	const char* classpath = ins->operands[0].payload.methpath;
 	const char* methodname = ins->operands[1].payload.methpath;
 	const dalvik_type_t* const * typelist = ins->operands[2].payload.typelist;
+	const dalvik_type_t* const * rtype = inst->operands[3].payload.type;
 	if(NULL == classpath || NULL == methodname || NULL == typelist)
 	{
 		LOG_ERROR("invalid instruction format");
@@ -903,7 +904,7 @@ static inline int _cesk_block_handler_invoke(
 	{
 		case DVM_FLAG_INVOKE_STATIC:
 		case DVM_FLAG_INVOKE_DIRECT:
-			code = dalvik_block_from_method(classpath, methodname, typelist);
+			code = dalvik_block_from_method(classpath, methodname, typelist, );
 			if(NULL == code)
 			{
 				LOG_ERROR("can not find the method!");

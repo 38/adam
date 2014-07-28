@@ -663,7 +663,7 @@ static void inline _dalvik_block_graph_dfs(const dalvik_block_t * block, uint32_
 		if(!block->branches[i].disabled && !DALVIK_BLOCK_BRANCH_UNCOND_TYPE_IS_RETURN(block->branches[i]))
 			_dalvik_block_graph_dfs(block->branches[i].block, visit_status);  
 }
-dalvik_block_t* dalvik_block_from_method(const char* classpath, const char* methodname, const dalvik_type_t * const * typelist)
+dalvik_block_t* dalvik_block_from_method(const char* classpath, const char* methodname, const dalvik_type_t * const * typelist, const dalvik_type_t* rtype)
 {
 	if(NULL == classpath || NULL == methodname)
 	{
@@ -685,7 +685,7 @@ dalvik_block_t* dalvik_block_from_method(const char* classpath, const char* meth
 		}
 	}
 	/* there's no graph for this method in the cache, genterate one */
-	dalvik_method_t* method = dalvik_memberdict_get_method(classpath, methodname, typelist);
+	const dalvik_method_t* method = dalvik_memberdict_get_method(classpath, methodname, typelist, rtype);
 	if(NULL == method) 
 	{
 		LOG_ERROR("can not find method %s/%s", classpath, methodname);

@@ -18,7 +18,7 @@ cesk_object_t* cesk_object_new(const char* classpath)
 	size_t builtin_size = 0;
 	int nbci = 0;
 	const bci_class_wrap_t* bci_class[1024];
-	dalvik_class_t* classes[1024]; 
+	const dalvik_class_t* classes[1024]; 
 	/* because BCI Classes can not use a user defined class as superclass,
 	 * So that if we can see an built-in class here, that means there's no
 	 * super class anymore, so we only need one slot for that */
@@ -26,7 +26,7 @@ cesk_object_t* cesk_object_new(const char* classpath)
 	for(;;)
 	{
 		LOG_NOTICE("try to find class %s", classpath);
-		dalvik_class_t* target_class = dalvik_memberdict_get_class(classpath);
+		const dalvik_class_t* target_class = dalvik_memberdict_get_class(classpath);
 		if(NULL == target_class)
 		{
 			const bci_class_wrap_t* class_wrap = bci_nametab_get_class(classpath);
@@ -81,7 +81,7 @@ cesk_object_t* cesk_object_new(const char* classpath)
 		int j;
 		for(j = 0; classes[i]->members[j]; j ++)
 		{
-			dalvik_field_t* field = dalvik_memberdict_get_field(classes[i]->path, classes[i]->members[j]);   /* because only function can overload */
+			const dalvik_field_t* field = dalvik_memberdict_get_field(classes[i]->path, classes[i]->members[j]);   /* because only function can overload */
 			if(NULL == field)
 			{
 				LOG_WARNING("Can not find field %s/%s, skip", classes[i]->path, classes[i]->members[j]);
@@ -161,7 +161,7 @@ uint32_t* cesk_object_get(
 	}
 	else
 	{
-		dalvik_field_t* field = dalvik_memberdict_get_field(classpath, field_name);
+		const dalvik_field_t* field = dalvik_memberdict_get_field(classpath, field_name);
 		if(NULL == field)
 		{
 			LOG_WARNING("No field named %s/%s", classpath, field_name);

@@ -128,8 +128,13 @@ void dalvik_block_finalize();
  *  @param classpath the class path contains the method from which we want to build the code block graph
  *  @param methodname the name of the function
  *  @param args the argument table. This is because of the function can be overloaded, so the only way to distingush a method is use argument type list
+ *  @param rtype the return type of this function
  *  @return the entry point of the code block 
  **/
-dalvik_block_t* dalvik_block_from_method(const char* classpath, const char* methodname, const dalvik_type_t * const * args);
+dalvik_block_t* dalvik_block_from_method(
+		const char* classpath, 
+		const char* methodname, 
+		const dalvik_type_t * const * args, 
+		const dalvik_type_t* rtype);
 
 #endif

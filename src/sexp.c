@@ -448,16 +448,16 @@ char* sexp_to_string(const sexpression_t* sexp, char* buf)
 	if(NULL == buf) return NULL;
 	if(SEXP_NIL == sexp) 
 	{
-		sprintf(buf, "nil ");
+		sprintf(buf, "nil");
 		return buf;
 	}
 	if(sexp->type == SEXP_TYPE_LIT)
 	{
-		sprintf(buf, "%s ", *(sexp_lit_t*)sexp->data);
+		sprintf(buf, "%s", *(sexp_lit_t*)sexp->data);
 	}
 	else if(sexp->type == SEXP_TYPE_STR)
 	{
-		sprintf(buf, "'%s' ", *(sexp_str_t*)sexp->data);
+		sprintf(buf, "'%s'", *(sexp_str_t*)sexp->data);
 	}
 	else if(sexp->type == SEXP_TYPE_CONS)
 	{
@@ -466,6 +466,9 @@ char* sexp_to_string(const sexpression_t* sexp, char* buf)
 		buf ++;
 		if(NULL == sexp_to_string(cons->first, buf)) return NULL;
 		buf += strlen(buf);
+		buf[0] = ' ';
+		buf[1] = 0;
+		buf ++;
 		if(NULL == sexp_to_string(cons->second, buf)) return NULL;
 		buf += strlen(buf);
 		buf[0] = ')';

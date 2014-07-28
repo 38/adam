@@ -897,7 +897,7 @@ __DI_CONSTRUCTOR(INVOKE)
 		int reg_from, reg_to;
 
 		buf->flags |= DVM_FLAG_INVOKE_RANGE;
-		buf->num_operands = 5;
+		buf->num_operands = 6;
 		if(sexp_match(next, "(C?A", &args, &next))
 		{
 			if(sexp_get_method_address(next, &next, &path, &field) < 0)
@@ -928,9 +928,9 @@ __DI_CONSTRUCTOR(INVOKE)
 				return -1;
 			}
 			/* We use a constant indicates the range */
-			__DI_SETUP_OPERAND(3, DVM_OPERAND_FLAG_CONST | DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_INT), reg_from);
-			__DI_SETUP_OPERAND(4, DVM_OPERAND_FLAG_CONST | DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_INT), reg_to);
-			/* here we parse the type */
+			__DI_SETUP_OPERAND(4, DVM_OPERAND_FLAG_CONST | DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_INT), reg_from);
+			__DI_SETUP_OPERAND(5, DVM_OPERAND_FLAG_CONST | DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_INT), reg_to);
+			/* here we parse the argument type */
 			size_t nparam = sexp_length(next) + 1; /* because we need a NULL pointer in the end */
 			dalvik_type_t** array = (dalvik_type_t**) malloc(sizeof(dalvik_type_t*) * nparam);
 
@@ -958,6 +958,10 @@ __DI_CONSTRUCTOR(INVOKE)
 			}
 
 			__DI_SETUP_OPERANDPTR(2, DVM_OPERAND_FLAG_CONST | DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_TYPELIST), array);
+
+			/* then we parse the return type */
+			dalvik_type_t* rtype = dalvik_type_from_sexp(
+
 		}
 		else return -1;
 	}
