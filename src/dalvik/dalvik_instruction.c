@@ -963,7 +963,7 @@ __DI_CONSTRUCTOR(INVOKE)
 				array[i] = dalvik_type_from_sexp(type_sexp);
 				if(NULL == array[i])
 				{
-					LOG_ERROR("can not parse type %s", sexp_to_string(type_sexp, NULL));
+					LOG_ERROR("can not parse type %s", sexp_to_string(type_sexp, NULL, 0));
 					int j;
 					for(j = 0; j < i; j ++)
 						dalvik_type_free(array[j]);
@@ -1054,7 +1054,7 @@ __DI_CONSTRUCTOR(INVOKE)
 				array[i] = dalvik_type_from_sexp(type_sexp);
 				if(NULL == array[i])
 				{
-					LOG_ERROR("can not parse type %s", sexp_to_string(type_sexp, NULL));
+					LOG_ERROR("can not parse type %s", sexp_to_string(type_sexp, NULL, 0));
 					int j;
 					for(j = 0; j < i; j ++)
 						dalvik_type_free(array[j]);

@@ -919,7 +919,7 @@ static inline int _cesk_block_handler_invoke(
 			else
 			{
 				uint32_t nregs = code->nregs;
-				uint32_t nargs = ins->num_operands - 3;
+				uint32_t nargs = ins->num_operands - 4;
 				cesk_set_t* args[16] = {};
 				int i;
 				for(i = 0; i < nargs; i ++)

@@ -112,7 +112,7 @@ dalvik_method_t* dalvik_method_from_sexp(const sexpression_t* sexp, const char* 
 		char buf[40906];
 		static int counter = 0;
 #endif
-		LOG_DEBUG("#%d current instruction : %s",(++counter) ,sexp_to_string(this_smt, buf) );
+		LOG_DEBUG("#%d current instruction : %s",(++counter) ,sexp_to_string(this_smt, buf, sizeof(buf)) );
 		if(sexp_match(this_smt, "(L=L=L?", DALVIK_TOKEN_LIMIT, DALVIK_TOKEN_REGISTERS, &arg))
 		{
 			/* (limit-registers k) */
@@ -196,7 +196,7 @@ dalvik_method_t* dalvik_method_from_sexp(const sexpression_t* sexp, const char* 
 						to_label + number_of_exception_handler);
 			if(excepthandler[number_of_exception_handler] == NULL)
 			{
-				LOG_WARNING("invalid exception handler %s", sexp_to_string(this_smt, NULL));
+				LOG_WARNING("invalid exception handler %s", sexp_to_string(this_smt, NULL, 0));
 				continue;
 			}
 			LOG_DEBUG("exception %s is handlered in label #%d", 
@@ -220,7 +220,7 @@ dalvik_method_t* dalvik_method_from_sexp(const sexpression_t* sexp, const char* 
 			}
 			if(dalvik_instruction_from_sexp(this_smt, inst, current_line_number) < 0)
 			{
-				LOG_ERROR("can not recognize instuction %s", sexp_to_string(this_smt, NULL));
+				LOG_ERROR("can not recognize instuction %s", sexp_to_string(this_smt, NULL, 0));
 				goto ERR;
 			}
 			if(DALVIK_INSTRUCTION_INVALID == last) 

@@ -434,7 +434,7 @@ static int do_command(const char* cmdline)
 		}
 		else
 		{
-			cli_error("invalid command `%s'", sexp_to_string(sexp, NULL));
+			cli_error("invalid command `%s'", sexp_to_string(sexp, NULL, 0));
 			sexp_free(start);
 			return 1;
 		}

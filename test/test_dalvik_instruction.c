@@ -326,11 +326,11 @@ void test_instanceops()
 }
 void test_invoke()
 {
-	assert(NULL != sexp_parse("(invoke-virtual {v1,v2,v3} this/is/a/test int int int)", &sexp));
+	assert(NULL != sexp_parse("(invoke-virtual {v1,v2,v3} this/is/a/test (int int int) int)", &sexp));
 	assert(0 == dalvik_instruction_from_sexp(sexp,&inst, 0));
 	assert(inst.opcode == DVM_INVOKE);
 	assert(inst.flags == DVM_FLAG_INVOKE_VIRTUAL);
-	assert(inst.num_operands == 6);
+	assert(inst.num_operands == 7);
 	//TODO: test it 
 }
 int main()

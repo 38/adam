@@ -198,8 +198,8 @@ int main()
 	
 	sexpression_t* svoid;
 	assert(NULL != sexp_parse("void", &svoid));
-	sexp_free(svoid);
 	tvoid = dalvik_type_from_sexp(svoid);
+	sexp_free(svoid);
 	assert(NULL != tvoid);
 	/* load package */
 	dalvik_loader_from_directory("test/cases/block_analyzer");

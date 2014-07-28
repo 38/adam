@@ -17,8 +17,8 @@ int main()
 	
 	sexpression_t* svoid;
 	assert(NULL != sexp_parse("void", &svoid));
-	sexp_free(svoid);
 	dalvik_type_t* tvoid = dalvik_type_from_sexp(svoid);
+	sexp_free(svoid);
 	
 	dalvik_block_t* block = dalvik_block_from_method(classname, methodname, (const dalvik_type_t**)arglist, tvoid);
 	dalvik_type_free(type);

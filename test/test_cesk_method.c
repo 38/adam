@@ -6,9 +6,15 @@ int main()
 	adam_init();
 	sexpression_t* sint;
 	assert(NULL != sexp_parse("int", &sint));
-	sexp_free(sint);
 	dalvik_type_t* tint = dalvik_type_from_sexp(sint);
+	sexp_free(sint);
 	assert(NULL != tint);
+	
+	sexpression_t* sobj;
+	assert(NULL != sexp_parse("[object treeNode]", &sobj));
+	dalvik_type_t* tobj = dalvik_type_from_sexp(sobj);
+	sexp_free(sobj);
+	assert(NULL != tobj);
 	
 	assert(0 == dalvik_loader_from_directory("./test/cases/analyzer"));
 	const char* classpath = stringpool_query("testClass");
@@ -193,7 +199,8 @@ int main()
 	classpath = stringpool_query("treeNode");
 	methodname = stringpool_query("run");
 	type[0] = NULL;
-	graph = dalvik_block_from_method(classpath, methodname, type, tint);
+	graph = dalvik_block_from_method(classpath, methodname, type, tobj);
+	assert(NULL != graph);
 
 	frame = cesk_frame_new(graph->nregs);
 	assert(NULL != frame);
@@ -270,6 +277,7 @@ int main()
 	cesk_diff_free(ret);
 
 	dalvik_type_free(tint);
+	dalvik_type_free(tobj);
 
 	adam_finalize();
 	return 0;
