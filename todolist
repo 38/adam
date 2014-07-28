@@ -1,5 +1,4 @@
-Check why return-void can actually return a value
-
+Check The Built-In inheritance code
 
 Current: Builtin Class Support, Exception Classes
 	Some modifies is needed because if we introduce the built-in class, the address slot which contains object instance will become subject to 
