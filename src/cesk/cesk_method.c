@@ -571,7 +571,7 @@ static inline int _cesk_method_return(
 		const cesk_diff_t* input_diff)
 {
 	/* if this return instruction is not return-void, set the return code */
-	if(branch->left->header.info.type != DALVIK_TYPECODE_VOID)
+	if(branch->left->header.info.type != DVM_OPERAND_TYPE_VOID)
 	{
 		uint32_t regid = CESK_FRAME_GENERAL_REG(branch->left->payload.uint16);
 		uint32_t j;

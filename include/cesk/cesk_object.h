@@ -50,6 +50,7 @@ CONST_ASSERTION_LAST(cesk_object_struct_t, bcidata);
 struct _cesk_object_t {
 	uint16_t         	  depth;      /*!<the depth in inherence tree */
 	size_t				  size;       /*!<the size of the object useful when clone an object */
+	size_t                nbuiltin;   /*!<the number of builtin classes */
 	cesk_object_struct_t* builtin;    /*!< a pointer to the built-in class structure, if this object has one */
 	cesk_object_struct_t  members[0]; /*!<the length of the tree */
 };

@@ -34,6 +34,7 @@ bci_class_t java_lang_Object_metadata = {
 	.duplicate = java_lang_Object_duplicate,
 	.to_string = java_lang_Object_to_string,
 	.merge = java_lang_Object_merge,
+	.super = NULL,
 	.provides = {
 		"java/lang/Object",
 		NULL

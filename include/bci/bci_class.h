@@ -51,6 +51,8 @@ struct _bci_class_t {
 	int (*merge)(void* this, const void* that);  /*!< merge the two built-in instances */
 
 	int (*modify)(void* this, uint32_t offset, uint32_t* new, size_t N);  /*!< how to modify the address list */
+
+	const char* super;                           /*!< the super class of this built-in class, NULL means no super class */
 	const char* provides[BCI_CLASS_MAX_PROVIDES];/*!< the class that this build-in class provides, end with a NULL */
 }; 
 

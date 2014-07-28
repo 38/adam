@@ -16,8 +16,8 @@ cesk_object_t* cesk_object_new(const char* classpath)
 	int field_count = 0;
 	int class_count = 0;
 	size_t builtin_size = 0;
-	int has_bci = 0;
-	const bci_class_wrap_t* bci_class = NULL;
+	int nbci = 0;
+	const bci_class_wrap_t* bci_class[1024];
 	dalvik_class_t* classes[1024]; 
 	/* because BCI Classes can not use a user defined class as superclass,
 	 * So that if we can see an built-in class here, that means there's no
@@ -34,9 +34,10 @@ cesk_object_t* cesk_object_new(const char* classpath)
 			{
 				LOG_DEBUG("found built-in class %s", classpath);
 				builtin_size += class_wrap->class->size + sizeof(cesk_object_struct_t);
-				has_bci = 1;
-				bci_class = class_wrap;
-				break;
+				bci_class[nbci ++] = class_wrap;
+				if(NULL == class_wrap->class->super) break;
+				else classpath = class_wrap->class->super;
+				continue;
 			}
 			if(0 == class_count)
 			{
@@ -92,21 +93,21 @@ cesk_object_t* cesk_object_new(const char* classpath)
 																		 field->offset);
 		}
 		base->built_in = 0;
+		object->builtin = NULL;
 		base->class.udef = classes[i];
 		base->num_members = j;
 		CESK_OBJECT_STRUCT_ADVANCE(base);
 	}
 	/* We do not initalize the built-in class here, we do it when the field object of user defined class assigned*/
-	if(has_bci)
+	for(i = 0; i < nbci; i ++)
 	{
 		base->built_in = 1;
-		base->class.bci = bci_class;
-		object->builtin = base;
-		memset(base->bcidata, 0, bci_class->class->size);
+		base->class.bci = bci_class[i];
+		if(NULL == object->builtin) object->builtin = base;
+		memset(base->bcidata, 0, bci_class[i]->class->size);
 	}
-	else
-		object->builtin = NULL;
-	object->depth = class_count + has_bci;
+	object->depth = class_count + nbci;
+	object->nbuiltin = nbci;
 	object->size = size;
 	return object;
 }
@@ -183,15 +184,30 @@ cesk_object_t* cesk_object_fork(const cesk_object_t* object)
 		return NULL;
 	}
 	memcpy(newobj, object, objsize);
-	/* we have a builtin class struct, duplicate it */
-	if(NULL != object->builtin)
+	newobj->builtin = (cesk_object_struct_t*)(((char *)newobj)  + CESK_OBJECT_FIELD_OFS(object, object->builtin));
+
+	/* we have a builtin class struct section , duplicate it */
+	const cesk_object_struct_t* this = object->builtin;
+	cesk_object_struct_t* that = newobj->builtin;
+
+	int i;
+	for(i = 0; i < object->nbuiltin; i ++)
 	{
-		if(bci_class_duplicate(newobj->builtin->bcidata, object->builtin->bcidata, object->builtin->class.bci->class) < 0)
+		if(!this->built_in)
+		{
+			LOG_ERROR("an built-in class %s interitate from an user-defined class %s, this is impossible",
+			          cesk_object_classpath(object), this->class.path->value);
+			free(newobj);
+			return NULL;
+		}
+		if(bci_class_duplicate(this->bcidata, that->bcidata, this->class.bci->class) < 0)
 		{
 			LOG_ERROR("failed to initalize builtin class %s", object->builtin->class.path->value);
 			free(newobj);
 			return NULL;
 		}
+		CESK_OBJECT_STRUCT_ADVANCE(this);
+		CESK_OBJECT_STRUCT_ADVANCE(that);
 	}
 	return newobj;
 }
@@ -263,13 +279,13 @@ int cesk_object_equal(const cesk_object_t* first, const cesk_object_t* second)
 		}
 		if(this->built_in)
 		{
-			//LOG_FATAL("TODO compare two built-in class");
 			int rc = bci_class_equal(this->bcidata, that->bcidata, this->class.bci->class);
 			if(rc < 0)
 			{
-				LOG_WARNING("failed to compare this two object");
+				LOG_WARNING("failed to compare this two object %p and %p", first, second);
+				return -1;
 			}
-			else if(rc > 0) return 1;
+			else if(rc == 0) return 0;
 		}
 		else
 		{

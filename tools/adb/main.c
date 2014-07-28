@@ -484,6 +484,7 @@ int main(int argc, char** argv)
 		fclose(fp);
 		if(cli_ret == 0) 
 		{
+			if(NULL != input_frame) cesk_frame_free(input_frame);
 			adam_finalize();
 			return 0;
 		}
