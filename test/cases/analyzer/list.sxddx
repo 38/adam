@@ -3,7 +3,7 @@
 	(source "listNode.java")
 	(field (attrs public) value int)
 	(field (attrs public) next [object listNode])
-	(method (attrs public static) run() void
+	(method (attrs public static) run() int
 	 	(limit-registers 10)
 		;Block 0
 		(new-instance v0 listNode)

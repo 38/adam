@@ -4,6 +4,12 @@
 int main()
 {
 	adam_init();
+	sexpression_t* sint;
+	assert(NULL != sexp_parse("int", &sint));
+	sexp_free(sint);
+	dalvik_type_t* tint = dalvik_type_from_sexp(sint);
+	assert(NULL != tint);
+	
 	assert(0 == dalvik_loader_from_directory("./test/cases/analyzer"));
 	const char* classpath = stringpool_query("testClass");
 	const char* methodname = stringpool_query("sum");
@@ -18,7 +24,7 @@ int main()
 	
 	uint32_t val;
 	
-	graph = dalvik_block_from_method(classpath, methodname, type);
+	graph = dalvik_block_from_method(classpath, methodname, type, tint);
 	assert(NULL != graph);
 
 	frame = cesk_frame_new(graph->nregs);
@@ -47,7 +53,7 @@ int main()
 	dalvik_type_t * inttype = dalvik_type_from_sexp(sexp);
 	type[0] = inttype;
 	sexp_free(sexp);
-	graph = dalvik_block_from_method(classpath, methodname, type);
+	graph = dalvik_block_from_method(classpath, methodname, type, tint);
 
 	frame = cesk_frame_new(graph->nregs);
 	assert(NULL != frame);
@@ -73,7 +79,7 @@ int main()
 
 	methodname = stringpool_query("neg");
 	type[0] = NULL;
-	graph = dalvik_block_from_method(classpath, methodname, type);
+	graph = dalvik_block_from_method(classpath, methodname, type, tint);
 
 	frame = cesk_frame_new(graph->nregs);
 	assert(NULL != frame);
@@ -97,7 +103,7 @@ int main()
 	classpath = stringpool_query("listNode");
 	methodname = stringpool_query("run");
 	type[0] = NULL;
-	graph = dalvik_block_from_method(classpath, methodname, type);
+	graph = dalvik_block_from_method(classpath, methodname, type, tint);
 
 	frame = cesk_frame_new(graph->nregs);
 	assert(NULL != frame);
@@ -187,7 +193,7 @@ int main()
 	classpath = stringpool_query("treeNode");
 	methodname = stringpool_query("run");
 	type[0] = NULL;
-	graph = dalvik_block_from_method(classpath, methodname, type);
+	graph = dalvik_block_from_method(classpath, methodname, type, tint);
 
 	frame = cesk_frame_new(graph->nregs);
 	assert(NULL != frame);
@@ -262,7 +268,9 @@ int main()
 	assert(cesk_set_contain(ret->data[ret->offset[CESK_DIFF_STORE] + 2].arg.value->pointer.set, CESK_STORE_ADDR_ZERO));
 	cesk_frame_free(frame);
 	cesk_diff_free(ret);
-	
+
+	dalvik_type_free(tint);
+
 	adam_finalize();
 	return 0;
 }

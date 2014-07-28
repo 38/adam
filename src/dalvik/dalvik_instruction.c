@@ -927,6 +927,21 @@ __DI_CONSTRUCTOR(INVOKE)
 				LOG_ERROR("invalid instruction format");
 				return -1;
 			}
+			/* We parse the return type */
+			sexpression_t* type;
+			if(!sexp_match(next, "(C?_?", &next, &type))
+			{
+				LOG_ERROR("invalid function name");
+				return -1;
+			}
+			dalvik_type_t* rtype = dalvik_type_from_sexp(type);
+			if(NULL == rtype)
+			{
+				LOG_ERROR("invalid return type");
+				return -1;
+			}
+			__DI_SETUP_OPERAND(3, DVM_OPERAND_FLAG_CONST | DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_TYPEDESC), rtype);
+
 			/* We use a constant indicates the range */
 			__DI_SETUP_OPERAND(4, DVM_OPERAND_FLAG_CONST | DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_INT), reg_from);
 			__DI_SETUP_OPERAND(5, DVM_OPERAND_FLAG_CONST | DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_INT), reg_to);
@@ -959,8 +974,6 @@ __DI_CONSTRUCTOR(INVOKE)
 
 			__DI_SETUP_OPERANDPTR(2, DVM_OPERAND_FLAG_CONST | DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_TYPELIST), array);
 
-			/* then we parse the return type */
-			dalvik_type_t* rtype = dalvik_type_from_sexp(
 
 		}
 		else return -1;
@@ -975,7 +988,7 @@ __DI_CONSTRUCTOR(INVOKE)
 				return -1;
 			}
 
-			/* TODO: We actually care about the type, because the function may be overloaded */
+			/* We actually care about the type, because the function may be overloaded */
 			__DI_SETUP_OPERANDPTR(0, DVM_OPERAND_FLAG_CONST |
 								  DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_CLASS),
 								  path);
@@ -984,7 +997,7 @@ __DI_CONSTRUCTOR(INVOKE)
 								  field);
 
 			/* now we parse the parameters */
-			buf->num_operands = 3;
+			buf->num_operands = 4;
 			for(;args != SEXP_NIL;)
 			{
 				/* we check the boundary */
@@ -1008,6 +1021,21 @@ __DI_CONSTRUCTOR(INVOKE)
 					return -1;
 				}
 			}
+			
+			/* We parse the return type */
+			sexpression_t* type;
+			if(!sexp_match(next, "(C?_?", &next, &type))
+			{
+				LOG_ERROR("invalid function name");
+				return -1;
+			}
+			dalvik_type_t* rtype = dalvik_type_from_sexp(type);
+			if(NULL == rtype)
+			{
+				LOG_ERROR("invalid return type");
+				return -1;
+			}
+			__DI_SETUP_OPERAND(3, DVM_OPERAND_FLAG_CONST | DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_TYPEDESC), rtype);
 			
 			/* here we parse the type */
 			size_t nparam = sexp_length(next) + 1; /* because we need a NULL pointer in the end */

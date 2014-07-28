@@ -152,7 +152,8 @@ static inline void cli_do_list(sexpression_t* sexp)
 		for(i = 0;SEXP_NIL != tl && sexp_match(tl, "(_?A", &this, &tl);i ++)
 			T[i] = dalvik_type_from_sexp(this);
 		T[i] = NULL;
-		const dalvik_block_t* graph = dalvik_block_from_method(class, name, T);
+		const dalvik_type_t *R = dalvik_type_from_sexp(sexp);
+		const dalvik_block_t* graph = dalvik_block_from_method(class, name, T, R);
 		if(NULL == graph)
 		{
 			cli_error("Can not find the function");
@@ -213,7 +214,8 @@ static inline void cli_do_break(sexpression_t* sexp)
 		for(i = 0;SEXP_NIL != tl && sexp_match(tl, "(_?A", &this, &tl);i ++)
 			T[i] = dalvik_type_from_sexp(this);
 		T[i] = NULL;
-		const dalvik_block_t* graph = dalvik_block_from_method(class, name, T);
+		const dalvik_type_t *R = dalvik_type_from_sexp(sexp);
+		const dalvik_block_t* graph = dalvik_block_from_method(class, name, T, R);
 		if(NULL == graph)
 		{
 			cli_error("Can not find the function");
@@ -300,7 +302,8 @@ static inline void cli_do_frame(sexpression_t* sexp)
 		for(i = 0;SEXP_NIL != tl && sexp_match(tl, "(_?A", &this, &tl);i ++)
 			T[i] = dalvik_type_from_sexp(this);
 		T[i] = NULL;
-		const dalvik_block_t* graph = dalvik_block_from_method(class, name, T);
+		const dalvik_type_t *R = dalvik_type_from_sexp(sexp);
+		const dalvik_block_t* graph = dalvik_block_from_method(class, name, T, R);
 		if(NULL == graph)
 		{
 			cli_error("can not find method %s.%s", class, name);
@@ -350,7 +353,8 @@ static inline void cli_do_run(sexpression_t* sexp)
 		for(i = 0;SEXP_NIL != tl && sexp_match(tl, "(_?A", &this, &tl);i ++)
 			T[i] = dalvik_type_from_sexp(this);
 		T[i] = NULL;
-		const dalvik_block_t* graph = dalvik_block_from_method(class, name, T);
+		const dalvik_type_t *R = dalvik_type_from_sexp(sexp);
+		const dalvik_block_t* graph = dalvik_block_from_method(class, name, T, R);
 		if(NULL == graph) return;
 		cesk_reloc_table_t* rtab;
 		cesk_diff_t* ret = cesk_method_analyze(graph, input_frame, NULL, &rtab);

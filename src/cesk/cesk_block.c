@@ -891,7 +891,7 @@ static inline int _cesk_block_handler_invoke(
 	const char* classpath = ins->operands[0].payload.methpath;
 	const char* methodname = ins->operands[1].payload.methpath;
 	const dalvik_type_t* const * typelist = ins->operands[2].payload.typelist;
-	const dalvik_type_t* const * rtype = inst->operands[3].payload.type;
+	const dalvik_type_t* rtype = ins->operands[3].payload.type;
 	if(NULL == classpath || NULL == methodname || NULL == typelist)
 	{
 		LOG_ERROR("invalid instruction format");
@@ -904,7 +904,7 @@ static inline int _cesk_block_handler_invoke(
 	{
 		case DVM_FLAG_INVOKE_STATIC:
 		case DVM_FLAG_INVOKE_DIRECT:
-			code = dalvik_block_from_method(classpath, methodname, typelist, );
+			code = dalvik_block_from_method(classpath, methodname, typelist, rtype);
 			if(NULL == code)
 			{
 				LOG_ERROR("can not find the method!");
@@ -924,14 +924,14 @@ static inline int _cesk_block_handler_invoke(
 				int i;
 				for(i = 0; i < nargs; i ++)
 				{
-					uint32_t regnum = CESK_FRAME_GENERAL_REG(ins->operands[i + 3].payload.uint16);
+					uint32_t regnum = CESK_FRAME_GENERAL_REG(ins->operands[i + 4].payload.uint16);
 					args[i] = cesk_set_fork(frame->regs[regnum]);
 					if(NULL == args[i]) goto PARAMERR;
 				}
 				callee_frame = cesk_frame_make_invoke(frame, nregs, nargs, args);
 				break;
 PARAMERR:
-				LOG_ERROR("can not create argument lst"); 
+				LOG_ERROR("can not create argument list"); 
 				for(i = 0; i < nargs; i ++)
 					if(NULL != args[i]) cesk_set_free(args[i]);
 				goto ERR;
