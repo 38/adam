@@ -87,7 +87,7 @@ static inline void _sexp_parse_comment(const char** str)
  **/
 static inline const char* _sexp_parse_list(const char* str, sexpression_t** buf)
 {
-	sexpression_t* head = NULL;
+	sexpression_t* head = NULL, **input = buf;
 	for(;;)
 	{
 		/* strip the leading white spaces */
@@ -115,6 +115,7 @@ static inline const char* _sexp_parse_list(const char* str, sexpression_t** buf)
 	}
 ERR:
 	sexp_free(head);
+	*input = NULL;
 	return NULL;
 }
 /*@todo escape sequences support */
@@ -147,6 +148,7 @@ static inline const char* _sexp_parse_string(const char* str, sexpression_t** bu
 			stringpool_accumulator_next(&accumulator, *str);
 		}
 	}
+	*buf = NULL;
 	return NULL;
 }
 /*@todo escape sequences support */
@@ -154,7 +156,11 @@ static inline const char* _sexp_parse_char(const char* str, sexpression_t** buf)
 {
 	char tmp[3] = {};
 	*buf = _sexp_alloc(SEXP_TYPE_STR);
-	if(NULL == *buf) return NULL;
+	if(NULL == *buf) 
+	{
+		*buf = NULL;
+		return NULL;
+	}
 	sexp_str_t* data = (sexp_str_t*)((*buf)->data);
 	if(str[0] == '\\')
 	{
@@ -442,7 +448,7 @@ char* sexp_to_string(const sexpression_t* sexp, char* buf)
 	if(NULL == buf) return NULL;
 	if(SEXP_NIL == sexp) 
 	{
-		sprintf(buf, "nil");
+		sprintf(buf, "nil ");
 		return buf;
 	}
 	if(sexp->type == SEXP_TYPE_LIT)

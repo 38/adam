@@ -73,6 +73,7 @@ cesk_object_t* cesk_object_new(const char* classpath)
 		LOG_ERROR("can not allocate memory for new object %s", classes[0]->path);
 		return NULL;
 	}
+	object->builtin = NULL;
 	int i;
 	for(i = 0; i < class_count; i ++)
 	{
@@ -93,7 +94,6 @@ cesk_object_t* cesk_object_new(const char* classpath)
 																		 field->offset);
 		}
 		base->built_in = 0;
-		object->builtin = NULL;
 		base->class.udef = classes[i];
 		base->num_members = j;
 		CESK_OBJECT_STRUCT_ADVANCE(base);
@@ -103,8 +103,10 @@ cesk_object_t* cesk_object_new(const char* classpath)
 	{
 		base->built_in = 1;
 		base->class.bci = bci_class[i];
+		base->num_members = bci_class[i]->class->size;
 		if(NULL == object->builtin) object->builtin = base;
 		memset(base->bcidata, 0, bci_class[i]->class->size);
+		CESK_OBJECT_STRUCT_ADVANCE(base);
 	}
 	object->depth = class_count + nbci;
 	object->nbuiltin = nbci;

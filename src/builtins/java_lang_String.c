@@ -115,6 +115,7 @@ bci_class_t java_lang_String_metadata = {
 	.hash = java_lang_String_hash,
 	.equal = java_lang_String_equal,
 	.get_field = java_lang_String_get_field,
+	.super = "java/lang/Object",
 	.provides = {
 		"java/lang/String", 
 		NULL

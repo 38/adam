@@ -71,6 +71,7 @@ bci_class_t java_lang_Array_metadata = {
 	.finalization = java_lang_Array_fina,
 	.duplicate = java_lang_Array_dup,
 	.get_addr_list = java_lang_Array_alist,
+	.super = "java/lang/Object",
 	.provides = {
 		"java/lang/Array",
 		NULL

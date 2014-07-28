@@ -24,6 +24,7 @@ void builtin_library_finalize()\
 	uint32_t i;\
 	for(i = 0; NULL != module_name##_metadata.provides[i]; i ++) {\
 		module_name##_metadata.provides[i] = stringpool_query(module_name##_metadata.provides[i]);\
+		module_name##_metadata.super       = stringpool_query(module_name##_metadata.super);\
 		if(bci_nametab_register_class(module_name##_metadata.provides[i], &module_name##_metadata) < 0)\
 		{\
 			LOG_ERROR("Can not register built-in class %s", module_name##_metadata.provides[i]);\
