@@ -641,6 +641,9 @@ cesk_diff_t* cesk_method_analyze(const dalvik_block_t* code, cesk_frame_t* frame
 		}
 	}
 	
+	cesk_diff_t* result = NULL;
+	_cesk_method_context_t* context = NULL;
+	
 	/* insert current node to the cache, tell others I've ever been here */
 	node = _cesk_method_cache_insert(code, frame);
 	if(NULL == node)
@@ -649,9 +652,7 @@ cesk_diff_t* cesk_method_analyze(const dalvik_block_t* code, cesk_frame_t* frame
 		goto ERR;
 	}
 
-	/* create a result buffer */
-	cesk_diff_t* result = NULL;
-	_cesk_method_context_t* context = _cesk_method_context_new(code, frame, (const _cesk_method_context_t*)caller);
+	context = _cesk_method_context_new(code, frame, (const _cesk_method_context_t*)caller);
 	if(NULL == context)
 	{
 		LOG_ERROR("can not create context");
