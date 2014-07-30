@@ -11,6 +11,7 @@
 #ifdef PARSER_COUNT
 int dalvik_class_count = 0;
 #endif
+extern int dalvik_static_field_count;
 
 dalvik_class_t* dalvik_class_from_sexp(const sexpression_t* sexp)
 {
@@ -166,6 +167,11 @@ dalvik_class_t* dalvik_class_from_sexp(const sexpression_t* sexp)
 				{
 					field->offset = field_count;
 					class->members[field_count++] = field->name;
+				}
+				/* otherwise this is a static field */
+				else
+				{
+					field->offset = dalvik_static_field_count ++;
 				}
 				if(dalvik_memberdict_register_field(class->path, field) < 0)
 				{
