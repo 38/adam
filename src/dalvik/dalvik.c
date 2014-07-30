@@ -1,5 +1,4 @@
 #include <dalvik/dalvik.h>
-int dalvik_static_field_count = 0;
 int dalvik_init(void)
 {
 	if(dalvik_instruction_init() < 0)

@@ -76,16 +76,13 @@ int cesk_alloctab_insert(cesk_alloctab_t* table, const cesk_store_t* store, uint
 		LOG_ERROR("invalid argument");
 		return -1;
 	}
-	/* Why we use CESK_STORE_ADDR_RELOCATED here. Mainly because relocated addressing is not
-	 * the only address that we should perform a relocation. The static address also needs us
-	 * to perform the relocation operation. */
-	if((CESK_STORE_ADDR_IS_OBJ(key_addr) && CESK_STORE_ADDR_RELOCATED(val_addr)))
+	if((CESK_STORE_ADDR_IS_OBJ(key_addr) && CESK_STORE_ADDR_IS_RELOC(val_addr)))
 	{
 		LOG_DEBUG("inserting a record mapping object address @0x%x to relocated address @0x%x", 
 				   key_addr,
 				   val_addr);
 	}
-	else if(CESK_STORE_ADDR_RELOCATED(key_addr) && CESK_STORE_ADDR_IS_OBJ(val_addr))
+	else if(CESK_STORE_ADDR_IS_RELOC(key_addr) && CESK_STORE_ADDR_IS_OBJ(val_addr))
 	{
 		LOG_DEBUG("inserting a record mapping relocated address @0x%x to object address @0x%x",
 				  key_addr,

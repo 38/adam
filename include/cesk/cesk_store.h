@@ -47,13 +47,10 @@ typedef struct _cesk_store_t cesk_store_t;
 #include <dalvik/dalvik_instruction.h>
 
 /* memory layout of a frame store : 
- *                                    OBJ_LIMIT
  * ------------------------------------------------------------------
- * |                     Object          | Static|  Reloc   | Const |
+ * |                     Object                  |  Reloc   | Const |
  * ------------------------------------------------------------------
- * 00000000                           fe000000   ff000000  ffffff00 ffffffff
- *                                     STATIC      RELOC    CONST     NULL
- *                                     PREFIX      PREFIX   PREFIX
+ * 00000000										ff000000    ffffff00 ffffffff
  */
 
 /* special address that used for constants */
@@ -63,11 +60,8 @@ typedef struct _cesk_store_t cesk_store_t;
  * constains information about the value 
  */
 
-#define CESK_STORE_ADDR_OBJ_LIMIT CESK_STORE_ADDR_STATIC_PREFIX
-
 /* CESK_STORE_ADDR_NULL must be 0xffffffff */
 CONST_ASSERTION_EQ(CESK_STORE_ADDR_NULL, 0xffffffff);
-
 /** @brief negative numeric value */
 #define CESK_STORE_ADDR_NEG   (CESK_STORE_ADDR_CONST_PREFIX | 0x01ul)
 /** @brief zero numeric value */
@@ -92,30 +86,16 @@ CONST_ASSERTION_EQ(CESK_STORE_ADDR_NULL, 0xffffffff);
 /** @brief return a new address that contains a value */
 #define CESK_STORE_ADDR_CONST_SET(addr, elem) ((addr) | CESK_STORE_ADDR_CONST_SUFFIX(CESK_STORE_ADDR_##elem))
 
-/* special addresses used for relocation */
+/* specal addresses used for relocation */
 /** @brief check if or not an address is a relocated address */
 #define CESK_STORE_ADDR_IS_RELOC(addr) ((((addr)&CESK_STORE_ADDR_RELOC_PREFIX) == CESK_STORE_ADDR_RELOC_PREFIX) && !CESK_STORE_ADDR_IS_CONST(addr))
 /** @brief get the index of global relocation object table from the address */
-#define CESK_STORE_ADDR_RELOC_IDX(addr) ((addr)&~CESK_STORE_ADDR_RELOC_PREFIX)
+#define CESK_STORE_ADDR_RELOC_IDX(addr) (addr&~CESK_STORE_ADDR_RELOC_PREFIX)
 /** @brief the size of relocated address space */
 #define CESK_STORE_ADDR_RELOC_SIZE ((1 + ~CESK_STORE_ADDR_RELOC_PREFIX) -  (1 + ~CESK_STORE_ADDR_CONST_PREFIX))
 
 /** @brief check if or not an address is an object address */
-#define CESK_STORE_ADDR_IS_OBJ(addr) ((addr) < CESK_STORE_ADDR_OBJ_LIMIT)
-
-/* special addresses used for static fields */
-/** @brief check if the address is an relocated address */
-#define CESK_STORE_ADDR_IS_STATIC(addr) ((((addr)&CESK_STORE_ADDR_STATIC_PREFIX) == CESK_STORE_ADDR_STATIC_PREFIX) && \
-                                         !CESK_STORE_ADDR_IS_RELOC(addr) && \
-                                         !CESK_STORE_ADDR_IS_CONST(addr))
-/** @brief return the index of the static field */
-#define CESK_STORE_ADDR_STATIC_IDX(addr) (addr&~CESK_STORE_ADDR_STATIC_PREFIX)
-#define CESK_STORE_ADDR_STATIC_SIZE ((1 + ~CESK_STORE_ADDR_STATIC_PREFIX) - (1 + ~CESK_STORE_ADDR_RELOC_PREFIX)) 
-
-
-/** @brief check if the address has been relocated */
-#define CESK_STORE_ADDR_RELOCATED(addr) (CESK_STORE_ADDR_IS_STATIC(addr) || CESK_STORE_ADDR_IS_RELOC(addr))
-
+#define CESK_STORE_ADDR_IS_OBJ(addr) ((addr) < CESK_STORE_ADDR_RELOC_PREFIX)
 
 #include <cesk/cesk_alloctab.h>
 

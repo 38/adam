@@ -85,11 +85,6 @@
 #	define CESK_STORE_ADDR_RELOC_PREFIX 0xff000000ul
 #endif
 
-#ifndef CESK_STORE_ADDR_STATIC_PREFIX
-/** @brief the address prefix for a static address */
-#	define CESK_STORE_ADDR_STATIC_PREFIX 0xfe000000
-#endif
-
 #ifndef CESK_SET_EMPTY_HASH
 /** @brief the hash code for empty set */
 #	define CESK_SET_EMPTY_HASH 0x9c7cba63ul

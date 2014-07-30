@@ -253,8 +253,8 @@ static inline void _cesk_frame_store_dfs(uint32_t addr, cesk_store_t* store, uin
 	if(CESK_STORE_ADDR_NULL == addr) return;
 	/* constants do not need to collect */
 	if(CESK_STORE_ADDR_IS_CONST(addr)) return;
-	/* if this address needs to be relocated */
-	if(CESK_STORE_ADDR_RELOCATED(addr))
+	/* relocated address should be translated here */
+	if(CESK_STORE_ADDR_IS_RELOC(addr))
 	{
 		if(NULL == store->alloc_tab)
 		{
@@ -263,6 +263,7 @@ static inline void _cesk_frame_store_dfs(uint32_t addr, cesk_store_t* store, uin
 		}
 		if(CESK_STORE_ADDR_NULL == (addr = cesk_alloctab_query(store->alloc_tab, store, addr)))
 		{
+			LOG_WARNING("can not find the object address associated with relocated address @0x%x", addr);
 			return;
 		}
 	}
@@ -334,7 +335,6 @@ int cesk_frame_gc(cesk_frame_t* frame)
 	uint8_t *fb = (uint8_t*)malloc(nslot / 8 + 1);     /* the flag bits */
 	memset(fb, 0, nslot / 8 + 1);
 	int i;
-	/* start from registers */
 	for(i = 0; i < frame->size; i ++)
 	{
 		cesk_set_iter_t iter;
@@ -347,13 +347,6 @@ int cesk_frame_gc(cesk_frame_t* frame)
 		while(CESK_STORE_ADDR_NULL != (addr = cesk_set_iter_next(&iter)))
 			_cesk_frame_store_dfs(addr, store, fb);
 	}
-
-	/* start from static fields */
-	extern int dalvik_static_field_count;
-	for(i = 0; i < dalvik_static_field_count; i ++)
-		_cesk_frame_store_dfs(CESK_STORE_ADDR_STATIC_PREFIX | i, store, fb);
-
-	/* swipe out the unused stores */
 	uint32_t addr = 0;
 	for(addr = 0; addr < nslot; addr ++)
 	{
@@ -1241,95 +1234,7 @@ uint32_t cesk_frame_store_new_object(
 	}
 	return addr;
 }
-/**
- * @brief peek the static object before actual access
- * @param frame in which frame you want to peek the static object
- * @param addr  the address of the static object
- * @param diff_buf the diff buffer
- * @param inv_buf the inversion buffer
- * @return the object address/Constant Address in the store
- **/
-static uint32_t _cesk_frame_store_peek_static_field(
-		cesk_frame_t* frame, 
-		uint32_t addr, 
-		cesk_diff_buffer_t* diff_buf, 
-		cesk_diff_buffer_t* inv_buf)
-{
-	if(!CESK_STORE_ADDR_IS_STATIC(addr))
-	{
-		LOG_ERROR("address "PRSAddr" is not a valid static address", addr);
-		return CESK_STORE_ADDR_NULL;
-	}
-	if(NULL == frame || NULL == diff_buf || NULL == inv_buf)
-	{
-		LOG_ERROR("invalid argument");
-		return CESK_STORE_ADDR_NULL;
-	}
-	uint32_t ret = CESK_STORE_ADDR_NULL;
-	/* try to translate the static address. if we can not translate, that means we need to allocate
-	 * a new object address for this field in this frame */
-	if(CESK_STORE_ADDR_NULL == (ret = cesk_alloctab_query(frame->store->alloc_tab, frame->store, addr)))
-	{
-		cesk_alloc_param_t alloc_param = {
-			.inst = addr,    /* we actually use the address as an fake allocation address */
-			.offset = 0      /* no offset avaliable */
-		};
-		ret = cesk_store_allocate(frame->store, &alloc_param);
-		if(CESK_STORE_ADDR_NULL == ret) 
-		{
-			LOG_ERROR("can not allocate a new address for static field"PRSAddr, addr);
-			return CESK_STORE_ADDR_NULL;
-		}
-		/* TODO: make a set for this and use buf to record this */
-	}
-	return ret;
-}
-int cesk_frame_store_get_static(
-		cesk_frame_t* frame,
-		uint32_t      dst_reg,
-		const char*   clspath,
-		const char*   fldname,
-		cesk_diff_buffer_t* diff_buf,
-		cesk_diff_buffer_t* diff_inv)
-{
-	/* find the field first */
-	const dalvik_field_t* field = dalvik_memberdict_get_field(clspath, fldname);
-	if(NULL == field || !(field->attrs & DALVIK_ATTRS_STATIC)) 
-	{
-		LOG_ERROR("invalid stataic field %s.%s", clspath, fldname);
-		return -1;
-	}
-	
-	cesk_set_t* old_val = frame->regs[dst_reg];
-	if(cesk_set_size(old_val) > 0)
-	{
-		if(NULL == (frame->regs[dst_reg] = cesk_set_empty_set()))
-		{
-			LOG_ERROR("can not allocate empty set for cleared register %d", dst_reg);
-			return -1;
-		}
-	}
-	
-	/* get the field address */
-	uint32_t s_addr = field->offset | CESK_STORE_ADDR_STATIC_PREFIX;
-	/* convert this address to a store object address */
-	uint32_t addr = _cesk_frame_store_peek_static_field(frame, s_addr, diff_buf, diff_inv);
-	
-	if(cesk_frame_register_append_from_store(frame, dst_reg, addr, NULL, NULL)  < 0)
-	{
-		LOG_ERROR("can not load value of static field"PRSAddr, s_addr);
-		return -1;
-	}
 
-	/* now we fix the refcount */
-	if(old_val != frame->regs[dst_reg] && _cesk_frame_free_set(frame, old_val) < 0)
-	{
-		LOG_ERROR("can not fix the refcount after a reigster assignment");
-		return -1;
-	}
-	//cesk_frame_register_load_from_object 
-	return 0;
-}
 int cesk_frame_store_put_field(
 		cesk_frame_t* frame,
 		uint32_t dst_addr,

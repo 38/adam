@@ -246,6 +246,11 @@ static inline int _cesk_store_apply_alloc_tab(cesk_store_t* store, uint32_t base
 		/* switch for each type */
 		switch(value->type)
 		{
+#if 0
+			case CESK_TYPE_ARRAY:
+				LOG_NOTICE("fixme: array support here");
+				break;
+#endif 
 			case CESK_TYPE_SET:
 				set = value->pointer.set;
 				if(NULL == cesk_set_iter(set, &iter))
@@ -369,8 +374,7 @@ cesk_store_t* cesk_store_fork(const cesk_store_t* store)
 static inline uint32_t _cesk_store_make_object_address(const cesk_store_t* store, uint32_t addr)
 {
 	uint32_t ret = addr;
-	/* if this address need to be relocated */
-	if(CESK_STORE_ADDR_RELOCATED(addr))
+	if(CESK_STORE_ADDR_IS_RELOC(addr))
 	{
 		/* if this address is a relocated address */
 		if(NULL == store->alloc_tab)
