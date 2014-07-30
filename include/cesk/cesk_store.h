@@ -113,10 +113,6 @@ CONST_ASSERTION_EQ(CESK_STORE_ADDR_NULL, 0xffffffff);
 #define CESK_STORE_ADDR_STATIC_SIZE ((1 + ~CESK_STORE_ADDR_STATIC_PREFIX) - (1 + ~CESK_STORE_ADDR_RELOC_PREFIX)) 
 
 
-/** @brief check if the address has been relocated */
-#define CESK_STORE_ADDR_RELOCATED(addr) (CESK_STORE_ADDR_IS_STATIC(addr) || CESK_STORE_ADDR_IS_RELOC(addr))
-
-
 #include <cesk/cesk_alloctab.h>
 
 /** @brief slot in virtual store */
