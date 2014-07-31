@@ -17,7 +17,7 @@ typedef struct {
 	const char*    file;            /*!<the source file name */
 	dalvik_type_t* type;            /*!<type of this field */
 	int            attrs;           /*!<attributes of the field */
-	sexpression_t* defualt_value;   /*!<default value */
+	sexpression_t* default_value;   /*!<default value */
 	int            offset;          /*!<the offest of the field */
 } dalvik_field_t;
 CONST_ASSERTION_FIRST(dalvik_field_t, name);

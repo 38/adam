@@ -19,6 +19,7 @@
 #include <cesk/cesk_reloc.h>
 #include <cesk/cesk_block.h>
 #include <cesk/cesk_method.h>
+#include <cesk/cesk_static.h>
 
 /** @brief initialize 
  *  @return < 0 for error

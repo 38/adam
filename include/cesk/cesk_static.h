@@ -12,12 +12,28 @@
 
 typedef struct _cesk_static_table_t cesk_static_table_t;
 
+/**
+ * @brief the iterator type for the static table
+ **/
+typedef void* cesk_static_table_iter_t;
+
 #include <cesk/cesk_set.h>
 
 /**
  * @brief the static field table
  **/
 struct _cesk_static_table_t;
+
+/**
+ * @brief initialize this module
+ * @return the result for initialization, < 0 indicates an error occured 
+ **/
+int cesk_static_init();
+/**
+ * @brief finalize this module
+ * @return nothing
+ **/
+void cesk_static_finalize();
 
 /**
  * @brief create a new empty(which means it's just the initial state) static table
@@ -56,6 +72,23 @@ const cesk_set_t* cesk_static_table_get_ro(const cesk_static_table_t* table, uin
  * @return the pointer to the slot that contains the static field
  **/
 cesk_set_t** cesk_static_table_get_rw(cesk_static_table_t* table, uint32_t addr);
+
+/**
+ * @breif initialize a new iterator to traverse the table
+ * @param table the static field table
+ * @param buf the memory for the iterator
+ * @return the pointer to newly created iterator, NULL indicates error
+ **/
+cesk_static_table_iter_t* cesk_static_table_iter(const cesk_static_table_t* table, cesk_static_table_iter_t* buf);
+
+/**
+ * @brief move the iterator one step forward and return the previous value
+ * @param iter the iterator
+ * @param paddr the pointer to a uint32_t buffer for the address to this field, NULL indicates
+ *              the caller do not need this address
+ * @return the value set for this field, NULL indicates there's end of the table
+ **/
+const cesk_set_t* cesk_static_table_iter_next(cesk_static_table_iter_t* iter, uint32_t *paddr);
 
 /**
  * @brief release a writable pointer to the slot that contains the value for the given static field

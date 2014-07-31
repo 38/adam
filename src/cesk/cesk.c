@@ -21,10 +21,16 @@ int cesk_init(void)
 		LOG_FATAL("can not initialize method analyzer");
 		return -1;
 	}
+	if(cesk_static_init() < 0)
+	{
+		LOG_FATAL("can not initialize static field table module");
+		return -1;
+	}
 	return 0;
 }
 void cesk_finalize(void)
 {
+	cesk_static_finalize();
 	cesk_method_finalize();
 	cesk_reloc_finalize();
 	cesk_value_finalize();
