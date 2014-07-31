@@ -6,39 +6,16 @@
 
 #include <cesk/cesk_static.h>
 #include <cesk/cesk_value.h>
-/**
- * @brief a table of prime number that can be selected as size of the static table
- * @note the size of the static table should be larger than the total number of static
- *       fields in the source code
- **/
-static const uint32_t _cesk_static_table_primes[] = {
-	2, 5, 11, 17, 37, 67, 131, 257, 521, 1031, 2053, 4099, 8209, 16411, 
-	32771, 65537, 131101, 262147, 524309, 1048583, 2097169, 4194319    
-};
-/**
- * @brief the node type in the static field table
- **/
-typedef struct _cesk_static_table_node_t _cesk_static_table_node_t;
-struct _cesk_static_table_node_t {
-	uint32_t    index;                 /*!< the index of this field*/
-	cesk_set_t* value_set;             /*!< the value of of this field */
-	_cesk_static_table_node_t* hash_next; /*!< the next node in the hash table */
-	_cesk_static_table_node_t* list_next; /*!< the next node in the address list */
-};
+/* typeps */
 
 /**
- * @brief the implementation of the static field table
+ * @brief the node in the skiplist 
  **/
-struct _cesk_static_table_t{
-	uint32_t refcnt;                        /*!< the reference counter */
-	uint32_t hashcode;                      /*!< current the hashcode */
-	_cesk_static_table_node_t* node_list;   /*!< the head of node list */
-	_cesk_static_table_node_t* hash[0];     /*!< the hash table slots */
-};
-/* validate the type */
-CONST_ASSERTION_SIZE(cesk_static_table_t, hash, 0);  /* the size for hash should be 0 */
-CONST_ASSERTION_LAST(cesk_static_table_t, hash);     /* the field hash should be the last member*/
+typedef struct _cesk_static_skiplist_node_t _cesk_static_skiplist_node_t;
 
+struct _cesk_static_skiplist_node_t{
+	uint32_t index:(2-1);
+};
 /* global static variables */
 /**
  * @brief the default value for each static fields
@@ -52,114 +29,15 @@ CONST_ASSERTION_LAST(cesk_static_table_t, hash);     /* the field hash should be
  **/
 static uint32_t* _cesk_static_default_value;
 
-/** 
- * @brief this variable determine the number of slots in the hash table
- * @note  0 means this size remains undetermined
- **/
-static uint32_t _cesk_static_table_size = 0;
 
 /* local inline functions */
-/**
- * @brief allocate a new static table node
- * @param index the index of this static field
- * @return the newly created node, NULL indicates error
- **/
-static inline _cesk_static_table_node_t* _cesk_static_table_node_new(uint32_t index)
-{
-	_cesk_static_table_node_t* ret = (_cesk_static_table_node_t*)malloc(sizeof(_cesk_static_table_node_t));
-	if(NULL == ret)
-	{
-		LOG_ERROR("can not allocate new node for static field table");
-		return NULL;
-	}
-	memset(ret, 0, sizeof(_cesk_static_table_node_t));
-	ret->index = index;
-	return ret;
-}
-/**
- * @brief find the static field table node for this index
- * @param table the static field table
- * @param index the index to find
- * @return the pointer to this node, NULL if not found
- **/
-static inline _cesk_static_table_node_t* _cesk_static_table_find(cesk_static_table_t* table, uint32_t index)
-{
-	uint32_t h = index % _cesk_static_table_size;
-	_cesk_static_table_node_t* node;
-	for(node = table->hash[h]; NULL != node && node->index != index; node = node->hash_next);
-	return node;
-}
-/**
- * @brief compute hashcode for a given node
- * @param node 
- * @return the hashcode computed from this node
- **/
-static inline hashval_t _cesk_static_table_node_hashcode(const _cesk_static_table_node_t* node)
-{
-	return (MH_MULTIPLY * ~node->index) ^ cesk_set_hashcode(node->value_set);
-}
-/**
- * @brief insert a node for given index in the static field table
- * @param table the static field table
- * @param index the index for this field
- * @param init_val the init value
- * @note  we assume that the index is not exist in this table
- * @return the pointer to newly created node, NULL if an error 
- **/
-static inline _cesk_static_table_node_t* _cesk_static_table_insert(cesk_static_table_t* table, uint32_t index, uint32_t init_val)
-{
-	uint32_t h = index % _cesk_static_table_size;
-	_cesk_static_table_node_t* node = _cesk_static_table_node_new(index);
-	cesk_set_t* value_set = NULL;
-	if(NULL == node)
-	{
-		LOG_ERROR("can not allocate a new node for index 0x%x", index);
-		goto ERR;
-	}
-	value_set = cesk_set_empty_set();
-	if(NULL == value_set)
-	{
-		LOG_ERROR("can not create a new set for the field value");
-		goto ERR;
-	}
 
-	/* manipulate the hash table */
-	node->hash_next = table->hash[h];
-	table->hash[h] = node;
 
-	/* manipulate the node list */
-	node->list_next = table->node_list;
-	table->node_list = node;
-
-	return node;
-ERR:
-	if(NULL != value_set) cesk_set_free(value_set);
-	if(NULL != node) free(node);
-	return NULL;
-}
-/**
- * @brief commit modification of the node and update the hashcode of this table
- * @param table the static field table
- * @param node  the target node
- * @return result of operation, <0 indicates errors
- **/
-static inline int _cesk_static_table_commit(cesk_static_table_t* table, const _cesk_static_table_node_t* node)
-{
-	table->hashcode ^= _cesk_static_table_node_hashcode(node);
-	return 0;
-}
 /* Interface implementation */
 
 int cesk_static_init()
 {
 	extern const uint32_t dalvik_static_field_count;
-	int i;
-	for(i = 0; 
-	    i < sizeof(_cesk_static_table_primes)/sizeof(*_cesk_static_table_primes) &&
-		_cesk_static_table_primes[i] < dalvik_static_field_count;
-		i ++);
-	_cesk_static_table_size = _cesk_static_table_primes[i];
-	LOG_DEBUG("The size of the static field table is %d", _cesk_static_table_size);
 	_cesk_static_default_value = (uint32_t*)malloc(sizeof(uint32_t) * dalvik_static_field_count);
 	if(NULL == _cesk_static_default_value)
 	{
@@ -261,105 +139,4 @@ CONST_VALUE:
 		_cesk_static_default_value[index] = addr;
 	}
 	return index;
-}
-
-cesk_static_table_t* cesk_static_table_new()
-{
-	size_t size = sizeof(cesk_static_table_t) + sizeof(_cesk_static_table_node_t*) * _cesk_static_table_size;
-	cesk_static_table_t* ret = (cesk_static_table_t*)malloc(size);
-	if(NULL == ret)
-	{
-		LOG_ERROR("can not allocate memory for a new static field table");
-		return NULL;
-	}
-	/* set the refcnt to 1, because we assume that the caller will use this table */
-	ret->refcnt = 1;
-	ret->node_list = NULL;
-	/* initial hashcode, actually a random value */
-	ret->hashcode = 0x73fd5efau;
-	/* initialize the slots */
-	memset(ret->hash, 0, size - sizeof(cesk_static_table_t));
-	return ret;
-}
-int cesk_static_table_incref(cesk_static_table_t* table)
-{
-	if(NULL == table)
-	{
-		LOG_ERROR("invalid argument");
-		return -1;
-	}
-	table->refcnt ++;
-	return 0;
-}
-int cesk_static_table_decref(cesk_static_table_t* table)
-{
-	if(NULL == table)
-	{
-		LOG_ERROR("invalid argument");
-		return -1;
-	}
-	if(0 == -- table->refcnt)
-	{
-		LOG_DEBUG("no one is using this static field table %p, we can delete this object", table);
-		/* first we delete the node in this table */
-		_cesk_static_table_node_t* ptr;
-		for(ptr = table->node_list; NULL != ptr;)
-		{
-			_cesk_static_table_node_t* current = ptr;
-			ptr = ptr->list_next;
-			cesk_set_free(current->value_set);
-			free(current);
-		}
-		/* then we can delete the table */
-		free(table);
-	}
-	return 0;
-}
-const cesk_set_t* cesk_static_table_get_ro(cesk_static_table_t* table, uint32_t addr)
-{
-	extern const uint32_t dalvik_static_field_count;
-	/* we check if or not this address is a valid static field address */
-	if(!CESK_STORE_ADDR_IS_STATIC(addr))
-	{
-		LOG_ERROR("invalid static address "PRSAddr, addr);
-		return NULL;
-	}
-	if(NULL == table)
-	{
-		LOG_ERROR("invalid argument");
-		return NULL;
-	}
-	uint32_t idx = CESK_STORE_ADDR_STATIC_IDX(addr);
-
-	/* we should validate the value of index first */
-	if(idx >= dalvik_static_field_count)
-	{
-		LOG_ERROR("static field address out of bound: "PRSAddr, addr);
-		return NULL;
-	}
-
-	/* okay, try to find this field in the table */
-	_cesk_static_table_node_t* node = _cesk_static_table_find(table, idx);
-	/* if can not found this field, we should initialize a new one */
-	if(NULL == node)
-	{
-		LOG_DEBUG("static field %u not found", idx);
-		uint32_t init_val;
-		/* no initializer for this address? must be a mistake */
-		if(CESK_STORE_ADDR_NULL == (init_val = _cesk_static_default_value[idx]))
-		{
-			LOG_ERROR("I do not know how to initialize this field, aborting");
-			return NULL;
-		}
-		/* okay, let's do initalization */
-		node = _cesk_static_table_insert(table, idx, init_val);
-		if(NULL == node) 
-		{
-			LOG_ERROR("can not insert a new node in the static field table");
-			return NULL;
-		}
-		/* ok, we need commit the modification on this node first */
-		_cesk_static_table_commit(table, node);
-	}
-	return node->value_set;
 }
