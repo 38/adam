@@ -12,7 +12,7 @@
 /**@brief field defination */
 typedef struct {
 	/* DO NOT ADD ANY DEFINITION HERE */
-	const char*    name;            /*!<name of this field*//*THIS MUST BE THE FIRST MEMBER OF THIS STRUCT */
+	const char*    name;            /*!<name of this field*/
 	const char*    path;            /*!<class path */
 	const char*    file;            /*!<the source file name */
 	dalvik_type_t* type;            /*!<type of this field */

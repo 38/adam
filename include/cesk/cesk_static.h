@@ -10,12 +10,9 @@
 #include <constants.h>
 #include <const_assertion.h>
 
-typedef struct _cesk_static_table_t cesk_static_table;
+typedef struct _cesk_static_table_t cesk_static_table_t;
 
-#include <dalvik/dalvik.h>
 #include <cesk/cesk_set.h>
-#include <cesk/cesk_store.h>
-#include <cesk/cesk_frame.h>
 
 /**
  * @brief the static field table
