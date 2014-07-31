@@ -34,7 +34,14 @@ int cesk_static_init();
  * @return nothing
  **/
 void cesk_static_finalize();
-
+/**
+ * @brief look for the static field in the member dict and translate the default value to cesk value
+ * @param class the name of the target class
+ * @param field the field name of the target
+ * @param initval wether or not the caller needs the initval
+ * @return the field index, <0 indicates an error 
+ **/
+int cesk_static_query_field(const char* class, const char* field, int initval);
 /**
  * @brief create a new empty(which means it's just the initial state) static table
  * @note  because for the table we actually act a lazy initialize policy, which means 
@@ -47,11 +54,11 @@ void cesk_static_finalize();
  **/
 cesk_static_table_t* cesk_static_table_new();
 /**
- * @brief `fork' another copy of this table
+ * @brief increase the refcnt of the static field table
  * @param table the static table we want to fork
- * @return the pointer to the result static table
+ * @return the result for incref, <0 indicates errors
  **/
-cesk_static_table_t* cesk_static_table_fork(const cesk_static_table_t* table);
+int cesk_static_table_incref(cesk_static_table_t* table);
 /**
  * @brief release the reference to this static table, if the refcnt has been reduced to zero, this object is dead
  * @param table the target static table
@@ -61,17 +68,18 @@ int cesk_static_table_decref(cesk_static_table_t* table);
 /**
  * @brief get the value of a given static address 
  * @param table the static table
- * @return the result set
+ * @note because this function is resonsible for field initialization, so that we need a write permission
+ * @return the result set, NULL indicates errors
  **/
-const cesk_set_t* cesk_static_table_get_ro(const cesk_static_table_t* table, uint32_t addr);
+const cesk_set_t* cesk_static_table_get_ro(cesk_static_table_t* table, uint32_t addr);
 
 /**
  * @brief get a writable pointer to the slot that contains the value for the given static field
- * @param table the static table
+ * @param table the pointer to the table reference to the static table(the table address might be change after this function)
  * @param addr the address 
  * @return the pointer to the slot that contains the static field
  **/
-cesk_set_t** cesk_static_table_get_rw(cesk_static_table_t* table, uint32_t addr);
+cesk_set_t** cesk_static_table_get_rw(cesk_static_table_t** table, uint32_t addr);
 
 /**
  * @breif initialize a new iterator to traverse the table
