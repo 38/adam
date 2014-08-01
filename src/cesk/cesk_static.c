@@ -2,20 +2,53 @@
  * @file cesk_static.c
  * @brief the implementation of static field table
  **/
+#include <stdlib.h>
+#include <time.h>
+
 #include <dalvik/dalvik.h>
 
 #include <cesk/cesk_static.h>
 #include <cesk/cesk_value.h>
 /* typeps */
 
+/** @brief how many pointers do a static field table have **/
+#define NPOINTERS (1<<CESK_STATIC_SKIP_LIST_DEPTH)
+
+/** @brief return wether or not use array as data structure for the table */
+#ifndef ALWAYS_SKIPLIST
+#	define USE_ARRAY  0
+#else
+#	define USE_ARRAY (dalvik_static_field_count <= NPOINTERS)
+#endif
+
+
 /**
  * @brief the node in the skiplist 
  **/
 typedef struct _cesk_static_skiplist_node_t _cesk_static_skiplist_node_t;
-
+/**
+ * @brief actual data structure for _cesk_static_skiplist_node_t
+ **/
 struct _cesk_static_skiplist_node_t{
-	uint32_t index:(2-1);
+	uint32_t index;                                         /*!< the static field index */
+	uint32_t refcnt:(32 - CESK_STATIC_SKIP_LIST_DEPTH);     /*!< the refcnt of this node */
+	uint32_t order :CESK_STATIC_SKIP_LIST_DEPTH;            /*!< how many pointers does this node have */
+	_cesk_static_skiplist_node_t* pointers[0];              /*!< the pointer array */
 };
+CONST_ASSERTION_SIZE(_cesk_static_skiplist_node_t, pointers, 0);
+CONST_ASSERTION_LAST(_cesk_static_skiplist_node_t, pointers);
+
+/**
+ * @brief actual data structure for cesk_static_table_t
+ **/
+struct _cesk_static_table_t{
+	hashval_t hashcode;                                    /*!< the hashcode of this table */
+	union{
+		_cesk_static_skiplist_node_t* skiplist[NPOINTERS]; /*!< the pointer array used by the skiplist */
+		cesk_set_t*                   array   [NPOINTERS]; /*!< the array impmenetation */
+	} data;                                                /*!< the data field of this table */
+}; 
+
 /* global static variables */
 /**
  * @brief the default value for each static fields
@@ -27,17 +60,137 @@ struct _cesk_static_skiplist_node_t{
  *        field
  * @todo  initialize with the interger value address space 
  **/
+
 static uint32_t* _cesk_static_default_value;
+
+/** @brief how many field do i have? **/
+extern const uint32_t dalvik_static_field_count;
 
 
 /* local inline functions */
-
+/**
+ * @breif generate an randomized order
+ * @return the order number
+ **/
+static inline uint32_t _cesk_static_skiplist_get_order()
+{
+	static int msk = 0;
+	static int rnd = 0;
+	int ret;
+	for(ret = 1; ret <= NPOINTERS; ret ++)
+	{
+		/* if there's no random bit avaible, generate a new random number */
+		if(0 == msk)
+		{
+			rnd = rand();
+			msk = (RAND_MAX >> 1) + 1;
+		}
+		int rand_bit = rnd & msk;
+		msk >>= 1;
+		if(!rand_bit) break;
+	}
+	return ret;
+}
+/**
+ * @breif create a new skip list node
+ * @param index the field index 
+ * @return the newly created node
+ **/
+static inline _cesk_static_skiplist_node_t* _cesk_static_skiplist_node_new(uint32_t index)
+{
+	uint32_t order = _cesk_static_skiplist_get_order();
+	size_t   size = sizeof(_cesk_static_skiplist_node_t) + sizeof(_cesk_static_skiplist_node_t*) * order;
+	_cesk_static_skiplist_node_t* ret = (_cesk_static_skiplist_node_t*)malloc(size);
+	if(NULL == ret)
+	{
+		LOG_ERROR("can not allocate new skiplit node for field %d", index);
+		goto ERR;
+	}
+	ret->order = order;
+	ret->refcnt = 0;
+	ret->index = index;
+	memset(ret->pointers, 0, size);
+	return ret;
+ERR:
+	if(NULL != ret) free(ret);
+	return NULL;
+}
+/**
+ * @biref insert a new node to the skiplist
+ * @param list the target skiplist
+ * @param index the index to inerst
+ * @note  this function does nothing aoubt the hashcode,
+ *        so that caller is responsible for updating the
+ *        hashcode
+ *        And we assume that this node is not exist in the list before this insertion
+ * @return the new node created for this index, NULL indicates error 
+ **/
+static inline _cesk_static_skiplist_node_t* _cesk_static_skiplist_insert(_cesk_static_skiplist_node_t** list, uint32_t index)
+{
+	_cesk_static_skiplist_node_t* node = _cesk_static_skiplist_node_new(index);
+	if(NULL == node)
+	{
+		LOG_ERROR("can not create list node");
+		return NULL;
+	}
+	/* we should insert the node between begin and end */
+	_cesk_static_skiplist_node_t *begin[NPOINTERS + 1] = {}, *end = NULL;
+	int i;
+	/* find the begin and end node */
+	for(i = NPOINTERS - 1; i >= 0; i ++)
+	{
+		_cesk_static_skiplist_node_t* ptr;
+		begin[i] = begin[i + 1];
+		for(ptr = begin[i]?begin[i]->pointers[i]:list[i]; end != ptr && ptr->index < index; ptr = ptr->pointers[i])
+			begin[i] = ptr;
+		end = ptr;
+	}
+	/* if we need insert this node at the beginning of the list */
+	if(NULL == begin[0]) 
+	{
+		for(i = 0; i < node->order; i ++)
+		{
+			node->pointers[i] = list[i];
+			list[i] = node;
+		}
+	}
+	/* otherwise, insert after the node begin */
+	else
+	{
+		for(i = 0; i < node->order; i ++)
+		{
+			node->pointers[i] = begin[i]->pointers[i];
+			begin[i]->pointers[i] = node;
+		}
+	}
+	return node;
+}
+/**
+ * @brief find a node in the skiplist
+ * @param list the skiplist
+ * @param index the index to insert
+ * @return the list node for this index, NULL indicates nothing found
+ **/
+static inline _cesk_static_skiplist_node_t* _cesk_static_skiplist_find(_cesk_static_skiplist_node_t** list,  uint32_t index)
+{
+	int i;
+	_cesk_static_skiplist_node_t *begin = NULL, *end = NULL;
+	for(i = NPOINTERS - 1; i >= 0; i ++)
+	{
+		_cesk_static_skiplist_node_t* ptr;
+		for(ptr = begin?begin->pointers[i]:list[i]; end != ptr && ptr->index <= index; ptr = ptr->pointers[i])
+			begin = ptr;
+		end = ptr;
+	}
+	if(NULL == begin || begin->index != index) return NULL;
+	return begin;
+}
 
 /* Interface implementation */
 
 int cesk_static_init()
 {
-	extern const uint32_t dalvik_static_field_count;
+	srand((unsigned)time(NULL));
 	_cesk_static_default_value = (uint32_t*)malloc(sizeof(uint32_t) * dalvik_static_field_count);
 	if(NULL == _cesk_static_default_value)
 	{
