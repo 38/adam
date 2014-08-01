@@ -43,12 +43,12 @@ void cesk_static_finalize();
  **/
 int cesk_static_query_field(const char* class, const char* field, int initval);
 /**
- * @brief create a new static field table
- * @param source the source table, if the table is NULL we just create an empty static table
+ * @brief make a copy for given static field table
+ * @param table the source table, if the table is NULL we just create an empty static table
  *        in which everything remains uninitialized
  * @return the pointer to the newly created static table
  **/
-cesk_static_table_t* cesk_static_table_new(const cesk_static_table_t* source);
+cesk_static_table_t* cesk_static_table_fork(const cesk_static_table_t* table);
 /**
  * @brief free a static field table
  * @param table
@@ -61,7 +61,7 @@ void cesk_static_table_free(cesk_static_table_t* table);
  * @note because this function is resonsible for field initialization, so that we need a write permission
  * @return the result set, NULL indicates errors
  **/
-const cesk_set_t* cesk_static_table_get_ro(cesk_static_table_t* table, uint32_t addr);
+const cesk_set_t* cesk_static_table_get_ro(const cesk_static_table_t* table, uint32_t addr);
 
 /**
  * @brief get a writable pointer to the slot that contains the value for the given static field

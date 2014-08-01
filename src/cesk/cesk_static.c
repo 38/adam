@@ -233,12 +233,12 @@ static inline _cesk_static_tree_node_t* _cesk_static_tree_prepare_to_write(
  * @brief insert a new node to the segment tree
  * @param tree the pointer to the pointer to the root node
  * @param index the index node
- * @param initval the initial value
+ * @param initval the initial value, CESK_STORE_ADDR_NULL means do not actually initialize the vlaue set
  * @param p_target the newly inserted node
  * @note we assume that we do not have field index before the insertion
  * @return the root of the tree after insertion, NULL indicates an error
  **/
-static inline _cesk_static_tree_node_t* _cesk_static_tree_node_insert(
+static inline _cesk_static_tree_node_t* _cesk_static_tree_insert(
 		_cesk_static_tree_node_t* tree, 
 		uint32_t index, 
 		uint32_t initval,
@@ -275,21 +275,25 @@ static inline _cesk_static_tree_node_t* _cesk_static_tree_node_insert(
 		/* if this node is the leaf node, we should initlaize the default value */
 		if(node->isleaf)
 		{
-			node->value[0] = cesk_set_empty_set();
-			if(NULL == node->value[0])
+			if(initval != CESK_STORE_ADDR_NULL)
 			{
-				LOG_ERROR("can not initialize the static field %u", index);
-				free(node);
-				return NULL;
-			}
-			if(cesk_set_push(node->value[0], initval) < 0)
-			{
-				LOG_ERROR("can not set the initial value for the static field %u", index);
-				free(node->value[0]);
-				free(node);
-				return NULL;
-			}
-			LOG_DEBUG("initialize new field %u with value "PRSAddr, index, initval);
+				node->value[0] = cesk_set_empty_set();
+				if(NULL == node->value[0])
+				{
+					LOG_ERROR("can not initialize the static field %u", index);
+					free(node);
+					return NULL;
+				}
+				if(cesk_set_push(node->value[0], initval) < 0)
+				{
+					LOG_ERROR("can not set the initial value for the static field %u", index);
+					free(node->value[0]);
+					free(node);
+					return NULL;
+				}
+				LOG_DEBUG("initialize new field %u with value "PRSAddr, index, initval);
+			} 
+			else node->value[0] = NULL;
 			if(NULL != p_target) *p_target = node;
 		}
 		else node->child[0] = node->child[1] = 0;
@@ -303,6 +307,31 @@ static inline _cesk_static_tree_node_t* _cesk_static_tree_node_insert(
 		else l = m, last_direction = 1;
 	}while(r - l > 1);
 	return tree;
+}
+/**
+ * @brief initialize a static field
+ * @param table the static field table
+ * @param index the field index 
+ * @param init  wether or not perform an actual initilaization (since for some cases, the initial vlaue is about to overrided)
+ * @return the newly added node in the segment tree
+ **/
+static inline _cesk_static_tree_node_t*  _cesk_static_table_init_field(cesk_static_table_t* table, uint32_t index, int init)
+{
+	_cesk_static_tree_node_t* ret = NULL;
+	uint32_t init_val = _cesk_static_default_value[index];
+	if(CESK_STORE_ADDR_NULL == init_val) 
+	{
+		LOG_ERROR("invalid initializer, you haven't do field query before doing this?");
+		return NULL;
+	}
+	_cesk_static_tree_node_t* new_tree = _cesk_static_tree_insert(table->root, index, init?init_val:CESK_STORE_ADDR_NULL, &ret);
+	if(NULL == new_tree) 
+	{
+		LOG_ERROR("can not insert %u new node in the segment tree", index);
+		return NULL;
+	}
+	table->root = new_tree;
+	return ret;
 }
 /* Interface implementation */
 
@@ -410,4 +439,52 @@ CONST_VALUE:
 		_cesk_static_default_value[index] = addr;
 	}
 	return index;
+}
+cesk_static_table_t* cesk_static_table_fork(const cesk_static_table_t* table)
+{
+	cesk_static_table_t* ret = (cesk_static_table_t*)malloc(sizeof(cesk_static_table_t));
+	if(NULL == ret)
+	{
+		LOG_ERROR("can not allocate memory for the new static field table");
+		return NULL;
+	}
+	if(NULL == table)
+	{
+		ret->hashcode = 0x3c457fabu;   /* just a magic number */
+		ret->root = NULL;              /* everything reminds uninitlaized */
+	}
+	else
+	{
+		ret->hashcode = table->hashcode;
+		ret->root = (_cesk_static_tree_node_t*)table->root;
+		_cesk_static_tree_node_incref(ret->root);
+	}
+	return ret;
+}
+void cesk_static_table_free(cesk_static_table_t* table)
+{
+	if(NULL == table) return;
+	_cesk_static_tree_node_decref(table->root);
+	free(table);
+}
+const cesk_set_t* cesk_static_table_get_ro(const cesk_static_table_t* table, uint32_t addr)
+{
+	if(NULL == table || !CESK_STORE_ADDR_IS_STATIC(addr))
+	{
+		LOG_ERROR("invalid argument");
+		return NULL;
+	}
+	uint32_t idx = CESK_STORE_ADDR_STATIC_IDX(addr);
+	if(idx >= dalvik_static_field_count)
+	{
+		LOG_ERROR("invalid static field address "PRSAddr", out of boundary", idx);
+		return NULL;
+	}
+	const _cesk_static_tree_node_t* node = _cesk_static_tree_node_find(table->root, idx);
+	if(NULL == node)
+	{
+		LOG_DEBUG("static field %u hasn't been initliazed, initialize it now", idx);
+		node = _cesk_static_table_init_field((cesk_static_table_t*)table, idx, 1); 
+	}
+	return node->value[0];
 }
