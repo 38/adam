@@ -42,7 +42,7 @@ static inline uint32_t cesk_arithmetic_neg(uint32_t a)
  */
 static inline uint32_t cesk_arithmetic_add(uint32_t a, uint32_t b)
 {
-	int ret = CESK_STORE_ADDR_CONST_PREFIX;
+	uint32_t ret = CESK_STORE_ADDR_CONST_PREFIX;
 	/* neg + neg = neg */
 	if(CESK_STORE_ADDR_CONST_CONTAIN(a, NEG) &&
 	   CESK_STORE_ADDR_CONST_CONTAIN(b, NEG))
@@ -111,7 +111,7 @@ static inline uint32_t cesk_arithmetic_sub(uint32_t a, uint32_t b)
  */
 static inline uint32_t cesk_arithmetic_mul(uint32_t a, uint32_t b)
 {
-	int ret = CESK_STORE_ADDR_CONST_PREFIX;
+	uint32_t ret = CESK_STORE_ADDR_CONST_PREFIX;
 	/* neg x neg = pos */
 	if(CESK_STORE_ADDR_CONST_CONTAIN(a, NEG) &&
 	   CESK_STORE_ADDR_CONST_CONTAIN(b, NEG))
@@ -270,7 +270,7 @@ static inline uint32_t cesk_arithmetic_xor(uint32_t a, uint32_t b)
  */
 static inline uint32_t cesk_arithmetic_gt(uint32_t a, uint32_t b)
 {
-	int ret = CESK_STORE_ADDR_CONST_PREFIX;
+	uint32_t ret = CESK_STORE_ADDR_CONST_PREFIX;
 	uint32_t tmp = cesk_arithmetic_sub(a,b);
 	if(CESK_STORE_ADDR_CONST_SET(tmp, NEG))
 		ret = CESK_STORE_ADDR_CONST_SET(ret, FALSE);
@@ -291,7 +291,7 @@ static inline uint32_t cesk_arithmetic_gt(uint32_t a, uint32_t b)
  */
 static inline uint32_t cesk_arithmetic_eq(uint32_t a, uint32_t b)
 {
-	int ret = CESK_STORE_ADDR_CONST_PREFIX;
+	uint32_t ret = CESK_STORE_ADDR_CONST_PREFIX;
 #if 0
 	/* because there are object address comaprasion which is also compiled as
 	 * numberic comparsion, so we should handle this situation here 
@@ -404,7 +404,7 @@ static inline uint32_t cesk_arithmetic_sign_bit_to_numeric(uint32_t sr)
  */
 static inline uint32_t cesk_arithmetic_bitwise_and(uint32_t a, uint32_t b)
 {
-	int ret = CESK_STORE_ADDR_CONST_PREFIX;
+	uint32_t ret = CESK_STORE_ADDR_CONST_PREFIX;
 
 	uint32_t sa = cesk_arithmetic_sign_bit(a);
 	uint32_t sb = cesk_arithmetic_sign_bit(b);
@@ -429,7 +429,7 @@ static inline uint32_t cesk_arithmetic_bitwise_and(uint32_t a, uint32_t b)
  */
 static inline uint32_t cesk_arithmetic_bitwise_or(uint32_t a, uint32_t b)
 {
-	int ret = CESK_STORE_ADDR_CONST_PREFIX;
+	uint32_t ret = CESK_STORE_ADDR_CONST_PREFIX;
 
 	uint32_t sa = cesk_arithmetic_sign_bit(a);
 	uint32_t sb = cesk_arithmetic_sign_bit(b);
@@ -454,7 +454,7 @@ static inline uint32_t cesk_arithmetic_bitwise_or(uint32_t a, uint32_t b)
  */
 static inline uint32_t cesk_arithmetic_bitwise_xor(uint32_t a, uint32_t b)
 {
-	int ret = CESK_STORE_ADDR_CONST_PREFIX;
+	uint32_t ret = CESK_STORE_ADDR_CONST_PREFIX;
 
 	uint32_t sa = cesk_arithmetic_sign_bit(a);
 	uint32_t sb = cesk_arithmetic_sign_bit(b);
@@ -479,7 +479,7 @@ static inline uint32_t cesk_arithmetic_bitwise_xor(uint32_t a, uint32_t b)
 
 static inline uint32_t cesk_arithmetic_bitwise_neg(uint32_t a)
 {
-	int ret = CESK_STORE_ADDR_CONST_PREFIX;
+	uint32_t ret = CESK_STORE_ADDR_CONST_PREFIX;
 	uint32_t sa = cesk_arithmetic_sign_bit(a);
 	uint32_t sr = cesk_arithmetic_not(sa);
 	ret = cesk_arithmetic_sign_bit_to_numeric(sr);

@@ -61,12 +61,12 @@ foreach(test ${UnitTests})
 	add_test(${TEST_BIN} bin/test/${TEST_BIN})
 endforeach(test)
 
-find_package(Doxygen)
-add_custom_target(docs
-	${DOXYGEN_EXECUTABLE} ${CMAKE_CURRENT_BINARY_DIR}/Doxyfile
-	WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-	COMMENT "Generating API documentation with Doxygen" VERBATIM
-)
+#find_package(Doxygen)
+#add_custom_target(docs
+#	${DOXYGEN_EXECUTABLE} ${CMAKE_CURRENT_BINARY_DIR}/Doxyfile
+#	WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+#	COMMENT "Generating API documentation with Doxygen" VERBATIM
+#)
 
 add_custom_target(distclean
 	COMMAND make clean
