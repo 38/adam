@@ -133,11 +133,6 @@
 #	define CESK_RELOC_HASH_SIZE 655217
 #endif
 
-#ifndef CESK_STATIC_SKIP_LIST_DEPTH
-/** @brief how many bits are used to describe an order of the skiplist node **/
-#	define CESK_STATIC_SKIP_LIST_DEPTH 5   /* which means we have at most 2**5 = 32 pointer in each node */
-#endif
-
 #ifndef BCI_NAMETAB_SIZE
 /** @brief the size of BCI Name Table */
 #	define BCI_NAMETAB_SIZE 100007
