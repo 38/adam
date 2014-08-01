@@ -10,16 +10,16 @@
 #include <dalvik/dalvik_tokens.h>
 #include <debug.h>
 const char* dalvik_type_atom_name[DALVIK_TYPECODE_NUM_ATOM] = {
-	[DALVIK_TYPECODE_VOID]  "void"  ,
-	[DALVIK_TYPECODE_INT]   "int"   ,
-	[DALVIK_TYPECODE_LONG]  "long"  ,
-	[DALVIK_TYPECODE_SHORT] "short" ,
-	[DALVIK_TYPECODE_WIDE]  "wide"  ,
-	[DALVIK_TYPECODE_FLOAT] "float" ,
-	[DALVIK_TYPECODE_DOUBLE]"double",
-	[DALVIK_TYPECODE_CHAR]  "char",
-	[DALVIK_TYPECODE_BYTE]  "byte",
-	[DALVIK_TYPECODE_BOOLEAN]"boolean"
+	[DALVIK_TYPECODE_VOID] = "void"  ,
+	[DALVIK_TYPECODE_INT]  = "int"   ,
+	[DALVIK_TYPECODE_LONG] = "long"  ,
+	[DALVIK_TYPECODE_SHORT]= "short" ,
+	[DALVIK_TYPECODE_WIDE] = "wide"  ,
+	[DALVIK_TYPECODE_FLOAT]= "float" ,
+	[DALVIK_TYPECODE_DOUBLE]="double",
+	[DALVIK_TYPECODE_CHAR]=  "char",
+	[DALVIK_TYPECODE_BYTE]=  "byte",
+	[DALVIK_TYPECODE_BOOLEAN]="boolean"
 };
 
 

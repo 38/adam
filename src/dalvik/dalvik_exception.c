@@ -185,11 +185,6 @@ dalvik_exception_handler_set_t* dalvik_exception_new_handler_set(size_t count, d
 	if(count == 0) return NULL;
 	int i;
 	dalvik_exception_handler_set_t* ret = NULL;
-	if(count < 0) 
-	{
-		LOG_ERROR("number of handlers can not be negative");
-		goto ERR;
-	}
 	for(i = count - 1; i >= 0; i --)
 	{
 		dalvik_exception_handler_set_t* this = _dalvik_exception_handler_set_alloc();

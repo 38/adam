@@ -2,7 +2,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdint.h>
-#include <malloc.h>
+#include <stdlib.h>
 #include <log.h>
 #include <debug.h>
 

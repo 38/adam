@@ -1,6 +1,5 @@
 #include <assert.h>
 #include <adam.h>
-#include <google/profiler.h>
 int main()
 {
 	adam_init();
