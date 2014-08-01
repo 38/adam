@@ -11,18 +11,24 @@
 #include <cesk/cesk_value.h>
 /* typeps */
 
-/** @brief the segment tree node */
+/** 
+ * @brief the segment tree node 
+ **/
 typedef struct _cesk_static_tree_node_t _cesk_static_tree_node_t;
 
 struct _cesk_static_tree_node_t{
-	uint32_t refcnt;                      /*!< the reference counter */
+	uint32_t refcnt:31;                   /*!< the reference counter */
+	uint8_t  isleaf:1;                    /*!< wether or not this node is a leaf node */
 	cesk_set_t* value[0];                 /*!< the value */
 	_cesk_static_tree_node_t* child[0];   /*!< the child pointer */
 };
 
+/**
+ * @breif data structure for the static table
+ **/
 struct _cesk_static_table_t {
-	hashval_t hashcode;
-	_cesk_static_tree_node_t* root;
+	hashval_t hashcode;                  /*!< current hashcode */
+	_cesk_static_tree_node_t* root;      /*!< the root of the tree */
 };
 
 /* global static variables */
@@ -36,10 +42,11 @@ struct _cesk_static_table_t {
  *        field
  * @todo  initialize with the interger value address space 
  **/
-
 static uint32_t* _cesk_static_default_value;
 
-/** @brief how many field do i have? **/
+/** 
+ * @brief how many field do i have? 
+ **/
 extern const uint32_t dalvik_static_field_count;
 
 
@@ -50,10 +57,42 @@ extern const uint32_t dalvik_static_field_count;
  * @param right the right boundary
  * @return the size of the node in bytes
  **/
-static inline size_t _cesk_static_tree_node_size(uint32_t left, uint32_t right)
+static inline size_t _cesk_static_tree_node_size(int isleaf)
 {
-	if(right - left > 1) return sizeof(_cesk_static_tree_node_t) + 2 * sizeof(_cesk_static_tree_node_t*);
+	if(!isleaf) return sizeof(_cesk_static_tree_node_t) + 2 * sizeof(_cesk_static_tree_node_t*);
 	else return sizeof(_cesk_static_tree_node_t) + sizeof(cesk_set_t*);
+}
+/**
+ * @brief increase the refcnt of the node
+ * @param node the target node
+ * @return nothing
+ **/
+static inline void _cesk_static_tree_node_incref(_cesk_static_tree_node_t* node)
+{
+	if(NULL != node) node->refcnt ++;
+}
+/**
+ * @brief decrease the refcnt of the node
+ * @param node the target node
+ * @return nothing
+ **/
+static inline void _cesk_static_tree_node_decref(_cesk_static_tree_node_t* node)
+{
+	if(NULL == node) return;
+	if(0 == --node->refcnt)
+	{
+		LOG_DEBUG("node %p is dead, swipe it out", node);
+		/* if this is a leaf node, we have to delete the value set */
+		if(node->isleaf) 
+			cesk_set_free(node->value[0]);
+		/* for a non-leaf node, we should derefence it's child */
+		else
+		{
+			_cesk_static_tree_node_decref(node->child[0]);
+			_cesk_static_tree_node_decref(node->child[1]);
+		}
+		free(node);
+	}
 }
 /**
  * @brief create a new segment tree node for range [left, right)
@@ -63,15 +102,16 @@ static inline size_t _cesk_static_tree_node_size(uint32_t left, uint32_t right)
  **/
 static inline _cesk_static_tree_node_t* _cesk_static_tree_node_new(uint32_t left, uint32_t right)
 {
-	_cesk_static_tree_node_t* ret = (_cesk_static_tree_node_t*)malloc(_cesk_static_tree_node_size(left, right));
+	int isleaf = (right - left <= 1);
+	size_t size = _cesk_static_tree_node_size(isleaf);
+	_cesk_static_tree_node_t* ret = (_cesk_static_tree_node_t*)malloc(size);
 	if(NULL == ret)
 	{
 		LOG_ERROR("can not allocate memory for a new segment tree node");
 		return NULL;
 	}
-	ret->left = left;
-	ret->right = right;
 	ret->refcnt = 0;
+	ret->isleaf = isleaf;
 	return ret;
 }
 /**
@@ -81,17 +121,29 @@ static inline _cesk_static_tree_node_t* _cesk_static_tree_node_new(uint32_t left
  **/
 static inline _cesk_static_tree_node_t* _cesk_static_tree_node_duplicate(_cesk_static_tree_node_t* node)
 {
-	size_t size = (_cesk_static_tree_node_size(node->left, node->right));
+	int isleaf = node->isleaf;
+	size_t size = _cesk_static_tree_node_size(isleaf);
 	_cesk_static_tree_node_t* ret = (_cesk_static_tree_node_t*)malloc(size);
 	if(NULL == ret)
 	{
-		LOG_ERROR("can not allocate memory for the new copy of the node [%d,%d)", node->left, node->right);
+		LOG_ERROR("can not allocate memory for the new copy of the node %p", node);
 		return NULL;
 	}
-	node->refcnt --;
-	ret->refcnt = 1;
+	ret->refcnt = 0;
+	/* for the leaf node, we should duplicate the set */
+	if(isleaf)
+	{
+		ret->value[0] = cesk_set_fork(node->value[0]);
+	}
+	/* just copy the pointer */
+	else
+	{
+		_cesk_static_tree_node_incref(ret->child[0] = node->child[0]);
+		_cesk_static_tree_node_incref(ret->child[1] = node->child[1]);
+	}
 	return ret;
 }
+
 /** 
  * @brief find a index in the segment tree
  * @param root the root of the tree
@@ -100,7 +152,8 @@ static inline _cesk_static_tree_node_t* _cesk_static_tree_node_duplicate(_cesk_s
  **/
 static inline const _cesk_static_tree_node_t* _cesk_static_tree_node_find(const _cesk_static_tree_node_t* root, uint32_t index)
 {
-	int l = 0, r = dalvik_static_field_count;
+	/* for each iteration, we consider the address range [l, r) */
+	int l = 0, r = dalvik_static_field_count; 
 	for(;r - l > 1 && root;)
 	{
 		int m = (l + r) / 2;
@@ -109,33 +162,147 @@ static inline const _cesk_static_tree_node_t* _cesk_static_tree_node_find(const 
 	}
 	return root;
 }
+/** 
+ * @brief make a signle node writable
+ * @param reference a pointer to the reference to this node 
+ * @param node current node
+ * @return a pointer to writable node, NULL indicates an error
+ **/
+static inline _cesk_static_tree_node_t* _cesk_static_tree_node_prepare_to_write(_cesk_static_tree_node_t** reference, _cesk_static_tree_node_t*  node)
+{
+	/* if there's only one reference to this node, just do nothing */
+	if(node->refcnt == 1) return node;
+	/* make a new copy of current node */
+	_cesk_static_tree_node_t* dup = _cesk_static_tree_node_duplicate(node);
+	if(NULL == dup)
+	{
+		LOG_ERROR("can not make a new copy of node %p", node);
+		return NULL;
+	}
+	/* replace the current node with the new copy */
+	*reference = dup;
+	_cesk_static_tree_node_decref(node);
+	_cesk_static_tree_node_incref(dup);
+	return dup;
+}
+/**
+ * @brief prepare to write a node in segment tree
+ * @param root  the tree root 
+ * @param index the field index we are to write
+ * @param p_target a pointer to a buffer that can be used to pass the target node to caller
+ *       (pass NULL if caller deesn't want know this)
+ * @return the new root node after opration, NULL indicate a failure
+ **/
+static inline _cesk_static_tree_node_t* _cesk_static_tree_prepare_to_write(
+		_cesk_static_tree_node_t* root,
+		uint32_t index,
+		_cesk_static_tree_node_t** p_target)
+{
+	/* new root of the tree */ 
+	_cesk_static_tree_node_t* ret = root;
+	/* the parent of current node */
+	_cesk_static_tree_node_t* parent = NULL;
+	/* the last moving direction */
+	int last_direction = -1;
+
+	uint32_t l = 0, r = dalvik_static_field_count;
+	
+	for(;r - l > 1 && NULL != root;)
+	{
+		/* make current node writable */
+		if(NULL == (root = _cesk_static_tree_node_prepare_to_write(parent?&ret:&parent->child[last_direction], root)))
+		{
+			LOG_ERROR("can not make current node (segment = <%u, %u>) writable", l, r);
+			return NULL;
+		}
+		int m = (l + r) / 2;
+		parent = root;
+		if(index < m) r = m, root = root->child[last_direction = 0];
+		else l = m, root = root->child[last_direction = 1];
+	}
+	/* if we reach the leaf node, we should do the same thing */
+	if(root && NULL == (root = _cesk_static_tree_node_prepare_to_write(parent?&ret:&parent->child[last_direction], root)))
+	{
+		LOG_ERROR("can not make the leaf node for index %d writable", index);
+		return NULL;
+	}
+	if(NULL != p_target) *p_target = root;
+	return ret;
+}
 /**
  * @brief insert a new node to the segment tree
  * @param tree the pointer to the pointer to the root node
  * @param index the index node
  * @param initval the initial value
+ * @param p_target the newly inserted node
  * @note we assume that we do not have field index before the insertion
- * @return the node inserted to the tree, NULL indicate an error
+ * @return the root of the tree after insertion, NULL indicates an error
  **/
-static inline _cesk_static_tree_node_t* _cesk_static_tree_node_insert(_cesk_static_tree_node_t** tree, uint32_t index, uint32_t initval)
+static inline _cesk_static_tree_node_t* _cesk_static_tree_node_insert(
+		_cesk_static_tree_node_t* tree, 
+		uint32_t index, 
+		uint32_t initval,
+		_cesk_static_tree_node_t** p_target)
 {
-	_cesk_static_tree_node_t* root = *tree;
-	int l = 0, r = dalvik_static_field_count;
-	for(;r - l > 1;)
+	/* before we start, we should make sure the tree is wrtiable at least at this index */
+	tree = _cesk_static_tree_prepare_to_write(tree, index, NULL);
+	if(NULL == tree)
 	{
-		if(root->refcnt > 1) 
+		LOG_ERROR("failed to make the tree writable");
+		return NULL;
+	}
+	/* ok, let's do it! */
+	uint32_t l = 0, r = dalvik_static_field_count;
+	_cesk_static_tree_node_t* parent = NULL;
+	_cesk_static_tree_node_t* node = tree;
+	int last_direction = -1;
+	/* first we go down through the tree, until we got a NULL pointer */
+	for(;r - l > 1 && NULL != node;)
+	{
+		int m = (l + r) / 2;
+		parent = node;
+		if(index < m) r = m, node = node->child[last_direction = 0];
+		else l = m, node = node->child[last_direction = 1];
+	}
+	/* then we create new node until we touched the leaf node */
+	do{
+		node = _cesk_static_tree_node_new(l, r);
+		if(NULL == node)
 		{
-			_cesk_static_tree_node_t* dup = _cesk_static_tree_node_duplicate(root);
-			if(NULL == dup) 
+			LOG_ERROR("can not create a new node for segment [%u, %u)", l ,r);
+			return NULL;
+		}
+		/* if this node is the leaf node, we should initlaize the default value */
+		if(node->isleaf)
+		{
+			node->value[0] = cesk_set_empty_set();
+			if(NULL == node->value[0])
 			{
-				LOG_ERROR("can not make a duplication for this node");
+				LOG_ERROR("can not initialize the static field %u", index);
+				free(node);
 				return NULL;
 			}
-			//TODO the seg tree
+			if(cesk_set_push(node->value[0], initval) < 0)
+			{
+				LOG_ERROR("can not set the initial value for the static field %u", index);
+				free(node->value[0]);
+				free(node);
+				return NULL;
+			}
+			LOG_DEBUG("initialize new field %u with value "PRSAddr, index, initval);
+			if(NULL != p_target) *p_target = node;
 		}
+		else node->child[0] = node->child[1] = 0;
+		/* maintain the tree structure */
+		if(parent) parent->child[last_direction] = node;
+		else tree = node;
+		/* keep moving down */
+		parent = node;
 		int m = (l + r) / 2;
-
-	}
+		if(index < m) r = m, last_direction = 0;
+		else l = m, last_direction = 1;
+	}while(r - l > 1);
+	return tree;
 }
 /* Interface implementation */
 
