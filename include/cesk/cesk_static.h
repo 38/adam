@@ -15,7 +15,7 @@ typedef struct _cesk_static_table_t cesk_static_table_t;
 /**
  * @brief the iterator type for the static table
  **/
-typedef void* cesk_static_table_iter_t;
+typedef uint32_t cesk_static_table_iter_t;
 
 #include <cesk/cesk_set.h>
 
@@ -67,9 +67,19 @@ const cesk_set_t* cesk_static_table_get_ro(const cesk_static_table_t* table, uin
  * @brief get a writable pointer to the slot that contains the value for the given static field
  * @param table the pointer to the table reference to the static table(the table address might be change after this function)
  * @param addr the address 
+ * @param init need initialization?
  * @return the pointer to the slot that contains the static field
  **/
-cesk_set_t** cesk_static_table_get_rw(cesk_static_table_t** table, uint32_t addr);
+cesk_set_t** cesk_static_table_get_rw(cesk_static_table_t* table, uint32_t addr, int init);
+
+/**
+ * @brief release a writable pointer to the slot that contains the value for the given static field
+ * @param table the static table
+ * @param addr the address to that static field
+ * @param value the reference to new value 
+ * @return the result for the operation, < 0 indicates an error
+ **/
+int cesk_static_table_release_rw(cesk_static_table_t* table, uint32_t addr, const cesk_set_t* value);
 
 /**
  * @breif initialize a new iterator to traverse the table
@@ -88,13 +98,6 @@ cesk_static_table_iter_t* cesk_static_table_iter(const cesk_static_table_t* tabl
  **/
 const cesk_set_t* cesk_static_table_iter_next(cesk_static_table_iter_t* iter, uint32_t *paddr);
 
-/**
- * @brief release a writable pointer to the slot that contains the value for the given static field
- * @param table the static table
- * @param addr the address to that static field
- * @return the result for the operation, < 0 indicates an error
- **/
-int cesk_static_table_release_rw(cesk_static_table_t* table, uint32_t addr);
 
 /**
  * @brief return the hash code for this static table
