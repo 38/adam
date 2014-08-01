@@ -22,6 +22,7 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY bin)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY bin/lib)
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY bin/lib)
 set(tools_DIR "tools")
+set(test_DIR "test")
 
 set(LOG     6)  # log level can be 0 to 6, 0 means no log, 6 means the most detialed log
 #set(CFLAGS -O0\ -Werror\ -Wall\ -g\ -DLOG_LEVEL=${LOG}\ -DPARSER_COUNT)
@@ -62,17 +63,20 @@ file(GLOB UnitTests "test/test_*.c")
 foreach(test ${UnitTests})
     get_filename_component(TEST_BIN ${test} NAME_WE)
     set_source_files_properties(${test} PROPERTIES COMPILE_FLAGS ${CFLAGS}) 
-    add_executable(test/${TEST_BIN} ${test})
-    target_link_libraries(test/${TEST_BIN} adam)
+    add_executable(${TEST_BIN} ${test})
+    set_target_properties(${TEST_BIN} PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}"/"${test_DIR})
+    target_link_libraries(${TEST_BIN} adam)
 	add_test(${TEST_BIN} bin/test/${TEST_BIN})
 endforeach(test)
 
 find_package(Doxygen)
-add_custom_target(docs
-	${DOXYGEN_EXECUTABLE} ${CMAKE_CURRENT_BINARY_DIR}/Doxyfile
-	WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-	COMMENT "Generating API documentation with Doxygen" VERBATIM
-)
+if(${DOXYGEN_EXECUTABLE})
+    add_custom_target(docs
+        ${DOXYGEN_EXECUTABLE} ${CMAKE_CURRENT_BINARY_DIR}/Doxyfile
+        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+        COMMENT "Generating API documentation with Doxygen" VERBATIM
+    )
+endif(${DOXYGEN_EXECUTABLE})
 
 add_custom_target(distclean
 	COMMAND make clean
