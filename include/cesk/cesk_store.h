@@ -110,7 +110,7 @@ CONST_ASSERTION_EQ(CESK_STORE_ADDR_NULL, 0xffffffff);
                                          !CESK_STORE_ADDR_IS_CONST(addr))
 /** @brief return the index of the static field */
 #define CESK_STORE_ADDR_STATIC_IDX(addr) (addr&~CESK_STORE_ADDR_STATIC_PREFIX)
-#define CESK_STORE_ADDR_STATIC_SIZE ((1 + ~CESK_STORE_ADDR_STATIC_PREFIX) - (1 + ~CESK_STORE_ADDR_RELOC_PREFIX)) 
+#define CESK_STORE_ADDR_STATIC_SIZE ((uint32_t)((1 + ~CESK_STORE_ADDR_STATIC_PREFIX) - (1 + ~CESK_STORE_ADDR_RELOC_PREFIX)))
 
 
 #include <cesk/cesk_alloctab.h>

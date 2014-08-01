@@ -327,8 +327,9 @@ static inline void cli_do_frame(sexpression_t* sexp)
 			regnum = atoi(reg + 1) + 2;
 		const char *this;
 		cesk_frame_register_clear(input_frame, regnum, NULL, NULL);
-		for(;SEXP_NIL != this && sexp_match(sexp, "(L?A", &this, &sexp);)
+		for(;sexp_match(sexp, "(L?A", &this, &sexp);)
 		{
+            if(SEXP_NIL == this) break;
 			uint32_t addr;
 			if(strcmp(this, "-") == 0) addr = CESK_STORE_ADDR_NEG;
 			else if(strcmp(this, "Z") == 0) addr = CESK_STORE_ADDR_ZERO;
