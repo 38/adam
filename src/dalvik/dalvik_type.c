@@ -62,7 +62,7 @@ void dalvik_type_finalize(void)
 dalvik_type_t* dalvik_type_from_sexp(const sexpression_t* sexp)
 {
    const char* curlit;
-   LOG_DEBUG("parsing type %s", sexp_to_string(sexp, NULL));
+   LOG_DEBUG("parsing type %s", sexp_to_string(sexp, NULL, 0));
    if(sexp_match(sexp, "L?", &curlit))  /* A single literal ? atom */
    {
 	   if(curlit == DALVIK_TOKEN_VOID)

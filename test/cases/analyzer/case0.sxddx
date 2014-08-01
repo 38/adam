@@ -1,5 +1,5 @@
 (class (attrs public) testClass
-	(super java/lang/object)
+	(super java/lang/Object)
 	(source "testClass.java")
 	(method (attrs public) sum() int
 	 	(limit-registers 10)
@@ -24,7 +24,7 @@
 	  (const v1 1)
 	  (if-eq v0 v9 L_RET)
 	  (sub-int v8 v9 v1)
-	  (invoke-static {v8} testClass/frac int)
+	  (invoke-static {v8} testClass/frac (int) int)
 	  (move-result v2)
 	  (move v1 v9)
 	  (mul-int v1 v1 v2)
@@ -34,7 +34,7 @@
 	(method (attrs public static) neg() int
 	  (limit-registers 3)
 	  (const v0 20)
-	  (invoke-static {v0} testClass/frac int)
+	  (invoke-static {v0} testClass/frac (int) int)
 	  (move-result v0)
 	  (neg-int v0 v0)
 	  (return v0)

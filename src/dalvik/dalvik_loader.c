@@ -2,6 +2,8 @@
 #include <unistd.h>
 #include <dirent.h>
 #include <stdio.h>
+#include <errno.h>
+#include <string.h>
 
 #include <dalvik/dalvik_loader.h>
 #include <dalvik/dalvik_class.h>
@@ -30,7 +32,11 @@ int dalvik_loader_from_directory(const char* path)
 
 	int i;
 
-	if(num_dirent < 0) goto ERR;
+	if(num_dirent < 0) 
+	{
+		LOG_ERROR("can not open directory %s: %s", path, strerror(errno));
+		goto ERR;
+	}
 	
 	size_t bufsize = 1024;
 	buf = (char*)malloc(bufsize);
@@ -41,13 +47,22 @@ int dalvik_loader_from_directory(const char* path)
 		{
 			char filename[1024];
 			sprintf(filename, "%s/%s", path, result[i]->d_name);
-			if(dalvik_loader_from_directory(filename) < 0) goto ERR;
+			if(dalvik_loader_from_directory(filename) < 0) 
+			{
+				LOG_ERROR("failed to load directory %s, aborting", filename);
+				goto ERR;
+			}
 		}
 		else 
 		{
 			LOG_DEBUG("Scanning file %s/%s", path, result[i]->d_name);
 			sprintf(buf, "%s/%s", path, result[i]->d_name);
 			FILE* fp = fopen(buf, "r");
+			if(NULL == fp)
+			{
+				LOG_WARNING("can not open file \"%s\", %s", buf, strerror(errno));
+				continue;
+			}
 			fseek(fp, 0, SEEK_END);
 			int len = ftell(fp) + 1;
 			while(len > bufsize)
@@ -57,14 +72,14 @@ int dalvik_loader_from_directory(const char* path)
 			}
 			if(NULL == fp)
 			{
-				LOG_ERROR("Can't open file %s", buf);
+				LOG_ERROR("Can't open file %s: %s", buf, strerror(errno));
 				goto ERR;
 			}
 			fseek(fp, 0, SEEK_SET);
 			int nbytes;
 			if((nbytes = fread(buf, 1, bufsize, fp)) < 0)
 			{
-				LOG_ERROR("Can't read file");
+				LOG_ERROR("Can't read file %s: %s", buf, strerror(errno));
 				goto ERR;
 			}
 			buf[nbytes] = 0;

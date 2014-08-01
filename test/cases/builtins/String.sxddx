@@ -1,0 +1,10 @@
+(class (attrs public) stringCases
+ 	(super java/lang/Object)
+	(source "String.java")
+	(method (attrs public static) case1 () int
+		(limit-registers 5)
+		(const-string v1 "hello world!")
+		(iget v2 v1 java/lang/String.length int)
+		(return-object v2)
+	)
+)

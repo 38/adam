@@ -6,9 +6,12 @@
  **/
 
 typedef struct _cesk_object_t cesk_object_t;
+#include <log.h>
+
 #include <const_assertion.h>
 #include <constants.h>
 #include <cesk/cesk_value.h>
+#include <cesk/cesk_store.h>
 #include <dalvik/dalvik_class.h>
 #include <bci/bci_class.h>
 /**
@@ -23,7 +26,7 @@ typedef struct _cesk_object_t cesk_object_t;
 typedef struct {
 	union{
 		const dalvik_class_t*	 udef;		   /*!< the user defined class*/
-		const bci_class_t*       bci;          /*!< the built-in class interface */
+		const bci_class_wrap_t*       bci;          /*!< the built-in class interface */
 		const struct {
 			const char* value;                 /*!< value of class path */
 		}*path;                                /*!< the class path */
@@ -47,6 +50,8 @@ CONST_ASSERTION_LAST(cesk_object_struct_t, bcidata);
 struct _cesk_object_t {
 	uint16_t         	  depth;      /*!<the depth in inherence tree */
 	size_t				  size;       /*!<the size of the object useful when clone an object */
+	size_t                nbuiltin;   /*!<the number of builtin classes */
+	cesk_object_struct_t* builtin;    /*!< a pointer to the built-in class structure, if this object has one */
 	cesk_object_struct_t  members[0]; /*!<the length of the tree */
 };
 CONST_ASSERTION_LAST(cesk_object_t, members);
@@ -84,10 +89,18 @@ cesk_object_t* cesk_object_new(const char* classpath);
  *        set
  * @param object the object
  * @param classpath the class path
- * @param field the field name
+ * @param field_name the field name
+ * @param p_bci_class if this class is a built-in class, NULL will return be returned and the bci_class will
+ *        return from this variable
+ * @param similar to p_bci_class
  * @return the pointer constains set address in the store
  */
-uint32_t* cesk_object_get(cesk_object_t* object, const char* classpath, const char* field);
+uint32_t* cesk_object_get(
+		cesk_object_t* object, 
+		const char* classpath, 
+		const char* field_name, 
+		const bci_class_t** p_bci_class,
+		void** p_bci_data);
 
 /**
  * @brief free the object 
@@ -162,9 +175,15 @@ hashval_t cesk_object_compute_hashcode(const cesk_object_t* object);
  * @param buf the address buf 
  * @return <0 error otherwise success
  */
-static inline int cesk_object_get_addr(const cesk_object_t* object, const char* classpath, const char* field_name, uint32_t* buf)
+static inline int cesk_object_get_addr(
+		const cesk_object_t* object, 
+		const char* classpath, 
+		const char* field_name, 
+		const bci_class_t** p_bci_class,
+		const void** p_bci_data,
+		uint32_t* buf)
 {
-	uint32_t* ret = cesk_object_get((cesk_object_t*)object, classpath, field_name);
+	uint32_t* ret = cesk_object_get((cesk_object_t*)object, classpath, field_name, p_bci_class, (void**)p_bci_data);
 	if(NULL == ret) return -1;
 	*buf = *ret;
 	return 0;

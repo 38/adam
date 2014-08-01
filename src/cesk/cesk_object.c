@@ -9,27 +9,43 @@
 
 #include <cesk/cesk_set.h>
 #include <cesk/cesk_object.h>
+
+#include <bci/bci_nametab.h>
 cesk_object_t* cesk_object_new(const char* classpath)
 {
 	int field_count = 0;
 	int class_count = 0;
-	dalvik_class_t* classes[1024]; 
+	size_t builtin_size = 0;
+	int nbci = 0;
+	const bci_class_wrap_t* bci_class[1024];
+	const dalvik_class_t* classes[1024]; 
+	/* because BCI Classes can not use a user defined class as superclass,
+	 * So that if we can see an built-in class here, that means there's no
+	 * super class anymore, so we only need one slot for that */
 	/* find classes inherent relationship, and determine its memory layout */
 	for(;;)
 	{
 		LOG_NOTICE("try to find class %s", classpath);
-		dalvik_class_t* target_class = dalvik_memberdict_get_class(classpath);
+		const dalvik_class_t* target_class = dalvik_memberdict_get_class(classpath);
 		if(NULL == target_class)
 		{
-			/* TODO: built-in classes support here*/
-			if(0 == field_count)
+			const bci_class_wrap_t* class_wrap = bci_nametab_get_class(classpath);
+			if(NULL != class_wrap)
+			{
+				LOG_DEBUG("found built-in class %s", classpath);
+				builtin_size += class_wrap->class->size + sizeof(cesk_object_struct_t);
+				bci_class[nbci ++] = class_wrap;
+				if(NULL == class_wrap->class->super) break;
+				else classpath = class_wrap->class->super;
+				continue;
+			}
+			if(0 == class_count)
 			{
 				/* if we can't find the first class, this is an error */
 				LOG_ERROR("can not find class %s", classpath);
 				return NULL;
 			}
 			LOG_WARNING("can not find class %s", classpath);
-			LOG_NOTICE("fixme: here we should handle the built-in classes");
 			break;
 		}
 		int i;
@@ -47,7 +63,8 @@ cesk_object_t* cesk_object_new(const char* classpath)
 	/* compute the size required for this instance */
 	size_t size = sizeof(cesk_object_t) +                   	   /* header */
 				  sizeof(cesk_object_struct_t) * class_count +     /* class header */
-				  sizeof(cesk_set_t*) * field_count;   			   /* fields */
+				  sizeof(cesk_set_t*) * field_count +              /* fields */
+				  builtin_size;                                    /* memory for built-ins */         
 	/* okay, create the new object */
 	cesk_object_t* object = (cesk_object_t*)malloc(size);
 	cesk_object_struct_t* base = object->members; 
@@ -56,13 +73,15 @@ cesk_object_t* cesk_object_new(const char* classpath)
 		LOG_ERROR("can not allocate memory for new object %s", classes[0]->path);
 		return NULL;
 	}
+	object->builtin = NULL;
 	int i;
 	for(i = 0; i < class_count; i ++)
 	{
+		/* if this is a user defined class */
 		int j;
 		for(j = 0; classes[i]->members[j]; j ++)
 		{
-			dalvik_field_t* field = dalvik_memberdict_get_field(classes[i]->path, classes[i]->members[j]);   /* because only function can overload */
+			const dalvik_field_t* field = dalvik_memberdict_get_field(classes[i]->path, classes[i]->members[j]);   /* because only function can overload */
 			if(NULL == field)
 			{
 				LOG_WARNING("Can not find field %s/%s, skip", classes[i]->path, classes[i]->members[j]);
@@ -79,11 +98,27 @@ cesk_object_t* cesk_object_new(const char* classpath)
 		base->num_members = j;
 		CESK_OBJECT_STRUCT_ADVANCE(base);
 	}
-	object->depth = class_count;
+	/* We do not initalize the built-in class here, we do it when the field object of user defined class assigned*/
+	for(i = 0; i < nbci; i ++)
+	{
+		base->built_in = 1;
+		base->class.bci = bci_class[i];
+		base->num_members = bci_class[i]->class->size;
+		if(NULL == object->builtin) object->builtin = base;
+		memset(base->bcidata, 0, bci_class[i]->class->size);
+		CESK_OBJECT_STRUCT_ADVANCE(base);
+	}
+	object->depth = class_count + nbci;
+	object->nbuiltin = nbci;
 	object->size = size;
 	return object;
 }
-uint32_t* cesk_object_get(cesk_object_t* object, const char* classpath, const char* field_name)
+uint32_t* cesk_object_get(
+		cesk_object_t* object, 
+		const char* classpath, 
+		const char* field_name, 
+		const bci_class_t** p_bci_class,
+		void** p_bci_data)
 {
 	if(NULL == object    ||
 	   NULL == classpath ||
@@ -92,6 +127,8 @@ uint32_t* cesk_object_get(cesk_object_t* object, const char* classpath, const ch
 		LOG_ERROR("invalid arguments");
 		return NULL;
 	}
+	if(NULL != p_bci_class) *p_bci_class = NULL;
+	if(NULL != p_bci_data) *p_bci_data = NULL;
 	int i;
 	cesk_object_struct_t* this = object->members;
 	for(i = 0; i < object->depth; i ++)
@@ -110,12 +147,21 @@ uint32_t* cesk_object_get(cesk_object_t* object, const char* classpath, const ch
 	}
 	if(this->built_in)
 	{
-		LOG_FATAL("TODO fetch a pointer to the built-in class field");
-		return NULL;
+		if(NULL == p_bci_class || NULL == p_bci_data)
+		{
+			LOG_ERROR("built-in class does not support this interface");
+			return NULL;
+		}
+		else
+		{
+			if(NULL != p_bci_class) *p_bci_class = this->class.bci->class;
+			if(NULL != p_bci_data) *p_bci_data = this->bcidata;
+			return NULL;
+		}
 	}
 	else
 	{
-		dalvik_field_t* field = dalvik_memberdict_get_field(classpath, field_name);
+		const dalvik_field_t* field = dalvik_memberdict_get_field(classpath, field_name);
 		if(NULL == field)
 		{
 			LOG_WARNING("No field named %s/%s", classpath, field_name);
@@ -140,6 +186,31 @@ cesk_object_t* cesk_object_fork(const cesk_object_t* object)
 		return NULL;
 	}
 	memcpy(newobj, object, objsize);
+	newobj->builtin = (cesk_object_struct_t*)(((char *)newobj)  + CESK_OBJECT_FIELD_OFS(object, object->builtin));
+
+	/* we have a builtin class struct section , duplicate it */
+	const cesk_object_struct_t* this = object->builtin;
+	cesk_object_struct_t* that = newobj->builtin;
+
+	int i;
+	for(i = 0; i < object->nbuiltin; i ++)
+	{
+		if(!this->built_in)
+		{
+			LOG_ERROR("an built-in class %s interitate from an user-defined class %s, this is impossible",
+			          cesk_object_classpath(object), this->class.path->value);
+			free(newobj);
+			return NULL;
+		}
+		if(bci_class_duplicate(this->bcidata, that->bcidata, this->class.bci->class) < 0)
+		{
+			LOG_ERROR("failed to initalize builtin class %s", object->builtin->class.path->value);
+			free(newobj);
+			return NULL;
+		}
+		CESK_OBJECT_STRUCT_ADVANCE(this);
+		CESK_OBJECT_STRUCT_ADVANCE(that);
+	}
 	return newobj;
 }
 
@@ -156,7 +227,8 @@ hashval_t cesk_object_hashcode(const cesk_object_t* object)
 		mul ^= (uintptr_t)this->class.path;
 		if(this->built_in)
 		{
-			LOG_FATAL("TODO compute hashcode of built-in instances");
+			hashval_t h = 0x73658217ul * bci_class_hashcode(this->bcidata, this->class.bci->class) * MH_MULTIPLY ;
+			hash ^= (h * h);
 		}
 		else
 		{
@@ -209,7 +281,13 @@ int cesk_object_equal(const cesk_object_t* first, const cesk_object_t* second)
 		}
 		if(this->built_in)
 		{
-			LOG_FATAL("TODO compare two built-in class");
+			int rc = bci_class_equal(this->bcidata, that->bcidata, this->class.bci->class);
+			if(rc < 0)
+			{
+				LOG_WARNING("failed to compare this two object %p and %p", first, second);
+				return -1;
+			}
+			else if(rc == 0) return 0;
 		}
 		else
 		{
@@ -260,15 +338,14 @@ const char* cesk_object_to_string(const cesk_object_t* object, char* buf, size_t
 		__PR("[class %s (", this->class.path->value);
 		if(this->built_in)
 		{
-			LOG_FATAL("TODO built-in class to string");
-
+			__PR("%s)]", bci_class_to_string(this->bcidata, NULL, 0, this->class.bci->class));
 		}
 		else
 		{
 			int j;
 			for(j = 0; j < this->num_members; j ++)
 			{
-				__PR("(%s @%x) ", this->class.udef->members[j] ,this->addrtab[j]);
+				__PR("(%s "PRSAddr") ", this->class.udef->members[j] ,this->addrtab[j]);
 			}
 			__PR(")]");
 		}
@@ -287,7 +364,7 @@ int cesk_object_instance_of(const cesk_object_t* object, const char* classpath)
 		if(this->class.path->value == classpath) return 1;
 		if(this->built_in)
 		{
-			LOG_FATAL("TODO if this built-in implements the interface");
+			LOG_DEBUG("we do not support built-in class implements any class");
 		}
 		else
 		{

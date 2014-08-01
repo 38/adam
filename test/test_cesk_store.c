@@ -5,7 +5,7 @@ int main()
 {
 	adam_init();
 
-	dalvik_loader_from_directory("test/data/AndroidAntlr");
+	assert(dalvik_loader_from_directory("test/data/AndroidAntlr") == 0);
 	dalvik_loader_summary();
 	cesk_value_t* objval = cesk_value_from_classpath(stringpool_query("antlr/ANTLRTokdefParser"));
 
@@ -19,7 +19,8 @@ int main()
 	dalvik_instruction_from_sexp(sexp, ins, 0);
 	sexp_free(sexp);
 
-	uint32_t    addr = cesk_store_allocate(store2, ins, 0);
+	cesk_alloc_param_t param = CESK_ALLOC_PARAM(dalvik_instruction_get_index(ins), CESK_ALLOC_NA);
+	uint32_t    addr = cesk_store_allocate(store2, &param);
 
 	cesk_store_attach(store2, addr, objval);  //object val
 	cesk_store_release_rw(store2, addr);
@@ -43,7 +44,7 @@ int main()
 	LOG_DEBUG("object dump: %s", cesk_object_to_string(object, NULL, 0, 0));
 	LOG_DEBUG("value hash: %x", cesk_value_hashcode(value_rw));
 	LOG_DEBUG("object hash: %x", cesk_object_hashcode(object));
-	*cesk_object_get(object, stringpool_query("antlr/ANTLRTokdefParser"), stringpool_query("antlrTool")) = 0;
+	*cesk_object_get(object, stringpool_query("antlr/ANTLRTokdefParser"), stringpool_query("antlrTool"),NULL,NULL) = 0;
 
 	cesk_store_release_rw(store3, addr);
 
@@ -77,7 +78,7 @@ int main()
 	assert(cesk_store_set_alloc_table(store4, alloc_tab) == 0);
 	objval = cesk_value_from_classpath(stringpool_query("antlr/ANTLRTokdefParser"));
 
-	uint32_t oa = cesk_store_allocate(store4, ins , 0);
+	uint32_t oa = cesk_store_allocate(store4, &param);
 	assert(oa != CESK_STORE_ADDR_NULL);
 	assert(cesk_alloctab_insert(alloc_tab, store4, CESK_STORE_ADDR_RELOC_PREFIX, oa) == 0);
 	assert(cesk_alloctab_insert(alloc_tab, store4, oa, CESK_STORE_ADDR_RELOC_PREFIX) == 0);
@@ -109,8 +110,10 @@ int main()
 	assert(NULL != object);
 	object->members[0].addrtab[0] = CESK_STORE_ADDR_RELOC_PREFIX | 1; // this is the set object
 
-	uint32_t oa1 = cesk_store_allocate(store4, ins,  CESK_OBJECT_FIELD_OFS(object, object->members[0].addrtab));
-	uint32_t oa2 = cesk_store_allocate(store4, ins, 12345);
+	param.offset = CESK_OBJECT_FIELD_OFS(object, object->members[0].addrtab);
+	uint32_t oa1 = cesk_store_allocate(store4, &param);
+	param.offset = 12345;
+	uint32_t oa2 = cesk_store_allocate(store4, &param);
 
 	assert(CESK_STORE_ADDR_NULL != oa1);
 	assert(CESK_STORE_ADDR_NULL != oa2);

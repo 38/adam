@@ -158,9 +158,10 @@ int sexp_length(const sexpression_t* sexp);
 /** @brief convert s-expression to string 
  *  @param sexp	s-expression to be convert
  *  @param buf   the buffer for output, if buf is NULL, use default buf
+ *  @param sz the size of the output buffer
  *  @return the result string, NULL means error
  */
-char* sexp_to_string(const sexpression_t* sexp, char* buf);
+char* sexp_to_string(const sexpression_t* sexp, char* buf, size_t sz);
 
 /** @brief empty S-Expression */
 #define SEXP_NIL NULL

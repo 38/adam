@@ -23,6 +23,7 @@
  * 		 than the old value. If the register continas this value, we should override all value with new as timestamp
  * 		 should be replace.
  */
+#include <stdio.h>
 #include <log.h>
 #include <cesk/cesk_frame.h>
 #include <cesk/cesk_store.h>
@@ -35,7 +36,7 @@ cesk_frame_t* cesk_frame_new(uint16_t size)
 		return NULL;
 	}
 	size += 2;   /* because we need a result register and an expcetion register */
-	LOG_DEBUG("create a frame with %d registers", size);
+	LOG_DEBUG("create an empty frame with %d registers", size);
 	cesk_frame_t* ret = (cesk_frame_t*)malloc(sizeof(cesk_frame_t) + size * sizeof(cesk_set_t*));
 	if(NULL == ret)
 	{
@@ -114,6 +115,7 @@ ERR:
 }
 cesk_frame_t* cesk_frame_make_invoke(const cesk_frame_t* frame, uint32_t nregs, uint32_t nargs, cesk_set_t** args)
 {
+	/* make sure the invocation argument is valid */
 	if(NULL == frame || nregs > 65536 || nargs > nregs || NULL == args)
 	{
 		LOG_ERROR("invalid argument");
@@ -126,6 +128,7 @@ cesk_frame_t* cesk_frame_make_invoke(const cesk_frame_t* frame, uint32_t nregs, 
 		LOG_ERROR("can not allocate memory");
 		return NULL;
 	}
+	/* we have result and exception resiter */
 	ret->size = nregs + 2;
 	/* register init */
 	int i;
@@ -174,12 +177,12 @@ cesk_frame_t* cesk_frame_make_invoke(const cesk_frame_t* frame, uint32_t nregs, 
 				uint32_t naddr = cesk_alloctab_query(ret->store->alloc_tab, ret->store, addr);
 				if(CESK_STORE_ADDR_NULL == naddr)
 				{
-					LOG_ERROR("can not find the relocated address @%x", addr);
+					LOG_ERROR("can not find the relocated address "PRSAddr"", addr);
 					goto ERR;
 				}
 				if(cesk_set_modify(reg, addr, naddr) < 0)
 				{
-					LOG_ERROR("can not update relocated address @%x --> @%x", addr, naddr);
+					LOG_ERROR("can not update relocated address "PRSAddr" --> "PRSAddr"", addr, naddr);
 					goto ERR;
 				}
 			}
@@ -230,16 +233,21 @@ int cesk_frame_equal(const cesk_frame_t* first, const cesk_frame_t* second)
 	int i;
 	for(i = 0; i < first->size; i ++)
 	{
+		/* if the register are not equal, they are not the same frame */
 		if(0 == cesk_set_equal(first->regs[i], second->regs[i]))
 		{
-			/* if the register are not equal */
 			return 0;
 		}
 	}
 	return cesk_store_equal(first->store, second->store);
 }
-/** @brief depth first search the store, and figure out what is unreachable from the register */
-static inline void _cesk_frame_store_dfs(uint32_t addr,cesk_store_t* store, uint8_t* f)
+/** 
+ * @brief depth first search the store, and figure out what is unreachable from the register
+ * @param addr the start address
+ * @param store the target store
+ * @param f the bit map used to flag reachibilities of each addresses
+ **/
+static inline void _cesk_frame_store_dfs(uint32_t addr, cesk_store_t* store, uint8_t* f)
 {
 #define BITAT(f,n) (((f)[n/8]&(1<<(n%8))) != 0)
 	if(CESK_STORE_ADDR_NULL == addr) return;
@@ -282,9 +290,28 @@ static inline void _cesk_frame_store_dfs(uint32_t addr,cesk_store_t* store, uint
 			this = obj->members;
 			for(i = 0; i < obj->depth; i ++)
 			{
+				/* if this instance is a built-in instance */
 				if(this->built_in)
 				{
-					LOG_FATAL("TODO dfs thru a built_in class");
+					uint32_t buf[1024];
+					uint32_t offset = 0;
+					for(;;)
+					{
+						int rc = bci_class_get_addr_list(this->bcidata, offset, buf, sizeof(buf)/sizeof(buf[0]), this->class.bci->class);
+						if(rc < 0)
+						{
+							LOG_WARNING("can not get the address list");
+							continue;
+						}
+						else
+						{
+							if(rc == 0) break;
+							offset += rc;
+							int i;
+							for(i = 0; i < rc; i ++)
+								_cesk_frame_store_dfs(buf[i], store, f);
+						}
+					}
 				}
 				else
 				{
@@ -298,10 +325,6 @@ static inline void _cesk_frame_store_dfs(uint32_t addr,cesk_store_t* store, uint
 				CESK_OBJECT_STRUCT_ADVANCE(this);
 			}
 			break;
-#if 0
-		case CESK_TYPE_ARRAY:
-			LOG_INFO("fixme : array support");
-#endif
 	}
 }
 int cesk_frame_gc(cesk_frame_t* frame)
@@ -333,10 +356,14 @@ int cesk_frame_gc(cesk_frame_t* frame)
 			cesk_store_clear_refcnt(store, addr);
 		}
 	}
+	/* finally, dereference all unused block in the end of the store */
+	if(cesk_store_compact_store(frame->store) < 0)
+	{
+		LOG_WARNING("failed to compact the store, something might be wrong");
+	}
 	free(fb);
 	return 0;
 }
-#include <stdio.h>
 hashval_t cesk_frame_hashcode(const cesk_frame_t* frame)
 {
 	hashval_t ret = CESK_FRAME_INIT_HASH;
@@ -431,10 +458,10 @@ int cesk_frame_apply_diff(
 			switch(section)
 			{
 				case CESK_DIFF_ALLOC:
-					LOG_DEBUG("allocating object %s at store address @%x", cesk_value_to_string(rec->arg.value, NULL, 0) ,rec->addr);
+					LOG_DEBUG("allocating object %s at store address "PRSAddr"", cesk_value_to_string(rec->arg.value, NULL, 0) ,rec->addr);
 					if(cesk_reloc_addr_init(reloctab, frame->store, rec->addr, rec->arg.value) == CESK_STORE_ADDR_NULL)
 					{
-						LOG_ERROR("can not initialize relocated address @%x in store %p", rec->addr, frame->store);
+						LOG_ERROR("can not initialize relocated address "PRSAddr" in store %p", rec->addr, frame->store);
 						return -1;
 					}
 					else
@@ -451,7 +478,7 @@ int cesk_frame_apply_diff(
 					}
 					break;
 				case CESK_DIFF_REUSE:
-					LOG_DEBUG("setting reuse flag at store address @%x to %u", rec->addr, rec->arg.boolean);
+					LOG_DEBUG("setting reuse flag at store address "PRSAddr" to %u", rec->addr, rec->arg.boolean);
 					if(rec->arg.boolean == cesk_store_get_reuse(frame->store, rec->addr)) 
 					{
 						LOG_DEBUG("the value reuse bit is already as excepted, no operation needed");
@@ -462,7 +489,7 @@ int cesk_frame_apply_diff(
 					{
 						if(cesk_store_set_reuse(frame->store, rec->addr) < 0)
 						{
-							LOG_ERROR("can not set reuse bit for @%x in store %p", rec->addr, frame->store);
+							LOG_ERROR("can not set reuse bit for "PRSAddr" in store %p", rec->addr, frame->store);
 							return -1;
 						}
 						if(NULL != invbuf && cesk_diff_buffer_append(invbuf, CESK_DIFF_REUSE, rec->addr, CESK_DIFF_REUSE_VALUE(0)) < 0)
@@ -480,7 +507,7 @@ int cesk_frame_apply_diff(
 					{
 						if(cesk_store_clear_reuse(frame->store, rec->addr) < 0)
 						{
-							LOG_ERROR("can not clear reuse bit for @%x in store %p", rec->addr, frame->store);
+							LOG_ERROR("can not clear reuse bit for "PRSAddr" in store %p", rec->addr, frame->store);
 							return -1;
 						}
 						if(NULL != invbuf && cesk_diff_buffer_append(invbuf, CESK_DIFF_REUSE, rec->addr, CESK_DIFF_REUSE_VALUE(1)) < 0)
@@ -535,15 +562,20 @@ int cesk_frame_apply_diff(
 					}
 					break;
 				case CESK_DIFF_STORE:
-					LOG_DEBUG("setting store address @%x to value %s", rec->addr, cesk_value_to_string(rec->arg.value, NULL, 0));
+					LOG_DEBUG("setting store address "PRSAddr" to value %s", rec->addr, cesk_value_to_string(rec->arg.value, NULL, 0));
 					cesk_value_const_t* oldval = cesk_store_get_ro(frame->store, rec->addr);
-					if(NULL != oldval && CESK_TYPE_SET == oldval->type && cesk_set_equal(rec->arg.value->pointer.set, oldval->pointer.set))
+					if(oldval->type != rec->arg.value->type)
+					{
+						LOG_ERROR("the diff record value and the target value was supposed to be the same type, but they are not");
+						return -1;
+					}
+					/* TODO: elimiate this dirty hack */
+					if(NULL != oldval && cesk_value_equal(rec->arg.value, (const cesk_value_t*)oldval))
 					{
 						LOG_DEBUG("the target value is already there, no nothing to patch");
 						break;
 					}
-					if(NULL != invbuf && CESK_TYPE_SET == oldval->type && 
-					   cesk_diff_buffer_append(invbuf, CESK_DIFF_STORE, rec->addr, oldval) < 0)
+					if(NULL != invbuf && cesk_diff_buffer_append(invbuf, CESK_DIFF_STORE, rec->addr, oldval) < 0)
 					{
 						LOG_ERROR("can not append a new record for the inverse diff buf");
 						return -1;
@@ -553,23 +585,61 @@ int cesk_frame_apply_diff(
 						LOG_ERROR("can not append a new record to the foward diff buffer");
 						return -1;
 					}
-					
+				
 					/* update the refcnt first, so that we can keep the value we want */
-					cesk_set_iter_t iter;
-					if(cesk_set_iter(rec->arg.value->pointer.set, &iter) < 0)
+					/* if this value is a type */
+					if(CESK_TYPE_SET == oldval->type)
 					{
-						LOG_ERROR("can not aquire the iterator for set");
-						cesk_store_release_rw(frame->store, rec->addr);
-						return -1;
+						cesk_set_iter_t iter;
+						if(cesk_set_iter(rec->arg.value->pointer.set, &iter) < 0)
+						{
+							LOG_ERROR("can not aquire the iterator for set");
+							cesk_store_release_rw(frame->store, rec->addr);
+							return -1;
+						}
+						uint32_t addr;
+						while(CESK_STORE_ADDR_NULL != (addr = cesk_set_iter_next(&iter)))
+							cesk_store_incref(frame->store, addr);
 					}
-					uint32_t addr;
-					while(CESK_STORE_ADDR_NULL != (addr = cesk_set_iter_next(&iter)))
-						cesk_store_incref(frame->store, addr);
+					else
+					{
+						int i;
+						const cesk_object_t* object = rec->arg.value->pointer.object;
+						const cesk_object_struct_t* this = object->members;
+						for(i = 0; i < object->depth; i ++)
+						{
+							if(this->built_in)
+							{
+								uint32_t offset = 0;
+								uint32_t buf[128];
+								for(;;)
+								{
+									int rc = bci_class_get_addr_list(this->bcidata, offset, buf, sizeof(buf)/sizeof(buf[0]), this->class.bci->class);
+									if(rc < 0)
+									{
+										LOG_ERROR("can not get the address list for this object");
+									}
+									if(rc == 0) break;
+									offset += rc;
+									int j;
+									for(j = 0; j < rc; j ++)
+										cesk_store_incref(frame->store, buf[j]);
+								}
+							}
+							else
+							{
+								int j;
+								for(j = 0; j < this->num_members; j ++)
+									cesk_store_incref(frame->store, this->addrtab[j]);
+							}
+							CESK_OBJECT_STRUCT_ADVANCE(this);
+						}
+					}
 
 					/* replace the value */
 					if(cesk_store_attach(frame->store, rec->addr, rec->arg.value) < 0)
 					{
-						LOG_ERROR("can not attach value to store address @%x in store %p", rec->addr, frame->store);
+						LOG_ERROR("can not attach value to store address "PRSAddr" in store %p", rec->addr, frame->store);
 						return -1;
 					}
 					cesk_store_release_rw(frame->store, rec->addr);
@@ -598,9 +668,30 @@ int cesk_frame_apply_diff(
 				this = obj->members;
 				for(i = 0; i < obj->depth; i ++)
 				{
-					int j;
-					for(j = 0; j < this->num_members; j ++)
-						cesk_store_incref(frame->store, this->addrtab[j]);
+					if(this->built_in)
+					{
+						uint32_t offset = 0;
+						uint32_t buf[128];
+						for(;;)
+						{
+							int rc = bci_class_get_addr_list(this->bcidata, offset, buf, sizeof(buf)/sizeof(buf[0]), this->class.bci->class);
+							if(rc < 0)
+							{
+								LOG_ERROR("can not get the address list for this object");
+							}
+							if(rc == 0) break;
+							offset += rc;
+							int j;
+							for(j = 0; j < rc; j ++)
+								cesk_store_incref(frame->store, buf[j]);
+						}
+					}
+					else
+					{
+						int j;
+						for(j = 0; j < this->num_members; j ++)
+							cesk_store_incref(frame->store, this->addrtab[j]);
+					}
 					CESK_OBJECT_STRUCT_ADVANCE(this);
 				}
 				break;
@@ -750,7 +841,7 @@ int cesk_frame_register_load(
 	/* incref first, the reason see comment in cesk_frame_apply_diff the part operates the register */
 	if(cesk_store_incref(frame->store, src_addr) < 0)
 	{
-		LOG_ERROR("can not decref for the cell @%x", src_addr);
+		LOG_ERROR("can not decref for the cell "PRSAddr"", src_addr);
 		return -1;
 	}
 
@@ -763,7 +854,7 @@ int cesk_frame_register_load(
 
 	if(cesk_set_push(frame->regs[dst_reg], src_addr) < 0)
 	{
-		LOG_ERROR("can not push address @%x to register %d", src_addr, dst_reg);
+		LOG_ERROR("can not push address "PRSAddr" to register %d", src_addr, dst_reg);
 		return -1;
 	}
 
@@ -874,31 +965,52 @@ int cesk_frame_register_load_from_object(
 		cesk_value_const_t* obj_val = cesk_store_get_ro(frame->store, obj_addr);
 		if(NULL == obj_val)
 		{
-			LOG_WARNING("can not aquire readonly pointer to store address @%x", obj_addr);
+			LOG_WARNING("can not aquire readonly pointer to store address "PRSAddr"", obj_addr);
 			continue;
 		}
 		const cesk_object_t* object = obj_val->pointer.object;
 		if(NULL == object)
 		{
-			LOG_WARNING("ignore NULL object pointer at store address @%x", obj_addr);
+			LOG_WARNING("ignore NULL object pointer at store address "PRSAddr"", obj_addr);
 			continue;
 		}
 		uint32_t fld_addr;
-		if(cesk_object_get_addr(object, clspath, fldname, &fld_addr) < 0)
+		const bci_class_t* builtin_class;
+		const void* builtin_data;
+		if(cesk_object_get_addr(object, clspath, fldname, &builtin_class, &builtin_data, &fld_addr) < 0)
 		{
-			LOG_WARNING("failed to fetch field %s/%s at store address @%x, ignoring this object",
-			            clspath,
+			cesk_set_t* set;
+			if(NULL != builtin_class && NULL != builtin_data && NULL != (set = bci_class_get_field(builtin_data, fldname, builtin_class)))
+			{
+				frame->regs[dst_reg] = set;
+				cesk_set_iter_t iter;
+				uint32_t addr;
+				if(cesk_set_iter(set, &iter) == NULL)
+				{
+					LOG_WARNING("can not aquire set iterator");
+					continue;	
+				}
+				while(CESK_STORE_ADDR_NULL == (addr = cesk_set_iter_next(&iter)))
+					cesk_store_incref(frame->store, addr);
+				continue;
+			}
+			LOG_WARNING("failed to fetch field %s/%s at store address "PRSAddr", ignoring this object",
+						clspath,
 						fldname,
 						obj_addr);
 			continue;
 		}
-		if(cesk_frame_register_append_from_store(frame, dst_reg, fld_addr, NULL, NULL) < 0)
+		/* this is a user defined class */
+		else
 		{
-			LOG_WARNING("can not append field value in %s/%s at store address @%x", 
-			            clspath,
-						fldname,
-						obj_addr);
-			continue;
+			if(cesk_frame_register_append_from_store(frame, dst_reg, fld_addr, NULL, NULL) < 0)
+			{
+				LOG_WARNING("can not append field value in %s/%s at store address "PRSAddr"", 
+							clspath,
+							fldname,
+							obj_addr);
+				continue;
+			}
 		}
 	}
 	/* now we fix the refcount */
@@ -915,20 +1027,24 @@ uint32_t cesk_frame_store_new_object(
 		cesk_frame_t* frame,
 		cesk_reloc_table_t* reloctab,
 		const dalvik_instruction_t* inst,
-		uint32_t context,
+		const cesk_alloc_param_t*   alloc_param,
 		const char* clspath,
+		const void* bci_init_param,
 		cesk_diff_buffer_t* diff_buf,
 		cesk_diff_buffer_t* inv_buf)
 {
-	if(NULL == frame || NULL == inst || NULL == clspath || NULL == reloctab)
+	if(NULL == frame || NULL == inst || NULL == alloc_param || NULL == clspath || NULL == reloctab)
 	{
 		LOG_ERROR("invalid argument");
 		return CESK_STORE_ADDR_NULL;
 	}
 
 	LOG_DEBUG("creat new object from class %s", clspath);
-	/* allocate address */
-	uint32_t addr = cesk_reloc_allocate(reloctab, frame->store, inst, 0, 0); 
+	/* allocate a relocated address for the new object */
+	cesk_alloc_param_t param = *alloc_param;
+	param.inst = dalvik_instruction_get_index(inst);
+	param.offset = 0;
+	uint32_t addr = cesk_reloc_allocate(reloctab, frame->store, &param, 0); 
 
 	if(CESK_STORE_ADDR_NULL == addr)
 	{
@@ -936,11 +1052,20 @@ uint32_t cesk_frame_store_new_object(
 		return CESK_STORE_ADDR_NULL;
 	}
 	
-	cesk_value_const_t* value;
 
-	/* if there's some value already there */
-	if((value = cesk_store_get_ro(frame->store, addr)) != NULL)
+	/* because the built-in class might change the object itself for reuse, so that we need make a r/w pointer here */
+	cesk_value_t* value;
+
+	/* if there's some value already exist */
+	if((value = cesk_store_get_rw(frame->store, addr, 0)) != NULL)
 	{
+		/* constant allocation? ignore */
+		if(DVM_CONST == inst->opcode) 
+		{
+			LOG_DEBUG("ignore the second time allocation of a constant value");
+			return addr;
+		}
+		
 		/* check validity of the address */
 		if(value->type != CESK_TYPE_OBJECT)
 		{
@@ -948,7 +1073,7 @@ uint32_t cesk_frame_store_new_object(
 			return CESK_STORE_ADDR_NULL;
 		}
 
-		const cesk_object_t* object = value->pointer.object;
+		cesk_object_t* object = value->pointer.object;
 		if(NULL == object)
 		{
 			LOG_ERROR("invalid value");
@@ -956,7 +1081,7 @@ uint32_t cesk_frame_store_new_object(
 		}
 		if(cesk_object_classpath(object) != clspath)
 		{
-			LOG_ERROR("address %x is for class %s but the new object is a instance of %s", 
+			LOG_ERROR("address %x is for class %s but the new object is a instance of %s (but suppose to be homogenous)", 
 					  addr, 
 					  cesk_object_classpath(object), 
 					  clspath);
@@ -965,7 +1090,7 @@ uint32_t cesk_frame_store_new_object(
 
 		/* push default zero to the class */
 		int i;
-		const cesk_object_struct_t* this = object->members;
+		cesk_object_struct_t* this = object->members;
 		for(i = 0; i < object->depth; i ++)
 		{
 			if(!this->built_in)
@@ -976,7 +1101,7 @@ uint32_t cesk_frame_store_new_object(
 					uint32_t addr = this->addrtab[j];
 					if(CESK_STORE_ADDR_NULL == addr) 
 					{
-						LOG_WARNING("uninitialized field %s in an initialize object @%x", this->class.udef->members[j], addr);
+						LOG_WARNING("uninitialized field %s in an initialize object "PRSAddr"", this->class.udef->members[j], addr);
 						continue;
 					}
 					
@@ -992,12 +1117,12 @@ uint32_t cesk_frame_store_new_object(
 					cesk_value_t* value = cesk_store_get_rw(frame->store, addr, 0);
 					if(NULL == value)
 					{
-						LOG_WARNING("can not get writable pointer to store address @%x in store %p", addr, frame->store);
+						LOG_WARNING("can not get writable pointer to store address "PRSAddr" in store %p", addr, frame->store);
 						continue;
 					}
 					if(CESK_TYPE_SET != value->type)
 					{
-						LOG_WARNING("expecting a set at store address @%x in store %p", addr, frame->store);
+						LOG_WARNING("expecting a set at store address "PRSAddr" in store %p", addr, frame->store);
 						continue;
 					}
 					_SNAPSHOT(inv_buf, CESK_DIFF_STORE, addr, value);
@@ -1012,13 +1137,22 @@ uint32_t cesk_frame_store_new_object(
 					
 					_SNAPSHOT(diff_buf, CESK_DIFF_REUSE, addr, CESK_DIFF_REUSE_VALUE(1));
 				}
-				/* no default zero for a built-in class */
+				/* no default zero for a built-in class, but we need to re-initialize the class */
+			}
+			else
+			{
+				if(bci_class_initialize(this->bcidata, bci_init_param, this->class.bci->class) < 0)
+				{
+					LOG_WARNING("failed to initlaize the built-in class");
+				}
 			}
 			CESK_OBJECT_STRUCT_ADVANCE(this);
 		}
 
+		_SNAPSHOT(inv_buf, CESK_DIFF_REUSE, addr, CESK_DIFF_REUSE_VALUE((uintptr_t)cesk_store_get_reuse(frame->store, addr)));
+		cesk_store_set_reuse(frame->store, addr);
 		_SNAPSHOT(diff_buf, CESK_DIFF_REUSE, addr, CESK_DIFF_REUSE_VALUE(1));
-		_SNAPSHOT(inv_buf, CESK_DIFF_REUSE, addr, CESK_DIFF_REUSE_VALUE(0));
+		cesk_store_release_rw(frame->store, addr);
 	}
 	else
 	{
@@ -1045,11 +1179,8 @@ uint32_t cesk_frame_store_new_object(
 				int j;
 				for(j = 0; j < this->num_members; j ++)
 				{
-					uint32_t faddr = cesk_reloc_allocate(
-							reloctab, 
-							frame->store, 
-							inst, 
-							CESK_OBJECT_FIELD_OFS(object, this->addrtab + j), 0);
+					param.offset = CESK_OBJECT_FIELD_OFS(object, this->addrtab + j);
+					uint32_t faddr = cesk_reloc_allocate(reloctab, frame->store, &param, 0);
 					/* set the reloc flag */
 					if(CESK_STORE_ADDR_NULL == faddr)
 					{
@@ -1077,7 +1208,7 @@ uint32_t cesk_frame_store_new_object(
 					this->addrtab[j] = faddr;
 					if(cesk_store_incref(frame->store, faddr) < 0)
 					{
-						LOG_ERROR("can not maniuplate the reference counter at store address @%x", faddr);
+						LOG_ERROR("can not maniuplate the reference counter at store address "PRSAddr"", faddr);
 						return -1;
 					}
 					new_val->reloc = 1;
@@ -1086,12 +1217,17 @@ uint32_t cesk_frame_store_new_object(
 					_SNAPSHOT(inv_buf, CESK_DIFF_DEALLOC, faddr, NULL);
 				}
 			}
-			/* no need to initialze value for a built-in class */
+			else
+			{
+				if(bci_class_initialize(this->bcidata, bci_init_param, this->class.bci->class) < 0)
+				{
+					LOG_WARNING("failed to initlaize the built-in class");
+				}
+			}
 			CESK_OBJECT_STRUCT_ADVANCE(this);
 		}
 		/* because the attach function auqire a writable pointer automaticly, 
-		 * Therefore, you should release the address first
-		 */
+		 * Therefore, you should release the address first */
 		cesk_store_release_rw(frame->store, addr);
 		_SNAPSHOT(diff_buf, CESK_DIFF_ALLOC, addr, new_val);
 		_SNAPSHOT(inv_buf, CESK_DIFF_DEALLOC, addr, NULL);
@@ -1119,7 +1255,7 @@ int cesk_frame_store_put_field(
 	
 	if(NULL == value)
 	{
-		LOG_ERROR("can not find object @%x", dst_addr);
+		LOG_ERROR("can not find object "PRSAddr"", dst_addr);
 		return -1;
 	}
 
@@ -1131,122 +1267,139 @@ int cesk_frame_store_put_field(
 	
 	cesk_object_t* object = value->pointer.object;
 
-	uint32_t* paddr = cesk_object_get(object, clspath, fldname);
+	const bci_class_t* builtin_class;
+	void* builtin_data;
+
+	uint32_t* paddr = cesk_object_get(object, clspath, fldname, &builtin_class, &builtin_data);
 
 	if(NULL == paddr)
 	{
-		LOG_ERROR("can not get field %s/%s", clspath, fldname);
-		return -1;
-	}
-
-	cesk_value_t* value_set = NULL;
-
-	if(*paddr == CESK_STORE_ADDR_NULL)
-	{
-		LOG_ERROR("field name is supposed not to be NULL");
-		return -1;
-	}
-
-	value_set = cesk_store_get_rw(frame->store, *paddr, 0);
-	if(NULL == value_set)
-	{
-		LOG_ERROR("can not find the value set for field %s/%s", clspath, fldname);
-		return -1;
-	}
-
-	_SNAPSHOT(inv_buf, CESK_DIFF_STORE, *paddr, cesk_value_fork(value_set));  /* because we need refcount to be 1 */
-
-	if(keep_old_vlaue || cesk_store_get_reuse(frame->store, *paddr) == 1)
-	{
-		/* this address is used by mutliple objects, so we can not dicard old value */
-		/* get the address of the value set */
-		LOG_DEBUG("this is a reused object, just keep the old value");
-		if(NULL == value_set)
+		_SNAPSHOT(inv_buf, CESK_DIFF_STORE, dst_addr, value);
+		if(bci_class_put_field(builtin_data, fldname, frame->regs[src_reg], frame->store, keep_old_vlaue, builtin_class) < 0)
 		{
-			LOG_ERROR("unknown error, but value_set should not be NULL");
+			LOG_ERROR("can not get field %s/%s", clspath, fldname);
 			return -1;
 		}
-		cesk_set_t* set = value_set->pointer.set;
-
-		/* of course, the refcount should be increased */
-		cesk_set_iter_t iter;
-		if(NULL == cesk_set_iter(frame->regs[src_reg], &iter))
+		int rc;
+		if((rc = bci_class_get_relocation_flag(builtin_data, builtin_class)) < 0)
 		{
-			LOG_ERROR("can not aquire iterator for register %d", src_reg);
+			LOG_ERROR("can not get the relocation flag");
 			return -1;
 		}
-		uint32_t tmp_addr;
-		while(CESK_STORE_ADDR_NULL != (tmp_addr = cesk_set_iter_next(&iter)))
-		{
-			/* the duplicated one do not need incref */
-			if(cesk_set_contain(set, tmp_addr) == 1) continue;
-			if(cesk_store_incref(frame->store, tmp_addr) < 0)
-			{
-				LOG_WARNING("can not incref at address @%x", tmp_addr);
-			}
-			if(CESK_STORE_ADDR_IS_RELOC(tmp_addr))
-				value_set->reloc = 1;
-		}
-
-		/* okay, append the value of registers to the set */
-		if(cesk_set_merge(set, frame->regs[src_reg]) < 0)
-		{
-			LOG_ERROR("can not merge set");
-			return -1;
-		}
-
-		if(cesk_set_get_reloc(set) > 0) value_set->reloc = 1;
-
-		/* ok take the snapshot here */
-		_SNAPSHOT(diff_buf, CESK_DIFF_STORE, *paddr, value_set);
+		if(rc > 0) value->reloc = 1;
+		_SNAPSHOT(inv_buf, CESK_DIFF_STORE, dst_addr, value);
 	}
 	else
 	{
-		/* we first incref */
-		cesk_set_iter_t iter;
-		if(NULL == cesk_set_iter(frame->regs[src_reg], &iter))
+		cesk_value_t* value_set = NULL;
+
+		if(*paddr == CESK_STORE_ADDR_NULL)
 		{
-			LOG_ERROR("can not aquire iterator for register %d", src_reg);
+			LOG_ERROR("field name is supposed not to be NULL");
 			return -1;
 		}
-		uint32_t tmp_addr;
-		while(CESK_STORE_ADDR_NULL != (tmp_addr = cesk_set_iter_next(&iter)))
+
+		value_set = cesk_store_get_rw(frame->store, *paddr, 0);
+		if(NULL == value_set)
 		{
-			if(cesk_store_incref(frame->store, tmp_addr) < 0)
+			LOG_ERROR("can not find the value set for field %s/%s", clspath, fldname);
+			return -1;
+		}
+
+		_SNAPSHOT(inv_buf, CESK_DIFF_STORE, *paddr, value_set);  /* because we need refcount to be 1 */
+
+		if(keep_old_vlaue || cesk_store_get_reuse(frame->store, *paddr) == 1)
+		{
+			/* this address is used by mutliple objects, so we can not discard old value */
+			/* get the address of the value set */
+			LOG_DEBUG("this is a reused object, just keep the old value");
+			if(NULL == value_set)
 			{
-				LOG_WARNING("can not incref at address @%x", tmp_addr);
+				LOG_ERROR("unknown error, but value_set should not be NULL");
+				return -1;
 			}
+			cesk_set_t* set = value_set->pointer.set;
+
+			/* of course, the refcount should be increased */
+			cesk_set_iter_t iter;
+			if(NULL == cesk_set_iter(frame->regs[src_reg], &iter))
+			{
+				LOG_ERROR("can not aquire iterator for register %d", src_reg);
+				return -1;
+			}
+			uint32_t tmp_addr;
+			while(CESK_STORE_ADDR_NULL != (tmp_addr = cesk_set_iter_next(&iter)))
+			{
+				/* the duplicated one do not need incref */
+				if(cesk_set_contain(set, tmp_addr) == 1) continue;
+				if(cesk_store_incref(frame->store, tmp_addr) < 0)
+				{
+					LOG_WARNING("can not incref at address "PRSAddr"", tmp_addr);
+				}
+				if(CESK_STORE_ADDR_IS_RELOC(tmp_addr))
+					value_set->reloc = 1;
+			}
+
+			/* okay, append the value of registers to the set */
+			if(cesk_set_merge(set, frame->regs[src_reg]) < 0)
+			{
+				LOG_ERROR("can not merge set");
+				return -1;
+			}
+
+			if(cesk_set_get_reloc(set) > 0) value_set->reloc = 1;
+
+			/* ok take the snapshot here */
+			_SNAPSHOT(diff_buf, CESK_DIFF_STORE, *paddr, value_set);
+		}
+		else
+		{
+			/* we first incref */
+			cesk_set_iter_t iter;
+			if(NULL == cesk_set_iter(frame->regs[src_reg], &iter))
+			{
+				LOG_ERROR("can not aquire iterator for register %d", src_reg);
+				return -1;
+			}
+			uint32_t tmp_addr;
+			while(CESK_STORE_ADDR_NULL != (tmp_addr = cesk_set_iter_next(&iter)))
+			{
+				if(cesk_store_incref(frame->store, tmp_addr) < 0)
+				{
+					LOG_WARNING("can not incref at address "PRSAddr"", tmp_addr);
+				}
+			}
+
+			cesk_store_release_rw(frame->store, *paddr);
+
+			/* make a copy of source register */
+			cesk_set_t* set = cesk_set_fork(frame->regs[src_reg]);
+			if(NULL == set)
+			{
+				LOG_ERROR("can not copy the source register #%u", src_reg);
+				return -1;
+			}
+			/* using this copy make a value */
+			cesk_value_t* newval = cesk_value_from_set(set);
+			if(NULL == set)
+			{
+				cesk_set_free(set);
+				LOG_ERROR("can not make a new value");
+				return -1;
+			}
+			if(cesk_set_get_reloc(newval->pointer.set) > 0) newval->reloc = 1;
+			if(cesk_store_attach(frame->store, *paddr, newval) < 0)
+			{
+				LOG_ERROR("can not set new value to the field %s.%s", clspath, fldname);
+				return -1;
+			}
+			_SNAPSHOT(diff_buf, CESK_DIFF_STORE, *paddr, newval);
+
 		}
 
+		/* release the write pointer */
 		cesk_store_release_rw(frame->store, *paddr);
-
-		/* make a copy of source register */
-		cesk_set_t* set = cesk_set_fork(frame->regs[src_reg]);
-		if(NULL == set)
-		{
-			LOG_ERROR("can not copy the source register #%u", src_reg);
-			return -1;
-		}
-		/* using this copy make a value */
-		cesk_value_t* newval = cesk_value_from_set(set);
-		if(NULL == set)
-		{
-			cesk_set_free(set);
-			LOG_ERROR("can not make a new value");
-			return -1;
-		}
-		if(cesk_set_get_reloc(newval->pointer.set) > 0) newval->reloc = 1;
-		if(cesk_store_attach(frame->store, *paddr, newval) < 0)
-		{
-			LOG_ERROR("can not set new value to the field %s.%s", clspath, fldname);
-			return -1;
-		}
-		_SNAPSHOT(diff_buf, CESK_DIFF_STORE, *paddr, newval);
-
 	}
-
-	/* release the write pointer */
-	cesk_store_release_rw(frame->store, *paddr);
 	cesk_store_release_rw(frame->store, dst_addr);
 	return 0;
 }
@@ -1310,7 +1463,7 @@ int cesk_frame_store_peek_field(const cesk_frame_t* frame,
 		return -1;
 	}
 	uint32_t faddr;
-	if(cesk_object_get_addr(object, classpath, fieldname, &faddr) < 0)
+	if(cesk_object_get_addr(object, classpath, fieldname, NULL, NULL, &faddr) < 0)
 	{
 		LOG_ERROR("can not get field %s/%s of object @0x%x", classpath, fieldname, addr);
 		return -1;

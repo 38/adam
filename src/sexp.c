@@ -87,7 +87,7 @@ static inline void _sexp_parse_comment(const char** str)
  **/
 static inline const char* _sexp_parse_list(const char* str, sexpression_t** buf)
 {
-	sexpression_t* head = NULL;
+	sexpression_t* head = NULL, **input = buf;
 	for(;;)
 	{
 		/* strip the leading white spaces */
@@ -115,6 +115,7 @@ static inline const char* _sexp_parse_list(const char* str, sexpression_t** buf)
 	}
 ERR:
 	sexp_free(head);
+	*input = NULL;
 	return NULL;
 }
 /*@todo escape sequences support */
@@ -147,6 +148,7 @@ static inline const char* _sexp_parse_string(const char* str, sexpression_t** bu
 			stringpool_accumulator_next(&accumulator, *str);
 		}
 	}
+	*buf = NULL;
 	return NULL;
 }
 /*@todo escape sequences support */
@@ -154,7 +156,11 @@ static inline const char* _sexp_parse_char(const char* str, sexpression_t** buf)
 {
 	char tmp[3] = {};
 	*buf = _sexp_alloc(SEXP_TYPE_STR);
-	if(NULL == *buf) return NULL;
+	if(NULL == *buf) 
+	{
+		*buf = NULL;
+		return NULL;
+	}
 	sexp_str_t* data = (sexp_str_t*)((*buf)->data);
 	if(str[0] == '\\')
 	{
@@ -433,37 +439,54 @@ int sexp_length(const sexpression_t* sexp)
 		sexp = ((sexp_cons_t*)sexp->data)->second;
 	return ret;
 }
-char* sexp_to_string(const sexpression_t* sexp, char* buf)
+char* sexp_to_string(const sexpression_t* sexp, char* buf, size_t sz)
 {
 	static char defualt_buf[1024];
 	char * ret;
-	if(buf == NULL) buf = defualt_buf;
+	if(buf == NULL) buf = defualt_buf, sz = sizeof(defualt_buf);
 	ret = buf;
 	if(NULL == buf) return NULL;
+	if(sz == 0) return buf;
 	if(SEXP_NIL == sexp) 
 	{
-		sprintf(buf, "nil");
+		snprintf(buf, sz, "nil");
 		return buf;
 	}
 	if(sexp->type == SEXP_TYPE_LIT)
 	{
-		sprintf(buf, "%s ", *(sexp_lit_t*)sexp->data);
+		snprintf(buf, sz, "%s", *(sexp_lit_t*)sexp->data);
+		sz -= strlen(buf);
 	}
 	else if(sexp->type == SEXP_TYPE_STR)
 	{
-		sprintf(buf, "'%s' ", *(sexp_str_t*)sexp->data);
+		snprintf(buf, sz, "'%s'", *(sexp_str_t*)sexp->data);
+		sz -= strlen(buf);
 	}
-	else if(sexp->type == SEXP_TYPE_CONS)
+	else if(sexp->type == SEXP_TYPE_CONS && sz > 2)
 	{
 		sexp_cons_t *cons = (sexp_cons_t*)sexp->data;
-		buf[0] = '(';
-		buf ++;
-		if(NULL == sexp_to_string(cons->first, buf)) return NULL;
+		if(sz > 1) 
+		{
+			buf[0] = '(';
+			buf ++, sz --;
+		}
+		if(NULL == sexp_to_string(cons->first, buf, sz)) return NULL;
+		sz -= strlen(buf);
 		buf += strlen(buf);
-		if(NULL == sexp_to_string(cons->second, buf)) return NULL;
+		if(sz > 1)
+		{
+			buf[0] = ' ';
+			buf ++, sz --;
+		}
+		if(NULL == sexp_to_string(cons->second, buf, sz)) return NULL;
+		sz -= strlen(buf);
 		buf += strlen(buf);
-		buf[0] = ')';
-		buf[1] = 0;
+		if(sz > 1)
+		{
+			buf[0] = ')';
+			sz--;
+			buf[1] = 0;
+		}
 	}
 	return ret;
 }

@@ -1,5 +1,6 @@
 #include <adam.h>
 #include <assert.h>
+dalvik_type_t* tvoid;
 void case1()
 {
 	cesk_reloc_table_t* rtab;
@@ -14,7 +15,8 @@ void case1()
 	uint32_t buf[10];
 	/* get code blocks */
 	const dalvik_type_t  * const type[] = {NULL};
-	dalvik_block_t* block = dalvik_block_from_method(stringpool_query("testClass"), stringpool_query("case1"), type);
+
+	dalvik_block_t* block = dalvik_block_from_method(stringpool_query("testClass"), stringpool_query("case1"), type, tvoid);
 	assert(block != NULL);
 	/* build a stack frame */
 	cesk_frame_t* frame = cesk_frame_new(block->nregs);
@@ -79,7 +81,7 @@ void case2()
 	int rc;
 	/* get code blocks */
 	const dalvik_type_t  * const type[] = {NULL};
-	dalvik_block_t* block = dalvik_block_from_method(stringpool_query("testClass"), stringpool_query("case2"), type);
+	dalvik_block_t* block = dalvik_block_from_method(stringpool_query("testClass"), stringpool_query("case2"), type, tvoid);
 	assert(block != NULL);
 	
 	/* build a stack frame */
@@ -149,7 +151,7 @@ void case3()
 	int rc;
 	/* get code blocks */
 	const dalvik_type_t  * const type[] = {NULL};
-	dalvik_block_t* block = dalvik_block_from_method(stringpool_query("testClass"), stringpool_query("case3"), type);
+	dalvik_block_t* block = dalvik_block_from_method(stringpool_query("testClass"), stringpool_query("case3"), type, tvoid);
 	assert(block != NULL);
 	
 	/* build a stack frame */
@@ -193,6 +195,12 @@ void case3()
 int main()
 {
 	adam_init();
+	
+	sexpression_t* svoid;
+	assert(NULL != sexp_parse("void", &svoid));
+	tvoid = dalvik_type_from_sexp(svoid);
+	sexp_free(svoid);
+	assert(NULL != tvoid);
 	/* load package */
 	dalvik_loader_from_directory("test/cases/block_analyzer");
 	
@@ -204,6 +212,7 @@ int main()
 
 	case3();
 
+	dalvik_type_free(tvoid);
 	/* finalize */
 	adam_finalize();
 	return 0;

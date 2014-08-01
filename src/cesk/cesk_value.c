@@ -20,6 +20,7 @@ static inline cesk_value_t* _cesk_value_alloc(uint32_t type)
 	ret->refcnt = 0;
 	ret->next = _cesk_value_list;
 	ret->prev = NULL;
+	ret->reloc = 0;
 	if(_cesk_value_list) 
 		_cesk_value_list->prev = ret;
 	_cesk_value_list = ret;
@@ -168,6 +169,7 @@ cesk_value_t* cesk_value_fork(const cesk_value_t* value)
 		newval->reloc = 1;
 	else
 		newval->reloc = 0;
+	newval->write_count = 0;
 	//newval->reloc = value->reloc;
 	return newval;
 ERROR:
@@ -225,10 +227,6 @@ int cesk_value_equal(const cesk_value_t* first, const cesk_value_t* second)
 			return cesk_object_equal(first->pointer.object, second->pointer.object);
 		case CESK_TYPE_SET:
 			return cesk_set_equal(first->pointer.set, second->pointer.set);
-#if 0
-		case CESK_TYPE_ARRAY:
-			LOG_INFO("fixme : array type support");
-#endif
 		default:
 			LOG_WARNING("can not compare value type %d", first->type);
 			return 1;

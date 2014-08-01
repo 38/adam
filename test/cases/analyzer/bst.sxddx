@@ -1,10 +1,10 @@
 (class (attrs public) treeNode
-	(super java/lang/object)
+	(super java/lang/Object)
 	(source "treeNode.java")
 	(field (attrs public) key int)
-	(field (attrs public) left [object listNode])
-	(field (attrs public) right [object listNode])
-	(method (attrs public static) insert([object listNode] int) [object listNode]
+	(field (attrs public) left [object treeNode])
+	(field (attrs public) right [object treeNode])
+	(method (attrs public static) insert([object treeNode] int) [object treeNode]
 		(limit-registers 10)
 		;v0 current key
 		;v1 next
@@ -17,13 +17,13 @@
 		(iget v0 v8 treeNode.key int)
 		(if-ge v9 v0 RIGHT); v9 < v0, go left
 		(iget v1 v8 treeNode.left [object treeNode])
-		(invoke-static {v1, v9} treeNode/insert [object listNode] int)
+		(invoke-static {v1, v9} treeNode/insert ([object treeNode] int) [object treeNode])
 		(move-result v3)
 		(iput v3 v8 treeNode.left [object treeNode])
 		(goto RET)
 		(label RIGHT)
 		(iget v1 v8 treeNode.right [object treeNode])
-		(invoke-static {v1, v9} treeNode/insert [object listNode] int)
+		(invoke-static {v1, v9} treeNode/insert ([object treeNode] int) [object treeNode])
 		(move-result v3)
 		(iput v3 v8 treeNode.right [object treeNode])
 		(goto RET)
@@ -33,7 +33,7 @@
 		(label RET)
 		(return-object v8)
 	)
-	(method (attrs public static) run() [object listNode]
+	(method (attrs public static) run() [object treeNode]
 		(limit-registers 10)
 
 		(const v0 0)
@@ -41,7 +41,7 @@
 		(const v2 0)
 		(label LSTART)
 		(if-ge v0 v1 LEND)
-		(invoke-static {v2, v0} treeNode/insert [object listNode] int)
+		(invoke-static {v2, v0} treeNode/insert ([object treeNode] int) [object treeNode])
 		(move-result v2)
 		(add-int/lit16 v0 v0 1)
 		(goto LSTART)

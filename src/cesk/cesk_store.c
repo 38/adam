@@ -27,7 +27,7 @@ static inline cesk_store_block_t* _cesk_store_block_fork(cesk_store_block_t* blo
 	int i;
 	for(i = 0; i < CESK_STORE_BLOCK_NSLOTS; i ++)
 		if(new_block->slots[i].value != NULL)
-		cesk_value_incref(new_block->slots[i].value);
+			cesk_value_incref(new_block->slots[i].value);
 	return new_block;
 }
 /** 
@@ -74,13 +74,31 @@ static inline int _cesk_store_free_object(cesk_store_t* store, cesk_object_t* ob
 				/* decrease the intra-store refcount */
 				if(cesk_store_decref(store, this->addrtab[j]) < 0)
 				{
-					LOG_WARNING("can not decref at address %x", this->addrtab[j]);
+					LOG_WARNING("can not decref at address "PRSAddr"", this->addrtab[j]);
 				}
 			}
 		}
 		else
 		{
-			LOG_FATAL("TODO decref all in built-in class");
+			uint32_t offset = 0;
+			uint32_t buf[128];
+			for(;;)
+			{
+				int rc = bci_class_get_addr_list(this->bcidata, offset, buf, sizeof(buf)/sizeof(buf[0]), this->class.bci->class);
+				if(rc < 0)
+				{
+					LOG_WARNING("can not get the address list, ignoring");
+					break;
+				}
+				if(0 == rc) break;
+				offset += rc;
+				int j;
+				for(j = 0; j < rc; j ++)
+					if(cesk_store_decref(store, buf[j]) < 0)
+					{
+						LOG_WARNING("can not decref address at "PRSAddr"", buf[j]);
+					}
+			}
 		}
 		CESK_OBJECT_STRUCT_ADVANCE(this);
 	}
@@ -120,23 +138,6 @@ static inline int _cesk_store_swipe(cesk_store_t* store, cesk_store_block_t* blo
 	cesk_value_decref(value);
 	return 0;
 }
-/** 
- * @brief addressing hash code
- * @param inst the instruction
- * @param field_ofs the field offset
- * @return the hashcode
- **/
-static inline hashval_t _cesk_store_address_hashcode(const dalvik_instruction_t* inst, uint32_t field_ofs)
-{
-	uint32_t idx;
-	
-	/* read the instruction annotation for index */
-	//dalvik_instruction_read_annotation(inst, &idx, sizeof(idx));
-	idx = dalvik_instruction_get_index(inst);
-
-	return (idx * idx * MH_MULTIPLY + (field_ofs * MH_MULTIPLY * MH_MULTIPLY)); 
-
-}
 /** @brief get a block in a store and prepare to write */
 static inline cesk_store_block_t* _cesk_store_getblock_rw(cesk_store_t* store, uint32_t addr)
 {
@@ -146,21 +147,23 @@ static inline cesk_store_block_t* _cesk_store_getblock_rw(cesk_store_t* store, u
 		return NULL;
 	}
 	uint32_t b_idx = addr / CESK_STORE_BLOCK_NSLOTS;
+	/* check the validity of the input store address */
 	if(b_idx >= store->nblocks)
 	{
-		LOG_ERROR("out of memory");
+		LOG_ERROR("invalid store address, out of memory(requesting block_no = %d in the store with %d blocks)", 
+		          b_idx, store->nblocks);
 		return NULL;
 	}
 	cesk_store_block_t* block = store->blocks[b_idx];
-	/* if the block is used by more than one store so it is not writable, so make a copy of 
-	 * it and replace the old block with new  copy */
+	/* check the refcount, so that future modification won't affect other store */
 	if(block->refcnt > 1)
 	{
-		LOG_DEBUG("more than one store are using this block, fork it");
+		/* used by more than one store? copy it */
+		LOG_DEBUG("%d stores are using this block, copy before modification", block->refcnt);
 		cesk_store_block_t* newblock = _cesk_store_block_fork(block);
 		if(NULL == newblock)
 		{
-			LOG_ERROR("can not fork the block");
+			LOG_ERROR("can not copy the block");
 			return NULL;
 		}
 		newblock->refcnt = 1;
@@ -182,6 +185,7 @@ cesk_store_t* cesk_store_empty_store()
    ret->num_ent = 0;
    ret->hashcode = CESK_STORE_EMPTY_HASH;
    ret->alloc_tab = NULL;
+   ret->blocks = NULL;
    return ret;
 }
 int cesk_store_set_alloc_table(cesk_store_t* store, cesk_alloctab_t* table)
@@ -275,7 +279,10 @@ static inline int _cesk_store_apply_alloc_tab(cesk_store_t* store, uint32_t base
 				{
 					if(object_base->built_in)
 					{
-						LOG_FATAL("TODO apply relocation table to a built_in class");
+						if(bci_class_apply_atable(object_base->bcidata, store,object_base->class.bci->class) < 0)
+						{
+							LOG_WARNING("failed to apply the allocation table for object %s", object_base->class.path->value);
+						}
 					}
 					else
 					{
@@ -431,14 +438,16 @@ int cesk_store_set_reuse(cesk_store_t* store, uint32_t addr)
 		return -1;
 	}
 	cesk_store_block_t* block = _cesk_store_getblock_rw(store, addr);
-	store->hashcode ^= HASH_INC(addr, block->slots[offset].value, block->slots[offset].reuse);
+	if(block->slots[offset].value->write_count == 0)
+		store->hashcode ^= HASH_INC(addr, block->slots[offset].value, block->slots[offset].reuse);
 	if(NULL == block)
 	{
 		LOG_ERROR("what's wrong?");
 		return -1;
 	}
 	block->slots[offset].reuse = 1;
-	store->hashcode ^= HASH_INC(addr, block->slots[offset].value, block->slots[offset].reuse);
+	if(block->slots[offset].value->write_count == 0)
+		store->hashcode ^= HASH_INC(addr, block->slots[offset].value, block->slots[offset].reuse);
 	return 0;
 }
 int cesk_store_clear_reuse(cesk_store_t* store, uint32_t addr)
@@ -473,19 +482,16 @@ cesk_value_t* cesk_store_get_rw(cesk_store_t* store, uint32_t addr, int noval)
 		return NULL;
 	}
 	cesk_value_t* val = block->slots[offset].value;
-	if(NULL == val)
-	{
-		LOG_ERROR("the address is not in use (@%x)", addr);
-		return NULL;
-	}
+	if(NULL == val) return NULL;
 	if(val->refcnt > 1 && noval == 0)
 	{
 		LOG_DEBUG("this value is refered by other frame block, so fork it first");
 		cesk_value_t* newval = cesk_value_fork(val);
+		
 		if(NULL == newval)
 		{
-		LOG_ERROR("error during fork the value, aborting copy");
-		return NULL;
+			LOG_ERROR("error during copy the value");
+			return NULL;
 		}
 
 		block->slots[offset].value = newval;
@@ -500,7 +506,10 @@ cesk_value_t* cesk_store_get_rw(cesk_store_t* store, uint32_t addr, int noval)
 	 * After finish updating, you should call the function release the 
 	 * value and update the hashcode */
 	store->hashcode ^= HASH_INC(addr, val, block->slots[offset].reuse);
-	val->write_status = 1;
+	if(val->write_count > 15) 
+		LOG_WARNING("too many write pointer aquired, which up to 15 at store address "PRSAddr, addr);
+	else
+		val->write_count ++;
 	return val;
 }
 void cesk_store_release_rw(cesk_store_t* store, uint32_t addr)
@@ -510,26 +519,30 @@ void cesk_store_release_rw(cesk_store_t* store, uint32_t addr)
 	uint32_t offset    = addr % CESK_STORE_BLOCK_NSLOTS;
 	if(block_idx >= store->nblocks) 
 	{
-		LOG_ERROR("invalid address out of space");
+		LOG_ERROR("invalid address "PRSAddr" out of space", addr);
 		return;
 	}
 	cesk_store_block_t* block = _cesk_store_getblock_rw(store, addr);
 	if(NULL == block)
 	{
-		LOG_ERROR("opps, it should not happen");
+		LOG_ERROR("opps, can not get the writable pointer to store address"PRSAddr, addr);
 		return;
 	}
 	cesk_value_t* val = block->slots[offset].value;
-	if(val->write_status == 0)
+	if(val->write_count == 0)
 	{
 		LOG_WARNING("there's no writable pointer accociated to this status");
 		return;
 	}
-	val->write_status = 0;
-	/* update the relocation bit */
-	block->reloc |= val->reloc;
-	/* update the hashcode */
-	store->hashcode ^= HASH_INC(addr, val, block->slots[offset].reuse);
+	val->write_count --;
+	/* flush the modification result to the store */
+	if(0 == val->write_count)
+	{
+		/* update the relocation bit */
+		block->reloc |= val->reloc;
+		/* update the hashcode */
+		store->hashcode ^= HASH_INC(addr, val, block->slots[offset].reuse);
+	}
 }
 /* just for debug purpose */
 hashval_t cesk_store_compute_hashcode(const cesk_store_t* store)
@@ -540,7 +553,7 @@ hashval_t cesk_store_compute_hashcode(const cesk_store_t* store)
 	{
 		for(j = 0; j < CESK_STORE_BLOCK_NSLOTS; j ++)
 		{
-			if(NULL != store->blocks[i]->slots[j].value && store->blocks[i]->slots[j].value->write_status == 0)
+			if(NULL != store->blocks[i]->slots[j].value && store->blocks[i]->slots[j].value->write_count == 0)
 			{
 				uint32_t addr = i * CESK_STORE_BLOCK_NSLOTS + j;
 				ret ^= HASH_CMP(addr, store->blocks[i]->slots[j].value, store->blocks[i]->slots[j].reuse);
@@ -552,11 +565,9 @@ hashval_t cesk_store_compute_hashcode(const cesk_store_t* store)
 /**
  * @note caller should update the reuse flag manually 
  **/
-uint32_t cesk_store_allocate(cesk_store_t* store, const dalvik_instruction_t* inst, uint32_t field_ofs)
+uint32_t cesk_store_allocate(cesk_store_t* store, const cesk_alloc_param_t* param)
 {
-	uint32_t idx;
-	idx = dalvik_instruction_get_index(inst);
-	uint32_t  init_slot = _cesk_store_address_hashcode(inst, field_ofs)  % CESK_STORE_BLOCK_NSLOTS;
+	uint32_t  init_slot = cesk_alloc_param_hash(param)  % CESK_STORE_BLOCK_NSLOTS;
 	uint32_t  slot = init_slot;
 	/* here we perform a quadratic probing inside each block
 	 * But we do not jump more than 5 times in one block
@@ -571,20 +582,19 @@ uint32_t cesk_store_allocate(cesk_store_t* store, const dalvik_instruction_t* in
 	for(attempt = 0; attempt < CESK_STORE_ALLOC_ATTEMPT; attempt ++)
 	{
 		int block;
-		LOG_DEBUG("attempt #%d : slot @%d for instruction %d", attempt, slot, idx);
+		LOG_DEBUG("attempt #%d : slot "PRSAddr" for instruction 0x%x", attempt, slot, param->inst);
 		for(block = 0; block < store->nblocks; block ++)
 		{
 			if(store->blocks[block]->slots[slot].value == NULL && empty_offset == -1)
 			{
-				LOG_DEBUG("find an empty slot @(block = %d, offset = %d)", block, slot);
+				LOG_DEBUG("find an empty slot @(block = 0x%x, offset = 0x%x)", block, slot);
 				empty_block = block;
 				empty_offset = slot;
 			}
 			if(store->blocks[block]->slots[slot].value != NULL && 
-			   store->blocks[block]->slots[slot].idx == idx && 
-			   store->blocks[block]->slots[slot].field == field_ofs)
+			   cesk_alloc_param_equal(param, &store->blocks[block]->slots[slot].param))
 			{
-				LOG_DEBUG("find the equal slot @(block = %d, offset = %d)", block, slot);
+				LOG_DEBUG("find the equal slot @(block = 0x%x, offset = 0x%x)", block, slot);
 				equal_block = block;
 				equal_offset = slot;
 			}
@@ -629,11 +639,10 @@ uint32_t cesk_store_allocate(cesk_store_t* store, const dalvik_instruction_t* in
 	{
 		if(empty_offset != -1)
 		{
-			LOG_DEBUG("allocate %"PRIu32" (block=%d, offset = %d) for instruction %d", 
+			LOG_DEBUG("allocate 0x%"PRIx32" (block=0x%x, offset = 0x%x) for instruction 0x%x", 
 						(uint32_t)(empty_block * CESK_STORE_BLOCK_NSLOTS + empty_offset), 
-                        empty_block, empty_offset, idx);
-			store->blocks[empty_block]->slots[empty_offset].idx = idx;
-			store->blocks[empty_block]->slots[empty_offset].field = field_ofs;
+                        empty_block, empty_offset, param->inst);
+			store->blocks[empty_block]->slots[empty_offset].param = *param;
 			store->blocks[empty_block]->slots[empty_offset].reuse = 0;
 			return empty_block * CESK_STORE_BLOCK_NSLOTS + empty_offset;
 		}
@@ -646,8 +655,8 @@ uint32_t cesk_store_allocate(cesk_store_t* store, const dalvik_instruction_t* in
 	else
 	{
 		/* some equal entry */
-		LOG_DEBUG("reuse %"PRIu32" (block = %d, offset = %d for instruction %d",
-			      (uint32_t)(equal_block * CESK_STORE_BLOCK_NSLOTS + equal_offset), equal_block, equal_offset, idx);
+		LOG_DEBUG("reuse %"PRIx32" (block = 0x%x, offset = 0x%x for instruction 0x%x",
+			      (uint32_t)(equal_block * CESK_STORE_BLOCK_NSLOTS + equal_offset), equal_block, equal_offset, param->inst);
 		/* do not set the reuse bit here */
 		//store->blocks[equal_block]->slots[equal_offset].reuse = 1;   
 		return equal_block * CESK_STORE_BLOCK_NSLOTS  + equal_offset;
@@ -696,7 +705,7 @@ int cesk_store_attach(cesk_store_t* store, uint32_t addr, cesk_value_t* value)
 	{
 		/* reference to new value */
 		cesk_value_incref(value);
-		value->write_status = 1;
+		value->write_count = 1;
 		/* we do not update new hash code here, that means we should use cesk_store_release_rw function
 		 * After we finish modifiying the store */
 	}
@@ -741,7 +750,7 @@ int cesk_store_incref(cesk_store_t* store, uint32_t addr)
 	}
 	else
 	{
-		LOG_ERROR("the object @%x is alread dead", addr);
+		LOG_ERROR("the object "PRSAddr" is alread dead", addr);
 		return -1;
 	}
 }
@@ -786,7 +795,7 @@ int cesk_store_decref(cesk_store_t* store, uint32_t addr)
 int cesk_store_equal(const cesk_store_t* first, const cesk_store_t* second)
 {
 	if(NULL == first || NULL == second) return first != second;
-	if(first->nblocks != second->nblocks) return 0;   /* because there must be an occupied address that another store does not have */
+	if(first->nblocks != second->nblocks) return 0;
 	if(cesk_store_hashcode(first) != cesk_store_hashcode(second)) return 0;
 	int i;
 	for(i = 0; i < first->nblocks; i ++)
@@ -863,6 +872,7 @@ uint32_t cesk_store_get_refcnt(const cesk_store_t* store, uint32_t addr)
 	if(CESK_STORE_ADDR_NULL == (addr = _cesk_store_make_object_address(store, addr))) return -1;  /* TODO: is it OK to return -1? */
 	uint32_t idx = addr / CESK_STORE_BLOCK_NSLOTS;
 	uint32_t ofs = addr % CESK_STORE_BLOCK_NSLOTS;
+	if(store->nblocks <= idx) return 0;
 	return store->blocks[idx]->slots[ofs].refcnt;
 }
 int cesk_store_clear_refcnt(cesk_store_t* store, uint32_t addr)
@@ -903,9 +913,9 @@ const char* cesk_store_to_string(const cesk_store_t* store, char* buf, size_t sz
 			uint32_t addr = blkidx * CESK_STORE_BLOCK_NSLOTS + ofs;
 			uint32_t reloc_addr = cesk_alloctab_query(store->alloc_tab, store, addr);
 			if(reloc_addr != CESK_STORE_ADDR_NULL)
-				__PR("([@%x --> @%x] %s) ", reloc_addr, addr, cesk_value_to_string(blk->slots[ofs].value, NULL, 0));
+				__PR("(["PRSAddr" --> "PRSAddr"] %s) ", reloc_addr, addr, cesk_value_to_string(blk->slots[ofs].value, NULL, 0));
 			else
-				__PR("(@%x: %s)", addr, cesk_value_to_string(blk->slots[ofs].value, NULL, 0));
+				__PR("("PRSAddr": %s)", addr, cesk_value_to_string(blk->slots[ofs].value, NULL, 0));
 		}
 	}
 	return buf;
@@ -925,12 +935,34 @@ void cesk_store_print_debug(const cesk_store_t* store)
 			uint32_t addr = blkidx * CESK_STORE_BLOCK_NSLOTS + ofs;
 			uint32_t reloc_addr = cesk_alloctab_query(store->alloc_tab, store, addr);
 			if(reloc_addr != CESK_STORE_ADDR_NULL)
-				LOG_DEBUG("\t@%x(@%x)\t%s", reloc_addr, addr,cesk_value_to_string(blk->slots[ofs].value, NULL, 0));
+				LOG_DEBUG("\t"PRSAddr"("PRSAddr")\t%s", reloc_addr, addr,cesk_value_to_string(blk->slots[ofs].value, NULL, 0));
 			else
-				LOG_DEBUG("\t@%x\t%s", addr, cesk_value_to_string(blk->slots[ofs].value, NULL, 0));
+				LOG_DEBUG("\t"PRSAddr"\t%s", addr, cesk_value_to_string(blk->slots[ofs].value, NULL, 0));
 		}
 	}
 }
 #else
 {}
 #endif
+int cesk_store_compact_store(cesk_store_t* store)
+{
+	if(NULL == store)
+	{
+		LOG_ERROR("invalid argument");
+		return -1;
+	}
+	for(; store->nblocks > 0 && 0 == store->blocks[store->nblocks - 1]->num_ent; store->nblocks --)
+	{
+		cesk_store_block_t* blk = store->blocks[store->nblocks - 1];
+		/* because this block is empty, so that we do not need to decref for the values in the block */
+		if(-- blk->refcnt == 0)  free(blk);
+	}
+	/* if this store is actually empty, we should free the blocks array */
+	if(0 == store->nblocks && store->blocks)
+	{
+		free(store->blocks);
+		store->blocks = NULL;
+	}
+	LOG_DEBUG("the number of blocks after compact is %d", store->nblocks);
+	return 0;
+}

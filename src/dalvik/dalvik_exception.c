@@ -101,11 +101,11 @@ dalvik_exception_handler_t* dalvik_exception_handler_from_sexp(const sexpression
 					&label3)) 
 		{
 			LOG_ERROR("can not parse exception handler");
-			LOG_DEBUG("the exception handler is %s", sexp_to_string(sexp,NULL));
+			LOG_DEBUG("the exception handler is %s", sexp_to_string(sexp, NULL, 0));
 			return NULL;
 		}
 		
-		LOG_DEBUG("the exception handler is %s", sexp_to_string(sexp,NULL));
+		LOG_DEBUG("the exception handler is %s", sexp_to_string(sexp, NULL, 0));
 		
 		int lid1, lid2, lid3;
 
@@ -147,11 +147,11 @@ dalvik_exception_handler_t* dalvik_exception_handler_from_sexp(const sexpression
 					&label3)) 
 		{
 			LOG_ERROR("can not parse exception handler");
-			LOG_DEBUG("the exception handler is %s", sexp_to_string(sexp,NULL));
+			LOG_DEBUG("the exception handler is %s", sexp_to_string(sexp, NULL, 0));
 			return NULL;
 		}
 		int lid1, lid2, lid3;
-		LOG_DEBUG("the exception handler is %s", sexp_to_string(sexp,NULL));
+		LOG_DEBUG("the exception handler is %s", sexp_to_string(sexp, NULL, 0));
 
 		lid1 = dalvik_label_get_label_id(label1);
 		if(lid1 < 0) 

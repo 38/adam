@@ -14,7 +14,13 @@ int main()
 	const char* methodname = stringpool_query("treeParserSpec");
 	dalvik_type_t* arglist[] = {NULL ,NULL};
 	arglist[0] = type;
-	dalvik_block_t* block = dalvik_block_from_method(classname, methodname, (const dalvik_type_t**)arglist);
+	
+	sexpression_t* svoid;
+	assert(NULL != sexp_parse("void", &svoid));
+	dalvik_type_t* tvoid = dalvik_type_from_sexp(svoid);
+	sexp_free(svoid);
+	
+	dalvik_block_t* block = dalvik_block_from_method(classname, methodname, (const dalvik_type_t**)arglist, tvoid);
 	dalvik_type_free(type);
 	assert(NULL != block);
 
@@ -25,8 +31,8 @@ int main()
 	
 	/* Case 1 */
 	methodname = stringpool_query("case1");
-	block = dalvik_block_from_method(classname, methodname, (const dalvik_type_t**)arglist);
-	const dalvik_method_t* method = dalvik_memberdict_get_method(classname, methodname, (const dalvik_type_t**)arglist);
+	block = dalvik_block_from_method(classname, methodname, (const dalvik_type_t**)arglist, tvoid);
+	const dalvik_method_t* method = dalvik_memberdict_get_method(classname, methodname, (const dalvik_type_t**)arglist, tvoid);
 	assert(NULL != method);
 	assert(NULL != block);
 	assert(block->begin == method->entry);
@@ -41,8 +47,8 @@ int main()
 
 	/* Case 2 */
 	methodname = stringpool_query("case2");
-	block = dalvik_block_from_method(classname, methodname, (const dalvik_type_t**)arglist);
-	method = dalvik_memberdict_get_method(classname, methodname, (const dalvik_type_t**)arglist);
+	block = dalvik_block_from_method(classname, methodname, (const dalvik_type_t**)arglist, tvoid);
+	method = dalvik_memberdict_get_method(classname, methodname, (const dalvik_type_t**)arglist, tvoid);
 	assert(NULL != block);
 	assert(NULL != method);
 	/* verify block0 */
@@ -96,8 +102,8 @@ int main()
 
 	/* Case 3 */
 	methodname = stringpool_query("case3");
-	block = dalvik_block_from_method(classname, methodname, (const dalvik_type_t**)arglist);
-	method = dalvik_memberdict_get_method(classname, methodname, (const dalvik_type_t**)arglist);
+	block = dalvik_block_from_method(classname, methodname, (const dalvik_type_t**)arglist, tvoid);
+	method = dalvik_memberdict_get_method(classname, methodname, (const dalvik_type_t**)arglist, tvoid);
 	assert(NULL != block);
 	assert(NULL != method);
 	/* verify block 1 */
@@ -128,8 +134,8 @@ int main()
 
 	/* Case 4 */
 	methodname = stringpool_query("case4");
-	block = dalvik_block_from_method(classname, methodname, (const dalvik_type_t**) arglist);
-	method = dalvik_memberdict_get_method(classname, methodname, (const dalvik_type_t**) arglist);
+	block = dalvik_block_from_method(classname, methodname, (const dalvik_type_t**) arglist, tvoid);
+	method = dalvik_memberdict_get_method(classname, methodname, (const dalvik_type_t**) arglist, tvoid);
 	assert(NULL != block);
 	assert(NULL != method);
 	/* verify block 1 */
@@ -165,8 +171,8 @@ int main()
 
 	/* Case 5 */
 	methodname = stringpool_query("case5");
-	block = dalvik_block_from_method(classname, methodname, (const dalvik_type_t**) arglist);
-	method = dalvik_memberdict_get_method(classname, methodname, (const dalvik_type_t**) arglist);
+	block = dalvik_block_from_method(classname, methodname, (const dalvik_type_t**) arglist, tvoid);
+	method = dalvik_memberdict_get_method(classname, methodname, (const dalvik_type_t**) arglist, tvoid);
 	assert(NULL != block);
 	assert(NULL != method);
 

@@ -211,8 +211,8 @@ int cesk_frame_register_load_from_object(
  * @param frame
  * @param reloctab the relocation table
  * @param inst current instruction
- * @param context the frame context ID
- * @param clspath the class path
+ * @param alloc_param the allocation parameter (except the instruction index)
+ * @param bci_init_param the addtion initialaization parameter
  * @param diff_buf
  * @param inv_buf
  * @return the address of newly created object , CESK_STORE_ADDR_NULL indicates an error
@@ -221,8 +221,9 @@ uint32_t cesk_frame_store_new_object(
 		cesk_frame_t* frame,
 		cesk_reloc_table_t* reloctab,
 		const dalvik_instruction_t* inst,
-		uint32_t context,
+		const cesk_alloc_param_t* alloc_param,
 		const char* clspath,
+		const void* bci_init_param,
 		cesk_diff_buffer_t* diff_buf,
 		cesk_diff_buffer_t* inv_buf);
 /**

@@ -54,7 +54,7 @@
 		(limit registers 10)
 		;test case for invoke instruction
 		(const v1 3) ; + 0
-		(invoke-static {v1} java/lang/Object/<init>) ; + 1
+		(invoke-static {v1} java/lang/Object/<init> () void) ; + 1
 		(const v1 2) ; + 2
 		(return-void) ; + 3
 	)

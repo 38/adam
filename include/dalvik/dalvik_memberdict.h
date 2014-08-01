@@ -48,19 +48,25 @@ int dalvik_memberdict_register_class(const char* class_path, dalvik_class_t* cla
  *  @param class_path the pooled class path
  *  @param name the pooled method name
  *  @param args the arguement list(because java support overload, so it's impossible to get a object without knowning the argument list)  
+ *  @param rtype the return type of this method
+ *  @return the method def
  */
-dalvik_method_t* dalvik_memberdict_get_method(const char* class_path, const char* name, const dalvik_type_t *const* args);
+const dalvik_method_t* dalvik_memberdict_get_method(
+        const char* class_path, 
+		const char* name, 
+		const dalvik_type_t *const* args,
+		const dalvik_type_t* rtype);
 /** @brief retrive a field by class path and name 
  *  @param class_path the class path (pooled)
  *  @param name the field name 
  *  @return the field defination
  */
-dalvik_field_t* dalvik_memberdict_get_field(const char* class_path, const char* name);
+const dalvik_field_t* dalvik_memberdict_get_field(const char* class_path, const char* name);
 /** @brief retrive a class by class path 
  *  @param class_path pooled class path
  *  @return class defination
  */
-dalvik_class_t* dalvik_memberdict_get_class(const char* class_path);
+const dalvik_class_t* dalvik_memberdict_get_class(const char* class_path);
 
 
 #endif /* __DALVIK_MEMBERDICT_H__ */

@@ -84,19 +84,19 @@ static inline const char* _cesk_diff_record_to_string(int type, int addr, void* 
 	switch(type)
 	{
 		case CESK_DIFF_ALLOC:
-			__PR("(allocate @%x %s)", addr, cesk_value_to_string((cesk_value_t*)value, NULL, 0));
+			__PR("(allocate "PRSAddr" %s)", addr, cesk_value_to_string((cesk_value_t*)value, NULL, 0));
 			break;
 		case CESK_DIFF_DEALLOC:
-			__PR("(deallocate @%x)", addr);
+			__PR("(deallocate "PRSAddr")", addr);
 			break;
 		case CESK_DIFF_REG:
 			__PR("(register v%d %s)", addr, cesk_set_to_string((cesk_set_t*)value, NULL, 0));
 			break;
 		case CESK_DIFF_STORE:
-			__PR("(store @%x %s)", addr, cesk_value_to_string((cesk_value_t*)value, NULL, 0));
+			__PR("(store "PRSAddr" %s)", addr, cesk_value_to_string((cesk_value_t*)value, NULL, 0));
 			break;
 		case CESK_DIFF_REUSE:
-			__PR("(reuse @%x %d)", addr, (value != NULL));
+			__PR("(reuse "PRSAddr" %d)", addr, (value != NULL));
 			break;
 		default:
 			__PR("(unknown-record)");
@@ -190,7 +190,7 @@ static int _cesk_diff_buffer_cmp(const void* left, const void* right)
 	return lnode->time - rnode->time;
 }
 /**
- * @brief collect the garbage allocation
+ * @brief remove the garbage allocation
  * @details If the newly created object is dereferenced in this block, the 
  *          diff will contains an allocation instruction at that address, 
  *          but without corresponding register/store reference. In this case
@@ -211,12 +211,7 @@ static inline int _cesk_diff_gc(cesk_diff_t* diff)
 	int dealloc_begin = diff->offset[CESK_DIFF_DEALLOC];
 	int dealloc_end = diff->offset[CESK_DIFF_DEALLOC + 1];
 	int alloc_ptr, reg_ptr, store_ptr, reuse_ptr,dealloc_ptr, alloc_free, store_free, reuse_free;
-#if 0
-	static uint8_t bitmap[(CESK_STORE_ADDR_RELOC_SIZE + 7)/8];
-	static uint8_t bm_store[(CESK_STORE_ADDR_RELOC_SIZE + 7)/8];
-	memset(bitmap, 0, sizeof(bitmap));
-	memset(bm_store, 0, sizeof(bm_store));
-#endif
+	
 	static uint32_t flags[CESK_STORE_ADDR_RELOC_SIZE];
 	static uint32_t store_flags[CESK_STORE_ADDR_RELOC_SIZE];
 	static uint32_t tick = 0;
@@ -230,21 +225,79 @@ static inline int _cesk_diff_gc(cesk_diff_t* diff)
 			LOG_WARNING("ignore invalid value");
 			continue;
 		}
-		cesk_set_t* set = value->pointer.set;
-		cesk_set_iter_t iter;
-		if(NULL == cesk_set_iter(set, &iter))
+		/* if this is a value */
+		if(CESK_TYPE_SET == value->type)
 		{
-			LOG_WARNING("can not aquire the set iterator");
-			continue;
-		}
-		uint32_t addr;
-		while(CESK_STORE_ADDR_NULL != (addr = cesk_set_iter_next(&iter)))
-		{
-			if(CESK_STORE_ADDR_IS_RELOC(addr))
+			cesk_set_t* set = value->pointer.set;
+			cesk_set_iter_t iter;
+			if(NULL == cesk_set_iter(set, &iter))
 			{
-				uint32_t idx = CESK_STORE_ADDR_RELOC_IDX(addr);
-				flags[idx] = tick;
-				LOG_DEBUG("address @%x is safe", addr);
+				LOG_WARNING("can not aquire the set iterator");
+				continue;
+			}
+			uint32_t addr;
+			while(CESK_STORE_ADDR_NULL != (addr = cesk_set_iter_next(&iter)))
+			{
+				if(CESK_STORE_ADDR_IS_RELOC(addr))
+				{
+					uint32_t idx = CESK_STORE_ADDR_RELOC_IDX(addr);
+					flags[idx] = tick;
+					LOG_DEBUG("address "PRSAddr" is safe", addr);
+				}
+			}
+		}
+		else
+		{
+			cesk_object_t* object = value->pointer.object;
+			cesk_object_struct_t* this = object->members;
+			int i;
+			for(i = 0; i < object->depth; i ++)
+			{
+				/* if this is an instance of a built-in class */
+				if(this->built_in)
+				{
+					uint32_t buf[128];
+					uint32_t offset = 0;
+					int rc;
+					for(;;)
+					{
+						rc = bci_class_get_addr_list(this->bcidata, offset, buf, sizeof(buf)/sizeof(buf[0]), this->class.bci->class);
+						if(rc < 0)
+						{
+							LOG_WARNING("failed to get the address list");
+							break;
+						}
+						if(rc == 0) break;
+						offset += rc;
+						int j;
+						for(j = 0; j < rc; j ++)
+						{
+							uint32_t addr = buf[j];
+							if(CESK_STORE_ADDR_IS_RELOC(addr))
+							{
+								uint32_t idx = CESK_STORE_ADDR_RELOC_IDX(addr);
+								flags[idx] = tick;
+								LOG_DEBUG("address "PRSAddr" is safe", addr);
+							}
+						}
+					}
+				}
+				/* otherwise this is an instance of user defined class */
+				else
+				{
+					int j;
+					for(j = 0; j < this->num_members; j ++)
+					{
+						uint32_t addr = this->addrtab[j];
+						if(CESK_STORE_ADDR_IS_RELOC(addr))
+						{
+							uint32_t idx = CESK_STORE_ADDR_RELOC_IDX(addr);
+							flags[idx] = tick;
+							LOG_DEBUG("address "PRSAddr" is safe", addr);
+						}
+					}
+				}
+				CESK_OBJECT_STRUCT_ADVANCE(this);
 			}
 		}
 	}
@@ -269,13 +322,11 @@ static inline int _cesk_diff_gc(cesk_diff_t* diff)
 			{
 				uint32_t idx = CESK_STORE_ADDR_RELOC_IDX(addr);
 				flags[idx] = tick;
-				LOG_DEBUG("address @%x is safe", addr);
+				LOG_DEBUG("address "PRSAddr" is safe", addr);
 			}
 		}
 	}
-	/* because some allocation is used by other allocation, therefore, we need
-	 * to keep them
-	 */
+	/* because some allocation is used by other allocation, therefore, we need to keep them */
 	for(alloc_ptr = alloc_begin; alloc_ptr < alloc_end; alloc_ptr ++)
 	{
 		uint32_t addr = diff->data[alloc_ptr].addr;
@@ -299,8 +350,29 @@ static inline int _cesk_diff_gc(cesk_diff_t* diff)
 						{
 							if(this->built_in)
 							{
-								LOG_FATAL("TODO set bit map for a built-in class refernce");
-
+								uint32_t buf[128];
+								uint32_t offset = 0;
+								int rc;
+								for(;;)
+								{
+									rc = bci_class_get_addr_list(this->bcidata, offset, buf, sizeof(buf)/sizeof(buf[0]), this->class.bci->class);
+									if(rc < 0)
+									{
+										LOG_WARNING("failed to tranverse the address list for built-in class %s", this->class.path->value);
+										break;
+									}
+									if(rc == 0) break;
+									int j;
+									for(j = 0; j < rc; j ++)
+									{
+										if(CESK_STORE_ADDR_IS_RELOC(buf[j]))
+										{
+											uint32_t idx = CESK_STORE_ADDR_RELOC_IDX(buf[j]);
+											flags[idx] = tick;
+											LOG_DEBUG("address "PRSAddr" is safe", buf[j]);
+										}
+									}
+								}
 							}
 							else
 							{
@@ -312,7 +384,7 @@ static inline int _cesk_diff_gc(cesk_diff_t* diff)
 									{
 										uint32_t midx = CESK_STORE_ADDR_RELOC_IDX(maddr);
 										flags[midx] = tick;
-										LOG_DEBUG("address @%x is safe", maddr);
+										LOG_DEBUG("address "PRSAddr" is safe", maddr);
 									}
 								}
 							}
@@ -336,7 +408,7 @@ static inline int _cesk_diff_gc(cesk_diff_t* diff)
 							{
 								uint32_t eidx = CESK_STORE_ADDR_RELOC_IDX(eaddr);
 								flags[eidx] = tick;
-								LOG_DEBUG("address @%x is safe", eaddr);
+								LOG_DEBUG("address "PRSAddr" is safe", eaddr);
 							}
 						}
 					}
@@ -362,12 +434,12 @@ static inline int _cesk_diff_gc(cesk_diff_t* diff)
 
 		if(alive)
 		{
-			LOG_DEBUG("keep living allocation record @%x", addr);
+			LOG_DEBUG("keep living allocation record "PRSAddr"", addr);
 			diff->data[alloc_free--] = diff->data[alloc_ptr];
 		}
 		else
 		{
-			LOG_DEBUG("delete garbage allocation record @%x", addr);
+			LOG_DEBUG("delete garbage allocation record "PRSAddr"", addr);
 			/* mark store ops on this address can be deleted */
 			store_flags[idx] = tick;
 			cesk_value_decref(diff->data[alloc_ptr].arg.value);
@@ -398,7 +470,7 @@ static inline int _cesk_diff_gc(cesk_diff_t* diff)
 			diff->data[store_free ++] = diff->data[store_ptr];
 		else
 		{
-			LOG_DEBUG("delete store operation on a garbage address @%x", addr);
+			LOG_DEBUG("delete store operation on a garbage address "PRSAddr"", addr);
 			cesk_value_decref(diff->data[store_ptr].arg.value);
 		}
 	}
@@ -510,14 +582,14 @@ cesk_diff_t* cesk_diff_from_buffer(cesk_diff_buffer_t* buffer)
 					switch(section)
 					{
 						case CESK_DIFF_ALLOC:
-							LOG_DEBUG("ignore the duplicated allocation record at the same store address @%x", prev_addr);
+							LOG_DEBUG("ignore the duplicated allocation record at the same store address "PRSAddr"", prev_addr);
 							/* we have to drop the reference */
 							if(NULL != ret->data[ret->offset[section + 1]].arg.value)
 								cesk_value_decref(ret->data[ret->offset[section + 1]].arg.value);
 							ret->data[ret->offset[section + 1]].arg.value = (cesk_value_t*) node->value;
 							break;
 						case CESK_DIFF_DEALLOC:
-							LOG_WARNING("ignore the dumplicated deallocation record at the same store address @%x", prev_addr);
+							LOG_WARNING("ignore the dumplicated deallocation record at the same store address "PRSAddr"", prev_addr);
 							break;
 						case CESK_DIFF_REUSE:
 							if(buffer->merge)
@@ -555,36 +627,49 @@ cesk_diff_t* cesk_diff_from_buffer(cesk_diff_buffer_t* buffer)
 								else
 								{
 									int type = ((cesk_value_t*)node->value)->type;
-									/* object type? this record must be wrong since the object structure itself can not changed during the run time */
+									cesk_value_t* value = ret->data[ret->offset[section + 1]].arg.value;
+									/* if current value is used by multiple users, fork it before merge */
+									if(value->refcnt > 1)
+									{
+										cesk_value_t* new_value = cesk_value_fork(value);
+										if(NULL == new_value)
+										{
+											LOG_WARNING("can not fork the old value to make changes, item ignored");
+											break;
+										}
+										cesk_value_decref(value);
+										cesk_value_incref(new_value);
+										value = new_value;
+										ret->data[ret->offset[section + 1]].arg.value = value;
+									}
+
+									/* now we can safely merge the value without affecting other value */
 									if(type == CESK_TYPE_OBJECT)
 									{
-										LOG_WARNING("it seems no way to set a store address in which there's an object instance");
+										/* only built-in parts needs to be merged */
+										cesk_object_t *dest = value->pointer.object;
+										const cesk_object_t* sour = ((cesk_value_const_t*)node->value)->pointer.object;
+										if(NULL == dest->builtin || NULL == sour->builtin)
+										{
+											LOG_WARNING("impossible to merge a non-built-in value");
+										}
+										else if(dest->builtin->class.bci->class != dest->builtin->class.bci->class)
+										{
+											LOG_WARNING("trying to merge two values of different types");
+										}
+										else if(bci_class_merge(dest->builtin->bcidata, sour->builtin->bcidata, dest->builtin->class.bci->class) < 0)
+										{
+											LOG_ERROR("can not merge result values, some return value is ignired");
+										}
 									}
-									/* the type is a set as expected, so that we need to copy on write before this used */
 									else if(type == CESK_TYPE_SET)
 									{
-										cesk_value_t* value = ret->data[ret->offset[section + 1]].arg.value;
-										/* if current value is used by multiple users, fork it before merge */
-										if(value->refcnt > 1)
-										{
-											cesk_value_t* new_value = cesk_value_fork(value);
-											if(NULL == new_value)
-											{
-												LOG_WARNING("can not fork the old value to make changes, item ignored");
-												break;
-											}
-											cesk_value_decref(value);
-											cesk_value_incref(new_value);
-											value = new_value;
-											ret->data[ret->offset[section + 1]].arg.value = value;
-										}
-										/* now we can safely merge the value without affecting other value */
 										if(cesk_set_merge(value->pointer.set, ((cesk_value_t*)node->value)->pointer.set) < 0)
 										{
-											LOG_ERROR("can not merge return store diff item the result store item, some values in the store is ignored");
+											LOG_WARNING("can not merge return store diff item the result store item, some values in the store is ignored");
 										}
-										cesk_value_decref((cesk_value_t*) node->value);
 									}
+									cesk_value_decref((cesk_value_t*) node->value);
 								}
 							}
 							else
@@ -775,7 +860,7 @@ cesk_diff_t* cesk_diff_apply(int N, cesk_diff_t** args)
 				if(!matches)
 					ret->data[--dealloc_free] = ret->data[dealloc_ptr];
 				else
-					LOG_DEBUG("elimiate deallocation record %d at store address @%x", dealloc_ptr, ret->data[dealloc_ptr].addr);
+					LOG_DEBUG("elimiate deallocation record %d at store address "PRSAddr"", dealloc_ptr, ret->data[dealloc_ptr].addr);
 				matches = 0;
 			}
 			if(ret->data[dealloc_ptr].addr != ret->data[alloc_ptr].addr)
@@ -784,7 +869,7 @@ cesk_diff_t* cesk_diff_apply(int N, cesk_diff_t** args)
 			}
 			else
 			{
-				LOG_DEBUG("elimiate allocation record %d at store address @%x", alloc_ptr, ret->data[alloc_ptr].addr);
+				LOG_DEBUG("elimiate allocation record %d at store address "PRSAddr"", alloc_ptr, ret->data[alloc_ptr].addr);
 				/* we should elimiate the reference also */
 				cesk_value_decref(ret->data[alloc_ptr].arg.value);
 				matches = 1;
@@ -867,6 +952,9 @@ cesk_diff_t* cesk_diff_factorize(int N, cesk_diff_t** diffs, const cesk_frame_t*
 			if(CESK_STORE_ADDR_NULL == cur_addr) break;
 			ret->data[ret->offset[section + 1]].addr = cur_addr;
 			
+			const cesk_value_const_t* first = NULL;
+			uint32_t error = 0;
+			cesk_value_t* result_value = NULL;
 
 			switch(section)
 			{
@@ -896,25 +984,77 @@ cesk_diff_t* cesk_diff_factorize(int N, cesk_diff_t** diffs, const cesk_frame_t*
 				case CESK_DIFF_STORE:
 					/* the only way to modify object value is using allocation instruction
 					 * so there's no need for processing object value at this point */
-					result = cesk_set_empty_set();
-					for(i = 0; i < N; i ++)
+					
+					first = NULL;
+					for(i = 0; i < N && NULL == first; i ++)
+						first = cesk_store_get_ro(current_frame[i]->store, cur_addr);
+					if(NULL == first)
 					{
-						const cesk_value_const_t *val = cesk_store_get_ro(current_frame[i]->store, cur_addr);
-						if(NULL == val) continue;
-						if(CESK_TYPE_SET != val->type)
+						LOG_ERROR("nothing to change, ignore this record");
+						error = 1;
+						break;
+					}
+					if(CESK_TYPE_SET == first->type)
+					{
+						result = cesk_set_fork(first->pointer.set);
+						for(; i < N; i ++)
 						{
-							LOG_WARNING("ignore non-set value at store address @%x in store %p",
-							            cur_addr, 
-							            current_frame[i]->store);
+							const cesk_value_const_t *val = cesk_store_get_ro(current_frame[i]->store, cur_addr);
+							if(NULL == val) continue;
+							if(CESK_TYPE_SET != val->type)
+							{
+								LOG_WARNING("ignore non-set value at store address "PRSAddr" in store %p",
+											cur_addr, 
+											current_frame[i]->store);
+								continue;
+							}
+							if(cesk_set_merge(result, val->pointer.set) < 0)
+								LOG_WARNING("failed to merge the value of store together");
+						}
+						result_value = cesk_value_from_set(result);
+					}
+					else
+					{
+						if(NULL == first->pointer.object->builtin)
+						{
+							LOG_WARNING("An object that do not contains built-in structure supposed not to occur in the store section");
 							continue;
 						}
-						if(cesk_set_merge(result, val->pointer.set) < 0)
-							LOG_WARNING("failed to merge the value of store together");
+						result_value = cesk_value_fork((const cesk_value_t*)first);
+						if(NULL == result_value)
+						{
+							LOG_WARNING("can not fork the value that is subject to modification");
+							break;
+						}
+						for(; i < N; i ++)
+						{
+							const cesk_value_const_t* val = cesk_store_get_ro(current_frame[i]->store, cur_addr);
+							if(NULL == val) continue;
+							if(CESK_TYPE_OBJECT != val->type)
+							{
+								LOG_WARNING("ignore non-object value at store address "PRSAddr" in store %p",
+								             cur_addr,
+											 current_frame[i]->store);
+							}
+							else if(NULL == val->pointer.object->builtin || 
+							   val->pointer.object->builtin->class.bci->class != result_value->pointer.object->builtin->class.bci->class)
+							{
+								LOG_WARNING("ignore two objects that are not in the same type");
+							}
+							else if(bci_class_merge(result_value->pointer.object->builtin->bcidata, 
+							                   val->pointer.object->builtin,
+											   result_value->pointer.object->builtin->class.bci->class) < 0)
+							{
+								LOG_WARNING("can not merge the built-in object value");
+							}
+						}
 					}
-					if(NULL == (ret->data[ret->offset[section + 1]].arg.value = cesk_value_from_set(result)))
+
+					if(NULL == (ret->data[ret->offset[section + 1]].arg.value = result_value))
 					{
 						LOG_WARNING("can not create value struct for the new value");
-						continue;
+						error = 1;
+						break;
 					}
 					cesk_value_incref(ret->data[ret->offset[section + 1]].arg.value);
 					break;
@@ -925,7 +1065,7 @@ cesk_diff_t* cesk_diff_factorize(int N, cesk_diff_t** diffs, const cesk_frame_t*
 				if(diffs[i]->_index < diffs[i]->offset[section + 1] &&
 				   diffs[i]->data[diffs[i]->_index].addr == cur_addr)
 					diffs[i]->_index ++;
-			ret->offset[section + 1]++;
+			if(!error) ret->offset[section + 1]++;
 		}
 	}
 	LOG_DEBUG("result : %s", cesk_diff_to_string(ret, NULL, 0));
@@ -1100,7 +1240,7 @@ int cesk_diff_sub(cesk_diff_t* dest, const cesk_diff_t* sour)
 			for(; j >= sour_begin && sour->data[j].addr > dest->data[i].addr; j --);
 			if(sour->data[j].addr == dest->data[i].addr)
 			{
-				LOG_DEBUG("allocation @%x is deleted", sour->data[j].addr); 
+				LOG_DEBUG("allocation "PRSAddr" is deleted", sour->data[j].addr); 
 			}
 			else
 			{
@@ -1124,7 +1264,7 @@ int cesk_diff_sub(cesk_diff_t* dest, const cesk_diff_t* sour)
 			for(; j < sour_end && dest->data[i].addr > sour->data[j].addr; j ++);
 			if(sour->data[j].addr == dest->data[i].addr)
 			{
-				LOG_ERROR("deallocation @%x is deleted", sour->data[j].addr);
+				LOG_ERROR("deallocation "PRSAddr" is deleted", sour->data[j].addr);
 			}
 			else
 			{

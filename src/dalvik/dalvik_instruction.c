@@ -897,7 +897,7 @@ __DI_CONSTRUCTOR(INVOKE)
 		int reg_from, reg_to;
 
 		buf->flags |= DVM_FLAG_INVOKE_RANGE;
-		buf->num_operands = 5;
+		buf->num_operands = 6;
 		if(sexp_match(next, "(C?A", &args, &next))
 		{
 			if(sexp_get_method_address(next, &next, &path, &field) < 0)
@@ -927,10 +927,25 @@ __DI_CONSTRUCTOR(INVOKE)
 				LOG_ERROR("invalid instruction format");
 				return -1;
 			}
+			/* We parse the return type */
+			sexpression_t* type;
+			if(!sexp_match(next, "(C?_?", &next, &type))
+			{
+				LOG_ERROR("invalid function name");
+				return -1;
+			}
+			dalvik_type_t* rtype = dalvik_type_from_sexp(type);
+			if(NULL == rtype)
+			{
+				LOG_ERROR("invalid return type");
+				return -1;
+			}
+			__DI_SETUP_OPERAND(3, DVM_OPERAND_FLAG_CONST | DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_TYPEDESC), rtype);
+
 			/* We use a constant indicates the range */
-			__DI_SETUP_OPERAND(3, DVM_OPERAND_FLAG_CONST | DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_INT), reg_from);
-			__DI_SETUP_OPERAND(4, DVM_OPERAND_FLAG_CONST | DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_INT), reg_to);
-			/* here we parse the type */
+			__DI_SETUP_OPERAND(4, DVM_OPERAND_FLAG_CONST | DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_INT), reg_from);
+			__DI_SETUP_OPERAND(5, DVM_OPERAND_FLAG_CONST | DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_INT), reg_to);
+			/* here we parse the argument type */
 			size_t nparam = sexp_length(next) + 1; /* because we need a NULL pointer in the end */
 			dalvik_type_t** array = (dalvik_type_t**) malloc(sizeof(dalvik_type_t*) * nparam);
 
@@ -948,7 +963,7 @@ __DI_CONSTRUCTOR(INVOKE)
 				array[i] = dalvik_type_from_sexp(type_sexp);
 				if(NULL == array[i])
 				{
-					LOG_ERROR("can not parse type %s", sexp_to_string(type_sexp, NULL));
+					LOG_ERROR("can not parse type %s", sexp_to_string(type_sexp, NULL, 0));
 					int j;
 					for(j = 0; j < i; j ++)
 						dalvik_type_free(array[j]);
@@ -958,6 +973,8 @@ __DI_CONSTRUCTOR(INVOKE)
 			}
 
 			__DI_SETUP_OPERANDPTR(2, DVM_OPERAND_FLAG_CONST | DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_TYPELIST), array);
+
+
 		}
 		else return -1;
 	}
@@ -971,7 +988,7 @@ __DI_CONSTRUCTOR(INVOKE)
 				return -1;
 			}
 
-			/* TODO: We actually care about the type, because the function may be overloaded */
+			/* We actually care about the type, because the function may be overloaded */
 			__DI_SETUP_OPERANDPTR(0, DVM_OPERAND_FLAG_CONST |
 								  DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_CLASS),
 								  path);
@@ -980,7 +997,7 @@ __DI_CONSTRUCTOR(INVOKE)
 								  field);
 
 			/* now we parse the parameters */
-			buf->num_operands = 3;
+			buf->num_operands = 4;
 			for(;args != SEXP_NIL;)
 			{
 				/* we check the boundary */
@@ -1005,6 +1022,21 @@ __DI_CONSTRUCTOR(INVOKE)
 				}
 			}
 			
+			/* We parse the return type */
+			sexpression_t* type;
+			if(!sexp_match(next, "(C?_?", &next, &type))
+			{
+				LOG_ERROR("invalid function name");
+				return -1;
+			}
+			dalvik_type_t* rtype = dalvik_type_from_sexp(type);
+			if(NULL == rtype)
+			{
+				LOG_ERROR("invalid return type");
+				return -1;
+			}
+			__DI_SETUP_OPERAND(3, DVM_OPERAND_FLAG_CONST | DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_TYPEDESC), rtype);
+			
 			/* here we parse the type */
 			size_t nparam = sexp_length(next) + 1; /* because we need a NULL pointer in the end */
 			dalvik_type_t** array = (dalvik_type_t**) malloc(sizeof(dalvik_type_t*) * nparam);
@@ -1022,7 +1054,7 @@ __DI_CONSTRUCTOR(INVOKE)
 				array[i] = dalvik_type_from_sexp(type_sexp);
 				if(NULL == array[i])
 				{
-					LOG_ERROR("can not parse type %s", sexp_to_string(type_sexp, NULL));
+					LOG_ERROR("can not parse type %s", sexp_to_string(type_sexp, NULL, 0));
 					int j;
 					for(j = 0; j < i; j ++)
 						dalvik_type_free(array[j]);
@@ -1583,13 +1615,56 @@ const char* dalvik_instruction_to_string(const dalvik_instruction_t* inst, char*
 		case DVM_CONST:
 			__CI(const);
 		case DVM_MONITOR:
-			__CI(monitor);
+			switch(inst->flags)
+			{
+				case DVM_FLAG_MONITOR_ENT:
+					__CI(monitor-enter);
+				case DVM_FLAG_MONITOR_EXT:
+					__CI(monitor-exit);
+				default:
+					__CI(unknown-monitor-ops);
+			}
+			break;
 		case DVM_CHECK_CAST:
 			__CI(check-cast);
 		case DVM_INSTANCE:
-			__CI(instance);
+			switch(inst->flags)
+			{
+				case DVM_FLAG_INSTANCE_GET:
+					__CI(get);
+				case DVM_FLAG_INSTANCE_PUT:
+					__CI(put);
+				case DVM_FLAG_INSTANCE_SGET:
+					__CI(sget);
+				case DVM_FLAG_INSTANCE_SPUT:
+					__CI(sput);
+				case DVM_FLAG_INSTANCE_OF:
+					__CI(instance-of);
+				case DVM_FLAG_INSTANCE_NEW:
+					__CI(new-instance);
+				default:
+					__CI(unknown-instance-ops);
+			}
+			break;
 		case DVM_ARRAY:
-			__CI(array);
+			switch(inst->flags)
+			{
+				case DVM_FLAG_ARRAY_GET:
+					__CI(aget);
+				case DVM_FLAG_ARRAY_PUT:
+					__CI(aput);
+				case DVM_FLAG_ARRAY_NEW:
+					__CI(array-new);
+				case DVM_FLAG_ARRAY_LENGTH:
+					__CI(array-length);
+				case DVM_FLAG_ARRAY_FILLED_NEW:
+					__CI(array-filled-new);
+				case DVM_FLAG_ARRAY_FILLED_NEW_RANGE:
+					__CI(array-filled-new/range);
+				default:
+					__CI(unknown-array-ops);
+			}
+			break;
 		case DVM_THROW:
 			__CI(throw);
 		case DVM_GOTO:
@@ -1599,13 +1674,87 @@ const char* dalvik_instruction_to_string(const dalvik_instruction_t* inst, char*
 		case DVM_CMP:
 			__CI(cmp);
 		case DVM_IF:
-			__CI(if);
+			switch(inst->flags)
+			{
+				case DVM_FLAG_IF_NE:
+					__CI(if-ne);
+				case DVM_FLAG_IF_LE:
+					__CI(if-le);
+				case DVM_FLAG_IF_GE:
+					__CI(if-ge);
+				case DVM_FLAG_IF_GT:
+					__CI(if-gt);
+				case DVM_FLAG_IF_LT:
+					__CI(if-lt);
+				case DVM_FLAG_IF_EQ:
+					__CI(if-eq);
+				default:
+					__CI(unknown-if-ops);
+			}
+			break;
 		case DVM_INVOKE:
-			__CI(invoke);
+			switch(inst->flags & DVM_FLAG_INVOKE_TYPE_MSK)
+			{
+				case DVM_FLAG_INVOKE_VIRTUAL:
+					__CI(invoke-virtual);
+				case DVM_FLAG_INVOKE_SUPER:
+					__CI(invoke-super);
+				case DVM_FLAG_INVOKE_DIRECT:
+					__CI(invoke-direct);
+				case DVM_FLAG_INVOKE_STATIC:
+					__CI(invoke-static);
+				case DVM_FLAG_INVOKE_INTERFACE:
+					__CI(invoke-interface);
+				default:
+					__CI(invoke);
+			}
+			break;
 		case DVM_UNOP:
-			__CI(unop);
+			switch(inst->flags)
+			{
+				case DVM_FLAG_UOP_NEG:
+					__CI(neg);
+				case DVM_FLAG_UOP_NOT:
+					__CI(not);
+				case DVM_FLAG_UOP_TO:
+					__CI(type-convert);
+				default:
+					__CI(unknown-unop-ops);
+			}
+			break;
 		case DVM_BINOP:
-			__CI(binop);
+			switch(inst->flags)
+			{
+				case DVM_FLAG_BINOP_ADD:
+					__CI(add);
+				case DVM_FLAG_BINOP_SUB:
+					__CI(sub);
+				case DVM_FLAG_BINOP_MUL:
+					__CI(mul);
+				case DVM_FLAG_BINOP_DIV:
+					__CI(div);
+				case DVM_FLAG_BINOP_REM:
+					__CI(rem);
+				case DVM_FLAG_BINOP_AND:
+					__CI(and);
+				case DVM_FLAG_BINOP_OR:
+					__CI(or);
+				case DVM_FLAG_BINOP_XOR:
+					__CI(xor);
+				case DVM_FLAG_BINOP_SHL:
+					__CI(shl);
+				case DVM_FLAG_BINOP_SHR:
+					__CI(shr);
+				case DVM_FLAG_BINOP_USHR:
+					__CI(ushr);
+				case DVM_FLAG_BINOP_RSUB:
+					__CI(rsub);
+				default:
+					__CI(unknown-binary-ops);
+			}
+			break;
+		default:
+			__CI(unknown-instruction);
 	}
 	__PR("%s", name);
 	int i;

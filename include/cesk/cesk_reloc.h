@@ -13,10 +13,10 @@
  * @note   This table also hold one refcount to make sure that all value in this table is valid
  **/
 /*
- 	example for allocate an relocated object
+ 	the sechema for allocating an relocated object in a store looks like
 
-	cesk_reloc_allocate();   allocate a new RA
-	cesk_store_attach;       set the new value
+	cesk_reloc_allocate();   allocate a new relocated address
+	cesk_store_attach;       attach this relocated address to some value
 	cesk_store_release_rw;   finalize writing
 	
 	now we should allocate all fields with an empty set
@@ -30,6 +30,7 @@
 #ifndef __CESK_RELOC_H__
 #define __CESK_RELOC_H__
 #include <const_assertion.h>
+#include <cesk/cesk_alloc_param.h>
 #include <cesk/cesk_store.h>
 #include <cesk/cesk_value.h>
 #include <dalvik/dalvik_instruction.h>
@@ -40,10 +41,7 @@ typedef vector_t cesk_reloc_table_t;
  * @brief the value list item 
  * @note  see the documentation of cesk_store_allocate for details
  **/
-typedef struct {
-	const dalvik_instruction_t* instruction;	/*!< the instruction that allocate this item */
-	uint32_t      field_offset;					/*!< the field offset */
-} cesk_reloc_item_t;
+typedef cesk_alloc_param_t cesk_reloc_item_t;
 
 /**
  * @brief initialize the reloc module
@@ -77,9 +75,8 @@ void cesk_reloc_table_free(cesk_reloc_table_t* mem);
  * @return the index of this value, CESK_STORE_ADDR_NULL indicates error 
  **/
 uint32_t cesk_reloc_table_append(
-		cesk_reloc_table_t* table, 
-		const dalvik_instruction_t* inst,
-		uint32_t field_offset);
+		cesk_reloc_table_t* table,
+		const cesk_alloc_param_t* param);
 /**
  * @brief allocate a `fresh' relocated address and attach it to the global relocate allocate table
  * 		  (but do not install the value in the store if it's new) useful when creating new object
@@ -94,9 +91,8 @@ uint32_t cesk_reloc_table_append(
  **/
 uint32_t cesk_reloc_allocate(
 		cesk_reloc_table_t* value_tab, 
-		cesk_store_t* store, 
-		const dalvik_instruction_t* inst,
-		uint32_t field,
+		cesk_store_t* store,
+		const cesk_alloc_param_t* param,
 		int dry_run);
 
 /**

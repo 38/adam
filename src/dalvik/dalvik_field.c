@@ -36,7 +36,7 @@ dalvik_field_t* dalvik_field_from_sexp(const sexpression_t* sexp, const char* cl
 	if(NULL == (ret->type = dalvik_type_from_sexp(type_sexp))) 
 	{
 		LOG_ERROR("can't parse type");
-		LOG_DEBUG("type is %s", sexp_to_string(type_sexp,NULL));
+		LOG_DEBUG("type is %s", sexp_to_string(type_sexp, NULL, 0));
 		goto ERR;
 	}
 

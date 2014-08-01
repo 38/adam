@@ -48,13 +48,13 @@ dalvik_class_t* dalvik_class_from_sexp(const sexpression_t* sexp)
 	
 	if((attrs = dalvik_attrs_from_sexp(attr_list)) < 0)
 	{
-		LOG_ERROR("invalid attribute %s", sexp_to_string(attr_list,NULL));
+		LOG_ERROR("invalid attribute %s", sexp_to_string(attr_list, NULL, 0));
 		goto ERR;
 	}
 	
 	if(NULL == (class_path = sexp_get_object_path(sexp, &sexp)))
 	{
-		LOG_ERROR("invalid attribute");
+		LOG_ERROR("invalid class path");
 		goto ERR;
 	}
 
@@ -139,7 +139,7 @@ dalvik_class_t* dalvik_class_from_sexp(const sexpression_t* sexp)
 				dalvik_method_t* method;
 				if(NULL == (method = dalvik_method_from_sexp(this_def, class->path, source)))
 				{
-					LOG_ERROR("can not resolve method %s", sexp_to_string(this_def, NULL));
+					LOG_ERROR("can not resolve method %s", sexp_to_string(this_def, NULL, 0));
 					goto ERR;
 				}
 				/* Register it */
@@ -158,7 +158,7 @@ dalvik_class_t* dalvik_class_from_sexp(const sexpression_t* sexp)
 				dalvik_field_t* field;
 				if(NULL == (field = dalvik_field_from_sexp(this_def, class->path, source)))
 				{
-					LOG_ERROR("can not resolve field %s", sexp_to_string(this_def, NULL));
+					LOG_ERROR("can not resolve field %s", sexp_to_string(this_def, NULL, 0));
 					goto ERR;
 				}
 				/* Not static? it's the real member */
