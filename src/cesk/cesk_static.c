@@ -11,44 +11,19 @@
 #include <cesk/cesk_value.h>
 /* typeps */
 
-/** @brief how many pointers do a static field table have **/
-#define NPOINTERS (1<<CESK_STATIC_SKIP_LIST_DEPTH)
+/** @brief the segment tree node */
+typedef struct _cesk_static_tree_node_t _cesk_static_tree_node_t;
 
-/** @brief return wether or not use array as data structure for the table */
-#ifndef ALWAYS_SKIPLIST
-#	define USE_ARRAY  0
-#else
-#	define USE_ARRAY (dalvik_static_field_count <= NPOINTERS)
-#endif
-
-
-/**
- * @brief the node in the skiplist 
- **/
-typedef struct _cesk_static_skiplist_node_t _cesk_static_skiplist_node_t;
-/**
- * @brief actual data structure for _cesk_static_skiplist_node_t
- **/
-struct _cesk_static_skiplist_node_t{
-	uint32_t index;                                         /*!< the static field index */
-	uint32_t refcnt:(32 - CESK_STATIC_SKIP_LIST_DEPTH);     /*!< the refcnt of this node */
-	uint32_t order :CESK_STATIC_SKIP_LIST_DEPTH;            /*!< how many pointers does this node have */
-	cesk_set_t* value;                                      /*!< the value set */
-	_cesk_static_skiplist_node_t* pointers[0];              /*!< the pointer array */
+struct _cesk_static_tree_node_t{
+	uint32_t refcnt;                      /*!< the reference counter */
+	cesk_set_t* value[0];                 /*!< the value */
+	_cesk_static_tree_node_t* child[0];   /*!< the child pointer */
 };
-CONST_ASSERTION_SIZE(_cesk_static_skiplist_node_t, pointers, 0);
-CONST_ASSERTION_LAST(_cesk_static_skiplist_node_t, pointers);
 
-/**
- * @brief actual data structure for cesk_static_table_t
- **/
-struct _cesk_static_table_t{
-	hashval_t hashcode;                                    /*!< the hashcode of this table */
-	union{
-		_cesk_static_skiplist_node_t* skiplist[NPOINTERS]; /*!< the pointer array used by the skiplist */
-		cesk_set_t*                   array   [NPOINTERS]; /*!< the array impmenetation */
-	} data;                                                /*!< the data field of this table */
-}; 
+struct _cesk_static_table_t {
+	hashval_t hashcode;
+	_cesk_static_tree_node_t* root;
+};
 
 /* global static variables */
 /**
@@ -70,143 +45,96 @@ extern const uint32_t dalvik_static_field_count;
 
 /* local inline functions */
 /**
- * @breif generate an randomized order
- * @return the order number
+ * @brief return the node size for this segment [left, right)
+ * @param left the left boundary
+ * @param right the right boundary
+ * @return the size of the node in bytes
  **/
-static inline uint32_t _cesk_static_skiplist_get_order()
+static inline size_t _cesk_static_tree_node_size(uint32_t left, uint32_t right)
 {
-	static int msk = 0;
-	static int rnd = 0;
-	int ret;
-	for(ret = 1; ret <= NPOINTERS; ret ++)
-	{
-		/* if there's no random bit avaible, generate a new random number */
-		if(0 == msk)
-		{
-			rnd = rand();
-			msk = (RAND_MAX >> 1) + 1;
-		}
-		int rand_bit = rnd & msk;
-		msk >>= 1;
-		if(!rand_bit) break;
-	}
-	return ret;
+	if(right - left > 1) return sizeof(_cesk_static_tree_node_t) + 2 * sizeof(_cesk_static_tree_node_t*);
+	else return sizeof(_cesk_static_tree_node_t) + sizeof(cesk_set_t*);
 }
 /**
- * @breif create a new skip list node
- * @param index the field index 
- * @return the newly created node
+ * @brief create a new segment tree node for range [left, right)
+ * @param left the left boundary
+ * @param right the right boundary
+ * @return the newly create node, NULL indicates error
  **/
-static inline _cesk_static_skiplist_node_t* _cesk_static_skiplist_node_new(uint32_t index)
+static inline _cesk_static_tree_node_t* _cesk_static_tree_node_new(uint32_t left, uint32_t right)
 {
-	uint32_t order = _cesk_static_skiplist_get_order();
-	size_t   size = sizeof(_cesk_static_skiplist_node_t) + sizeof(_cesk_static_skiplist_node_t*) * order;
-	_cesk_static_skiplist_node_t* ret = (_cesk_static_skiplist_node_t*)malloc(size);
+	_cesk_static_tree_node_t* ret = (_cesk_static_tree_node_t*)malloc(_cesk_static_tree_node_size(left, right));
 	if(NULL == ret)
 	{
-		LOG_ERROR("can not allocate new skiplit node for field %d", index);
-		goto ERR;
-	}
-	ret->order = order;
-	ret->refcnt = 0;
-	ret->index = index;
-	memset(ret->pointers, 0, size);
-	return ret;
-ERR:
-	if(NULL != ret) free(ret);
-	return NULL;
-}
-/**
- * @biref insert a new node to the skiplist
- * @param list the target skiplist
- * @param index the index to inerst
- * @note  this function does nothing aoubt the hashcode,
- *        so that caller is responsible for updating the
- *        hashcode
- *        And we assume that this node is not exist in the list before this insertion
- * @return the new node created for this index, NULL indicates error 
- **/
-static inline _cesk_static_skiplist_node_t* _cesk_static_skiplist_insert(_cesk_static_skiplist_node_t** list, uint32_t index)
-{
-	_cesk_static_skiplist_node_t* node = _cesk_static_skiplist_node_new(index);
-	if(NULL == node)
-	{
-		LOG_ERROR("can not create list node");
+		LOG_ERROR("can not allocate memory for a new segment tree node");
 		return NULL;
 	}
-	/* we should insert the node between begin and end */
-	_cesk_static_skiplist_node_t *begin[NPOINTERS + 1] = {}, *end = NULL;
-	int i;
-	/* find the begin and end node */
-	for(i = NPOINTERS - 1; i >= 0; i ++)
-	{
-		_cesk_static_skiplist_node_t* ptr;
-		begin[i] = begin[i + 1];
-		for(ptr = begin[i]?begin[i]->pointers[i]:list[i]; end != ptr && ptr->index < index; ptr = ptr->pointers[i])
-			begin[i] = ptr;
-		end = ptr;
-	}
-	/* if we need insert this node at the beginning of the list */
-	if(NULL == begin[0]) 
-	{
-		for(i = 0; i < node->order; i ++)
-		{
-			node->pointers[i] = list[i];
-			list[i] = node;
-		}
-	}
-	/* otherwise, insert after the node begin */
-	else
-	{
-		for(i = 0; i < node->order; i ++)
-		{
-			node->pointers[i] = begin[i]->pointers[i];
-			begin[i]->pointers[i] = node;
-		}
-	}
-	return node;
+	ret->left = left;
+	ret->right = right;
+	ret->refcnt = 0;
+	return ret;
 }
 /**
- * @brief find a node in the skiplist
- * @param list the skiplist
- * @param index the index to insert
- * @return the list node for this index, NULL indicates nothing found
+ * @brief make a new copy of a tree node
+ * @param node the tree node we want to copy
+ * @return the newly created node
  **/
-static inline _cesk_static_skiplist_node_t* _cesk_static_skiplist_find(_cesk_static_skiplist_node_t** list,  uint32_t index)
+static inline _cesk_static_tree_node_t* _cesk_static_tree_node_duplicate(_cesk_static_tree_node_t* node)
 {
-	int i;
-	_cesk_static_skiplist_node_t *begin = NULL, *end = NULL;
-	for(i = NPOINTERS - 1; i >= 0; i ++)
+	size_t size = (_cesk_static_tree_node_size(node->left, node->right));
+	_cesk_static_tree_node_t* ret = (_cesk_static_tree_node_t*)malloc(size);
+	if(NULL == ret)
 	{
-		_cesk_static_skiplist_node_t* ptr;
-		for(ptr = begin?begin->pointers[i]:list[i]; end != ptr && ptr->index <= index; ptr = ptr->pointers[i])
-			begin = ptr;
-		end = ptr;
+		LOG_ERROR("can not allocate memory for the new copy of the node [%d,%d)", node->left, node->right);
+		return NULL;
 	}
-	if(NULL == begin || begin->index != index) return NULL;
-	return begin;
+	node->refcnt --;
+	ret->refcnt = 1;
+	return ret;
 }
+/** 
+ * @brief find a index in the segment tree
+ * @param root the root of the tree
+ * @param index the index
+ * @return the tree node for the given index, NULL indicates not found
+ **/
+static inline const _cesk_static_tree_node_t* _cesk_static_tree_node_find(const _cesk_static_tree_node_t* root, uint32_t index)
+{
+	int l = 0, r = dalvik_static_field_count;
+	for(;r - l > 1 && root;)
+	{
+		int m = (l + r) / 2;
+		if(index < m) r = m, root = root->child[0];
+		else l = m, root = root->child[1];
+	}
+	return root;
+}
+/**
+ * @brief insert a new node to the segment tree
+ * @param tree the pointer to the pointer to the root node
+ * @param index the index node
+ * @param initval the initial value
+ * @note we assume that we do not have field index before the insertion
+ * @return the node inserted to the tree, NULL indicate an error
+ **/
+static inline _cesk_static_tree_node_t* _cesk_static_tree_node_insert(_cesk_static_tree_node_t** tree, uint32_t index, uint32_t initval)
+{
+	_cesk_static_tree_node_t* root = *tree;
+	int l = 0, r = dalvik_static_field_count;
+	for(;r - l > 1;)
+	{
+		if(root->refcnt > 1) 
+		{
+			_cesk_static_tree_node_t* dup = _cesk_static_tree_node_duplicate(root);
+			if(NULL == dup) 
+			{
+				LOG_ERROR("can not make a duplication for this node");
+				return NULL;
+			}
+			//TODO the seg tree
+		}
+		int m = (l + r) / 2;
 
-/**
- * @brief increase the refcnt of a node
- * @param node
- * @return nothing
- **/
-static inline void _cesk_static_skiplist_incref(_cesk_static_skiplist_node_t* node)
-{
-	node->refcnt ++;
-}
-/**
- * @brief decrease the refcnt of a node
- * @param node
- * @return nothing
- **/
-static inline void _cesk_static_skiplist_decref(_cesk_static_skiplist_node_t* node)
-{
-	if(0 == -- node->refcnt) 
-	{
-		if(NULL != node->value) cesk_set_free(node->value);
-		free(node);
 	}
 }
 /* Interface implementation */
@@ -316,32 +244,3 @@ CONST_VALUE:
 	}
 	return index;
 }
-cesk_static_table_t* cesk_static_table_new(const cesk_static_table_t* source)
-{
-	cesk_static_table_t* ret = (cesk_static_table_t*)malloc(sizeof(cesk_static_table_t));
-	if(NULL == ret) 
-	{
-		LOG_ERROR("can not allocate memory for static field table");
-		return NULL;
-	}
-	/* only create an empty table */
-	if(NULL == source)
-	{
-		memset(&ret->data, 0, sizeof(ret->data));
-		ret->hashcode = 0;
-	}
-	/* copy the data from the old table */
-	else
-	{
-		memcpy(&ret->data, &source->data, sizeof(ret->data));
-		/* if we use a skiplist, we need to fix the refcnt */
-		if(!USE_ARRAY)
-		{
-			int i;
-			for(i = 0; i < NPOINTERS; i ++)
-				if(ret->data.skiplist[i]) _cesk_static_skiplist_incref(ret->data.skiplist[i]);
-		}
-	}
-	return ret;
-}
-/* TODO: other ops */
