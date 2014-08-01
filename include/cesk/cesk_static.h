@@ -43,28 +43,18 @@ void cesk_static_finalize();
  **/
 int cesk_static_query_field(const char* class, const char* field, int initval);
 /**
- * @brief create a new empty(which means it's just the initial state) static table
- * @note  because for the table we actually act a lazy initialize policy, which means 
- *        everything remains uninitialized when the table has been created. 
- *        Once some value has been requested by the frame, the program will look for the
- *        value for this field. If not found, just create a new intialize value for this
- *        In addition, this object is also an copy-on-write object. That means the pointer
- *        will be shared by multiple frames, therefore we need a refcount in this table
+ * @brief create a new static field table
+ * @param source the source table, if the table is NULL we just create an empty static table
+ *        in which everything remains uninitialized
  * @return the pointer to the newly created static table
  **/
-cesk_static_table_t* cesk_static_table_new();
+cesk_static_table_t* cesk_static_table_new(const cesk_static_table_t* source);
 /**
- * @brief increase the refcnt of the static field table
- * @param table the static table we want to fork
- * @return the result for incref, <0 indicates errors
+ * @brief free a static field table
+ * @param table
+ * @return nothing
  **/
-int cesk_static_table_incref(cesk_static_table_t* table);
-/**
- * @brief release the reference to this static table, if the refcnt has been reduced to zero, this object is dead
- * @param table the target static table
- * @return the operation result, < 0 indicates errors
- **/
-int cesk_static_table_decref(cesk_static_table_t* table);
+void cesk_static_table_free(cesk_static_table_t* table);
 /**
  * @brief get the value of a given static address 
  * @param table the static table

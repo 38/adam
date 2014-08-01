@@ -33,6 +33,7 @@ struct _cesk_static_skiplist_node_t{
 	uint32_t index;                                         /*!< the static field index */
 	uint32_t refcnt:(32 - CESK_STATIC_SKIP_LIST_DEPTH);     /*!< the refcnt of this node */
 	uint32_t order :CESK_STATIC_SKIP_LIST_DEPTH;            /*!< how many pointers does this node have */
+	cesk_set_t* value;                                      /*!< the value set */
 	_cesk_static_skiplist_node_t* pointers[0];              /*!< the pointer array */
 };
 CONST_ASSERTION_SIZE(_cesk_static_skiplist_node_t, pointers, 0);
@@ -186,6 +187,28 @@ static inline _cesk_static_skiplist_node_t* _cesk_static_skiplist_find(_cesk_sta
 	return begin;
 }
 
+/**
+ * @brief increase the refcnt of a node
+ * @param node
+ * @return nothing
+ **/
+static inline void _cesk_static_skiplist_incref(_cesk_static_skiplist_node_t* node)
+{
+	node->refcnt ++;
+}
+/**
+ * @brief decrease the refcnt of a node
+ * @param node
+ * @return nothing
+ **/
+static inline void _cesk_static_skiplist_decref(_cesk_static_skiplist_node_t* node)
+{
+	if(0 == -- node->refcnt) 
+	{
+		if(NULL != node->value) cesk_set_free(node->value);
+		free(node);
+	}
+}
 /* Interface implementation */
 
 int cesk_static_init()
@@ -293,3 +316,32 @@ CONST_VALUE:
 	}
 	return index;
 }
+cesk_static_table_t* cesk_static_table_new(const cesk_static_table_t* source)
+{
+	cesk_static_table_t* ret = (cesk_static_table_t*)malloc(sizeof(cesk_static_table_t));
+	if(NULL == ret) 
+	{
+		LOG_ERROR("can not allocate memory for static field table");
+		return NULL;
+	}
+	/* only create an empty table */
+	if(NULL == source)
+	{
+		memset(&ret->data, 0, sizeof(ret->data));
+		ret->hashcode = 0;
+	}
+	/* copy the data from the old table */
+	else
+	{
+		memcpy(&ret->data, &source->data, sizeof(ret->data));
+		/* if we use a skiplist, we need to fix the refcnt */
+		if(!USE_ARRAY)
+		{
+			int i;
+			for(i = 0; i < NPOINTERS; i ++)
+				if(ret->data.skiplist[i]) _cesk_static_skiplist_incref(ret->data.skiplist[i]);
+		}
+	}
+	return ret;
+}
+/* TODO: other ops */
