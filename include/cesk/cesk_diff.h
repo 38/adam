@@ -27,9 +27,9 @@ typedef struct _cesk_diff_buffer_t cesk_diff_buffer_t;
 enum{
 	CESK_DIFF_ALLOC,   /*!<Allocate a new object in relocated address [allocate reloc_addr]*/
 	CESK_DIFF_REUSE,   /*!<Set the reuse flag, we can use the value pointer as a interger value, and this
-	                       will be emitted when an allocation instruction cause the reuse bit changes. 
-	                       In this situation, we do not need this alloc record any more, we use an reuse
-	                       record to show that this is not the first time we allocate the object */
+					       will be emitted when an allocation instruction cause the reuse bit changes. 
+					       In this situation, we do not need this alloc record any more, we use an reuse
+					       record to show that this is not the first time we allocate the object */
 	CESK_DIFF_REG,     /*!<Set a value to a register [set-reg reg-id new-value] */
 	CESK_DIFF_STORE,   /*!<Set a value to a store cell [set-store address new-value] */
 	CESK_DIFF_DEALLOC, /*!<Deallocate the object (must not apply to a store) [deallocate reloc_addr] */

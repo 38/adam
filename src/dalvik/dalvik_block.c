@@ -568,7 +568,7 @@ static inline dalvik_block_t* _dalvik_block_setup_keyinst(const dalvik_instructi
 static inline dalvik_block_t* _dalvik_block_setup_return(const dalvik_instruction_t* inst, const uint32_t *key, size_t kcnt, uint32_t index)
 {
 	dalvik_block_t* block = _dalvik_block_new(1);  /* there's an special branch which is actually a dead end, however, left operand is set
-	                                                  indicates what to return */
+													  indicates what to return */
 	block->index = index;
 	block->branches[0].left_inst = 0;
 	block->branches[0].conditional = 0;

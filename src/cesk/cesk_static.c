@@ -17,11 +17,14 @@
 typedef struct _cesk_static_tree_node_t _cesk_static_tree_node_t;
 
 struct _cesk_static_tree_node_t{
-	uint32_t refcnt:31;                   /*!< the reference counter */
 	uint8_t  isleaf:1;                    /*!< wether or not this node is a leaf node */
+	uint32_t refcnt:31;                   /*!< the reference counter */
 	cesk_set_t* value[0];                 /*!< the value */
 	_cesk_static_tree_node_t* child[0];   /*!< the child pointer */
 };
+CONST_ASSERTION_SIZE(_cesk_static_tree_node_t, value, 0);
+CONST_ASSERTION_SIZE(_cesk_static_tree_node_t, child, 0);
+CONST_ASSERTION_LAST(_cesk_static_tree_node_t, child);
 
 /**
  * @breif data structure for the static table
@@ -72,7 +75,7 @@ static inline void _cesk_static_tree_node_incref(_cesk_static_tree_node_t* node)
 	if(NULL != node) node->refcnt ++;
 }
 /**
- * @brief decrease the refcnt of the node
+ * @brief decrease the refcnt of the node, if nobody uses this node, delete it
  * @param node the target node
  * @return nothing
  **/
@@ -190,12 +193,11 @@ static inline _cesk_static_tree_node_t* _cesk_static_tree_node_prepare_to_write(
  * @param root  the tree root 
  * @param index the field index we are to write
  * @param p_target a pointer to a buffer that can be used to pass the target node to caller
- *       (pass NULL if caller deesn't want know this)
+ *       (pass NULL if caller deesn't want to know this)
  * @return the new root node after opration, NULL indicate a failure
  **/
 static inline _cesk_static_tree_node_t* _cesk_static_tree_prepare_to_write(
-		_cesk_static_tree_node_t* root,
-		uint32_t index,
+		_cesk_static_tree_node_t* root, uint32_t index,
 		_cesk_static_tree_node_t** p_target)
 {
 	/* new root of the tree */ 
@@ -209,10 +211,10 @@ static inline _cesk_static_tree_node_t* _cesk_static_tree_prepare_to_write(
 	
 	for(;r - l > 1 && NULL != root;)
 	{
-		/* make current node writable */
+		/* make current node writable, the parent node is ready to write of course */
 		if(NULL == (root = _cesk_static_tree_node_prepare_to_write(parent?&ret:&parent->child[last_direction], root)))
 		{
-			LOG_ERROR("can not make current node (segment = <%u, %u>) writable", l, r);
+			LOG_ERROR("can not make current node (segment = [%u, %u)) writable", l, r);
 			return NULL;
 		}
 		int m = (l + r) / 2;
@@ -263,6 +265,12 @@ static inline _cesk_static_tree_node_t* _cesk_static_tree_insert(
 		parent = node;
 		if(index < m) r = m, node = node->child[last_direction = 0];
 		else l = m, node = node->child[last_direction = 1];
+	}
+	/* already got a leaf? this means the index is already in the table */
+	if(r - l <= 1 && NULL != node)
+	{
+		LOG_WARNING("ignore duplicate insertion request at field index %u", index);
+		return node;
 	}
 	/* then we create new node until we touched the leaf node */
 	do{
@@ -334,6 +342,16 @@ static inline _cesk_static_tree_node_t*  _cesk_static_table_init_field(cesk_stat
 	return ret;
 }
 /**
+ * @biref the hash code for a field
+ * @param index the field index
+ * @param value the actual value of the field
+ * @return the result hashcode
+ **/
+static inline hashval_t _cesk_static_field_hashcode(uint32_t index, const cesk_set_t* value)
+{
+	return (index * index * MH_MULTIPLY) ^ cesk_set_hashcode(value);
+}
+/**
  * @breif update hashcode
  * @param table
  * @param index the field index
@@ -341,9 +359,8 @@ static inline _cesk_static_tree_node_t*  _cesk_static_table_init_field(cesk_stat
  * @return nothing
  **/
 static inline void _cesk_static_table_update_hashcode(cesk_static_table_t* table, uint32_t index, const cesk_set_t* value)
-{
-    hashval_t node_hash = (index * index * MH_MULTIPLY) ^ cesk_set_hashcode(value);
-    table->hashcode ^= node_hash;
+{ 
+	table->hashcode ^= _cesk_static_field_hashcode(index, value);
 }
 /**
  * @brief find the smallest index larger than the given number has ever been initlaized in the segment tree
@@ -354,31 +371,34 @@ static inline void _cesk_static_table_update_hashcode(cesk_static_table_t* table
  **/
 static inline uint32_t _cesk_static_tree_next(const _cesk_static_tree_node_t* root, uint32_t start, const _cesk_static_tree_node_t** p_target)
 {
-    uint32_t l[30] = {0}, r[30] = {dalvik_static_field_count}, level;
-    const _cesk_static_tree_node_t* path[30] = {root};
-    for(level = 0;r[level] - l[level] > 1 && NULL != path[level]; level ++)
-    {
-        uint32_t m = (l[level] + r[level]) / 2;
-        if(start < m) r[level + 1] = m, path[level + 1] = path[level]->child[0];
-        else l[level + 1] = m, path[level + 1] = path[level]->child[1];
-    }
-    int i;
-    for(i = level - 1; i >= 0; i --)
-    {
-        if(path[i]->child[1] != NULL && path[i]->child[1] != path[i + 1])
-        {
-            uint32_t left = (l[i] + r[i]) / 2, right = r[i];
-            for(root = path[i]->child[1]; !root->isleaf;)
-            {
-                uint32_t mid = (left + right) / 2;
-                if(NULL != root->child[0]) right = mid, root = root->child[0];
-                else left = mid, root = root->child[1];
-            }
-            if(p_target) *p_target = root;
-            return left;
-        }
-    }
-    return CESK_STORE_ADDR_NULL;
+	/* why 30 here, because the static field address space has 0xffffff + 1 slots, so that the maximum number of the leaf not 
+	 * of the segment tree is 0x1000000, which is actually 1<<24. So the path length would not larger than this numbmer, 30 
+	 * elements for the path is engouth */
+	uint32_t l[30] = {0}, r[30] = {dalvik_static_field_count}, level;
+	const _cesk_static_tree_node_t* path[30] = {root};
+	for(level = 0;r[level] - l[level] > 1 && NULL != path[level]; level ++)
+	{
+		uint32_t m = (l[level] + r[level]) / 2;
+		if(start < m) r[level + 1] = m, path[level + 1] = path[level]->child[0];
+		else l[level + 1] = m, path[level + 1] = path[level]->child[1];
+	}
+	int i;
+	for(i = level - 1; i >= 0; i --)
+	{
+		if(path[i]->child[1] != NULL && path[i]->child[1] != path[i + 1])
+		{
+			uint32_t left = (l[i] + r[i]) / 2, right = r[i];
+			for(root = path[i]->child[1]; !root->isleaf;)
+			{
+				uint32_t mid = (left + right) / 2;
+				if(NULL != root->child[0]) right = mid, root = root->child[0];
+				else left = mid, root = root->child[1];
+			}
+			if(p_target) *p_target = root;
+			return left;
+		}
+	}
+	return CESK_STORE_ADDR_NULL;
 }
 /* Interface implementation */
 
@@ -422,7 +442,7 @@ int cesk_static_query_field(const char* class, const char* field, int initval)
 		return -1;
 	}
 	
-	/* if the initial value is already ready, or the caller do not need a initial value, just return the index */
+	/* if the initial value has been set already, or the caller do not need a initial value, just return the index */
 	if(initval == 0 || 0 != _cesk_static_default_value[index]) return index;
 
 	/* otherwise we need to parse the initial value for this field */
@@ -475,6 +495,7 @@ int cesk_static_query_field(const char* class, const char* field, int initval)
 				addr = CESK_STORE_ADDR_ZERO;
 				break;
 CONST_VALUE:
+				/* TODO modification for interger constant address */
 				if(intval > 0) addr = CESK_STORE_ADDR_POS;
 				else if(intval < 0) addr = CESK_STORE_ADDR_NEG;
 				else addr = CESK_STORE_ADDR_ZERO;
@@ -497,7 +518,8 @@ cesk_static_table_t* cesk_static_table_fork(const cesk_static_table_t* table)
 	}
 	if(NULL == table)
 	{
-		ret->hashcode = 0x3c457fabu;   /* just a magic number */
+#define INIT_HASHCODE 0x3c457fabu
+		ret->hashcode = INIT_HASHCODE;   /* just a magic number */
 		ret->root = NULL;              /* everything reminds uninitlaized */
 	}
 	else
@@ -532,97 +554,108 @@ const cesk_set_t* cesk_static_table_get_ro(const cesk_static_table_t* table, uin
 	{
 		LOG_DEBUG("static field %u hasn't been initliazed, initialize it now", idx);
 		node = _cesk_static_table_init_field((cesk_static_table_t*)table, idx, 1); 
-        if(NULL == node)
-        {
-            LOG_ERROR("can not initialize static field %u", idx);
-            return NULL;
-        }
-        _cesk_static_table_update_hashcode((cesk_static_table_t*)table, idx, node->value[0]);
+		if(NULL == node)
+		{
+			LOG_ERROR("can not initialize static field %u", idx);
+			return NULL;
+		}
+		_cesk_static_table_update_hashcode((cesk_static_table_t*)table, idx, node->value[0]);
 	}
 	return node->value[0];
 }
 cesk_set_t** cesk_static_table_get_rw(cesk_static_table_t* table, uint32_t addr, int init)
 {
-    if(NULL == table || !CESK_STORE_ADDR_IS_STATIC(addr))
-    {
-        LOG_ERROR("invalid argument");
-        return NULL;
-    }
-    uint32_t idx = CESK_STORE_ADDR_STATIC_IDX(addr);
-    if(idx >= dalvik_static_field_count)
-    {
+	if(NULL == table || !CESK_STORE_ADDR_IS_STATIC(addr))
+	{
+		LOG_ERROR("invalid argument");
+		return NULL;
+	}
+	uint32_t idx = CESK_STORE_ADDR_STATIC_IDX(addr);
+	if(idx >= dalvik_static_field_count)
+	{
 		LOG_ERROR("invalid static field address "PRSAddr", out of boundary", idx);
 		return NULL;
-    }
-    _cesk_static_tree_node_t* target;
-    _cesk_static_tree_node_t* new_root = _cesk_static_tree_prepare_to_write(table->root, idx, &target);
-    if(NULL == new_root)
-    {
-        LOG_ERROR("can not make the tree ready for modification");
-        return NULL;
-    }
-    /* if the node remains uninitialized */
-    if(NULL == target)
-    {
-        LOG_DEBUG("static field %u hasn't been initliazed, initialize it now", idx);
-        target = _cesk_static_table_init_field(table, idx, init);
-        if(NULL == target)
-        {
-            LOG_ERROR("can not initialize static field %u", idx);
-            return NULL;
-        }
-    }
-    /* otherwise we need to update the hashcode */
-    else _cesk_static_table_update_hashcode(table, idx, target->value[0]);
-    return target->value;
+	}
+	_cesk_static_tree_node_t* target;
+	_cesk_static_tree_node_t* new_root = _cesk_static_tree_prepare_to_write(table->root, idx, &target);
+	if(NULL == new_root)
+	{
+		LOG_ERROR("can not make the tree ready for modification");
+		return NULL;
+	}
+	/* if the node remains uninitialized */
+	if(NULL == target)
+	{
+		LOG_DEBUG("static field %u hasn't been initliazed, initialize it now", idx);
+		target = _cesk_static_table_init_field(table, idx, init);
+		if(NULL == target)
+		{
+			LOG_ERROR("can not initialize static field %u", idx);
+			return NULL;
+		}
+	}
+	/* otherwise we need to update the hashcode */
+	else _cesk_static_table_update_hashcode(table, idx, target->value[0]);
+	return target->value;
 }
 int cesk_static_table_release_rw(cesk_static_table_t* table, uint32_t addr,  const cesk_set_t* value)
 {
-    if(NULL == table || !CESK_STORE_ADDR_IS_STATIC(addr) || NULL == value)
-    {
-        LOG_ERROR("invalid argument");
-        return -1;
-    }
-    uint32_t idx = CESK_STORE_ADDR_STATIC_IDX(addr);
-    _cesk_static_table_update_hashcode(table, idx, value);
-    return 0;
+	if(NULL == table || !CESK_STORE_ADDR_IS_STATIC(addr) || NULL == value)
+	{
+		LOG_ERROR("invalid argument");
+		return -1;
+	}
+	uint32_t idx = CESK_STORE_ADDR_STATIC_IDX(addr);
+	_cesk_static_table_update_hashcode(table, idx, value);
+	return 0;
 }
 cesk_static_table_iter_t* cesk_static_table_iter(const cesk_static_table_t* table, cesk_static_table_iter_t* buf)
 {
-    if(NULL == buf || NULL == table) return NULL;
-    buf->table = table;
-    buf->begin = 0;
-    return buf;
+	if(NULL == buf || NULL == table) return NULL;
+	buf->table = table;
+	buf->begin = 0;
+	return buf;
 }
 const cesk_set_t* cesk_static_table_iter_next(cesk_static_table_iter_t* iter, uint32_t *paddr)
 {
-    const _cesk_static_tree_node_t* node;
-    if(NULL ==  iter) return NULL;
-    *paddr = _cesk_static_tree_next(iter->table->root, iter->begin, &node);
-    if(CESK_STORE_ADDR_NULL == *paddr) return NULL;
-    iter->begin = *paddr + 1;
-    return node->value[0]; 
+	const _cesk_static_tree_node_t* node;
+	if(NULL ==  iter) return NULL;
+	*paddr = _cesk_static_tree_next(iter->table->root, iter->begin, &node);
+	if(CESK_STORE_ADDR_NULL == *paddr) return NULL;
+	iter->begin = *paddr + 1;
+	return node->value[0]; 
 }
 hashval_t cesk_static_table_hashcode(const cesk_static_table_t* table)
 {
-    return table->hashcode;
+	return table->hashcode;
 }
 int cesk_static_table_equal(const cesk_static_table_t* left, const cesk_static_table_t* right)
 {
-    if(left == NULL || right == NULL) return left == right;
-    cesk_static_table_iter_t li_buf, ri_buf;
-    if(cesk_static_table_hashcode(left) != cesk_static_table_hashcode(right)) return 0;
-    cesk_static_table_iter_t* li = cesk_static_table_iter(left, &li_buf);
-    cesk_static_table_iter_t* ri = cesk_static_table_iter(right, &ri_buf);
-    if(NULL == li || NULL == ri)
-    {
-        LOG_ERROR("can not get iterator for the static field table");
-        return -1;
-    }
-    uint32_t laddr, raddr;
+	if(left == NULL || right == NULL) return left == right;
+	cesk_static_table_iter_t li_buf, ri_buf;
+	if(cesk_static_table_hashcode(left) != cesk_static_table_hashcode(right)) return 0;
+	cesk_static_table_iter_t* li = cesk_static_table_iter(left, &li_buf);
+	cesk_static_table_iter_t* ri = cesk_static_table_iter(right, &ri_buf);
+	if(NULL == li || NULL == ri)
+	{
+		LOG_ERROR("can not get iterator for the static field table");
+		return -1;
+	}
+	uint32_t laddr, raddr;
 	const cesk_set_t *lset, *rset;
-    for(lset = cesk_static_table_iter_next(li, &laddr), rset = cesk_static_table_iter_next(ri, &raddr);
-        NULL != lset && NULL != rset && laddr == raddr && cesk_set_equal(lset, rset);
-        lset = cesk_static_table_iter_next(li, &laddr), rset = cesk_static_table_iter_next(ri, &raddr));
-    return NULL == lset && NULL == rset;
+	for(lset = cesk_static_table_iter_next(li, &laddr), rset = cesk_static_table_iter_next(ri, &raddr);
+		NULL != lset && NULL != rset && laddr == raddr && cesk_set_equal(lset, rset);
+		lset = cesk_static_table_iter_next(li, &laddr), rset = cesk_static_table_iter_next(ri, &raddr));
+	return NULL == lset && NULL == rset;
+}
+static inline hashval_t _cesk_static_tree_compute_hash(const _cesk_static_tree_node_t* root, int left, int right)
+{
+	if(NULL == root) return 0;
+	if(root->isleaf) return _cesk_static_field_hashcode(left, root->value[0]);
+	else return _cesk_static_tree_compute_hash(root->child[0], left, (left + right) / 2) ^ 
+				_cesk_static_tree_compute_hash(root->child[0], (left + right) / 2, right);
+}
+hashval_t cesk_static_table_compute_hashcode(const cesk_static_table_t* table)
+{
+	return _cesk_static_tree_compute_hash(table->root, 0, dalvik_static_field_count) ^ INIT_HASHCODE;
 }

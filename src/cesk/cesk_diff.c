@@ -1033,7 +1033,7 @@ cesk_diff_t* cesk_diff_factorize(int N, cesk_diff_t** diffs, const cesk_frame_t*
 							if(CESK_TYPE_OBJECT != val->type)
 							{
 								LOG_WARNING("ignore non-object value at store address "PRSAddr" in store %p",
-								             cur_addr,
+											 cur_addr,
 											 current_frame[i]->store);
 							}
 							else if(NULL == val->pointer.object->builtin || 
@@ -1042,7 +1042,7 @@ cesk_diff_t* cesk_diff_factorize(int N, cesk_diff_t** diffs, const cesk_frame_t*
 								LOG_WARNING("ignore two objects that are not in the same type");
 							}
 							else if(bci_class_merge(result_value->pointer.object->builtin->bcidata, 
-							                   val->pointer.object->builtin,
+											   val->pointer.object->builtin,
 											   result_value->pointer.object->builtin->class.bci->class) < 0)
 							{
 								LOG_WARNING("can not merge the built-in object value");
@@ -1187,15 +1187,15 @@ int cesk_diff_identity(const cesk_diff_t* diff, const cesk_diff_t* inv)
 	if(diff->offset[CESK_DIFF_REUSE + 1] - diff->offset[CESK_DIFF_REUSE] != inv->offset[CESK_DIFF_REUSE + 1] - inv->offset[CESK_DIFF_REUSE])
 		return 0;
 	for(i = diff->offset[CESK_DIFF_REUSE], j = inv->offset[CESK_DIFF_REUSE]; 
-	    i < diff->offset[CESK_DIFF_REUSE + 1] && j < inv->offset[CESK_DIFF_REUSE + 1]; 
-	    i ++, j ++)
+		i < diff->offset[CESK_DIFF_REUSE + 1] && j < inv->offset[CESK_DIFF_REUSE + 1]; 
+		i ++, j ++)
 		if(diff->data[i].addr != inv->data[j].addr || diff->data[i].arg.boolean != diff->data[j].arg.boolean)
 			return 0;
 	/* verify CESK_DIFF_STORE section */
 	if(diff->offset[CESK_DIFF_STORE + 1] - diff->offset[CESK_DIFF_STORE] != inv->offset[CESK_DIFF_STORE + 1] - inv->offset[CESK_DIFF_STORE])
 		return 0;
 	for(i = diff->offset[CESK_DIFF_STORE], j = inv->offset[CESK_DIFF_STORE];
-	    i < diff->offset[CESK_DIFF_STORE + 1] && j < inv->offset[CESK_DIFF_STORE + 1];
+		i < diff->offset[CESK_DIFF_STORE + 1] && j < inv->offset[CESK_DIFF_STORE + 1];
 		i ++, j ++)
 		if(diff->data[i].addr != inv->data[j].addr || 0 == cesk_set_equal(diff->data[i].arg.set, inv->data[j].arg.set))
 			return 0;
@@ -1203,7 +1203,7 @@ int cesk_diff_identity(const cesk_diff_t* diff, const cesk_diff_t* inv)
 	if(diff->offset[CESK_DIFF_REG + 1] - diff->offset[CESK_DIFF_REG] != inv->offset[CESK_DIFF_REG + 1] - inv->offset[CESK_DIFF_REG])
 		return 0;
 	for(i = diff->offset[CESK_DIFF_REG], j = inv->offset[CESK_DIFF_REG];
-	    i < diff->offset[CESK_DIFF_REG + 1] && j < inv->offset[CESK_DIFF_REG + 1];
+		i < diff->offset[CESK_DIFF_REG + 1] && j < inv->offset[CESK_DIFF_REG + 1];
 		i ++, j ++)
 		if(diff->data[i].addr != inv->data[j].addr || 0 == cesk_set_equal(diff->data[i].arg.set, inv->data[j].arg.set))
 			return 0;

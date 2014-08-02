@@ -198,7 +198,7 @@ cesk_object_t* cesk_object_fork(const cesk_object_t* object)
 		if(!this->built_in)
 		{
 			LOG_ERROR("an built-in class %s interitate from an user-defined class %s, this is impossible",
-			          cesk_object_classpath(object), this->class.path->value);
+					  cesk_object_classpath(object), this->class.path->value);
 			free(newobj);
 			return NULL;
 		}

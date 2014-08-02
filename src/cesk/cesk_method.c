@@ -124,7 +124,7 @@ void cesk_method_finalize()
 static inline hashval_t _cesk_method_cache_hash(const dalvik_block_t* code, const cesk_frame_t* frame)
 {
 	return (((((uintptr_t)code)&0xffffffffu) * (((uintptr_t)code)&0xffffffffu)) + 
-	       0x35fbc27 * (((uint64_t)((uintptr_t)code))>>32)) ^  /* for 32 bit machine, this part is 0 */
+		   0x35fbc27 * (((uint64_t)((uintptr_t)code))>>32)) ^  /* for 32 bit machine, this part is 0 */
 		   cesk_frame_hashcode(frame);
 }
 /**

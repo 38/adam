@@ -136,7 +136,7 @@ static inline int _dalvik_memberdict_register_object(
 			break;
 		case _TYPE_METHOD:
 			LOG_DEBUG("method %s %s.%s%s is registered", 
-			           dalvik_type_to_string(ptr->rtype, NULL, 0),
+					   dalvik_type_to_string(ptr->rtype, NULL, 0),
 					   ptr->class_path,
 					   ptr->member_name,
 					   dalvik_type_list_to_string(ptr->args, NULL, 0));
@@ -200,9 +200,9 @@ static inline const void* _dalvik_memberdict_find_object(
 
 
 const dalvik_method_t* dalvik_memberdict_get_method(
-        const char* class_path, 
-        const char* name, 
-        const dalvik_type_t * const * args,
+		const char* class_path, 
+		const char* name, 
+		const dalvik_type_t * const * args,
 		const dalvik_type_t * rtype)
 {
 	return (const dalvik_method_t*)_dalvik_memberdict_find_object(class_path, name, args, rtype,_TYPE_METHOD);

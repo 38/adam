@@ -28,8 +28,8 @@ struct _cesk_static_table_t;
  * @brief the implemenation of the static filed iterator
  **/
 struct _cesk_static_table_iter_t {
-    const cesk_static_table_t* table;
-    uint32_t begin;
+	const cesk_static_table_t* table;
+	uint32_t begin;
 };
 /**
  * @brief initialize this module
@@ -122,4 +122,11 @@ hashval_t cesk_static_table_hashcode(const cesk_static_table_t* table);
  **/
 int cesk_static_table_equal(const cesk_static_table_t* left, const cesk_static_table_t* right);
 
+/**
+ * @brief compute the hashcode of the static field table based on the content, for testing purpose only
+ * @param table the static field table
+ * @return the hashval computed from this table
+ * @note this function is used for verify the hashcode field in the table maintaning correctly
+ **/
+hashval_t cesk_static_table_compute_hashcode(const cesk_static_table_t* table);
 #endif

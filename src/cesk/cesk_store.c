@@ -151,7 +151,7 @@ static inline cesk_store_block_t* _cesk_store_getblock_rw(cesk_store_t* store, u
 	if(b_idx >= store->nblocks)
 	{
 		LOG_ERROR("invalid store address, out of memory(requesting block_no = %d in the store with %d blocks)", 
-		          b_idx, store->nblocks);
+				  b_idx, store->nblocks);
 		return NULL;
 	}
 	cesk_store_block_t* block = store->blocks[b_idx];
@@ -265,7 +265,7 @@ static inline int _cesk_store_apply_alloc_tab(cesk_store_t* store, uint32_t base
 						if(CESK_STORE_ADDR_NULL == to_addr)
 						{
 							LOG_WARNING("failed to query the allocation table for relocation address @0x%x", 
-									    to_addr);
+										to_addr);
 							continue;
 						}
 						cesk_set_modify(set, from_addr, to_addr);
@@ -609,7 +609,7 @@ uint32_t cesk_store_allocate(cesk_store_t* store, const cesk_alloc_param_t* para
 		/* no empty slot, no equal slot, allocate a new block */
 		LOG_DEBUG("can not allocate a store entry for this object,"
 				  "allocate a new block. current_size = %d, num_ent = %d", 
-			      store->nblocks, store->num_ent);
+				  store->nblocks, store->num_ent);
 		cesk_store_block_t** blocks;
 		if(store->nblocks > 0)
 			blocks = (cesk_store_block_t**)realloc(store->blocks , sizeof(cesk_store_block_t*) * (store->nblocks + 1));
@@ -641,7 +641,7 @@ uint32_t cesk_store_allocate(cesk_store_t* store, const cesk_alloc_param_t* para
 		{
 			LOG_DEBUG("allocate 0x%"PRIx32" (block=0x%x, offset = 0x%x) for instruction 0x%x", 
 						(uint32_t)(empty_block * CESK_STORE_BLOCK_NSLOTS + empty_offset), 
-                        empty_block, empty_offset, param->inst);
+						empty_block, empty_offset, param->inst);
 			store->blocks[empty_block]->slots[empty_offset].param = *param;
 			store->blocks[empty_block]->slots[empty_offset].reuse = 0;
 			return empty_block * CESK_STORE_BLOCK_NSLOTS + empty_offset;
@@ -656,7 +656,7 @@ uint32_t cesk_store_allocate(cesk_store_t* store, const cesk_alloc_param_t* para
 	{
 		/* some equal entry */
 		LOG_DEBUG("reuse %"PRIx32" (block = 0x%x, offset = 0x%x for instruction 0x%x",
-			      (uint32_t)(equal_block * CESK_STORE_BLOCK_NSLOTS + equal_offset), equal_block, equal_offset, param->inst);
+				  (uint32_t)(equal_block * CESK_STORE_BLOCK_NSLOTS + equal_offset), equal_block, equal_offset, param->inst);
 		/* do not set the reuse bit here */
 		//store->blocks[equal_block]->slots[equal_offset].reuse = 1;   
 		return equal_block * CESK_STORE_BLOCK_NSLOTS  + equal_offset;
