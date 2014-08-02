@@ -589,6 +589,41 @@ int cesk_static_table_release_rw(cesk_static_table_t* table, uint32_t addr,  con
 }
 cesk_static_table_iter_t* cesk_static_table_iter(const cesk_static_table_t* table, cesk_static_table_iter_t* buf)
 {
-    /* TODO */
-    return NULL;
+    if(NULL == buf || NULL == table) return NULL;
+    buf->table = table;
+    buf->begin = 0;
+    return buf;
+}
+const cesk_set_t* cesk_static_table_iter_next(cesk_static_table_iter_t* iter, uint32_t *paddr)
+{
+    const _cesk_static_tree_node_t* node;
+    if(NULL ==  iter) return NULL;
+    *paddr = _cesk_static_tree_next(iter->table->root, iter->begin, &node);
+    if(CESK_STORE_ADDR_NULL == *paddr) return NULL;
+    iter->begin = *paddr + 1;
+    return node->value[0]; 
+}
+hashval_t cesk_static_table_hashcode(const cesk_static_table_t* table)
+{
+    return table->hashcode;
+}
+int cesk_static_table_equal(const cesk_static_table_t* left, const cesk_static_table_t* right)
+{
+    if(left == NULL || right == NULL) return left == right;
+    cesk_static_table_iter_t li_buf, ri_buf;
+    if(cesk_static_table_hashcode(left) != cesk_static_table_hashcode(right)) return 0;
+    cesk_static_table_iter_t* li = cesk_static_table_iter(left, &li_buf);
+    cesk_static_table_iter_t* ri = cesk_static_table_iter(right, &ri_buf);
+    if(NULL == li || NULL == ri)
+    {
+        LOG_ERROR("can not get iterator for the static field table");
+        return -1;
+    }
+    uint32_t laddr, raddr;
+    for(const cesk_set_t *left = cesk_static_table_iter_next(li, &laddr), 
+                         *right = cesk_static_table_iter_next(ri, &raddr);
+        NULL != left && NULL != right && laddr == raddr && cesk_set_equal(left, right);
+        left = cesk_static_table_iter_next(li, &laddr),
+        right = cesk_static_table_iter_next(ri, &raddr));
+    return NULL == left && NULL == right;
 }

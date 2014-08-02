@@ -15,7 +15,7 @@ typedef struct _cesk_static_table_t cesk_static_table_t;
 /**
  * @brief the iterator type for the static table
  **/
-typedef uint32_t cesk_static_table_iter_t;
+typedef struct _cesk_static_table_iter_t cesk_static_table_iter_t;
 
 #include <cesk/cesk_set.h>
 
@@ -24,6 +24,13 @@ typedef uint32_t cesk_static_table_iter_t;
  **/
 struct _cesk_static_table_t;
 
+/**
+ * @brief the implemenation of the static filed iterator
+ **/
+struct _cesk_static_table_iter_t {
+    const cesk_static_table_t* table;
+    uint32_t begin;
+};
 /**
  * @brief initialize this module
  * @return the result for initialization, < 0 indicates an error occured 
@@ -87,7 +94,7 @@ int cesk_static_table_release_rw(cesk_static_table_t* table, uint32_t addr, cons
  * @param buf the memory for the iterator
  * @return the pointer to newly created iterator, NULL indicates error
  **/
-cesk_static_table_iter_t* cesk_static_table_iter(const cesk_static_table_t* table, cesk_static_table_iter_t* buf);
+cesk_static_table_iter_t* cesk_static_table_iter(const cesk_static_table_t* table, cesk_static_table_iter_t* iter);
 
 /**
  * @brief move the iterator one step forward and return the previous value
