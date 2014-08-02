@@ -296,7 +296,7 @@ static inline _cesk_static_tree_node_t* _cesk_static_tree_insert(
 			else node->value[0] = NULL;
 			if(NULL != p_target) *p_target = node;
 		}
-		else node->child[0] = node->child[1] = 0;
+		else node->child[0] = node->child[1] = NULL;
 		/* maintain the tree structure */
 		if(parent) parent->child[last_direction] = node;
 		else tree = node;
@@ -620,10 +620,9 @@ int cesk_static_table_equal(const cesk_static_table_t* left, const cesk_static_t
         return -1;
     }
     uint32_t laddr, raddr;
-    for(const cesk_set_t *left = cesk_static_table_iter_next(li, &laddr), 
-                         *right = cesk_static_table_iter_next(ri, &raddr);
-        NULL != left && NULL != right && laddr == raddr && cesk_set_equal(left, right);
-        left = cesk_static_table_iter_next(li, &laddr),
-        right = cesk_static_table_iter_next(ri, &raddr));
-    return NULL == left && NULL == right;
+	const cesk_set_t *lset, *rset;
+    for(lset = cesk_static_table_iter_next(li, &laddr), rset = cesk_static_table_iter_next(ri, &raddr);
+        NULL != lset && NULL != rset && laddr == raddr && cesk_set_equal(lset, rset);
+        lset = cesk_static_table_iter_next(li, &laddr), rset = cesk_static_table_iter_next(ri, &raddr));
+    return NULL == lset && NULL == rset;
 }
