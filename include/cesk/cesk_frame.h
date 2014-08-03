@@ -213,6 +213,7 @@ int cesk_frame_register_load_from_object(
  * @param reloctab the relocation table
  * @param inst current instruction
  * @param alloc_param the allocation parameter (except the instruction index)
+ * @param clspath the class path for the newly created object
  * @param bci_init_param the addtion initialaization parameter
  * @param diff_buf
  * @param inv_buf

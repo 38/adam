@@ -100,6 +100,7 @@ static inline int _cesk_block_handler_move(const dalvik_instruction_t* ins, cesk
  * @brief the instruction handler for constant loading instructions 
  * @param ins current instruction
  * @param frame current stack frame
+ * @param rtab the relocation table used by current context
  * @param D the diff buffer to track the modification
  * @param I the diff buffer to tacck the how to revert the modification
  * @return the result of execution, < 0 indicates failure
@@ -443,7 +444,7 @@ static inline int _cesk_block_invoke_result_allocate_bsearch(const cesk_diff_t* 
 }
 /**
  * @brief do a result address --> interal address translation
- * @detials this function actually do two things. First, it adjust the
+ * @details this function actually do two things. First, it adjust the
  *          address of newly created object in the caller frame. Second,
  *          convert the address which is actually an relocated address
  *          in the caller frame to relocated address. ( Because we convert
@@ -451,7 +452,7 @@ static inline int _cesk_block_invoke_result_allocate_bsearch(const cesk_diff_t* 
  *          callee frame).
  * @param addr the address to be translated
  * @param frame current stack frame
- * @param result the result diff
+ * @param diff the result diff
  * @param addrmap the address map from result address to interal address
  * @return the interal address traslated from the result address
  **/
@@ -493,7 +494,7 @@ static inline uint32_t _cesk_block_invoke_result_addr_translate(
  * @brief peform the translation process on a address set
  * @param set the address set to be translated
  * @param frame current stack frame
- * @param result the result diff
+ * @param diff the result diff
  * @param addrmap the address map 
  * @note  the function will modify the input set, and return the same set instance
  * @return the translated set
@@ -532,7 +533,7 @@ static inline cesk_set_t* _cesk_block_invoke_result_set_translate(
  * @brief translate the value, because value might contains pointer to address that
  *        needs to be patched
  * @param value the value to translate
- * @param freame current stack frame
+ * @param frame current stack frame
  * @param diff the result idf
  * @param addrmap the address map
  * @return the translated value

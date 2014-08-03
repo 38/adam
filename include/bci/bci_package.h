@@ -1,6 +1,6 @@
 /**
  * @brief Bulitin Class Package
- * @detials Each API is a BCI Package
+ * @details Each API is a BCI Package
  */
 #ifndef __BCI_PACKAGE_H__
 #define __BCI_PACKAGE_H__

@@ -1,6 +1,6 @@
 /**
  * @brief the built-in class interface
- * @detial See doc/BCI.txt
+ * @details See doc/BCI.txt
  **/
 #ifndef __BCI_CLASS_H__
 #define __BCI_CLASS_H__
@@ -60,8 +60,8 @@ struct _bci_class_t {
  * @brief initialize a built-in instance
  * @param mem the memory for this instance
  * @param class the class def
- * @param the initialzation parameter
- * @param classpath the class path
+ * @param init_param the initialzation parameter
+ * @param class the class path
  * @return result of initialization, < 0 indicates an error
  **/
 int bci_class_initialize(void* mem, const void* init_param, const bci_class_t* class);
@@ -88,6 +88,7 @@ int bci_class_put_field(void* this, const char* fieldname, const cesk_set_t* set
 /**
  * @brief get an address list that used by this object 
  * @param this the object
+ * @param offset the offset of the start point
  * @param buf the buffer
  * @param sz the buffer size
  * @param class the class def
@@ -125,7 +126,7 @@ int bci_class_duplicate(const void* this, void* that, const bci_class_t* class);
 int bci_class_equal(const void* this, const void* that, const bci_class_t* class);
 
 /**
- * @breif convert an object instance to string
+ * @brief convert an object instance to string
  * @param this the object instance
  * @param buf the output buffer, if the buffer is NULL means use default buffer
  * @param size the buffer size
@@ -146,6 +147,7 @@ int bci_class_apply_atable(void* this, const cesk_store_t* store, const bci_clas
 /**
  * @brief get the relocation flag for this object
  * @param this the object instance
+ * @param class the built-in class
  * @return the relocation flag bit, < 0 indicates an error
  **/
 int bci_class_get_relocation_flag(const void* this, const bci_class_t* class);

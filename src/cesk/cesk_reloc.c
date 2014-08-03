@@ -44,10 +44,9 @@ static inline hashval_t _cesk_reloc_reverse_hash(const cesk_reloc_table_t* table
 	return (((((uintptr_t)table)%2147483647) * MH_MULTIPLY * MH_MULTIPLY) + cesk_alloc_param_hash(param));
 }
 /**
- * @brief look for the table
+ * @brief look for the relocation table, find is there any address assigned to this allocation parameter
  * @param table the relocation table
  * @param param the allocation parameter
- * @param context the context ID
  * @return the node for this record, NULL means not found
  **/
 static inline _cesk_reloc_reverse_hash_node_t* _cesk_reloc_reverse_hash_find(
@@ -66,7 +65,6 @@ static inline _cesk_reloc_reverse_hash_node_t* _cesk_reloc_reverse_hash_find(
  * @param table the relocation table
  * @param param the allocation parameter
  * @param addr the relocated address assigned to this allocation
- * @param context the context ID
  * @return the newly created hash node, NULL indicates failure of insertion
  **/
 static inline _cesk_reloc_reverse_hash_node_t* _cesk_reloc_reverse_hash_insert(
@@ -85,7 +83,7 @@ static inline _cesk_reloc_reverse_hash_node_t* _cesk_reloc_reverse_hash_insert(
 	return ptr;
 }
 /**
- * @biref delete a node from the hash table
+ * @brief delete a node from the hash table
  * @param table the relocation table
  * @param param the allocation parameter
  * @return nothing

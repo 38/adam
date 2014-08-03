@@ -90,7 +90,8 @@ static inline hashval_t _dalvik_memberdict_hash(
  * @param class_path the class path
  * @param object_name the object name of this object
  * @param args the argument list
- * @param type the type of this object (class, method, field)
+ * @param rtype the return type (only used by methods)
+ * @param type indicates which type of object is this object (could be class/method/field)
  * @param obj  the actuall object address
  * @return < 0 indicates error
  **/
@@ -168,7 +169,7 @@ int dalvik_memberdict_register_class(const char* class_path, dalvik_class_t* cla
 /** 
  * @brief find an object from the member dict with key <classpath, name, typelist, return_type> 
  * @param path path of the class that we want to find
- * @paran name the name of this member
+ * @param name the name of this member
  * @param args the argument type list for this method, if this object is not a method, just fill NULL here
  * @param rtype the return type for this method, if this object is not a method, just fill NULL instead
  * @param type the object type class/method/field

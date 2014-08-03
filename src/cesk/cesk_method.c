@@ -563,7 +563,7 @@ static inline int _cesk_method_compute_branch_frame(_cesk_method_context_t* cont
  * @param context the context for analyzer
  * @param branch the block branch structure describing this branch
  * @param input_diff the diff of previous input and current input
- * @param dbuf the result diff buffer
+ * @return the result of this operation < 0 indicates an error
  */
 static inline int _cesk_method_return(
 		_cesk_method_context_t* context, 

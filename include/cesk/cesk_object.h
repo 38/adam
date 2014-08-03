@@ -90,9 +90,10 @@ cesk_object_t* cesk_object_new(const char* classpath);
  * @param object the object
  * @param classpath the class path
  * @param field_name the field name
- * @param p_bci_class if this class is a built-in class, NULL will return be returned and the bci_class will
+ * @param p_bci_class if this class is a built-in class, NULL will be returned and the bci_class will
  *        return from this variable
- * @param similar to p_bci_class
+ * @param p_bci_data if this class is a built-in class, NULL will  be retuend from the function and
+ *        the pointer to instance data will be stored in this variable
  * @return the pointer constains set address in the store
  */
 uint32_t* cesk_object_get(
@@ -172,6 +173,8 @@ hashval_t cesk_object_compute_hashcode(const cesk_object_t* object);
  * @param object the object
  * @param classpath the class path
  * @param field_name the field name of the class
+ * @param p_bci_class if the class is a built-in class, p_bci_class will be used for storing a pointer to the built-in class def (and return -1)
+ * @param p_bci_data  if the class is a built-in class, p_bci_data will be used for storing a pointer to the instance of this class (and return -1)
  * @param buf the address buf 
  * @return <0 error otherwise success
  */

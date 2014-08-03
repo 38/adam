@@ -27,7 +27,7 @@ CONST_ASSERTION_SIZE(_cesk_static_tree_node_t, child, 0);
 CONST_ASSERTION_LAST(_cesk_static_tree_node_t, child);
 
 /**
- * @breif data structure for the static table
+ * @brief data structure for the static table
  **/
 struct _cesk_static_table_t {
 	hashval_t hashcode;                  /*!< current hashcode */
@@ -38,7 +38,7 @@ struct _cesk_static_table_t {
 /**
  * @brief the default value for each static fields
  * @note  because the static field which contains an object value is actually
- *        initialized by the function <clinit> so that this initial value must 
+ *        initialized by the function *clinit* so that this initial value must 
  *        be an constant address.
  *        Notice that the constant address should never be 0. So that if we found
  *        an 0x0 in the array, that means we should parse the initial value for this
@@ -56,8 +56,7 @@ extern const uint32_t dalvik_static_field_count;
 /* local inline functions */
 /**
  * @brief return the node size for this segment [left, right)
- * @param left the left boundary
- * @param right the right boundary
+ * @param isleaf wether or not this node is a leaf node
  * @return the size of the node in bytes
  **/
 static inline size_t _cesk_static_tree_node_size(int isleaf)
@@ -349,7 +348,7 @@ static inline _cesk_static_tree_node_t*  _cesk_static_table_init_field(cesk_stat
 	return ret;
 }
 /**
- * @biref the hash code for a field
+ * @brief the hash code for a field
  * @param index the field index
  * @param value the actual value of the field
  * @return the result hashcode
@@ -361,10 +360,10 @@ static inline hashval_t _cesk_static_field_hashcode(uint32_t index, const cesk_s
 	return (index * index * MH_MULTIPLY) ^ cesk_set_hashcode(value);
 }
 /**
- * @breif update hashcode
+ * @brief update hashcode
  * @param table
  * @param index the field index
- * @param vlaue the value set 
+ * @param value the value set 
  * @return nothing
  **/
 static inline void _cesk_static_table_update_hashcode(cesk_static_table_t* table, uint32_t index, const cesk_set_t* value)

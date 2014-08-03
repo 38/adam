@@ -114,7 +114,7 @@
 #endif
 
 #ifndef CESK_ALLOC_TABLE_MAX_CHAIN_SIZE
-/** @the maximum length of chain in an allocation table */
+/** @brief the maximum length of chain in an allocation table */
 #	define CESK_ALLOC_TABLE_MAX_CHAIN_SIZE 5
 #endif
 

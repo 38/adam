@@ -70,8 +70,7 @@ void cesk_reloc_table_free(cesk_reloc_table_t* mem);
 /**
  * @brief append a new value to the value table
  * @param table the value table 
- * @param inst  the instruction that allocates this object
- * @param field_offset the offset of this field
+ * @param param the allocation parameter
  * @return the index of this value, CESK_STORE_ADDR_NULL indicates error 
  **/
 uint32_t cesk_reloc_table_append(
@@ -81,10 +80,8 @@ uint32_t cesk_reloc_table_append(
  * @brief allocate a `fresh' relocated address and attach it to the global relocate allocate table
  * 		  (but do not install the value in the store if it's new) useful when creating new object
  * @param value_tab the global relocated value table
- * @param store
- * @param inst the instruction that allocate the object
- * @param parent the address of parent object
- * @param field the field offset
+ * @param store the store on which we perform this allocation
+ * @param param the allocation parameters
  * @param dry_run if dry_run is set, the function won't change the allocation table
  * @return the relocated address of the vlaue, CESK_STORE_ADDR_NULL means error
  * @note   DO NOT FORGET SET THE INITIAL VALUE TO THIS RELOCATED ADDRESS

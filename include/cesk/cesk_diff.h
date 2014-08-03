@@ -176,7 +176,7 @@ int cesk_diff_identity(const cesk_diff_t* diff, const cesk_diff_t* inv);
 /**
  * @brief diff substraction
  * @param dest the destination diff
- * @param frame the source diff
+ * @param sour the source diff
  * @return result of this operation, < 0 indicates an error 
  **/
 int cesk_diff_sub(cesk_diff_t* dest, const cesk_diff_t* sour);

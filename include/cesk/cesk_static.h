@@ -1,7 +1,7 @@
 /**
  * @file cesk_static.h
  * @brief the static field table & default value parser
- * @detials In the store address space, there's an special 
+ * @details In the store address space, there's an special 
  **/
 #ifndef __CESK_STATIC_H__
 #define __CESK_STATIC_H__
@@ -45,7 +45,6 @@ void cesk_static_finalize();
  * @brief look for the static field in the member dict and translate the default value to cesk value
  * @param class the name of the target class
  * @param field the field name of the target
- * @param initval wether or not the caller needs the initval
  * @return the field address, CESK_STORE_ADDR_NULL indicates errors 
  **/
 uint32_t cesk_static_field_query(const char* class, const char* field);
@@ -65,6 +64,7 @@ void cesk_static_table_free(cesk_static_table_t* table);
 /**
  * @brief get the value of a given static address 
  * @param table the static table
+ * @param addr the static field address
  * @note because this function is resonsible for field initialization, so that we need a write permission
  * @return the result set, NULL indicates errors
  **/
@@ -89,9 +89,9 @@ cesk_set_t** cesk_static_table_get_rw(cesk_static_table_t* table, uint32_t addr,
 int cesk_static_table_release_rw(cesk_static_table_t* table, uint32_t addr, const cesk_set_t* value);
 
 /**
- * @breif initialize a new iterator to traverse the table
+ * @brief initialize a new iterator to traverse the table
  * @param table the static field table
- * @param buf the memory for the iterator
+ * @param iter the memory for the iterator
  * @return the pointer to newly created iterator, NULL indicates error
  **/
 cesk_static_table_iter_t* cesk_static_table_iter(const cesk_static_table_t* table, cesk_static_table_iter_t* iter);

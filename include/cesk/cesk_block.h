@@ -26,7 +26,6 @@ typedef struct {
  * @param rtab  the relocation table 
  * @param buf the output buffer
  * @param caller_ctx the caller context
- * @param ctx_id current context ID
  * @return < 0 indicates erorrs
  **/
 int cesk_block_analyze(

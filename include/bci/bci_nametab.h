@@ -1,6 +1,6 @@
 /**
  * @brief Builtin Classes Name Table
- * @detials The bci_nametable is used to find a class or a method def
+ * @details The bci_nametable is used to find a class or a method def
  * @note The BCI framework DO NOT DISTINGUISH OVERLOADED FUNCTIONS, that means 
  *       The buildin class is responsible to resolve the overloaded function
  **/
