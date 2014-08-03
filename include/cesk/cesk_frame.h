@@ -1,11 +1,3 @@
-#ifndef __CESK_FRAME_H__
-#define __CESK_FRAME_H__
-typedef struct _cesk_frame_t cesk_frame_t;
-#include <cesk/cesk_set.h>
-#include <cesk/cesk_reloc.h>
-#include <dalvik/dalvik_instruction.h>
-#include <cesk/cesk_diff.h>
-#include <const_assertion.h>
 /** @file cesk_frame.h
  *  @brief A stack frame of the virtual machine
  *
@@ -17,23 +9,59 @@ typedef struct _cesk_frame_t cesk_frame_t;
  *  We do not need any function for destory an object, because we have garbage 
  *  collector in the frame
  */
-/** @brief the actual register id of result register */
+#ifndef __CESK_FRAME_H__
+#define __CESK_FRAME_H__
+typedef struct _cesk_frame_t cesk_frame_t;
+#include <cesk/cesk_set.h>
+#include <cesk/cesk_reloc.h>
+#include <dalvik/dalvik_instruction.h>
+#include <cesk/cesk_diff.h>
+#include <const_assertion.h>
+
+/* For all register and static field, we use a uint32_t interger to address them
+ * The register is a 'register reference number'
+ * The register reference number is actually another address space which is independent
+ * to the store address space which contains object address, relocated address and constant
+ * address.
+ *
+ * The layout of register referencing addresss space:
+ *
+ *  -------------------------------------------------------------------------------
+ *  |R|E| General Register Reference |      unused     |   Static Field Refernce  |
+ *  -------------------------------------------------------------------------------
+ *  0 1 2                          0x10000           0x80000000                  0xffffffff
+ *
+ *  The lower address space is mapped to the register array `regs'
+ *  The higher address space is mapped to the static field table `statics', which uses this reference number to locate the field
+ */
+/** 
+ * @brief The register reference number for the result register
+ **/
 #define CESK_FRAME_RESULT_REG 0
-/** @brief the actual register id of exception register */
+/** 
+ * @brief The register reference number for exception register
+ **/
 #define CESK_FRAME_EXCEPTION_REG 1
-/** @brief convert a general register to acual index, so that you can use frame->regs[id] to visit the register
+/** 
+ * @brief convert a general register index to register reference address
  *  @param id general register index
- *  @return acutal index, 
+ *  @return the result register reference
  */
 #define CESK_FRAME_GENERAL_REG(id) (id + 2)
 
-/** special register number that used for static fields */
-/** @brief check if the address is an relocated address */
+/* Helper Macros for the register reference which pointed to a static field */
+/** 
+ * @brief check if the register reference is an relocated address 
+ **/
 #define CESK_FRAME_REG_IS_STATIC(id) ((id)&CESK_FRAME_REG_STATIC_PREFIX)
-/** @brief return the index of the static field */
+/** 
+ * @brief return the index of the static field 
+ **/
 #define CESK_FRAME_REG_STATIC_IDX(id) ((id)&~CESK_FRAME_REG_STATIC_PREFIX)
 
-/** @brief A Stack Frame of The Dalvik CESK Machine */
+/** 
+ * @brief A Stack Frame of ADAM
+ **/
 struct _cesk_frame_t{
 	uint32_t       size;     /*!<the number of registers in this frame */
 	cesk_store_t*  store;    /*!<the store for this frame */ 
@@ -103,8 +131,8 @@ static inline int cesk_frame_set_alloctab(cesk_frame_t* frame, cesk_alloctab_t* 
 /**
  * @brief apply a diff to this frame
  * @todo implmentation
- * @param frame
- * @param diff
+ * @param frame the target frame
+ * @param diff  the diff to apply
  * @param reloctab the relocation table
  * @param invbuf the inverse diff buffer, NULL means do not record this
  * @param fwdbuf the forward diff buffer, NULL means do not record this
@@ -117,10 +145,41 @@ int cesk_frame_apply_diff(
 	cesk_diff_buffer_t* fwdbuf,
 	cesk_diff_buffer_t* invbuf);
 /**
+ * @brief load the value in the source register to destination static field
+ * @param dst_reg the register reference address for the static field(which sould be a valid static field reference)
+ * @param src_reg the source register reference
+ * @param diff_buf the diff buffer
+ * @param inv_buf the inverse diff buffer
+ * @return < 0 indicates errors 
+ **/
+int cesk_frame_static_load_from_register(
+		cesk_frame_t* frame,
+		uint32_t dst_reg,
+		uint32_t src_reg,
+		cesk_diff_buffer_t* diff_buf,
+		cesk_diff_buffer_t* inv_buf);
+
+
+/**
+ * @brief load the value in the source static field to the destination register
+ * @param dst_reg the register reference to destination register
+ * @param src_reg the register reference to the source static field
+ * @param diff_buf the diff buffer
+ * @param inv_buf the inverse diff buffer
+ * @return result of the operation, < 0 indicates errors
+ **/
+int cesk_frame_register_load_from_static(
+		cesk_frame_t* frame,
+		uint32_t dst_reg,
+		uint32_t src_reg,
+		cesk_diff_buffer_t* diff_buf,
+		cesk_diff_buffer_t* inv_buf);
+
+/**
  * @brief move the content in source register to the destination register
- * @param frame 
- * @param dst_reg destination register
- * @param src_reg source register
+ * @param frame the target frame
+ * @param dst_reg destination register reference
+ * @param src_reg source register reference
  * @param diff_buf the the diff buffer
  * @param inv_buf the inverse diff buffer
  * @return < 0 indicates errors
@@ -133,8 +192,8 @@ int cesk_frame_register_move(
 		cesk_diff_buffer_t* inv_buf);
 /**
  * @brief clear the register, make the value set of the register is empty 
- * @param frame
- * @param dst_reg destination register
+ * @param frame the target frame
+ * @param dst_reg destination register reference
  * @param diff_buf the diff buffer
  * @param inv_buf  the inverse diff buffer
  * @return < 0 indicates errors 
@@ -146,8 +205,8 @@ int cesk_frame_register_clear(
 		cesk_diff_buffer_t* inv_buf);
 /**
  * @brief load a constant to the register
- * @param frame
- * @param dst_reg destination register
+ * @param frame the target frame
+ * @param dst_reg destination register reference
  * @param src_addr source instant number address
  * @param diff_buf the diff buffer
  * @param inv_buf the inverse diff buffer
@@ -161,9 +220,9 @@ int cesk_frame_register_load(
 		cesk_diff_buffer_t* inv_buf);
 /**
  * @brief push a value to the register
- * @param frame
- * @param dst_reg destination register
- * @param src_addr the source constant
+ * @param frame the target frame
+ * @param dst_reg destination register reference
+ * @param src_addr the source constant address
  * @param incref if this param is 1 then this function will change the refcount
  * @param diff_buf the diff buffer
  * @param inv_buf the inverse diff buffer
@@ -179,8 +238,8 @@ int cesk_frame_register_push(
 
 /** 
  * @brief append a value to store
- * @param frame
- * @param dst_reg destination
+ * @param frame the target frame
+ * @param dst_reg destination register reference
  * @param src_addr source store address
  * @param diff_buf
  * @param inv_buf
@@ -195,13 +254,13 @@ int cesk_frame_register_append_from_store(
 
 /**
  * @brief load a object field from object bearing register to destiniation register
- * @param frame
- * @param dst_reg destination register
- * @param src_reg source boject bearing register
+ * @param frame the target frame
+ * @param dst_reg destination register reference
+ * @param src_reg source boject bearing register reference
  * @param clspath the class path
  * @param fldname the field name
- * @param diff_buf
- * @param inv_buf
+ * @param diff_buf the diff buffer
+ * @param inv_buf the inverse diff buffer
  * @return < 0 indicates error
  **/
 int cesk_frame_register_load_from_object(
@@ -215,14 +274,14 @@ int cesk_frame_register_load_from_object(
 
 /**
  * @brief allocate a new object in the frame store
- * @param frame
+ * @param frame the targbet frame
  * @param reloctab the relocation table
  * @param inst current instruction
  * @param alloc_param the allocation parameter (except the instruction index)
  * @param clspath the class path for the newly created object
  * @param bci_init_param the addtion initialaization parameter
- * @param diff_buf
- * @param inv_buf
+ * @param diff_buf the diff buffer
+ * @param inv_buf the inverse diff buffer
  * @return the address of newly created object , CESK_STORE_ADDR_NULL indicates an error
  **/
 uint32_t cesk_frame_store_new_object(
@@ -238,17 +297,17 @@ uint32_t cesk_frame_store_new_object(
  * @brief put the content of a register to the a field in store
  * @note because we allocate all fields in the new_object function, so if we 
  *       can see uninitialized value here, this must be an error
- * @param frame
- * @param dst_addr the destination object
- * @param src_reg  the source register
+ * @param frame the target frame
+ * @param dst_addr the destination object address
+ * @param src_reg  the source register reference
  * @param clspath the class path
  * @param fldname the field name
  * @param keep_old_value wether or not we need to keep the old value during the assignemnt.
  *        This is because if the analyzer just know a set of address that is possiblely the
  *        destination, in this situation, override the old value will cause lost of possible value,
  *        so we keep the old value of every involed address
- * @param diff_buf 
- * @param inv_buf
+ * @param diff_buf the diff buffer
+ * @param inv_buf the inverse diff buffer
  * @return the result of the operation < 0 indicates an error
  **/
 int cesk_frame_store_put_field(
@@ -264,7 +323,7 @@ int cesk_frame_store_put_field(
 /** 
  *  @brief return all possible values of a register in an array (for debugging)
  *  @param frame the frame object
- *  @param regid register index
+ *  @param regid register reference
  *  @param buf   output buffer
  *  @param size	 buffer size
  *  @return the number of values returned, <0 when error 

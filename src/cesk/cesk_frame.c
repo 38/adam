@@ -851,6 +851,114 @@ int cesk_frame_apply_diff(
 		return -1;\
 	}\
 }while(0)
+int cesk_frame_static_load_from_register(
+		cesk_frame_t* frame,
+		uint32_t dst_reg,
+		uint32_t src_reg,
+		cesk_diff_buffer_t* diff_buf,
+		cesk_diff_buffer_t* inv_buf)
+{
+	extern const uint32_t dalvik_static_field_count;
+	if(NULL == frame || 
+	   !CESK_FRAME_REG_IS_STATIC(dst_reg) || CESK_FRAME_REG_STATIC_IDX(dst_reg) >= dalvik_static_field_count || 
+	   src_reg >= frame->size)
+	{
+		LOG_ERROR("invalid instruction, bad register reference");
+		return -1;
+	}
+
+	cesk_set_t** slot = cesk_static_table_get_rw(frame->statics, dst_reg, 1);
+	if(NULL == slot)
+	{
+		LOG_ERROR("can not get pointer to field slot");
+		return -1;
+	}
+	if(NULL == *slot)
+	{
+		LOG_ERROR("invalid static field value");
+		return -1;
+	}
+
+	_SNAPSHOT(inv_buf, CESK_DIFF_REG, dst_reg, *slot);
+
+	/* do the samething as cesk_frame_register_move */
+	if(_cesk_frame_set_ref(frame, frame->regs[src_reg]) < 0)
+	{
+		LOG_ERROR("can not make refernce from the new value");
+		return -1;
+	}
+	if(_cesk_frame_free_set(frame, *slot) < 0)
+	{
+		LOG_ERROR("can not deference from the old value");
+		return -1;
+	}
+	*slot = cesk_set_fork(frame->regs[src_reg]);
+	
+	if(NULL == *slot) 
+	{
+		LOG_ERROR("can not copy the value of the source register");
+		return -1;
+	}
+
+	if(cesk_static_table_release_rw(frame->statics, dst_reg, *slot) < 0)
+	{
+		LOG_ERROR("can not release the reference to static field slot at #%u", CESK_FRAME_REG_STATIC_IDX(dst_reg));
+		return -1;
+	}
+
+	_SNAPSHOT(diff_buf, CESK_DIFF_REG, dst_reg, *slot);
+
+	return 0;
+}
+int cesk_frame_register_load_from_static(
+		cesk_frame_t* frame,
+		uint32_t dst_reg,
+		uint32_t src_reg,
+		cesk_diff_buffer_t* diff_buf,
+		cesk_diff_buffer_t* inv_buf)
+{
+	extern const uint32_t dalvik_static_field_count;
+	if(NULL == frame ||
+	   !CESK_FRAME_REG_IS_STATIC(src_reg) || CESK_FRAME_REG_STATIC_IDX(src_reg) >= dalvik_static_field_count ||
+	   dst_reg >= frame->size)
+	{
+		LOG_ERROR("invalid instruction, bad register reference");
+		return -1;
+	}
+
+	const cesk_set_t* field_value = cesk_static_table_get_ro(frame->statics, src_reg);
+	if(NULL == field_value)
+	{
+		LOG_ERROR("can not get the value of static field #%u", CESK_FRAME_REG_STATIC_IDX(src_reg));
+		return -1;
+	}
+
+	/* then we do a register move */
+	_SNAPSHOT(inv_buf, CESK_DIFF_REG, dst_reg, frame->regs[dst_reg]);
+
+	if(_cesk_frame_set_ref(frame, field_value))
+	{
+		LOG_ERROR("can not make reference from the new value of the register");
+		return -1;
+	}
+
+	if(_cesk_frame_free_set(frame, frame->regs[src_reg]) < 0)
+	{
+		LOG_ERROR("can not dereference from the old value of the register");
+		return -1;
+	}
+
+	frame->regs[dst_reg] = cesk_set_fork(field_value);
+	if(NULL == frame->regs[dst_reg])
+	{
+		LOG_ERROR("can not copy the value of the static field");
+		return -1;
+	}
+
+	_SNAPSHOT(diff_buf, CESK_DIFF_REG, dst_reg, frame->regs[dst_reg]);
+	
+	return 0;
+}
 int cesk_frame_register_move(
 		cesk_frame_t* frame, 
 		uint32_t dst_reg, 
@@ -860,7 +968,7 @@ int cesk_frame_register_move(
 {
 	if(NULL == frame || dst_reg >= frame->size || src_reg >= frame->size) 
 	{
-		LOG_WARNING("invalid instruction, invalid register reference");
+		LOG_ERROR("invalid instruction, invalid register reference");
 		return -1;
 	}
 	
@@ -881,6 +989,11 @@ int cesk_frame_register_move(
 	}
 	/* and then we just fork the vlaue of source */
 	frame->regs[dst_reg] = cesk_set_fork(frame->regs[src_reg]);
+	if(NULL == frame->regs[dst_reg])
+	{
+		LOG_ERROR("can not copy the value of the source register");
+		return -1;
+	}
 
 	_SNAPSHOT(diff_buf, CESK_DIFF_REG, dst_reg, frame->regs[dst_reg]);
 
