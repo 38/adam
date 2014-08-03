@@ -23,7 +23,7 @@ typedef struct _cesk_diff_node_t _cesk_diff_node_t;
  **/
 struct _cesk_diff_node_t{
 	int type;           /*!< which type this diff item is, useful when sorting */
-	unsigned addr;           /*!< the address to operate, in the Register Segment, this means the register number */
+	uint32_t addr;           /*!< the address to operate, in the Register Segment, this means the register number */
 	int time;           /*!< the time stamp of this node */
 	void* value;        /*!< the value of this node */
 };
@@ -91,7 +91,7 @@ static inline const char* _cesk_diff_record_to_string(int type, int addr, const 
 			break;
 		case CESK_DIFF_REG:
 			if(CESK_FRAME_REG_IS_STATIC(addr))
-				__PR("(register f%d %s", CESK_FRAME_REG_STATIC_IDX(addr), cesk_set_to_string((cesk_set_t*)value, NULL, 0));
+				__PR("(register f%d %s)", CESK_FRAME_REG_STATIC_IDX(addr), cesk_set_to_string((cesk_set_t*)value, NULL, 0));
 			else
 				__PR("(register v%d %s)", addr, cesk_set_to_string((cesk_set_t*)value, NULL, 0));
 			break;
@@ -189,7 +189,12 @@ static int _cesk_diff_buffer_cmp(const void* left, const void* right)
 	const _cesk_diff_node_t* lnode = (const _cesk_diff_node_t*)left;
 	const _cesk_diff_node_t* rnode = (const _cesk_diff_node_t*)right;
 	if(lnode->type != rnode->type) return lnode->type - rnode->type;
-	if(lnode->addr != rnode->addr) return lnode->addr - rnode->addr;
+	if(lnode->addr != rnode->addr) //return lnode->addr - rnode->addr;
+	{
+		if(lnode->addr < rnode->addr) return -1;
+		else if(lnode->addr == rnode->addr) return 0;
+		return 1;
+	}
 	return lnode->time - rnode->time;
 }
 /**
