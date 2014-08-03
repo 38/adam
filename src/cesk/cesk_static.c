@@ -592,7 +592,7 @@ cesk_set_t** cesk_static_table_get_rw(cesk_static_table_t* table, uint32_t addr,
 		LOG_ERROR("invalid static field address #%u, out of boundary", idx);
 		return NULL;
 	}
-	_cesk_static_tree_node_t* target;
+	_cesk_static_tree_node_t* target = NULL;
 	_cesk_static_tree_node_t* new_root = _cesk_static_tree_prepare_to_write(table->root, idx, &target);
 	if(NULL != table->root && NULL == new_root)
 	{
@@ -659,7 +659,7 @@ int cesk_static_table_equal(const cesk_static_table_t* left, const cesk_static_t
 		LOG_ERROR("can not get iterator for the static field table");
 		return -1;
 	}
-	uint32_t laddr, raddr;
+	uint32_t laddr = 0, raddr = 0;
 	const cesk_set_t *lset, *rset = cesk_static_table_iter_next(ri, &raddr);
 	/*for(lset = cesk_static_table_iter_next(li, &laddr), rset = cesk_static_table_iter_next(ri, &raddr);
 		NULL != lset && NULL != rset && laddr == raddr && cesk_set_equal(lset, rset);

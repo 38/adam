@@ -24,9 +24,21 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY bin/lib)
 set(tools_DIR "tools")
 set(test_DIR "test")
 
-set(LOG     6)  # log level can be 0 to 6, 0 means no log, 6 means the most detialed log
-#set(CFLAGS -O0\ -Werror\ -Wall\ -g\ -DLOG_LEVEL=${LOG}\ -DPARSER_COUNT)
-set(CFLAGS -O0\ -Wall\ -Werror\ -g\ -DLOG_LEVEL=${LOG}\ -DPARSER_COUNT)
+# log level can be 0 to 6, 0 means no log, 6 means the most detialed log
+if("$ENV{L}" STREQUAL "") 
+	set(LOG     6) 
+else("$ENV{L}" STREQUAL "")
+	set(LOG		$ENV{L})
+endif("$ENV{L}" STREQUAL "")
+if("$ENV{O}" STREQUAL "")
+	set(OPTLEVEL	0)
+else("$ENV{O}" STREQUAL "")
+	set(OPTLEVEL	$ENV{O})
+endif("$ENV{O}" STREQUAL "")
+
+message("Log Level: ${LOG}")
+message("Optimization Level: ${OPTLEVEL}")
+set(CFLAGS -O${OPTLEVEL}\ -Wall\ -Werror\ -g\ -DLOG_LEVEL=${LOG}\ -DPARSER_COUNT)
 
 
 include_directories("include" ".")
