@@ -142,7 +142,6 @@ struct _cesk_store_t {
 	cesk_alloctab_t*   alloc_tab;   /*!<the allocation table */
 	uint32_t            alloc_token;/*!<the token for allocation table use */
 	cesk_store_block_t**  blocks;   /*!<block array */
-	cesk_static_table_t*  static_tab; /*!< the static field table */
 };
 
 /** 

@@ -43,6 +43,7 @@ cesk_frame_t* cesk_frame_new(uint16_t size)
 		LOG_ERROR("can not allocate memory");
 		return NULL;
 	}
+	memset(ret, 0, sizeof(cesk_frame_t) + size * sizeof(cesk_set_t*));
 	ret->size = size;
 	int i;
 	for(i = 0; i < ret->size; i ++)
@@ -55,6 +56,17 @@ cesk_frame_t* cesk_frame_new(uint16_t size)
 		}
 	}
 	ret->store = cesk_store_empty_store();    /* the store constains nothing */
+	if(NULL == ret->store) 
+	{
+		LOG_ERROR("can not create an empty store for the new frame");
+		goto ERROR;
+	}
+	ret->statics = cesk_static_table_fork(NULL); /* a static field table with initial values */ 
+	if(NULL == ret->statics)
+	{
+		LOG_ERROR("can not create a initial static field table for the new frame");
+		goto ERROR;
+	}
 	return ret;
 ERROR:
 	if(NULL != ret)
@@ -62,6 +74,10 @@ ERROR:
 		if(NULL != ret->store)
 		{
 			cesk_store_free(ret->store); 
+		}
+		if(NULL != ret->statics)
+		{
+			cesk_static_table_free(ret->statics);
 		}
 		int i;
 		for(i = 0; i < ret->size; i ++)
@@ -71,6 +87,8 @@ ERROR:
 				cesk_set_free(ret->regs[i]);
 			}
 		}
+
+		free(ret);
 	}
 	return NULL;
 }
@@ -83,6 +101,7 @@ cesk_frame_t* cesk_frame_fork(const cesk_frame_t* frame)
 	}
 	int i,j;
 	cesk_frame_t* ret = (cesk_frame_t*)malloc(sizeof(cesk_frame_t) + frame->size * sizeof(cesk_set_t*));
+	memset(ret, 0, sizeof(cesk_frame_t) + frame->size * sizeof(cesk_set_t*));
 	if(NULL == ret)
 	{
 		LOG_ERROR("can not allocate memory");
@@ -104,13 +123,24 @@ cesk_frame_t* cesk_frame_fork(const cesk_frame_t* frame)
 		LOG_ERROR("can not fork the frame store");
 		goto ERR;
 	}
+	ret->statics = cesk_static_table_fork(frame->statics);
+	if(NULL == ret->statics)
+	{
+		LOG_ERROR("can not fork the static field table");
+		goto ERR;
+	}
 	return ret;
 ERR:
-	for(j = 0; j < i; i ++)
+	if(NULL != ret)
 	{
-		if(NULL != ret->regs[i]) cesk_set_free(ret->regs[i]);
+		for(j = 0; j < i; i ++)
+		{
+			if(NULL != ret->regs[i]) cesk_set_free(ret->regs[i]);
+		}
+		if(NULL != ret->store) cesk_store_free(ret->store);
+		if(NULL != ret->statics) cesk_static_table_fork(ret->statics);
+		free(ret);
 	}
-	if(NULL != ret->store) cesk_store_free(ret->store);
 	return NULL;
 }
 cesk_frame_t* cesk_frame_make_invoke(const cesk_frame_t* frame, uint32_t nregs, uint32_t nargs, cesk_set_t** args)
@@ -188,6 +218,13 @@ cesk_frame_t* cesk_frame_make_invoke(const cesk_frame_t* frame, uint32_t nregs, 
 			}
 		}
 	}
+	/* in addition, we should copy the static field */
+	ret->statics = cesk_static_table_fork(frame->statics);
+	if(NULL == ret->statics)
+	{
+		LOG_ERROR("can not copy the static field table");
+		goto ERR;
+	}
 	/* apply the allocation table toe the store */
 	if(cesk_store_apply_alloctab(ret->store) < 0)
 	{
@@ -209,6 +246,9 @@ ERR:
 				cesk_set_free(ret->regs[i]);
 		if(NULL != ret->store)
 			cesk_store_free(ret->store);
+		if(NULL != ret->statics)
+			cesk_static_table_free(ret->statics);
+		free(ret);
 	}
 	return NULL;
 }
@@ -222,6 +262,7 @@ void cesk_frame_free(cesk_frame_t* frame)
 		cesk_set_free(frame->regs[i]);
 	}
 	cesk_store_free(frame->store);
+	cesk_static_table_free(frame->statics);
 	free(frame);
 }
 
@@ -239,7 +280,7 @@ int cesk_frame_equal(const cesk_frame_t* first, const cesk_frame_t* second)
 			return 0;
 		}
 	}
-	return cesk_store_equal(first->store, second->store);
+	return cesk_static_table_equal(first->statics, second->statics) && cesk_store_equal(first->store, second->store);
 }
 /** 
  * @brief depth first search the store, and figure out what is unreachable from the register
@@ -335,6 +376,7 @@ int cesk_frame_gc(cesk_frame_t* frame)
 	uint8_t *fb = (uint8_t*)malloc(nslot / 8 + 1);     /* the flag bits */
 	memset(fb, 0, nslot / 8 + 1);
 	int i;
+	/* traverse from register */
 	for(i = 0; i < frame->size; i ++)
 	{
 		cesk_set_iter_t iter;
@@ -346,6 +388,28 @@ int cesk_frame_gc(cesk_frame_t* frame)
 		uint32_t addr;
 		while(CESK_STORE_ADDR_NULL != (addr = cesk_set_iter_next(&iter)))
 			_cesk_frame_store_dfs(addr, store, fb);
+	}
+	/* traverse from static fields */
+	cesk_static_table_iter_t iter;
+	if(NULL != cesk_static_table_iter(frame->statics, &iter))
+	{
+		const cesk_set_t* cur_set;
+		for(;NULL != (cur_set = cesk_static_table_iter_next(&iter, NULL));)
+		{
+			cesk_set_iter_t iter;
+			if(NULL == cesk_set_iter(cur_set, &iter))
+			{
+				LOG_WARNING("can not aquire set iterator for the static field value set");
+				continue;
+			}
+			uint32_t addr;
+			while(CESK_STORE_ADDR_NULL != (addr = cesk_set_iter_next(&iter)))
+				_cesk_frame_store_dfs(addr, store, fb);
+		}
+	}
+	else
+	{
+		LOG_WARNING("can not aquire iterator for the static field table");
 	}
 	uint32_t addr = 0;
 	for(addr = 0; addr < nslot; addr ++)
