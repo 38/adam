@@ -90,7 +90,10 @@ static inline const char* _cesk_diff_record_to_string(int type, int addr, const 
 			__PR("(deallocate "PRSAddr")", addr);
 			break;
 		case CESK_DIFF_REG:
-			__PR("(register v%d %s)", addr, cesk_set_to_string((cesk_set_t*)value, NULL, 0));
+			if(CESK_FRAME_REG_IS_STATIC(addr))
+				__PR("(register f%d %s", CESK_FRAME_REG_STATIC_IDX(addr), cesk_set_to_string((cesk_set_t*)value, NULL, 0));
+			else
+				__PR("(register v%d %s)", addr, cesk_set_to_string((cesk_set_t*)value, NULL, 0));
 			break;
 		case CESK_DIFF_STORE:
 			__PR("(store "PRSAddr" %s)", addr, cesk_value_to_string((cesk_value_t*)value, NULL, 0));

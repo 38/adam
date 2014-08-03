@@ -1,0 +1,18 @@
+(class (attrs public) Main
+	(super java/lang/Object)
+	(source "Main.java")
+	(field (attrs public static) tree [object treeNode])
+	(method (attrs public static) run() void
+	    (limit-registers 10)
+		(invoke-static {} treeNode/run () [object treeNode])
+		(move-result v0)
+		(sput-object v0 Main.tree [object treeNode])
+		(return-void)
+	)
+	(method (attrs public static) main () [object treeNode]
+	 	(limit-registers 10)
+		(invoke-static {} Main/run () void)
+		(sget-object v0 Main.tree [object treeNode])
+		(return-object v0)
+	)
+)

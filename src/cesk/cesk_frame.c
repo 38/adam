@@ -942,7 +942,7 @@ int cesk_frame_register_load_from_static(
 		return -1;
 	}
 
-	if(_cesk_frame_free_set(frame, frame->regs[src_reg]) < 0)
+	if(_cesk_frame_free_set(frame, frame->regs[dst_reg]) < 0)
 	{
 		LOG_ERROR("can not dereference from the old value of the register");
 		return -1;
