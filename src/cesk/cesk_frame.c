@@ -634,7 +634,7 @@ int cesk_frame_apply_diff(
 					else
 					{
 						LOG_DEBUG("setting static field #%u to value %s", CESK_FRAME_REG_STATIC_IDX(rec->addr), cesk_set_to_string(rec->arg.set, NULL, 0));
-						const cesk_set_t* old_value = cesk_static_table_get_ro(frame->statics, rec->addr);
+						const cesk_set_t* old_value = cesk_static_table_get_ro(frame->statics, rec->addr, 1);
 						if(NULL == old_value)
 						{
 							LOG_ERROR("I can not get the value of field #%u, aborting", CESK_FRAME_REG_STATIC_IDX(rec->addr));
@@ -926,7 +926,7 @@ int cesk_frame_register_load_from_static(
 		return -1;
 	}
 
-	const cesk_set_t* field_value = cesk_static_table_get_ro(frame->statics, src_reg);
+	const cesk_set_t* field_value = cesk_static_table_get_ro(frame->statics, src_reg, 1);
 	if(NULL == field_value)
 	{
 		LOG_ERROR("can not get the value of static field #%u", CESK_FRAME_REG_STATIC_IDX(src_reg));

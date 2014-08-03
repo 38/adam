@@ -65,10 +65,11 @@ void cesk_static_table_free(cesk_static_table_t* table);
  * @brief get the value of a given static address 
  * @param table the static table
  * @param addr the static field address
+ * @param init if this value is zero, means if we find a unitialized field, we just return empty rather than initialize it
  * @note because this function is resonsible for field initialization, so that we need a write permission
  * @return the result set, NULL indicates errors
  **/
-const cesk_set_t* cesk_static_table_get_ro(const cesk_static_table_t* table, uint32_t addr);
+const cesk_set_t* cesk_static_table_get_ro(const cesk_static_table_t* table, uint32_t addr, int init);
 
 /**
  * @brief get a writable pointer to the slot that contains the value for the given static field

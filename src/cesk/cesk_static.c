@@ -380,11 +380,11 @@ static inline void _cesk_static_table_update_hashcode(cesk_static_table_t* table
  **/
 static inline uint32_t _cesk_static_tree_next(const _cesk_static_tree_node_t* root, uint32_t start, const _cesk_static_tree_node_t** p_target)
 {
-	/* why 30 here, because the static field address space has 0xffffff + 1 slots, so that the maximum number of the leaf not 
-	 * of the segment tree is 0x1000000, which is actually 1<<24. So the path length would not larger than this numbmer, 30 
+	/* why 32 here, because the static field address space has 0xffffff + 1 slots, so that the maximum number of the leaf not 
+	 * of the segment tree is 0x80000000, which is actually 1<<31. So the path length would not larger than this numbmer, 32
 	 * elements for the path is engouth */
-	uint32_t l[30] = {0}, r[30] = {dalvik_static_field_count}, level;
-	const _cesk_static_tree_node_t* path[30] = {root};
+	uint32_t l[32] = {0}, r[32] = {dalvik_static_field_count}, level;
+	const _cesk_static_tree_node_t* path[32] = {root};
 	for(level = 0;r[level] - l[level] > 1 && NULL != path[level]; level ++)
 	{
 		uint32_t m = (l[level] + r[level]) / 2;
@@ -548,7 +548,7 @@ void cesk_static_table_free(cesk_static_table_t* table)
 	_cesk_static_tree_node_decref(table->root);
 	free(table);
 }
-const cesk_set_t* cesk_static_table_get_ro(const cesk_static_table_t* table, uint32_t addr)
+const cesk_set_t* cesk_static_table_get_ro(const cesk_static_table_t* table, uint32_t addr, int init)
 {
 	if(NULL == table || !CESK_FRAME_REG_IS_STATIC(addr))
 	{
@@ -564,6 +564,8 @@ const cesk_set_t* cesk_static_table_get_ro(const cesk_static_table_t* table, uin
 	const _cesk_static_tree_node_t* node = _cesk_static_tree_node_find(table->root, idx);
 	if(NULL == node)
 	{
+		if(!init) return NULL;
+
 		LOG_DEBUG("static field #%u hasn't been initliazed, initialize it now", idx);
 		node = _cesk_static_table_init_field((cesk_static_table_t*)table, idx, 1); 
 		if(NULL == node)
@@ -574,6 +576,7 @@ const cesk_set_t* cesk_static_table_get_ro(const cesk_static_table_t* table, uin
 		/* because we ignore the default value, so that we do not need to update the hashcode */
 		//_cesk_static_table_update_hashcode((cesk_static_table_t*)table, idx, node->value[0]);
 	}
+	
 	return node->value[0];
 }
 cesk_set_t** cesk_static_table_get_rw(cesk_static_table_t* table, uint32_t addr, int init)

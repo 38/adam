@@ -973,11 +973,25 @@ cesk_diff_t* cesk_diff_factorize(int N, cesk_diff_t** diffs, const cesk_frame_t*
 					break;
 				case CESK_DIFF_REG:
 					result = cesk_set_empty_set();
-					for(i = 0; i < N; i ++)
+					/* if current address is a reference to a real register */
+					if(!CESK_FRAME_REG_IS_STATIC(cur_addr))
 					{
-						const cesk_set_t* that = current_frame[i]->regs[cur_addr];
-						if(cesk_set_merge(result, that) < 0)
-							LOG_WARNING("failed to merge the value of register together");
+						for(i = 0; i < N; i ++)
+						{
+							const cesk_set_t* that = current_frame[i]->regs[cur_addr];
+							if(cesk_set_merge(result, that) < 0)
+								LOG_WARNING("failed to merge the value of register together");
+						}
+					}
+					/* this address is a reference to a static field */
+					else
+					{
+						for(i = 0; i < N; i ++)
+						{
+							const cesk_set_t* that = cesk_static_table_get_ro(current_frame[i]->statics, cur_addr, 0);
+							if(NULL != that && cesk_set_merge(result, that) < 0)
+								LOG_WARNING("failed to merge the value of static field together");
+						}
 					}
 					ret->data[ret->offset[section + 1]].arg.set = result; 
 					break;

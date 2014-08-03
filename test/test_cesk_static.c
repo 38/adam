@@ -17,14 +17,14 @@ int main()
 	uint32_t addr_I723 = cesk_static_field_query(stringpool_query("case0"), stringpool_query("I723"));
 	assert(CESK_FRAME_REG_IS_STATIC(addr_I723));
 	assert(addr_I723 == (CESK_FRAME_REG_STATIC_PREFIX | 723));
-	const cesk_set_t* ro_ret = cesk_static_table_get_ro(tab1, addr_I723); 
+	const cesk_set_t* ro_ret = cesk_static_table_get_ro(tab1, addr_I723, 1); 
 	assert(NULL != ro_ret);
 	assert(1 == cesk_set_size(ro_ret));
 	assert(cesk_set_contain(ro_ret, CESK_STORE_ADDR_POS));
 	
 	uint32_t addr_B999 = cesk_static_field_query(stringpool_query("case0"), stringpool_query("B999"));
 	assert(addr_B999 == (CESK_FRAME_REG_STATIC_PREFIX |  1999));
-	ro_ret = cesk_static_table_get_ro(tab1, addr_B999); 
+	ro_ret = cesk_static_table_get_ro(tab1, addr_B999, 1); 
 	assert(NULL != ro_ret);
 	assert(1 == cesk_set_size(ro_ret));
 	assert(cesk_set_contain(ro_ret, CESK_STORE_ADDR_ZERO));
@@ -48,8 +48,8 @@ int main()
 	assert(!cesk_static_table_equal(tab1, tab2));
 
 	/* check the value set of case0.I723 in both table */
-	const cesk_set_t* set1 = cesk_static_table_get_ro(tab1, addr_I723);
-	const cesk_set_t* set2 = cesk_static_table_get_ro(tab2, addr_I723);
+	const cesk_set_t* set1 = cesk_static_table_get_ro(tab1, addr_I723, 1);
+	const cesk_set_t* set2 = cesk_static_table_get_ro(tab2, addr_I723, 1);
 	assert(NULL != set1);
 	assert(NULL != set2);
 	assert(1 == cesk_set_size(set1));

@@ -299,6 +299,42 @@ static inline int _cesk_block_handler_instance(
 				}
 			}
 			return 0;
+		case DVM_FLAG_INSTANCE_SGET:
+			dest = _cesk_block_operand_to_regidx(ins->operands + 0);
+			clspath = ins->operands[1].payload.string;
+			fldname = ins->operands[2].payload.string;
+			sour = cesk_static_field_query(clspath, fldname);
+			if(CESK_STORE_ADDR_NULL == sour)
+			{
+				LOG_ERROR("can not find static field named %s.%s", clspath, fldname);
+				return -1;
+			}
+			else
+				LOG_DEBUG("find static field index #%u for %s.%s", CESK_FRAME_REG_STATIC_IDX(sour) ,clspath, fldname);
+			if(cesk_frame_register_load_from_static(frame, dest, sour, D, I) < 0)
+			{
+				LOG_ERROR("failed to write the vlaue of static field %s.%s to register %u", clspath, fldname, sour);
+				return -1;
+			}
+			return 0;
+		case DVM_FLAG_INSTANCE_SPUT:
+			sour = _cesk_block_operand_to_regidx(ins->operands + 0);
+			clspath = ins->operands[1].payload.string;
+			fldname = ins->operands[2].payload.string;
+			dest = cesk_static_field_query(clspath, fldname);
+			if(CESK_STORE_ADDR_NULL == sour)
+			{
+				LOG_ERROR("can not find static field named %s.%s", clspath, fldname);
+				return -1;
+			}
+			else 
+				LOG_DEBUG("find static field index #%u for %s.%s", CESK_FRAME_REG_STATIC_IDX(dest), clspath, fldname);
+			if(cesk_frame_static_load_from_register(frame, dest, sour, D, I) < 0)
+			{
+				LOG_ERROR("failed to write the static field %s.%s", clspath, fldname);
+				return -1;
+			}
+			return 0;
 		/* TODO other instance instructions, static things */
 		default:
 			LOG_ERROR("unknwon instruction flag %x", ins->flags);

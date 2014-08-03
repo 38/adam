@@ -570,23 +570,40 @@ static inline int _cesk_method_return(
 		const dalvik_block_branch_t* branch, 
 		const cesk_diff_t* input_diff)
 {
-	/* if this return instruction is not return-void, set the return code */
+	uint32_t regid;
+	uint32_t j;
+
+	/* TODO a linear search is waste of time, so we can replicate it using a binary search */
+
 	if(branch->left->header.info.type != DVM_OPERAND_TYPE_VOID)
+		regid = CESK_FRAME_GENERAL_REG(branch->left->payload.uint16);
+	else 
+		regid = CESK_STORE_ADDR_NULL;
+	/* find the register to return && forward static fields */
+	
+	for(j = input_diff->offset[CESK_DIFF_REG]; j < input_diff->offset[CESK_DIFF_REG + 1]; j ++)
 	{
-		uint32_t regid = CESK_FRAME_GENERAL_REG(branch->left->payload.uint16);
-		uint32_t j;
-		/* find the register to return */
-		for(j = input_diff->offset[CESK_DIFF_REG]; 
-			j < input_diff->offset[CESK_DIFF_REG + 1] &&
-			input_diff->data[j].addr < regid;
-			j ++);
-		/* if this register has been modified since last seen */
-		if(cesk_diff_buffer_append(context->result_buffer, CESK_DIFF_REG, CESK_FRAME_RESULT_REG, input_diff->data[j].arg.set) < 0)
+		/* if this record stands for static field changes, forward it */
+		if(CESK_FRAME_REG_IS_STATIC(input_diff->data[j].addr))
 		{
-			LOG_ERROR("can not append the new value to diff buffer");
-			return -1;
+			if(cesk_diff_buffer_append(context->result_buffer, CESK_DIFF_REG, input_diff->data[j].addr, input_diff->data[j].arg.set) < 0)
+			{
+				LOG_ERROR("can not forward static field #%u", CESK_FRAME_REG_STATIC_IDX(input_diff->data[j].addr));
+				return -1;
+			}
+			LOG_DEBUG("static field #%u has been forwarded", CESK_FRAME_REG_STATIC_IDX(input_diff->data[j].addr));
+		}
+		/* if we find the result bearing register and this return instruction is not return-void, set the return code */
+		if(input_diff->data[j].addr == regid && branch->left->header.info.type != DVM_OPERAND_TYPE_VOID)
+		{
+			if(cesk_diff_buffer_append(context->result_buffer, CESK_DIFF_REG, CESK_FRAME_RESULT_REG, input_diff->data[j].arg.set) < 0)
+			{
+				LOG_ERROR("can not append the new value to diff buffer");
+				return -1;
+			}
 		}
 	}
+	
 	/* forward the allocations */
 	uint32_t i;
 	for(i = input_diff->offset[CESK_DIFF_ALLOC]; i < input_diff->offset[CESK_DIFF_ALLOC + 1]; i ++)
@@ -663,7 +680,7 @@ cesk_diff_t* cesk_method_analyze(const dalvik_block_t* code, cesk_frame_t* frame
 	
 	context->front = 0, context->rear = 1;
 	context->Q[0] = code->index;
-	/* TODO: exception & static support & allocation */
+	/* TODO: exception */
 	
 	while(context->front < context->rear)
 	{
