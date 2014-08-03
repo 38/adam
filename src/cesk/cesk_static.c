@@ -388,8 +388,14 @@ static inline uint32_t _cesk_static_tree_next(const _cesk_static_tree_node_t* ro
 	for(level = 0;r[level] - l[level] > 1 && NULL != path[level]; level ++)
 	{
 		uint32_t m = (l[level] + r[level]) / 2;
-		if(start < m) r[level + 1] = m, path[level + 1] = path[level]->child[0];
-		else l[level + 1] = m, path[level + 1] = path[level]->child[1];
+		if(start < m) l[level + 1] = l[level], r[level + 1] = m, path[level + 1] = path[level]->child[0];
+		else l[level + 1] = m, r[level + 1] = r[level], path[level + 1] = path[level]->child[1];
+	}
+	/* if this index has been found in the tree, we do not need to find the larger node */
+	if(NULL != path[level] && path[level]->isleaf)
+	{
+		if(NULL != p_target) *p_target = path[level];
+		return l[level];
 	}
 	int i;
 	for(i = level - 1; i >= 0; i --)
@@ -680,7 +686,7 @@ static inline hashval_t _cesk_static_tree_compute_hash(const _cesk_static_tree_n
 	if(NULL == root) return 0;
 	if(root->isleaf) return _cesk_static_field_hashcode(left, root->value[0]);
 	else return _cesk_static_tree_compute_hash(root->child[0], left, (left + right) / 2) ^ 
-				_cesk_static_tree_compute_hash(root->child[0], (left + right) / 2, right);
+				_cesk_static_tree_compute_hash(root->child[1], (left + right) / 2, right);
 }
 hashval_t cesk_static_table_compute_hashcode(const cesk_static_table_t* table)
 {
