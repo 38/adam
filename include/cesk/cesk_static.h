@@ -46,9 +46,9 @@ void cesk_static_finalize();
  * @param class the name of the target class
  * @param field the field name of the target
  * @param initval wether or not the caller needs the initval
- * @return the field index, <0 indicates an error 
+ * @return the field address, CESK_STORE_ADDR_NULL indicates errors 
  **/
-int cesk_static_query_field(const char* class, const char* field, int initval);
+uint32_t cesk_static_field_query(const char* class, const char* field);
 /**
  * @brief make a copy for given static field table
  * @param table the source table, if the table is NULL we just create an empty static table

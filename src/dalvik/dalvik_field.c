@@ -49,13 +49,15 @@ dalvik_field_t* dalvik_field_from_sexp(const sexpression_t* sexp, const char* cl
 	if(SEXP_NIL != sexp)
 	{
 		/* it has a defualt value */
-		if(!sexp_match(sexp, "(A", &ret->default_value)) 
+		
+		if(!sexp_match(sexp, "(S?", &ret->default_value)) 
 		{
 			LOG_ERROR("can't parse default value");
 			goto ERR;
 		}
 		LOG_NOTICE("fixme: parse default value of a field");
 	}
+	else ret->default_value = SEXP_NIL;
 	return ret;
 ERR:
 	dalvik_field_free(ret);
