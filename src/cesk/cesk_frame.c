@@ -439,7 +439,8 @@ hashval_t cesk_frame_hashcode(const cesk_frame_t* frame)
 		mul *= MH_MULTIPLY;
 	}
 	ret ^= cesk_store_hashcode(frame->store);
-	return ret;
+	hashval_t static_hash = cesk_static_table_hashcode(frame->statics);
+	return ret ^ (static_hash * static_hash);
 }
 hashval_t cesk_frame_compute_hashcode(const cesk_frame_t* frame)
 {
@@ -452,7 +453,8 @@ hashval_t cesk_frame_compute_hashcode(const cesk_frame_t* frame)
 		mul *= MH_MULTIPLY;
 	}
 	ret ^= cesk_store_compute_hashcode(frame->store);
-	return ret;
+	hashval_t static_hash = cesk_static_table_compute_hashcode(frame->statics);
+	return ret ^ (static_hash * static_hash);
 }
 /**
  * @brief free a value set, this function should be called before modifying the value of register to a new set
@@ -587,42 +589,44 @@ int cesk_frame_apply_diff(
 					}
 					break;
 				case CESK_DIFF_REG:
-					LOG_DEBUG("setting register #%u to value %s", rec->addr, cesk_set_to_string(rec->arg.set, NULL, 0));
-					if(cesk_set_equal(frame->regs[rec->addr], rec->arg.set))
 					{
-						LOG_DEBUG("the register value is already the target value, no operation needed");
-						break;
-					}
-					if(NULL != invbuf && cesk_diff_buffer_append(invbuf, CESK_DIFF_REG, rec->addr, frame->regs[rec->addr]) < 0)
-					{
-						LOG_ERROR("can not append a new record for the inverse diff buf");
-						return -1;
-					}
-					if(NULL != fwdbuf && cesk_diff_buffer_append(fwdbuf, CESK_DIFF_REG, rec->addr, rec->arg.set) < 0)
-					{
-						LOG_ERROR("can not append a new record to the foward diff buffer");
-						return -1;
-					}
-					ret ++;
-					/* we need to make reference to the new values before the old register is freed, because
-					 * if we don't do this, some value which contains in both old register value and new register
-					 * value will die at after this, which leads the new register reference to a invalid address,
-					 * But if we initialize the refcount at this point, this won't happen */
-					if(_cesk_frame_set_ref(frame, rec->arg.set) < 0)
-					{
-						LOG_ERROR("can not make reference from the register %d", rec->addr);
-						return -1;
-					}
+						LOG_DEBUG("setting register #%u to value %s", rec->addr, cesk_set_to_string(rec->arg.set, NULL, 0));
+						if(cesk_set_equal(frame->regs[rec->addr], rec->arg.set))
+						{
+							LOG_DEBUG("the register value is already the target value, no operation needed");
+							break;
+						}
+						if(NULL != invbuf && cesk_diff_buffer_append(invbuf, CESK_DIFF_REG, rec->addr, frame->regs[rec->addr]) < 0)
+						{
+							LOG_ERROR("can not append a new record for the inverse diff buf");
+							return -1;
+						}
+						if(NULL != fwdbuf && cesk_diff_buffer_append(fwdbuf, CESK_DIFF_REG, rec->addr, rec->arg.set) < 0)
+						{
+							LOG_ERROR("can not append a new record to the foward diff buffer");
+							return -1;
+						}
+						ret ++;
+						/* we need to make reference to the new values before the old register is freed, because
+						 * if we don't do this, some value which contains in both old register value and new register
+						 * value will die at after this, which leads the new register reference to a invalid address,
+						 * But if we initialize the refcount at this point, this won't happen */
+						if(_cesk_frame_set_ref(frame, rec->arg.set) < 0)
+						{
+							LOG_ERROR("can not make reference from the register %d", rec->addr);
+							return -1;
+						}
 
-					if(_cesk_frame_free_set(frame, frame->regs[rec->addr]) < 0)
-					{
-						LOG_ERROR("can not clean the old value in the register %d", rec->addr);
-						return -1;
-					}
-					if(NULL == (frame->regs[rec->addr] = cesk_set_fork(rec->arg.set)))
-					{
-						LOG_ERROR("can not set the new value for register %d", rec->addr);
-						return -1;
+						if(_cesk_frame_free_set(frame, frame->regs[rec->addr]) < 0)
+						{
+							LOG_ERROR("can not clean the old value in the register %d", rec->addr);
+							return -1;
+						}
+						if(NULL == (frame->regs[rec->addr] = cesk_set_fork(rec->arg.set)))
+						{
+							LOG_ERROR("can not set the new value for register %d", rec->addr);
+							return -1;
+						}
 					}
 					break;
 				case CESK_DIFF_STORE:

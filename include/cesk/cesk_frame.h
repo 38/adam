@@ -27,6 +27,12 @@ typedef struct _cesk_frame_t cesk_frame_t;
  */
 #define CESK_FRAME_GENERAL_REG(id) (id + 2)
 
+/** special register number that used for static fields */
+/** @brief check if the address is an relocated address */
+#define CESK_FRAME_REG_IS_STATIC(id) ((id)&CESK_FRAME_REG_STATIC_PREFIX)
+/** @brief return the index of the static field */
+#define CESK_FRAME_REG_STATIC_IDX(id) ((id)&~CESK_FRAME_REG_STATIC_PREFIX)
+
 /** @brief A Stack Frame of The Dalvik CESK Machine */
 struct _cesk_frame_t{
 	uint32_t       size;     /*!<the number of registers in this frame */

@@ -9,6 +9,7 @@
 
 #include <cesk/cesk_static.h>
 #include <cesk/cesk_value.h>
+#include <cesk/cesk_frame.h>
 /* typeps */
 
 /** 
@@ -450,17 +451,17 @@ uint32_t cesk_static_field_query(const char* class, const char* field)
 	/* then we know the index of this field */
 	uint32_t index = field_desc->offset;
 	LOG_DEBUG("found static field map %s.%s --> 0x%x", class, field, index);
-	if(index >= CESK_STORE_ADDR_STATIC_SIZE)
+	if(index >= dalvik_static_field_count)
 	{
 		LOG_ERROR("the field index(0x%x) is beyound the static address boundary(0x%x), "
 				  "which must be a illegal static field", 
-				  index, (uint32_t)CESK_STORE_ADDR_STATIC_SIZE);
+				  index, dalvik_static_field_count);
 		return CESK_STORE_ADDR_NULL;
 	}
 	
 	/* if the initial value has been set already, or the caller do not need a initial value, just return the index */
 	if(CESK_STORE_ADDR_NULL != _cesk_static_default_value[index]) 
-		return (uint32_t)(CESK_STORE_ADDR_STATIC_PREFIX | index);
+		return (uint32_t)(CESK_FRAME_REG_STATIC_PREFIX | index);
 
 	/* otherwise we need to parse the initial value for this field */
 	const char* init_str = field_desc->default_value;
@@ -517,7 +518,7 @@ CONST_VALUE:
 		/* finally set the value */
 		_cesk_static_default_value[index] = addr;
 	}
-	return (uint32_t)(CESK_STORE_ADDR_STATIC_PREFIX | index);
+	return (uint32_t)(CESK_FRAME_REG_STATIC_PREFIX | index);
 }
 cesk_static_table_t* cesk_static_table_fork(const cesk_static_table_t* table)
 {
@@ -549,12 +550,12 @@ void cesk_static_table_free(cesk_static_table_t* table)
 }
 const cesk_set_t* cesk_static_table_get_ro(const cesk_static_table_t* table, uint32_t addr)
 {
-	if(NULL == table || !CESK_STORE_ADDR_IS_STATIC(addr))
+	if(NULL == table || !CESK_FRAME_REG_IS_STATIC(addr))
 	{
 		LOG_ERROR("invalid argument");
 		return NULL;
 	}
-	uint32_t idx = CESK_STORE_ADDR_STATIC_IDX(addr);
+	uint32_t idx = CESK_FRAME_REG_STATIC_IDX(addr);
 	if(idx >= dalvik_static_field_count)
 	{
 		LOG_ERROR("invalid static field address "PRSAddr", out of boundary", idx);
@@ -577,12 +578,12 @@ const cesk_set_t* cesk_static_table_get_ro(const cesk_static_table_t* table, uin
 }
 cesk_set_t** cesk_static_table_get_rw(cesk_static_table_t* table, uint32_t addr, int init)
 {
-	if(NULL == table || !CESK_STORE_ADDR_IS_STATIC(addr))
+	if(NULL == table || !CESK_FRAME_REG_IS_STATIC(addr))
 	{
 		LOG_ERROR("invalid argument");
 		return NULL;
 	}
-	uint32_t idx = CESK_STORE_ADDR_STATIC_IDX(addr);
+	uint32_t idx = CESK_FRAME_REG_STATIC_IDX(addr);
 	if(idx >= dalvik_static_field_count)
 	{
 		LOG_ERROR("invalid static field address "PRSAddr", out of boundary", idx);
@@ -613,12 +614,12 @@ cesk_set_t** cesk_static_table_get_rw(cesk_static_table_t* table, uint32_t addr,
 }
 int cesk_static_table_release_rw(cesk_static_table_t* table, uint32_t addr,  const cesk_set_t* value)
 {
-	if(NULL == table || !CESK_STORE_ADDR_IS_STATIC(addr) || NULL == value)
+	if(NULL == table || !CESK_FRAME_REG_IS_STATIC(addr) || NULL == value)
 	{
 		LOG_ERROR("invalid argument");
 		return -1;
 	}
-	uint32_t idx = CESK_STORE_ADDR_STATIC_IDX(addr);
+	uint32_t idx = CESK_FRAME_REG_STATIC_IDX(addr);
 	_cesk_static_table_update_hashcode(table, idx, value);
 	return 0;
 }
@@ -636,7 +637,7 @@ const cesk_set_t* cesk_static_table_iter_next(cesk_static_table_iter_t* iter, ui
 	uint32_t next_idx = _cesk_static_tree_next(iter->table->root, iter->begin, &node);
 	if(CESK_STORE_ADDR_NULL == next_idx) return NULL;
 	iter->begin = next_idx + 1;
-	if(NULL != paddr) *paddr = CESK_STORE_ADDR_STATIC_PREFIX | next_idx;
+	if(NULL != paddr) *paddr = CESK_FRAME_REG_STATIC_PREFIX | next_idx;
 	return node->value[0]; 
 }
 hashval_t cesk_static_table_hashcode(const cesk_static_table_t* table)
@@ -663,11 +664,11 @@ int cesk_static_table_equal(const cesk_static_table_t* left, const cesk_static_t
 	for(lset = cesk_static_table_iter_next(li, &laddr); lset != NULL; lset = cesk_static_table_iter_next(li, &laddr))
 	{
 		/* skip all fields that is actually the default value */
-		if(cesk_set_size(lset) == 1 && cesk_set_contain(lset, _cesk_static_default_value[CESK_STORE_ADDR_STATIC_IDX(laddr)])) 
+		if(cesk_set_size(lset) == 1 && cesk_set_contain(lset, _cesk_static_default_value[CESK_FRAME_REG_STATIC_IDX(laddr)])) 
 			continue;
 		for(; NULL != rset; rset = cesk_static_table_iter_next(ri, &raddr))
 		{
-			if(cesk_set_size(rset) == 1 && cesk_set_contain(rset, _cesk_static_default_value[CESK_STORE_ADDR_STATIC_IDX(raddr)]))
+			if(cesk_set_size(rset) == 1 && cesk_set_contain(rset, _cesk_static_default_value[CESK_FRAME_REG_STATIC_IDX(raddr)]))
 				continue;
 			/* if two store are the same, the next field of which the value has been changed should be the same */
 			if(laddr != raddr || !cesk_set_equal(lset, rset)) return 0;
@@ -675,7 +676,7 @@ int cesk_static_table_equal(const cesk_static_table_t* left, const cesk_static_t
 		}
 	}
 	/* there might be some default value in the end of the right operand, strip them */
-	for(; NULL != rset && cesk_set_size(rset) == 1 && cesk_set_contain(rset, _cesk_static_default_value[CESK_STORE_ADDR_STATIC_IDX(raddr)]);
+	for(; NULL != rset && cesk_set_size(rset) == 1 && cesk_set_contain(rset, _cesk_static_default_value[CESK_FRAME_REG_STATIC_IDX(raddr)]);
 	    rset = cesk_static_table_iter_next(ri, &raddr));
 	/* after that there shouldn't be any item not visited */
 	return NULL == lset && NULL == rset;

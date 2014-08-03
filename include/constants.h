@@ -85,9 +85,9 @@
 #	define CESK_STORE_ADDR_RELOC_PREFIX 0xff000000ul
 #endif
 
-#ifndef CESK_STORE_ADDR_STATIC_PREFIX
+#ifndef CESK_FRAME_REG_STATIC_PREFIX
 /** @brief the address prefix for a static address */
-#	define CESK_STORE_ADDR_STATIC_PREFIX 0xfe000000
+#	define CESK_FRAME_REG_STATIC_PREFIX 0x80000000
 #endif
 
 #ifndef CESK_SET_EMPTY_HASH

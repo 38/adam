@@ -15,15 +15,15 @@ int main()
 	assert(NULL != tab1);
 	/* then we try to fetch a static field from this table */
 	uint32_t addr_I723 = cesk_static_field_query(stringpool_query("case0"), stringpool_query("I723"));
-	assert(CESK_STORE_ADDR_IS_STATIC(addr_I723));
-	assert(addr_I723 == (CESK_STORE_ADDR_STATIC_PREFIX | 723));
+	assert(CESK_FRAME_REG_IS_STATIC(addr_I723));
+	assert(addr_I723 == (CESK_FRAME_REG_STATIC_PREFIX | 723));
 	const cesk_set_t* ro_ret = cesk_static_table_get_ro(tab1, addr_I723); 
 	assert(NULL != ro_ret);
 	assert(1 == cesk_set_size(ro_ret));
 	assert(cesk_set_contain(ro_ret, CESK_STORE_ADDR_POS));
 	
 	uint32_t addr_B999 = cesk_static_field_query(stringpool_query("case0"), stringpool_query("B999"));
-	assert(addr_B999 == (CESK_STORE_ADDR_STATIC_PREFIX |  1999));
+	assert(addr_B999 == (CESK_FRAME_REG_STATIC_PREFIX |  1999));
 	ro_ret = cesk_static_table_get_ro(tab1, addr_B999); 
 	assert(NULL != ro_ret);
 	assert(1 == cesk_set_size(ro_ret));
@@ -63,18 +63,18 @@ int main()
 	cesk_static_table_iter_t iter;
 	assert(NULL != cesk_static_table_iter(tab2, &iter));
 	assert(ro_ret = cesk_static_table_iter_next(&iter, &addr));
-	assert(addr == (CESK_STORE_ADDR_STATIC_PREFIX | 723));
+	assert(addr == (CESK_FRAME_REG_STATIC_PREFIX | 723));
 	assert(ro_ret = cesk_static_table_iter_next(&iter, &addr));
-	assert(addr == (CESK_STORE_ADDR_STATIC_PREFIX | 724));
+	assert(addr == (CESK_FRAME_REG_STATIC_PREFIX | 724));
 	assert(ro_ret = cesk_static_table_iter_next(&iter, &addr));
-	assert(addr == (CESK_STORE_ADDR_STATIC_PREFIX | 1999));
+	assert(addr == (CESK_FRAME_REG_STATIC_PREFIX | 1999));
 	assert(NULL == cesk_static_table_iter_next(&iter, &addr));
 
 	assert(NULL != cesk_static_table_iter(tab1, &iter));
 	assert(ro_ret = cesk_static_table_iter_next(&iter, &addr));
-	assert(addr == (CESK_STORE_ADDR_STATIC_PREFIX | 723));
+	assert(addr == (CESK_FRAME_REG_STATIC_PREFIX | 723));
 	assert(ro_ret = cesk_static_table_iter_next(&iter, &addr));
-	assert(addr == (CESK_STORE_ADDR_STATIC_PREFIX | 1999));
+	assert(addr == (CESK_FRAME_REG_STATIC_PREFIX | 1999));
 	assert(NULL == cesk_static_table_iter_next(&iter, &addr));
 
 	/* check the hash code */
