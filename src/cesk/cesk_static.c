@@ -558,17 +558,17 @@ const cesk_set_t* cesk_static_table_get_ro(const cesk_static_table_t* table, uin
 	uint32_t idx = CESK_FRAME_REG_STATIC_IDX(addr);
 	if(idx >= dalvik_static_field_count)
 	{
-		LOG_ERROR("invalid static field address "PRSAddr", out of boundary", idx);
+		LOG_ERROR("invalid static field index #%u, out of boundary", idx);
 		return NULL;
 	}
 	const _cesk_static_tree_node_t* node = _cesk_static_tree_node_find(table->root, idx);
 	if(NULL == node)
 	{
-		LOG_DEBUG("static field %u hasn't been initliazed, initialize it now", idx);
+		LOG_DEBUG("static field #%u hasn't been initliazed, initialize it now", idx);
 		node = _cesk_static_table_init_field((cesk_static_table_t*)table, idx, 1); 
 		if(NULL == node)
 		{
-			LOG_ERROR("can not initialize static field %u", idx);
+			LOG_ERROR("can not initialize static field #%u", idx);
 			return NULL;
 		}
 		/* because we ignore the default value, so that we do not need to update the hashcode */
@@ -586,7 +586,7 @@ cesk_set_t** cesk_static_table_get_rw(cesk_static_table_t* table, uint32_t addr,
 	uint32_t idx = CESK_FRAME_REG_STATIC_IDX(addr);
 	if(idx >= dalvik_static_field_count)
 	{
-		LOG_ERROR("invalid static field address "PRSAddr", out of boundary", idx);
+		LOG_ERROR("invalid static field address #%u, out of boundary", idx);
 		return NULL;
 	}
 	_cesk_static_tree_node_t* target;
@@ -600,11 +600,11 @@ cesk_set_t** cesk_static_table_get_rw(cesk_static_table_t* table, uint32_t addr,
 	/* if the node remains uninitialized */
 	if(NULL == target)
 	{
-		LOG_DEBUG("static field %u hasn't been initliazed, initialize it now", idx);
+		LOG_DEBUG("static field #%u hasn't been initliazed, initialize it now", idx);
 		target = _cesk_static_table_init_field(table, idx, init);
 		if(NULL == target)
 		{
-			LOG_ERROR("can not initialize static field %u", idx);
+			LOG_ERROR("can not initialize static field #%u", idx);
 			return NULL;
 		}
 	}

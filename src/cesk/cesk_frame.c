@@ -589,6 +589,8 @@ int cesk_frame_apply_diff(
 					}
 					break;
 				case CESK_DIFF_REG:
+					/* if this is a real register */
+					if(!CESK_FRAME_REG_IS_STATIC(rec->addr))
 					{
 						LOG_DEBUG("setting register #%u to value %s", rec->addr, cesk_set_to_string(rec->arg.set, NULL, 0));
 						if(cesk_set_equal(frame->regs[rec->addr], rec->arg.set))
@@ -625,6 +627,71 @@ int cesk_frame_apply_diff(
 						if(NULL == (frame->regs[rec->addr] = cesk_set_fork(rec->arg.set)))
 						{
 							LOG_ERROR("can not set the new value for register %d", rec->addr);
+							return -1;
+						}
+					}
+					/* otherwise this register is a static field actually */
+					else
+					{
+						LOG_DEBUG("setting static field #%u to value %s", CESK_FRAME_REG_STATIC_IDX(rec->addr), cesk_set_to_string(rec->arg.set, NULL, 0));
+						const cesk_set_t* old_value = cesk_static_table_get_ro(frame->statics, rec->addr);
+						if(NULL == old_value)
+						{
+							LOG_ERROR("I can not get the value of field #%u, aborting", CESK_FRAME_REG_STATIC_IDX(rec->addr));
+							return -1;
+						}
+						if(cesk_set_equal(old_value, rec->arg.set))
+						{
+							LOG_DEBUG("the field value is already the target value, no operation need");
+							break;
+						}
+						if(NULL != invbuf && cesk_diff_buffer_append(invbuf, CESK_DIFF_REG, rec->addr, old_value))
+						{
+							LOG_ERROR("can not append a new record to the inverse diff buf");
+							return -1;
+						}
+						if(NULL != fwdbuf && cesk_diff_buffer_append(fwdbuf, CESK_DIFF_REG, rec->addr, rec->arg.set))
+						{
+							LOG_ERROR("can not append a new record to the foward diff buf");
+							return -1;
+						}
+						ret ++;
+						/* change the frame! */
+						/* becuase we should keep all value that is in use safe, so we first make reference for new value 
+						 * and then derefernce the old_value */
+						if(_cesk_frame_set_ref(frame, rec->arg.set) < 0)
+						{
+							LOG_ERROR("can not make reference from the static field #%u", CESK_FRAME_REG_STATIC_IDX(rec->addr));
+							return -1;
+						}
+						/* this slot has been created before this function call, so the last param wouldn't have any effect */
+						cesk_set_t** slot = cesk_static_table_get_rw(frame->statics, rec->addr, 1);
+						if(NULL == slot)
+						{
+							LOG_ERROR("I can not get a write pointer to the slot for field #%u", CESK_FRAME_REG_STATIC_IDX(rec->addr));
+							return -1;
+						}
+						if(NULL == *slot)
+						{
+							LOG_ERROR("The slot contains no set? This is impossible");
+							return -1;
+						}
+						/* derefernce from the old value */
+						if(_cesk_frame_free_set(frame, *slot) < 0)
+						{
+							LOG_ERROR("can not derefernce from the old value of static field #%u", CESK_FRAME_REG_STATIC_IDX(rec->addr));
+							return -1;
+						}
+						/* set the new value */
+						if(NULL == (*slot = cesk_set_fork(rec->arg.set)))
+						{
+							LOG_ERROR("can not set the new value to field #%u", CESK_FRAME_REG_STATIC_IDX(rec->addr));
+							return -1;
+						}
+						/* finally, we need to clean up the field reference */
+						if(cesk_static_table_release_rw(frame->statics, rec->addr, *slot) < 0)
+						{
+							LOG_ERROR("can not release the field reference at static field #%u", CESK_FRAME_REG_STATIC_IDX(rec->addr));
 							return -1;
 						}
 					}

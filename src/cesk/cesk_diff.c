@@ -72,7 +72,7 @@ void cesk_diff_buffer_free(cesk_diff_buffer_t* mem)
 	if(pret > buf + sz - p) pret = buf + sz - p;\
 	p += pret;\
 }while(0)
-static inline const char* _cesk_diff_record_to_string(int type, int addr, void* value, char* buf, int sz)
+static inline const char* _cesk_diff_record_to_string(int type, int addr, const void* value, char* buf, int sz)
 {
 	static char _buf[1024];
 	if(NULL == buf)
@@ -127,7 +127,7 @@ const char* cesk_diff_to_string(const cesk_diff_t* diff, char* buf, int sz)
 	return buf;
 }
 #undef __PR
-int cesk_diff_buffer_append(cesk_diff_buffer_t* buffer, int type, uint32_t addr, void* value)
+int cesk_diff_buffer_append(cesk_diff_buffer_t* buffer, int type, uint32_t addr, const void* value)
 {
 	if(NULL == buffer) 
 	{
@@ -147,7 +147,7 @@ int cesk_diff_buffer_append(cesk_diff_buffer_t* buffer, int type, uint32_t addr,
 	_cesk_diff_node_t node = {
 		.type = type,
 		.addr = addr,
-		.value = value,
+		.value = (void*)value,
 		.time = vector_size(buffer->buffer)
 	};
 	if(buffer->reverse) node.time = -node.time;  /* so we reverse the time order */
@@ -156,7 +156,7 @@ int cesk_diff_buffer_append(cesk_diff_buffer_t* buffer, int type, uint32_t addr,
 	LOG_DEBUG("append a new record to the buffer %s, timestamp = %d", _cesk_diff_record_to_string(type, addr, value, NULL, 0), node.time);
 	return vector_pushback(buffer->buffer, &node);
 }
-void* cesk_diff_buffer_append_peek(cesk_diff_buffer_t* buffer, int type, uint32_t addr, void* value)
+const void* cesk_diff_buffer_append_peek(cesk_diff_buffer_t* buffer, int type, uint32_t addr, const void* value)
 {
 	if(cesk_diff_buffer_append(buffer, type, addr, value) < 0)
 	{

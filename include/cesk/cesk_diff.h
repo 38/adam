@@ -97,7 +97,7 @@ void cesk_diff_buffer_free(cesk_diff_buffer_t* buffer);
  * @param value the value if there's one
  * @return < 0 indicates an error
  **/
-int cesk_diff_buffer_append(cesk_diff_buffer_t* buffer,int type, uint32_t addr, void* value);
+int cesk_diff_buffer_append(cesk_diff_buffer_t* buffer,int type, uint32_t addr, const void* value);
 /**
  * @brief similar to the cesk_diff_buffer_append, but return the newly inserted value instead of error code
  * @param buffer the diff buffer
@@ -110,7 +110,7 @@ int cesk_diff_buffer_append(cesk_diff_buffer_t* buffer,int type, uint32_t addr, 
  *       (reuse and deallocate), the NULL return value won't be an indicator of abnormal routine
  *       has been activated
  */
-void* cesk_diff_buffer_append_peek(cesk_diff_buffer_t* buffer, int type, uint32_t addr, void* value);
+const void* cesk_diff_buffer_append_peek(cesk_diff_buffer_t* buffer, int type, uint32_t addr, const void* value);
 /**
  * @brief construct a new cesk_diff_t according to a given diff buffer
  * @param buffer the diff buffer
