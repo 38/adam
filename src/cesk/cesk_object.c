@@ -25,7 +25,7 @@ cesk_object_t* cesk_object_new(const char* classpath)
 	/* find classes inherent relationship, and determine its memory layout */
 	for(;;)
 	{
-		LOG_NOTICE("try to find class %s", classpath);
+		LOG_DEBUG("try to find class %s", classpath);
 		const dalvik_class_t* target_class = dalvik_memberdict_get_class(classpath);
 		if(NULL == target_class)
 		{
@@ -57,7 +57,7 @@ cesk_object_t* cesk_object_new(const char* classpath)
 			LOG_ERROR("a class with inherent from more than 1024 classes? are you kidding me?");
 			return NULL;
 		}
-		LOG_INFO("found class %s at %p", classpath, target_class);
+		LOG_DEBUG("found class %s at %p", classpath, target_class);
 		classpath = target_class->super;
 	}
 	/* compute the size required for this instance */
