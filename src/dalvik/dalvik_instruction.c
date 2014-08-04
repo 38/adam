@@ -913,12 +913,12 @@ __DI_CONSTRUCTOR(INVOKE)
 			__DI_SETUP_OPERANDPTR(1, DVM_OPERAND_FLAG_CONST |
 								  DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_FIELD),
 								  field);
-			if(sexp_match(args, "(L?L?", &reg1, &reg2))
+			if(sexp_match(args, "(L?L?", &reg1, &reg2)) // {vX .. vY}
 			{
 				reg_from = __DI_REGNUM(reg1);
 				reg_to   = __DI_REGNUM(reg2);
 			}
-			else if(sexp_match(args, "(L?", &reg1))
+			else if(sexp_match(args, "(L?", &reg1)) //{vX}
 			{
 				reg_from = reg_to = __DI_REGNUM(reg1);
 			}

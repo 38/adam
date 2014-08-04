@@ -145,11 +145,14 @@ ERR:
 }
 cesk_frame_t* cesk_frame_make_invoke(const cesk_frame_t* frame, uint32_t nregs, uint32_t nargs, cesk_set_t** args)
 {
+	uint32_t stage = 0;
+	uint32_t regcnt = 0;
+	int i;
 	/* make sure the invocation argument is valid */
 	if(NULL == frame || nregs > 65536 || nargs > nregs || NULL == args)
 	{
-		LOG_ERROR("invalid argument");
-		return 0;
+		LOG_ERROR("invalid argument (frame = %p, nregs = %u, nargs = %u, args = %p)", frame, nregs, nargs, args);
+		return NULL;
 	}
 	/* memory allocation */
 	cesk_frame_t* ret = (cesk_frame_t*)malloc(sizeof(cesk_frame_t) + (nregs + 2) * sizeof(cesk_set_t*));
@@ -161,7 +164,7 @@ cesk_frame_t* cesk_frame_make_invoke(const cesk_frame_t* frame, uint32_t nregs, 
 	/* we have result and exception resiter */
 	ret->size = nregs + 2;
 	/* register init */
-	int i;
+	stage = 1;
 	/* first part is the register that does not carry a parameter */
 	for(i = 0; i < ret->size - nargs; i ++)
 	{
@@ -178,10 +181,11 @@ cesk_frame_t* cesk_frame_make_invoke(const cesk_frame_t* frame, uint32_t nregs, 
 		ret->regs[i] = args[i - ret->size + nargs];
 		if(NULL == ret->regs[i])
 		{
-			LOG_ERROR("invalid argument list");
+			LOG_ERROR("invalid argument #%d", i);
 			goto ERR;
 		}
 	}
+	stage = 2;
 	/* store init */
 	ret->store = cesk_store_fork(frame->store);
 	if(NULL == ret->store)
@@ -218,6 +222,7 @@ cesk_frame_t* cesk_frame_make_invoke(const cesk_frame_t* frame, uint32_t nregs, 
 			}
 		}
 	}
+	stage = 3;
 	/* in addition, we should copy the static field */
 	ret->statics = cesk_static_table_fork(frame->statics);
 	if(NULL == ret->statics)
@@ -225,6 +230,7 @@ cesk_frame_t* cesk_frame_make_invoke(const cesk_frame_t* frame, uint32_t nregs, 
 		LOG_ERROR("can not copy the static field table");
 		goto ERR;
 	}
+	stage = 4;
 	/* apply the allocation table toe the store */
 	if(cesk_store_apply_alloctab(ret->store) < 0)
 	{
@@ -239,17 +245,17 @@ cesk_frame_t* cesk_frame_make_invoke(const cesk_frame_t* frame, uint32_t nregs, 
 	}
 	return ret;
 ERR:
-	if(NULL != ret)
+	switch(stage)
 	{
-		for(i = 0; i < ret->size; i ++)
-			if(NULL != ret->regs[i])
-				cesk_set_free(ret->regs[i]);
-		if(NULL != ret->store)
-			cesk_store_free(ret->store);
-		if(NULL != ret->statics)
-			cesk_static_table_free(ret->statics);
-		free(ret);
+		case 4: cesk_static_table_free(frame->statics);
+		case 3: cesk_store_free(frame->store);
+		case 2: regcnt = ret->size; break;
+		case 1: regcnt = i; break;
+		case 0: break;
 	}
+	printf("%d\n", regcnt);
+	for(i = 0; i < regcnt; i ++)
+		cesk_set_free(frame->regs[i]);
 	return NULL;
 }
 

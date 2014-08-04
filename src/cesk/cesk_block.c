@@ -950,8 +950,24 @@ static inline int _cesk_block_handler_invoke(
 			LOG_INFO("function invocation %s/%s", classpath, methodname);
 			if(ins->flags & DVM_FLAG_INVOKE_RANGE)
 			{
-				/* TODO range invocation support */
-				LOG_TRACE("fixme: We need range invocation support");
+				uint32_t nregs = code->nregs;
+				uint32_t arg_from  = ins->operands[4].payload.uint16;
+				uint32_t arg_to    = ins->operands[5].payload.uint16;
+				uint32_t nargs     = arg_to - arg_from + 1;
+				static cesk_set_t* args[65536] = {};
+				int i;
+				for(i = arg_from; i <= arg_to; i ++)
+				{
+					args[i - arg_from] = cesk_set_fork(frame->regs[i]);
+					if(NULL == args[i - arg_from]) goto PARAMERR_RANGE;
+				}
+				callee_frame = cesk_frame_make_invoke(frame, nregs, nargs, args);
+				break;
+PARAMERR_RANGE:
+				LOG_ERROR("can not create argument list");
+				for(i = 0; i < nargs; i ++)
+					if(NULL != args[i]) cesk_set_free(args[i]);
+				goto ERR;
 			}
 			else
 			{
