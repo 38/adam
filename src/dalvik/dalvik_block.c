@@ -688,7 +688,7 @@ dalvik_block_t* dalvik_block_from_method(const char* classpath, const char* meth
 	const dalvik_method_t* method = dalvik_memberdict_get_method(classpath, methodname, typelist, rtype);
 	if(NULL == method) 
 	{
-		LOG_ERROR("can not find method %s/%s", classpath, methodname);
+		LOG_DEBUG("can not find method %s/%s", classpath, methodname);
 		return NULL;
 	}
 	LOG_DEBUG("find method %s/%s, entry point@%d", classpath, methodname, method->entry);

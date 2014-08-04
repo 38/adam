@@ -908,6 +908,180 @@ ERR:
 	return NULL;
 }
 /**
+ * @breif the address field of method partition heap
+ **/
+static uint32_t _cesk_block_method_heap_addr[CESK_BLOCK_METHOD_PARTITION_HEAP_SIZE];
+/**
+ * @brief the name field of method partition heap
+ **/
+static const dalvik_block_t* _cesk_block_method_heap_code[CESK_BLOCK_METHOD_PARTITION_HEAP_SIZE];
+/**
+ * @brief the size of method partition heap
+ **/
+static uint32_t _cesk_block_method_heap_size;
+/**
+ * @brief compare two entity in the method partition heap
+ * @param a the subscript of the first operand
+ * @param b the subscript of the second operand
+ * @return the result of comparasion 
+ **/
+static inline int _cesk_block_method_heap_compare(int a, int b)
+{
+	if(_cesk_block_method_heap_code[a] > _cesk_block_method_heap_code[b]) return 1;
+	if(_cesk_block_method_heap_code[a] < _cesk_block_method_heap_code[b]) return -1;
+	if(_cesk_block_method_heap_addr[a] > _cesk_block_method_heap_addr[b]) return 1;
+	if(_cesk_block_method_heap_addr[a] < _cesk_block_method_heap_addr[b]) return -1;
+	return 0;
+}
+/**
+ * @brief the incrase operation 
+ * @param node the index of the node we start with
+ * @return nothing
+ **/
+static inline void _cesk_block_method_heap_incrase(int node)
+{
+	for(;node < _cesk_block_method_heap_size;)
+	{
+		int next = node;
+		if(node * 2 + 1 < _cesk_block_method_heap_size && _cesk_block_method_heap_compare(next, node * 2 + 1) > 0) next = node * 2 + 1;
+		if(node * 2 + 2 < _cesk_block_method_heap_size && _cesk_block_method_heap_compare(next, node * 2 + 2) > 0) next = node * 2 + 2;
+		if(node == next) break;
+		uint32_t tmp_addr = _cesk_block_method_heap_addr[node];
+		const dalvik_block_t* tmp_code = _cesk_block_method_heap_code[node];
+		_cesk_block_method_heap_addr[node] = _cesk_block_method_heap_addr[next];
+		_cesk_block_method_heap_code[node] = _cesk_block_method_heap_code[next];
+		_cesk_block_method_heap_addr[next] = tmp_addr;
+		_cesk_block_method_heap_code[next] = tmp_code;
+		node = next;
+	}
+}
+/**
+ * @brief initialize the method partitionizer 
+ * @return nothing
+ **/
+static inline void _cesk_block_method_heap_init()
+{
+	int i;
+	for(i = _cesk_block_method_heap_size / 2; i >= 0;i --)
+		_cesk_block_method_heap_incrase(i);
+}
+/**
+ * @brief get a group address of which the code fields are the same
+ * @param p_code the buffer to pass the code to caller
+ * @return the result set, NULL if there's no more group
+ **/
+static inline cesk_set_t* _cesk_block_method_heap_get_partition(const dalvik_block_t** p_code)
+{
+	if(_cesk_block_method_heap_size == 0) return NULL;
+	cesk_set_t* ret = cesk_set_empty_set();
+	*p_code = _cesk_block_method_heap_code[0];
+	for(;_cesk_block_method_heap_size > 0 && _cesk_block_method_heap_code[0] == *p_code;)
+	{
+		cesk_set_push(ret, _cesk_block_method_heap_addr[0]);
+		_cesk_block_method_heap_addr[0] = _cesk_block_method_heap_addr[_cesk_block_method_heap_size - 1];
+		_cesk_block_method_heap_code[0] = _cesk_block_method_heap_code[_cesk_block_method_heap_size - 1];
+		_cesk_block_method_heap_incrase(0);
+	}
+	return ret;
+}
+/**
+ * @brief find proper methods for the function call
+ * @param inst the invoke instruction
+ * @param frame current stack frame
+ * @param code the code buffer
+ * @param self the self pointer buffer
+ * @return the number of method adopted, < 0 indicates errors
+ **/
+static inline int _cesk_block_find_invoke_method(const dalvik_instruction_t* ins, const cesk_frame_t* frame, const dalvik_block_t** code, cesk_set_t** self)
+{
+	const char* classpath = ins->operands[0].payload.methpath;
+	const char* methodname = ins->operands[1].payload.methpath;
+	const dalvik_type_t* const * typelist = ins->operands[2].payload.typelist;
+	const dalvik_type_t* rtype = ins->operands[3].payload.type;
+	
+	if(NULL == classpath || NULL == methodname || NULL == typelist)
+	{
+		LOG_ERROR("invalid instruction format");
+		return -1;
+	}
+
+	
+	_cesk_block_method_heap_size = 0;
+
+	int ret = 0;
+
+	switch(ins->flags & DVM_FLAG_INVOKE_TYPE_MSK)
+	{
+		case DVM_FLAG_INVOKE_DIRECT:
+		case DVM_FLAG_INVOKE_VIRTUAL:
+		case DVM_FLAG_INVOKE_INTERFACE:
+			if(ins->num_operands - 4 == 0)
+			{
+				LOG_ERROR("are you trying call a non-static function without a self-pointer? But I don't know how to find the function");
+				return -1;
+			}
+			/* compiler always produces check-cast instruction during the type cast, so we can assume all invoke-direct instruction are legal */
+			if(DVM_FLAG_INVOKE_DIRECT == (ins->flags & DVM_FLAG_INVOKE_TYPE_MSK)) goto STATIC_INVOKE;
+			/* only invoke-virtual and invoke-interface can be here */
+			const cesk_set_t* this = frame->regs[CESK_FRAME_GENERAL_REG(ins->operands[4].payload.uint16)];
+			cesk_set_iter_t iter;
+			if(NULL == cesk_set_iter(this, &iter))
+			{
+				LOG_ERROR("can not read register v%d", CESK_FRAME_GENERAL_REG(ins->operands[4].payload.uint16));
+				return -1;
+			}
+			uint32_t addr;
+			while(CESK_STORE_ADDR_NULL != (addr = cesk_set_iter_next(&iter)))
+			{
+				cesk_value_const_t* value = cesk_store_get_ro(frame->store, addr);
+				if(NULL == value || value->type != CESK_TYPE_OBJECT)
+				{
+					LOG_WARNING("ignore non-object value "PRSAddr, addr);
+					continue;
+				}
+				const cesk_object_t* object = value->pointer.object;
+				const cesk_object_struct_t* current = object->members;
+				int i;
+				_cesk_block_method_heap_addr[_cesk_block_method_heap_size] = addr;
+				for(i = 0; i < object->depth; i ++)
+				{
+					const char* clspath = current->class.path->value;
+					_cesk_block_method_heap_code[_cesk_block_method_heap_size] = dalvik_block_from_method(clspath, methodname, typelist, rtype);
+					if(NULL != _cesk_block_method_heap_code[_cesk_block_method_heap_size]) 
+					{
+						LOG_DEBUG("method %s.%s is actually adopted for address " PRSAddr, clspath, methodname, addr);
+						break;
+					}
+					CESK_OBJECT_STRUCT_ADVANCE(current);
+				}
+				if(i == object->depth)
+					LOG_WARNING("can not found target method %s.%s for object, ignore this address"PRSAddr, classpath, methodname, addr);
+				else 
+					_cesk_block_method_heap_size ++;
+			}
+			_cesk_block_method_heap_init();
+			for(;NULL != (self[ret] = _cesk_block_method_heap_get_partition(code + ret)); ret ++);
+			break;
+		case DVM_FLAG_INVOKE_STATIC:
+STATIC_INVOKE:
+			self[0] = NULL;
+			ret = 1;   /* there's only function might be called */
+			code[0] = dalvik_block_from_method(classpath, methodname, typelist, rtype);
+			if(NULL == code)
+			{
+				LOG_ERROR("can not find the method!");
+				return -1;
+			}
+			LOG_DEBUG("direct function call %s/%s ", classpath, methodname);
+			break;
+		default:
+			LOG_ERROR("unsupported invocation type");
+			return -1;
+	}
+
+	return ret;
+}
+/**
  * @brief the instruction handler for function calls
  * @param ins current instruction
  * @param frame current stack frame
@@ -925,104 +1099,92 @@ static inline int _cesk_block_handler_invoke(
 		cesk_diff_buffer_t* I,
 		const void* context)
 {
-	const char* classpath = ins->operands[0].payload.methpath;
-	const char* methodname = ins->operands[1].payload.methpath;
-	const dalvik_type_t* const * typelist = ins->operands[2].payload.typelist;
-	const dalvik_type_t* rtype = ins->operands[3].payload.type;
-	if(NULL == classpath || NULL == methodname || NULL == typelist)
+	int i;
+	uint32_t nregs;
+	uint32_t nargs;
+	static cesk_set_t* args[65536] = {};
+	
+	const dalvik_block_t* code[CESK_BLOCK_MAX_NUM_OF_FUNC];
+	cesk_set_t  * this[CESK_BLOCK_MAX_NUM_OF_FUNC];
+	int nfunc = _cesk_block_find_invoke_method(ins, frame, code, this);
+	if(nfunc < 0)
 	{
-		LOG_ERROR("invalid instruction format");
+		LOG_ERROR("can not find method to call");
 		return -1;
 	}
-	const dalvik_block_t* code = NULL;
-	cesk_frame_t* callee_frame = NULL;
-	/* currently, we only consider the static and direct invocation */
-	switch(ins->flags & DVM_FLAG_INVOKE_TYPE_MSK)
+	
+
+	/** TODO invoke */
+	int k;
+	cesk_diff_t* result = NULL;
+	for(k = 0; k < nfunc; k ++)
 	{
-		case DVM_FLAG_INVOKE_STATIC:
-		case DVM_FLAG_INVOKE_DIRECT:
-			code = dalvik_block_from_method(classpath, methodname, typelist, rtype);
-			if(NULL == code)
+		
+		/* make a param list */
+		cesk_frame_t* callee_frame = NULL;
+		nregs = code[k]->nregs;
+		if(ins->flags & DVM_FLAG_INVOKE_RANGE)
+		{
+			uint32_t arg_from  = ins->operands[4].payload.uint16;
+			uint32_t arg_to    = ins->operands[5].payload.uint16;
+			nargs = arg_to - arg_from + 1;
+			for(i = arg_from; i <= arg_to; i ++)
 			{
-				LOG_ERROR("can not find the method!");
-				break;
+				args[i - arg_from] = cesk_set_fork(frame->regs[i]);
+				if(NULL == args[i - arg_from]) goto PARAMERR_RANGE;
 			}
-			LOG_INFO("function invocation %s/%s", classpath, methodname);
-			if(ins->flags & DVM_FLAG_INVOKE_RANGE)
+		}
+		else
+		{
+			nargs = ins->num_operands - 4;
+			for(i = 0; i < nargs; i ++)
 			{
-				uint32_t nregs = code->nregs;
-				uint32_t arg_from  = ins->operands[4].payload.uint16;
-				uint32_t arg_to    = ins->operands[5].payload.uint16;
-				uint32_t nargs     = arg_to - arg_from + 1;
-				static cesk_set_t* args[65536] = {};
-				int i;
-				for(i = arg_from; i <= arg_to; i ++)
-				{
-					args[i - arg_from] = cesk_set_fork(frame->regs[i]);
-					if(NULL == args[i - arg_from]) goto PARAMERR_RANGE;
-				}
-				callee_frame = cesk_frame_make_invoke(frame, nregs, nargs, args);
-				break;
-PARAMERR_RANGE:
-				LOG_ERROR("can not create argument list");
-				for(i = 0; i < nargs; i ++)
-					if(NULL != args[i]) cesk_set_free(args[i]);
-				goto ERR;
+				uint32_t regnum = CESK_FRAME_GENERAL_REG(ins->operands[i + 4].payload.uint16);
+				args[i] = cesk_set_fork(frame->regs[regnum]);
+				if(NULL == args[i]) goto PARAMERR;
 			}
-			else
-			{
-				uint32_t nregs = code->nregs;
-				uint32_t nargs = ins->num_operands - 4;
-				cesk_set_t* args[16] = {};
-				int i;
-				for(i = 0; i < nargs; i ++)
-				{
-					uint32_t regnum = CESK_FRAME_GENERAL_REG(ins->operands[i + 4].payload.uint16);
-					args[i] = cesk_set_fork(frame->regs[regnum]);
-					if(NULL == args[i]) goto PARAMERR;
-				}
-				callee_frame = cesk_frame_make_invoke(frame, nregs, nargs, args);
-				break;
-PARAMERR:
-				LOG_ERROR("can not create argument list"); 
-				for(i = 0; i < nargs; i ++)
-					if(NULL != args[i]) cesk_set_free(args[i]);
-				goto ERR;
-			}
-			break;
-		default:
-			LOG_ERROR("unsupported invocation type");
+		}
+		callee_frame = cesk_frame_make_invoke(frame, nregs, nargs, args);
+		if(NULL == callee_frame || NULL == code)
+		{
+			LOG_ERROR("can not invoke the function");
 			goto ERR;
+		}
+
+		/* do function call */
+		cesk_reloc_table_t* callee_rtable;
+		result = cesk_method_analyze(code[k], callee_frame, context, &callee_rtable);
+		if(NULL == result)
+		{
+			LOG_ERROR("can not analyze the function invocation");
+			goto ERR;
+		}
+		/* TODO merge the result */
+		result = _cesk_block_invoke_result_translate(ins, frame, rtab, callee_rtable,result);
+		if(NULL == result)
+		{
+			LOG_ERROR("can not traslate the result diff to interal diff");
+			goto ERR;
+		}
+		cesk_frame_free(callee_frame);
 	}
-	if(NULL == callee_frame || NULL == code)
-	{
-		LOG_ERROR("can not invoke the function");
-		goto ERR;
-	}
-	static int cnt = 0;
-	cnt ++;
-	cesk_reloc_table_t* callee_rtable;
-	cesk_diff_t* result = cesk_method_analyze(code, callee_frame, context, &callee_rtable);
-	if(NULL == result)
-	{
-		LOG_ERROR("can not analyze the function invocation");
-		goto ERR;
-	}
-	result = _cesk_block_invoke_result_translate(ins, frame, rtab, callee_rtable,result);
-	if(NULL == result)
-	{
-		LOG_ERROR("can not traslate the result diff to interal diff");
-		goto ERR;
-	}
-	/* TODO maintain the rtable to pass the newly created object in the subroutine to the caller */
+
 	if(cesk_frame_apply_diff(frame, result, rtab, D, I) < 0)
 	{
 		LOG_ERROR("can not apply the result diff to the frame");
 		return -1;
 	}
-	cesk_frame_free(callee_frame);
 	cesk_diff_free(result);
 	return 0;
+PARAMERR:
+	LOG_ERROR("can not create argument list"); 
+	for(i = 0; i < nargs; i ++)
+		if(NULL != args[i]) cesk_set_free(args[i]);
+	goto ERR;
+PARAMERR_RANGE:
+	LOG_ERROR("can not create argument list");
+	for(i = 0; i < nargs; i ++)
+		if(NULL != args[i]) cesk_set_free(args[i]);
 ERR:
 	return -1;
 }

@@ -133,6 +133,16 @@
 #	define CESK_RELOC_HASH_SIZE 655217
 #endif
 
+#ifndef CESK_BLOCK_MAX_NUM_OF_FUNC
+/** @brief the max number of function the invoke function can handle (because the virtual function call can refer to different function in a single instruction) */
+#	define CESK_BLOCK_MAX_NUM_OF_FUNC 128
+#endif
+
+#ifndef CESK_BLOCK_METHOD_PARTITION_HEAP_SIZE
+/** @brief the max size of the heap for method partition */
+#	define CESK_BLOCK_METHOD_PARTITION_HEAP_SIZE 2048
+#endif
+
 #ifndef BCI_NAMETAB_SIZE
 /** @brief the size of BCI Name Table */
 #	define BCI_NAMETAB_SIZE 100007
