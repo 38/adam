@@ -20,6 +20,17 @@ typedef struct {
 	cesk_diff_t*  inverse;  /*!< the inversion of diff */
 } cesk_block_result_t;
 /**
+ * @brief initialize this module
+ * @return < 0 if failed to initialize
+ **/
+int cesk_block_init();
+/**
+ * @brief fianlize this module
+ * @return nothing
+ **/
+void cesk_block_finalize();
+
+/**
  * @brief Analyze a code block, return the result in buf
  * @param code the code block to analyze
  * @param frame the stack frame
