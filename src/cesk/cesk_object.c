@@ -145,30 +145,31 @@ uint32_t* cesk_object_get(
 					cesk_object_classpath(object));
 		return NULL;
 	}
-	if(this->built_in)
+	/* because the instruction only provides an lower bound, so that we have to go all the way up */
+	for(; i < object->depth; i ++)
 	{
-		if(NULL == p_bci_class || NULL == p_bci_data)
+		/* for built-in classes, the class itself is resonpsible for forwarding the field request which actually visits the field in ancestor class */
+		if(this->built_in)
 		{
-			LOG_ERROR("built-in class does not support this interface");
-			return NULL;
+			if(NULL == p_bci_class || NULL == p_bci_data)
+			{
+				LOG_ERROR("built-in class does not support this interface");
+				return NULL;
+			}
+			else
+			{
+				if(NULL != p_bci_class) *p_bci_class = this->class.bci->class;
+				if(NULL != p_bci_data) *p_bci_data = this->bcidata;
+				return NULL;
+			}
 		}
-		else
-		{
-			if(NULL != p_bci_class) *p_bci_class = this->class.bci->class;
-			if(NULL != p_bci_data) *p_bci_data = this->bcidata;
-			return NULL;
-		}
-	}
-	else
-	{
 		const dalvik_field_t* field = dalvik_memberdict_get_field(classpath, field_name);
-		if(NULL == field)
-		{
-			LOG_WARNING("No field named %s/%s", classpath, field_name);
-			return NULL;
-		}
-		return this->addrtab + field->offset;
+		if(NULL != field) return this->addrtab + field->offset;
+		CESK_OBJECT_STRUCT_ADVANCE(this);
+		classpath = this->class.path->value;
 	}
+	LOG_WARNING("No field named %s/%s", classpath, field_name);
+	return NULL;
 }
 void cesk_object_free(cesk_object_t* object)
 {

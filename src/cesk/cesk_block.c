@@ -689,7 +689,6 @@ static inline cesk_diff_t* _cesk_block_invoke_result_translate(
 	/* the address map, allocation record index --> internal addr */
 	size_t nallocation = result->offset[CESK_DIFF_ALLOC + 1] - result->offset[CESK_DIFF_ALLOC];
 	uint32_t internal_addr[nallocation];
-	memset(internal_addr, 0xff, sizeof(uint32_t) * nallocation);
 	
 	uint32_t i;
 	
@@ -1123,27 +1122,32 @@ static inline int _cesk_block_handler_invoke(
 		/* make a param list */
 		cesk_frame_t* callee_frame = NULL;
 		nregs = code[k]->nregs;
+		/* if the arg list contains a this pointer */
+		int has_this = (NULL != this[k]);
 		if(ins->flags & DVM_FLAG_INVOKE_RANGE)
 		{
-			uint32_t arg_from  = ins->operands[4].payload.uint16;
+			uint32_t arg_from  = ins->operands[4].payload.uint16 + has_this;
 			uint32_t arg_to    = ins->operands[5].payload.uint16;
-			nargs = arg_to - arg_from + 1;
+			nargs = arg_to - arg_from + 1 + has_this;
+			if(has_this) args[0] = this[k];
 			for(i = arg_from; i <= arg_to; i ++)
 			{
-				args[i - arg_from] = cesk_set_fork(frame->regs[i]);
+				args[i - arg_from + has_this] = cesk_set_fork(frame->regs[i]);
 				if(NULL == args[i - arg_from]) goto PARAMERR_RANGE;
 			}
 		}
 		else
 		{
-			nargs = ins->num_operands - 4;
+			nargs = ins->num_operands - 4 - has_this;
+			if(has_this) args[0] = this[k];
 			for(i = 0; i < nargs; i ++)
 			{
-				uint32_t regnum = CESK_FRAME_GENERAL_REG(ins->operands[i + 4].payload.uint16);
+				uint32_t regnum = CESK_FRAME_GENERAL_REG(ins->operands[i + 4 + has_this].payload.uint16);
 				args[i] = cesk_set_fork(frame->regs[regnum]);
 				if(NULL == args[i]) goto PARAMERR;
 			}
 		}
+
 		callee_frame = cesk_frame_make_invoke(frame, nregs, nargs, args);
 		if(NULL == callee_frame || NULL == code)
 		{
