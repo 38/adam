@@ -1,6 +1,3 @@
-See the Comment 'CURRENT CURRENT CURRENT'
-
-
 Current: Builtin Class Support, Exception Classes
 	Some modifies is needed because if we introduce the built-in class, the address slot which contains object instance will become subject to 
 	store modification. But currently we do not allow frame diff to do this. 
