@@ -1212,6 +1212,7 @@ static inline int _cesk_block_find_invoke_method(const dalvik_instruction_t* ins
 		case DVM_FLAG_INVOKE_DIRECT:
 		case DVM_FLAG_INVOKE_VIRTUAL:
 		case DVM_FLAG_INVOKE_INTERFACE:
+		case DVM_FLAG_INVOKE_SUPER:
 			if(ins->num_operands - 4 == 0)
 			{
 				LOG_ERROR("are you trying call a non-static function without a self-pointer? But I don't know how to find the function");
@@ -1242,6 +1243,9 @@ static inline int _cesk_block_find_invoke_method(const dalvik_instruction_t* ins
 				_cesk_block_method_heap_addr[_cesk_block_method_heap_size] = addr;
 				for(i = 0; i < object->depth; i ++)
 				{
+					/* for super call, just skip the class methods */
+					if(0 == i && DVM_FLAG_INVOKE_SUPER == (ins->flags & DVM_FLAG_INVOKE_TYPE_MSK)) 
+						continue; 
 					const char* clspath = current->class.path->value;
 					_cesk_block_method_heap_code[_cesk_block_method_heap_size] = dalvik_block_from_method(clspath, methodname, typelist, rtype);
 					if(NULL != _cesk_block_method_heap_code[_cesk_block_method_heap_size]) 
