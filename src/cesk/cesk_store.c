@@ -585,13 +585,13 @@ uint32_t cesk_store_allocate(cesk_store_t* store, const cesk_alloc_param_t* para
 		LOG_DEBUG("attempt #%d : slot "PRSAddr" for instruction 0x%x", attempt, slot, param->inst);
 		for(block = 0; block < store->nblocks; block ++)
 		{
-			if(store->blocks[block]->slots[slot].value == NULL && empty_offset == -1)
+			if(!store->blocks[block]->slots[slot].inuse && empty_offset == -1)
 			{
 				LOG_DEBUG("find an empty slot @(block = 0x%x, offset = 0x%x)", block, slot);
 				empty_block = block;
 				empty_offset = slot;
 			}
-			if(store->blocks[block]->slots[slot].value != NULL && 
+			if(store->blocks[block]->slots[slot].inuse && 
 			   cesk_alloc_param_equal(param, &store->blocks[block]->slots[slot].param))
 			{
 				LOG_DEBUG("find the equal slot @(block = 0x%x, offset = 0x%x)", block, slot);
@@ -644,6 +644,7 @@ uint32_t cesk_store_allocate(cesk_store_t* store, const cesk_alloc_param_t* para
 						empty_block, empty_offset, param->inst);
 			store->blocks[empty_block]->slots[empty_offset].param = *param;
 			store->blocks[empty_block]->slots[empty_offset].reuse = 0;
+			store->blocks[empty_block]->slots[empty_offset].inuse = 1;
 			return empty_block * CESK_STORE_BLOCK_NSLOTS + empty_offset;
 		}
 		else
@@ -696,6 +697,7 @@ int cesk_store_attach(cesk_store_t* store, uint32_t addr, cesk_value_t* value)
 	{
 		block_rw->num_ent --;
 		store->num_ent --;
+		block_rw->slots[offset].inuse = 0;
 	}
 	/* And we should swipe the old value out, but we can not affect the ref count, because
 	 * No matter what the slot contains, the ref count does not depends on the value */

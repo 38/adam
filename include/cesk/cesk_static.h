@@ -10,12 +10,20 @@
 #include <constants.h>
 #include <const_assertion.h>
 
+/**
+ * @brief the static field table
+ **/
 typedef struct _cesk_static_table_t cesk_static_table_t;
 
 /**
  * @brief the iterator type for the static table
  **/
 typedef struct _cesk_static_table_iter_t cesk_static_table_iter_t;
+
+/**
+ * @biref the iterator to traverse all fields that contains relocated address
+ **/
+typedef struct _cesk_static_table_reloc_iter_t cesk_static_table_reloc_iter_t;
 
 #include <cesk/cesk_set.h>
 
@@ -29,6 +37,13 @@ struct _cesk_static_table_t;
  **/
 struct _cesk_static_table_iter_t {
 	const cesk_static_table_t* table;
+	uint32_t begin;
+};
+/**
+ * @brief the implementation of the reloc iter
+ **/
+struct _cesk_static_table_reloc_iter_t {
+	cesk_static_table_t* table;
 	uint32_t begin;
 };
 /**
@@ -90,6 +105,23 @@ cesk_set_t** cesk_static_table_get_rw(cesk_static_table_t* table, uint32_t addr,
 int cesk_static_table_release_rw(cesk_static_table_t* table, uint32_t addr, const cesk_set_t* value);
 
 /**
+ * @brief update the relocated flag of a field
+ * @param table the static field table
+ * @param addr the target address
+ * @param val the flag value
+ * @param assume_writable if noreuse = 1, the caller assumes that the the node is currently writable
+ * @return the result < 0 indicates an error
+ **/
+int cesk_static_table_update_relocated_flag(cesk_static_table_t* table, uint32_t addr, uint32_t val, uint32_t assume_writable);
+
+/**
+ * @brief find the first static field that contains a relocated address
+ * @param table the static field table
+ * @return the register reference number, CESK_STORE_ADDR_NULL if there's no field contains relocated address
+ **/
+uint32_t cesk_static_table_first_reloc(cesk_static_table_t* table);
+
+/**
  * @brief initialize a new iterator to traverse the table
  * @param table the static field table
  * @param iter the memory for the iterator
@@ -130,4 +162,18 @@ int cesk_static_table_equal(const cesk_static_table_t* left, const cesk_static_t
  * @note this function is used for verify the hashcode field in the table maintaning correctly
  **/
 hashval_t cesk_static_table_compute_hashcode(const cesk_static_table_t* table);
+/**
+ * @brief convert this static table to string
+ * @param table the static table to convert
+ * @param buf the result buffer
+ * @param sz the size of result buffer 
+ * @return the pointer the result string, NULL indicates an error 
+ **/
+const char* cesk_static_table_to_string(const cesk_static_table_t* table, char* buf, size_t sz);
+/**
+ * @brief print debug infomation in DEBUG log
+ * @param table the static field table to print
+ * @return nothing
+ **/
+void cesk_static_table_print_debug(const cesk_static_table_t* table);
 #endif

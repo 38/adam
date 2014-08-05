@@ -147,6 +147,7 @@ cesk_frame_t* cesk_frame_make_invoke(const cesk_frame_t* frame, uint32_t nregs, 
 {
 	uint32_t stage = 0;
 	uint32_t regcnt = 0;
+	uint32_t ref = 0;
 	int i;
 	/* make sure the invocation argument is valid */
 	if(NULL == frame || nregs > 65536 || nargs > nregs || NULL == args)
@@ -229,6 +230,59 @@ cesk_frame_t* cesk_frame_make_invoke(const cesk_frame_t* frame, uint32_t nregs, 
 	{
 		LOG_ERROR("can not copy the static field table");
 		goto ERR;
+	}
+	
+	for(;CESK_STORE_ADDR_NULL != (ref = cesk_static_table_first_reloc(ret->statics));)
+	{
+		cesk_set_t** slot = cesk_static_table_get_rw(ret->statics, ref, 0);
+		if(NULL == slot)
+		{
+			LOG_ERROR("can not write static field #%u", CESK_FRAME_REG_STATIC_IDX(ref));
+			goto ERR;
+		}
+		if(NULL == *slot)
+		{
+			LOG_ERROR("a value set with relocated address should not be an empty set");
+			goto ERR;
+		}
+
+		cesk_set_t* reg = slot[0];
+		cesk_set_iter_t iter;
+		if(cesk_set_iter(reg, &iter) == NULL)
+		{
+			LOG_ERROR("can not aquire iterator for the regsiter #%d", i);
+			goto ERR;
+		}
+		uint32_t addr;
+		while(CESK_STORE_ADDR_NULL != (addr = cesk_set_iter_next(&iter)))
+		{
+			if(CESK_STORE_ADDR_IS_RELOC(addr))
+			{
+				uint32_t naddr = cesk_alloctab_query(ret->store->alloc_tab, ret->store, addr);
+				if(CESK_STORE_ADDR_NULL == naddr)
+				{
+					LOG_ERROR("can not find the relocated address "PRSAddr"", addr);
+					goto ERR;
+				}
+				if(cesk_set_modify(reg, addr, naddr) < 0)
+				{
+					LOG_ERROR("can not update relocated address "PRSAddr" --> "PRSAddr"", addr, naddr);
+					goto ERR;
+				}
+			}
+		}
+
+		if(cesk_static_table_release_rw(ret->statics, ref, slot[0]) < 0)
+		{
+			LOG_ERROR("can not release the writable pointer to static field #%u", ref);
+			goto ERR;
+		}
+
+		if(cesk_static_table_update_relocated_flag(ret->statics, ref, 0, 1) < 0)
+		{
+			LOG_ERROR("can not clear the relocated flag of static field #%u", ref);
+			goto ERR;
+		}
 	}
 	stage = 4;
 	/* apply the allocation table toe the store */
@@ -491,7 +545,7 @@ static inline int _cesk_frame_free_set(cesk_frame_t* frame, cesk_set_t* set)
  * @brief make the new value in the register referencing to the store
  * @param frame 
  * @param set 
- * @return < 0 indicates error 
+ * @return < 0 indicates error, > 0 indicates there's a relcoated address 
  **/
 static inline int _cesk_frame_set_ref(cesk_frame_t* frame, const cesk_set_t* set)
 {
@@ -503,9 +557,13 @@ static inline int _cesk_frame_set_ref(cesk_frame_t* frame, const cesk_set_t* set
 	}
 	
 	uint32_t addr;
+	int ret = 0;
 	while(CESK_STORE_ADDR_NULL != (addr = cesk_set_iter_next(&iter)))
+	{
 		cesk_store_incref(frame->store, addr);
-	return 0;
+		if(0 == ret && CESK_STORE_ADDR_IS_RELOC(addr)) ret = 1;
+	}
+	return ret;
 }
 int cesk_frame_apply_diff(
 	cesk_frame_t* frame, 
@@ -665,7 +723,8 @@ int cesk_frame_apply_diff(
 						/* change the frame! */
 						/* becuase we should keep all value that is in use safe, so we first make reference for new value 
 						 * and then derefernce the old_value */
-						if(_cesk_frame_set_ref(frame, rec->arg.set) < 0)
+						int reloc;
+						if((reloc = _cesk_frame_set_ref(frame, rec->arg.set)) < 0)
 						{
 							LOG_ERROR("can not make reference from the static field #%u", CESK_FRAME_REG_STATIC_IDX(rec->addr));
 							return -1;
@@ -698,6 +757,12 @@ int cesk_frame_apply_diff(
 						if(cesk_static_table_release_rw(frame->statics, rec->addr, *slot) < 0)
 						{
 							LOG_ERROR("can not release the field reference at static field #%u", CESK_FRAME_REG_STATIC_IDX(rec->addr));
+							return -1;
+						}
+						/* update the relocated flags */
+						if(cesk_static_table_update_relocated_flag(frame->statics, rec->addr, reloc, 1) < 0)
+						{
+							LOG_ERROR("can not update the relocated flag of static field #%u", CESK_FRAME_REG_STATIC_IDX(rec->addr));
 							return -1;
 						}
 					}
@@ -888,7 +953,8 @@ int cesk_frame_static_load_from_register(
 	_SNAPSHOT(inv_buf, CESK_DIFF_REG, dst_reg, *slot);
 
 	/* do the samething as cesk_frame_register_move */
-	if(_cesk_frame_set_ref(frame, frame->regs[src_reg]) < 0)
+	int reloc;
+	if((reloc = _cesk_frame_set_ref(frame, frame->regs[src_reg])) < 0)
 	{
 		LOG_ERROR("can not make refernce from the new value");
 		return -1;
@@ -909,6 +975,12 @@ int cesk_frame_static_load_from_register(
 	if(cesk_static_table_release_rw(frame->statics, dst_reg, *slot) < 0)
 	{
 		LOG_ERROR("can not release the reference to static field slot at #%u", CESK_FRAME_REG_STATIC_IDX(dst_reg));
+		return -1;
+	}
+
+	if(cesk_static_table_update_relocated_flag(frame->statics, dst_reg, reloc, 1) < 0)
+	{
+		LOG_ERROR("can not update the relocate flag of static field #%u", CESK_FRAME_REG_STATIC_IDX(dst_reg));
 		return -1;
 	}
 
@@ -942,7 +1014,7 @@ int cesk_frame_register_load_from_static(
 	/* then we do a register move */
 	_SNAPSHOT(inv_buf, CESK_DIFF_REG, dst_reg, frame->regs[dst_reg]);
 
-	if(_cesk_frame_set_ref(frame, field_value))
+	if(_cesk_frame_set_ref(frame, field_value) < 0)
 	{
 		LOG_ERROR("can not make reference from the new value of the register");
 		return -1;
@@ -1748,7 +1820,8 @@ const char* cesk_frame_to_string(const cesk_frame_t* frame, char* buf, size_t sz
 	__PR("[register ");
 	for(i = 0; i < frame->size; i ++)
 		__PR("(v%d %s) ", i, cesk_set_to_string(frame->regs[i], NULL, 0));
-	__PR("] [store %s]", cesk_store_to_string(frame->store, NULL, 0));
+	__PR("] [store %s] [static %s]", cesk_store_to_string(frame->store, NULL, 0),
+	                                 cesk_static_table_to_string(frame->statics, NULL, 0));
 	return buf;
 }
 void cesk_frame_print_debug(const cesk_frame_t* frame)
@@ -1760,6 +1833,8 @@ void cesk_frame_print_debug(const cesk_frame_t* frame)
 		LOG_DEBUG("\tv%d\t%s", i, cesk_set_to_string(frame->regs[i], NULL, 0));
 	LOG_DEBUG("Store");
 	cesk_store_print_debug(frame->store);
+	LOG_DEBUG("Static Fields");
+	cesk_static_table_print_debug(frame->statics);
 }
 #else
 {}

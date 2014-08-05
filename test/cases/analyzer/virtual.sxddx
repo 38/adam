@@ -1,0 +1,80 @@
+(class (attrs public) BaseClass
+ 	(super java/lang/Object)
+	(source "BaseClass.java")
+	(method (attrs public) getValue () int
+		(limit-registers 10)
+		(const/4 v0, 1)
+		(return v0)
+	)
+	(method (attrs public abstract) clone() [object BaseClass]
+	)
+)
+(class (attrs public) TestClass1
+	(super BaseClass)
+	(method (attrs public) clone() [object BaseClass]
+		(limit-registers 2)
+		;v1 -> this
+		;v0 -> ret
+		(new-instance v0 TestClass1)
+		(return v0)
+	)
+)
+(class (attrs public) TestClass2
+	(super BaseClass)
+	(field (attrs private) _value int)
+	(method (attrs public) <init>(int)void
+	 	(limit-registers 2)
+		(invoke-virtual {v0,v1} TestClass2/setValue (int) int)
+		(return-void)
+	)
+	(method (attrs public) getValue () int
+		(limit-registers 10)
+		(iget v0 v9 TestClass2._value int)
+		(return v0)
+	)
+	(method (attrs public) setValue(int) void
+		(limit-registers 2)
+		;v0 ->this
+		;v1 ->newval
+		(iput v1 v0 TestClass2._value int)
+		(return-void)
+	)
+	(method (attrs public) clone() [object BaseClass]
+	 	(limit-registers 5)
+		(invoke-virtual {v4} TestClass2/getValue () int)
+		(move-result v1)
+		(new-instance v0 TestClass2)
+		(invoke-direct {v0,v1} TestClass2/<init> (int) void)
+		(return-object v0)
+	)
+)
+(class (attrs public) virtualTest
+	(super java/lang/Object)
+	(field (attrs public static) R1 int "0")
+	(field (attrs public static) R2 int "0")
+	(field (attrs public static) R3 int "0")
+	(method (attrs public static) Case1(int) void
+		(limit-registers 10)
+		;v9 ==> arg0
+		(new-instance v0 TestClass1)
+		(new-instance v1 TestClass2)
+		(const/4 v8, -1)
+		(invoke-direct {v1,v8} TestClass2/<init> (int) int)
+		(if-eq v0 v9 BRANCH)
+		(move-object v3 v0)
+		(goto BRANCH_MERGE)
+		(label BRANCH)
+		(move-object v3 v1)
+		(label BRANCH_MERGE)
+		(invoke-virtual {v0} BaseClass/getValue () int)
+		(move-result v4)
+		(sput v4 Main.R1 int)
+		(invoke-virtual {v1} BaseClass/getValue () int)
+		(move-result v4)
+		(sput v4 Main.R2 int)
+		(invoke-virtual {v3} BaseClass/getValue () int)
+		(move-result v4)
+		(sput v4 Main.R3 int)
+		(return-void)
+	)
+)

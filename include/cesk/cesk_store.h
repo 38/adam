@@ -112,6 +112,7 @@ CONST_ASSERTION_EQ(CESK_STORE_ADDR_NULL, 0xffffffff);
 typedef struct {
 	uint32_t        refcnt:31;        /*!<this refcnt is the counter inside this frame */
 	uint8_t         reuse:1;          /*!<if this address is reused, because same insturction should allocate same address */
+	uint8_t         inuse:1;          /*!<if the address is in use */
 	cesk_alloc_param_t param;         /*!<the allocation parameter for this address */
 	cesk_value_t*   value;			  /*!<the data payload */
 } cesk_store_slot_t;

@@ -19,7 +19,8 @@ typedef struct _cesk_static_tree_node_t _cesk_static_tree_node_t;
 
 struct _cesk_static_tree_node_t{
 	uint8_t  isleaf:1;                    /*!< wether or not this node is a leaf node */
-	uint32_t refcnt:31;                   /*!< the reference counter */
+	uint8_t  reloc:1;                     /*!< if this subtree contains any relocated address */ 
+	uint32_t refcnt:30;                   /*!< the reference counter */
 	cesk_set_t* value[0];                 /*!< the value */
 	_cesk_static_tree_node_t* child[0];   /*!< the child pointer */
 };
@@ -392,7 +393,7 @@ static inline uint32_t _cesk_static_tree_next(const _cesk_static_tree_node_t* ro
 		else l[level + 1] = m, r[level + 1] = r[level], path[level + 1] = path[level]->child[1];
 	}
 	/* if this index has been found in the tree, we do not need to find the larger node */
-	if(NULL != path[level] && path[level]->isleaf)
+	if(NULL != path[level] && path[level]->isleaf && l[level] == start)
 	{
 		if(NULL != p_target) *p_target = path[level];
 		return l[level];
@@ -414,6 +415,25 @@ static inline uint32_t _cesk_static_tree_next(const _cesk_static_tree_node_t* ro
 		}
 	}
 	return CESK_STORE_ADDR_NULL;
+}
+/**
+ * @brief find the first field that contains the relocated address
+ * @param root the root node of the segment tree to search
+ * @param p_target the buffer used to return the target node to caller, can be NULL
+ * @return the result index, CESK_STORE_ADDR_NULL indicates the end of the list
+ **/
+static inline uint32_t _cesk_static_tree_first_reloc(_cesk_static_tree_node_t* root, _cesk_static_tree_node_t** p_target)
+{
+	if(NULL == root || !root->reloc) return CESK_STORE_ADDR_NULL;
+	uint32_t left = 0, right = dalvik_static_field_count;
+	for(; !root->isleaf;)
+	{
+		uint32_t mid = (left + right) / 2;
+		if(NULL != root->child[0] && root->child[0]->reloc) right = mid, root = root->child[0];
+		else left = mid, root = root->child[1];
+	}
+	if(p_target) *p_target = root;
+	return left;
 }
 /* Interface implementation */
 
@@ -626,6 +646,67 @@ int cesk_static_table_release_rw(cesk_static_table_t* table, uint32_t addr,  con
 	_cesk_static_table_update_hashcode(table, idx, value);
 	return 0;
 }
+int cesk_static_table_update_relocated_flag(cesk_static_table_t* table, uint32_t addr, uint32_t val, uint32_t assume_writable)
+{
+	if(NULL == table || !CESK_FRAME_REG_IS_STATIC(addr))
+	{
+		LOG_ERROR("invalid argument");
+		return -1;
+	}
+	uint32_t idx = CESK_FRAME_REG_STATIC_IDX(addr);
+	if(idx >= dalvik_static_field_count)
+	{
+		LOG_ERROR("invalid static field index #%u, out of boundary", idx);
+		return -1;
+	}
+	if(!assume_writable)
+	{
+		_cesk_static_tree_node_t* target = NULL;
+		_cesk_static_tree_node_t* new_root = _cesk_static_tree_prepare_to_write(table->root, idx, &target);
+		if(NULL != table->root && NULL == new_root)
+		{
+			LOG_ERROR("can not make the tree ready for modification");
+			return -1;
+		}
+		else table->root = new_root;
+		if(NULL == target)
+		{
+			LOG_WARNING("the target node does not exist");
+			return 0;
+		}
+	}
+	uint32_t l = 0, r = dalvik_static_field_count, level;
+	_cesk_static_tree_node_t* path[32];
+	_cesk_static_tree_node_t* root;
+	for(root = table->root, level = 0;r - l > 1 && NULL != root; level ++)
+	{
+		path[level] = root;
+		if(root->refcnt > 1) 
+		{
+			LOG_ERROR("the path to the node is not clear, the writable assumption might be wrong");
+			return -1;
+		}
+		int m = (l + r) / 2;
+		if(idx < m) r = m, root = root->child[0];
+		else l = m, root = root->child[1];
+	}
+	if(NULL == root)
+	{
+		LOG_ERROR("what? this is impossible");
+		return -1;
+	}
+	root->reloc = val;
+	int i;
+	for(i = level - 1; i >= 0; i --)
+		path[i]->reloc = ((path[i]->child[0] && path[i]->child[0]->reloc) || 
+		                  (path[i]->child[1] && path[i]->child[1]->reloc));
+	return 0;
+}
+uint32_t cesk_static_table_first_reloc(cesk_static_table_t* table)
+{
+	if(NULL == table) return CESK_STORE_ADDR_NULL;
+	return CESK_FRAME_REG_STATIC_PREFIX | _cesk_static_tree_first_reloc(table->root, NULL);
+}
 cesk_static_table_iter_t* cesk_static_table_iter(const cesk_static_table_t* table, cesk_static_table_iter_t* buf)
 {
 	if(NULL == buf || NULL == table) return NULL;
@@ -640,7 +721,7 @@ const cesk_set_t* cesk_static_table_iter_next(cesk_static_table_iter_t* iter, ui
 	uint32_t next_idx = _cesk_static_tree_next(iter->table->root, iter->begin, &node);
 	if(CESK_STORE_ADDR_NULL == next_idx) return NULL;
 	iter->begin = next_idx + 1;
-	if(NULL != paddr) *paddr = CESK_FRAME_REG_STATIC_PREFIX | next_idx;
+	if(NULL != paddr) *paddr = (CESK_FRAME_REG_STATIC_PREFIX | next_idx);
 	return node->value[0]; 
 }
 hashval_t cesk_static_table_hashcode(const cesk_static_table_t* table)
@@ -695,3 +776,50 @@ hashval_t cesk_static_table_compute_hashcode(const cesk_static_table_t* table)
 {
 	return _cesk_static_tree_compute_hash(table->root, 0, dalvik_static_field_count) ^ INIT_HASHCODE;
 }
+
+#define __PR(fmt, args...) do{\
+	int pret = snprintf(p, buf + sz - p, fmt, ##args);\
+	if(pret > buf + sz - p) pret = buf + sz - p;\
+	p += pret;\
+}while(0)
+const char* cesk_static_table_to_string(const cesk_static_table_t* table, char* buf, size_t sz)
+{
+	static char _buf[1024];
+	if(NULL == buf)
+	{
+		buf = _buf;
+		sz = sizeof(_buf);
+	}
+	char* p = buf;
+	cesk_static_table_iter_t iter;
+	if(NULL == cesk_static_table_iter(table, &iter))
+	{
+		LOG_ERROR("can not get the iterator to traverse static field table");
+		return NULL;
+	}
+	const cesk_set_t* value;
+	uint32_t addr;
+	while(NULL != (value = cesk_static_table_iter_next(&iter, &addr)))
+	{
+		__PR("(F%u --> %s)", CESK_FRAME_REG_STATIC_IDX(addr), cesk_set_to_string(value, NULL, 0));
+	}
+	return buf;
+}
+
+void cesk_static_table_print_debug(const cesk_static_table_t* table)
+#if LOG_LEVEL >= 6
+{
+	cesk_static_table_iter_t iter;
+	if(NULL == cesk_static_table_iter(table, &iter))
+	{
+		LOG_ERROR("can not get the iterator to traverse static field table");
+		return;
+	}
+	const cesk_set_t* value;
+	uint32_t addr;
+	while(NULL != (value = cesk_static_table_iter_next(&iter, &addr)))
+		LOG_DEBUG("\tF%u\t%s", CESK_FRAME_REG_STATIC_IDX(addr), cesk_set_to_string(value, NULL, 0));
+}
+#else
+{}
+#endif
