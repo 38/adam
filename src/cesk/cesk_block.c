@@ -1292,8 +1292,8 @@ static inline int _cesk_block_handler_invoke(
 		int has_this = (NULL != this[k]);
 		if(ins->flags & DVM_FLAG_INVOKE_RANGE)
 		{
-			uint32_t arg_from  = ins->operands[4].payload.uint16 + has_this;
-			uint32_t arg_to    = ins->operands[5].payload.uint16;
+			uint32_t arg_from  = CESK_FRAME_GENERAL_REG(ins->operands[4].payload.uint16 + has_this);
+			uint32_t arg_to    = CESK_FRAME_GENERAL_REG(ins->operands[5].payload.uint16);
 			nargs = arg_to - arg_from + 1 + has_this;
 			if(has_this) args[0] = this[k];
 			for(i = arg_from; i <= arg_to; i ++)

@@ -205,8 +205,8 @@ static inline void cli_do_break(sexpression_t* sexp)
 	const char* blockid = "0";
 	const char* iid;
 	const dalvik_block_t* block_list[DALVIK_BLOCK_MAX_KEYS] = {};
-	if(sexp_match(sexp, "(L=L?L?C?A", kw_func, &class, &name, &tl, &sexp) || 
-	   sexp_match(sexp, "(L=L?L?C?L?A", kw_block, &class, &name, &tl, &blockid ,&sexp))
+	if(sexp_match(sexp, "(L=L?L?C?_?", kw_func, &class, &name, &tl, &sexp) || 
+	   sexp_match(sexp, "(L=L?L?C?L?_?", kw_block, &class, &name, &tl, &sexp, &blockid))
 	{
 		sexpression_t* this;
 		const dalvik_type_t *T[128];
@@ -294,7 +294,7 @@ static inline void cli_do_frame(sexpression_t* sexp)
 			}
 		}
 	}
-	else if(sexp_match(sexp, "(L=L?L?C?A", kw_new, &class, &name, &tl, &sexp))
+	else if(sexp_match(sexp, "(L=L?L?C?_?", kw_new, &class, &name, &tl, &sexp))
 	{
 		sexpression_t* this;
 		const dalvik_type_t *T[128];
