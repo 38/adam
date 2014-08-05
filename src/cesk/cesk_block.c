@@ -980,6 +980,7 @@ static inline cesk_set_t* _cesk_block_method_heap_get_partition(const dalvik_blo
 		cesk_set_push(ret, _cesk_block_method_heap_addr[0]);
 		_cesk_block_method_heap_addr[0] = _cesk_block_method_heap_addr[_cesk_block_method_heap_size - 1];
 		_cesk_block_method_heap_code[0] = _cesk_block_method_heap_code[_cesk_block_method_heap_size - 1];
+		_cesk_block_method_heap_size --;
 		_cesk_block_method_heap_incrase(0);
 	}
 	return ret;
