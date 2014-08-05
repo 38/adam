@@ -670,7 +670,11 @@ static size_t    _cesk_block_internal_addr_bufsize = 0;
  * @param internal_addr the buffer for internal_addr array
  * @return if there's no way to make the buffer in proper size, return a value < 0
  */
-static inline int _cesk_block_internal_addr_buf_check(uint32_t nfunc, cesk_diff_t** results, size_t* nallocation, uint32_t** internal_addr)
+static inline int _cesk_block_internal_addr_buf_check(
+		uint32_t nfunc, 
+		cesk_diff_t** results, 
+		size_t* nallocation, 
+		uint32_t** internal_addr)
 {
 	uint32_t i;
 
@@ -748,7 +752,11 @@ static inline int _cesk_block_allocation_address_assignment(
  * @param buf the diff buffer
  * @return result of the operation < 0 indicates error
  **/
-static inline int _cesk_block_invoke_result_reuse_section_translate(const cesk_diff_t* result, const uint32_t* internal_addr, const cesk_frame_t* frame, cesk_diff_buffer_t* buf)
+static inline int _cesk_block_invoke_result_reuse_section_translate(
+		const cesk_diff_t* result, 
+		const uint32_t* internal_addr, 
+		const cesk_frame_t* frame, 
+		cesk_diff_buffer_t* buf)
 {
 	uint32_t i;
 	for(i = result->offset[CESK_DIFF_REUSE]; i < result->offset[CESK_DIFF_REUSE + 1]; i ++)
@@ -772,7 +780,12 @@ static inline int _cesk_block_invoke_result_reuse_section_translate(const cesk_d
  * @param buf the diff buffer
  * @return result of operation < 0 indicates error 
  **/
-static inline int _cesk_block_invoke_result_allocation_section_translate(cesk_diff_t* result, const uint32_t* internal_addr, const cesk_frame_t* frame, uint32_t raddr_limit, cesk_diff_buffer_t* buf)
+static inline int _cesk_block_invoke_result_allocation_section_translate(
+		cesk_diff_t* result, 
+		const uint32_t* internal_addr, 
+		const cesk_frame_t* frame, 
+		uint32_t raddr_limit, 
+		cesk_diff_buffer_t* buf)
 {
 	uint32_t i;
 	/* then allocation section, do a address translation and then object translation */
@@ -847,7 +860,11 @@ static inline int _cesk_block_invoke_result_allocation_section_translate(cesk_di
  * @param buf the diff buffer
  * @return the result of operations < 0 indicates error
  **/
-static inline int _cesk_block_invoke_register_section_translation(cesk_diff_t* result, const uint32_t* internal_addr, const cesk_frame_t* frame, cesk_diff_buffer_t* buf)
+static inline int _cesk_block_invoke_result_register_section_translation(
+		cesk_diff_t* result, 
+		const uint32_t* internal_addr, 
+		const cesk_frame_t* frame, 
+		cesk_diff_buffer_t* buf)
 {
 	uint32_t i;
 	/* okay, register section, just address set translation*/
@@ -877,7 +894,12 @@ static inline int _cesk_block_invoke_register_section_translation(cesk_diff_t* r
  * @param buf the diff buffer
  * @return the result operations < 0 indicates error
  **/
-static inline int _cesk_block_invoke_result_store_section_translation(cesk_diff_t* result, const uint32_t* internal_addr, const cesk_frame_t* frame, uint32_t raddr_limit, cesk_diff_buffer_t* buf)
+static inline int _cesk_block_invoke_result_store_section_translation(
+		cesk_diff_t* result, 
+		const uint32_t* internal_addr, 
+		const cesk_frame_t* frame, 
+		uint32_t raddr_limit, 
+		cesk_diff_buffer_t* buf)
 {
 	uint32_t i;
 	/* then, store section */
@@ -1040,6 +1062,16 @@ static inline cesk_diff_t* _cesk_block_invoke_result_translate(
 		if(_cesk_block_invoke_result_allocation_section_translate(results[i], internal_addr[i], frame, raddr_limit, buf) < 0)
 		{
 			LOG_ERROR("can not translate the allocation section of result diff #%u", i);
+			goto ERR;
+		}
+	}
+
+	/* translate register section */
+	for(i = 0; i < nfunc; i ++)
+	{
+		if(_cesk_block_invoke_result_register_section_translation(results[i], internal_addr[i], frame, buf) < 0)
+		{
+			LOG_ERROR("can not translate the regiseter of result diff #%u", i);
 			goto ERR;
 		}
 	}
