@@ -1337,11 +1337,11 @@ static inline int _cesk_block_handler_invoke(
 		}
 		else
 		{
-			nargs = ins->num_operands - 4 - has_this;
+			nargs = ins->num_operands - 4;
 			if(has_this) args[0] = this[k];
-			for(i = 0; i < nargs; i ++)
+			for(i = has_this; i < nargs; i ++)
 			{
-				uint32_t regnum = CESK_FRAME_GENERAL_REG(ins->operands[i + 4 + has_this].payload.uint16);
+				uint32_t regnum = CESK_FRAME_GENERAL_REG(ins->operands[i + 4].payload.uint16);
 				args[i] = cesk_set_fork(frame->regs[regnum]);
 				if(NULL == args[i]) goto PARAMERR;
 			}

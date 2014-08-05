@@ -359,7 +359,129 @@ int main()
 	assert(cesk_set_contain(ret->data[ret->offset[CESK_DIFF_STORE] + 2].arg.value->pointer.set, CESK_STORE_ADDR_RELOC_PREFIX + 0));
 	assert(cesk_set_contain(ret->data[ret->offset[CESK_DIFF_STORE] + 2].arg.value->pointer.set, CESK_STORE_ADDR_ZERO));
 	cesk_frame_free(frame);
-	cesk_diff_free(ret);
+	cesk_diff_free(ret); 
+	
+	classpath = stringpool_query("virtualTest");
+	methodname = stringpool_query("Case1");
+	type[0] = tint;
+	graph = dalvik_block_from_method(classpath, methodname, type, tint);
+	assert(NULL != graph);
+
+	frame = cesk_frame_new(graph->nregs);
+	cesk_set_push(frame->regs[9], CESK_STORE_ADDR_ZERO);
+	cesk_set_push(frame->regs[9], CESK_STORE_ADDR_NEG);
+	cesk_set_push(frame->regs[9], CESK_STORE_ADDR_POS);
+	assert(NULL != frame);
+
+	ret = cesk_method_analyze(graph, frame, NULL, &rtable);
+
+	assert(NULL != ret);
+
+	/* [][][(register f1 {@0xffffff04}) (register f2 {@0xffffff01}) (register f3 {@0xffffff01,@0xffffff04})][][] */
+	assert(3 == ret->offset[CESK_DIFF_NTYPES] - ret->offset[0]);
+	assert(ret->offset[CESK_DIFF_ALLOC + 1] - ret->offset[CESK_DIFF_ALLOC] == 0);
+	assert(ret->offset[CESK_DIFF_REUSE + 1] - ret->offset[CESK_DIFF_REUSE] == 0);
+	assert(ret->offset[CESK_DIFF_REG + 1] - ret->offset[CESK_DIFF_REG] == 3);
+	assert(ret->offset[CESK_DIFF_STORE + 1] - ret->offset[CESK_DIFF_STORE] == 0);
+	assert(ret->offset[CESK_DIFF_DEALLOC + 1] - ret->offset[CESK_DIFF_DEALLOC] == 0);
+
+	assert(ret->data[ret->offset[CESK_DIFF_REG] + 0].addr == (CESK_FRAME_REG_STATIC_PREFIX | 1));
+	assert(cesk_set_size(ret->data[ret->offset[CESK_DIFF_REG] + 0].arg.set) == 1);
+	assert(cesk_set_contain(ret->data[ret->offset[CESK_DIFF_REG] + 0].arg.set, CESK_STORE_ADDR_POS));
+	assert(ret->data[ret->offset[CESK_DIFF_REG] + 1].addr == (CESK_FRAME_REG_STATIC_PREFIX | 2));
+	assert(cesk_set_size(ret->data[ret->offset[CESK_DIFF_REG] + 1].arg.set) == 1);
+	assert(cesk_set_contain(ret->data[ret->offset[CESK_DIFF_REG] + 1].arg.set, CESK_STORE_ADDR_NEG));
+	assert(ret->data[ret->offset[CESK_DIFF_REG] + 2].addr == (CESK_FRAME_REG_STATIC_PREFIX | 3));
+	assert(cesk_set_size(ret->data[ret->offset[CESK_DIFF_REG] + 2].arg.set) == 2);
+	assert(cesk_set_contain(ret->data[ret->offset[CESK_DIFF_REG] + 2].arg.set, CESK_STORE_ADDR_POS));
+	assert(cesk_set_contain(ret->data[ret->offset[CESK_DIFF_REG] + 2].arg.set, CESK_STORE_ADDR_NEG));
+	
+	cesk_frame_free(frame);
+	cesk_diff_free(ret); 
+	
+/*[(allocate @0xff000000 (objval (refcnt 4) [class TestClass1 ()][class BaseClass ()][class java/lang/Object ()])) (allocate @0xff000001 (objval (refcnt 1) [class TestClass2 ((_value @0xff000002) )][class BaseClass ()][class java/lang/Object ()])) (allocate @0xff000002 (setval (refcnt 2) {@0xffffff02})) (allocate @0xff000003 (objval (refcnt 1) [class TestClass2 ((_value @0xff000004) )][class BaseClass ()][class java/lang/Object ()])) (allocate @0xff000004 (setval (refcnt 1) {@0xffffff02})) (allocate @0xff000005 (objval (refcnt 1) [class TestClass1 ()][class BaseClass ()][class java/lang/Object ()]))][(reuse @0xff000000 1) (reuse @0xff000001 1) (reuse @0xff000002 1)][(register v0 {@0xff000005,@0xff000003}) (register f4 {@0xff000000,@0xff000001})][(store @0xff000002 (setval (refcnt 1) {@0xffffff01})) (store @0xff000004 (setval (refcnt 1) {@0xffffff01}))][]*/
+	classpath = stringpool_query("virtualTest");
+	methodname = stringpool_query("Case2");
+	type[0] = tint;
+	graph = dalvik_block_from_method(classpath, methodname, type, tint);
+	assert(NULL != graph);
+
+	frame = cesk_frame_new(graph->nregs);
+	cesk_set_push(frame->regs[9], CESK_STORE_ADDR_ZERO);
+	cesk_set_push(frame->regs[9], CESK_STORE_ADDR_NEG);
+	cesk_set_push(frame->regs[9], CESK_STORE_ADDR_POS);
+	assert(NULL != frame);
+
+	ret = cesk_method_analyze(graph, frame, NULL, &rtable);
+
+	assert(NULL != ret);
+
+	puts(cesk_diff_to_string(ret, NULL, 0));
+	assert(ret->offset[CESK_DIFF_ALLOC + 1] - ret->offset[CESK_DIFF_ALLOC] == 6);
+	assert(ret->offset[CESK_DIFF_REG + 1] - ret->offset[CESK_DIFF_REG] == 2);
+	assert(ret->offset[CESK_DIFF_STORE + 1] - ret->offset[CESK_DIFF_STORE] == 2);
+	assert(ret->offset[CESK_DIFF_DEALLOC + 1] - ret->offset[CESK_DIFF_DEALLOC] == 0);
+	
+	assert(ret->data[ret->offset[CESK_DIFF_ALLOC]].addr == (CESK_STORE_ADDR_RELOC_PREFIX | 0));
+	assert(ret->data[ret->offset[CESK_DIFF_ALLOC]].arg.value->type == CESK_TYPE_OBJECT);
+	assert(cesk_object_classpath(ret->data[ret->offset[CESK_DIFF_ALLOC]].arg.value->pointer.object) == stringpool_query("TestClass1"));
+
+	assert(ret->data[ret->offset[CESK_DIFF_ALLOC] + 1].addr == (CESK_STORE_ADDR_RELOC_PREFIX | 1));
+	assert(ret->data[ret->offset[CESK_DIFF_ALLOC] + 1].arg.value->type == CESK_TYPE_OBJECT);
+	assert(cesk_object_classpath(ret->data[ret->offset[CESK_DIFF_ALLOC] + 1].arg.value->pointer.object) == stringpool_query("TestClass2"));
+	
+	assert(cesk_object_get_addr(
+				ret->data[ret->offset[CESK_DIFF_ALLOC] + 1].arg.value->pointer.object, 
+				stringpool_query("TestClass2"), 
+				stringpool_query("_value"), 
+				NULL, NULL, &val) == 0);
+	assert(CESK_STORE_ADDR_RELOC_PREFIX + 2 == val);
+	
+	assert(ret->data[ret->offset[CESK_DIFF_ALLOC] + 2].addr == CESK_STORE_ADDR_RELOC_PREFIX + 2);
+	assert(ret->data[ret->offset[CESK_DIFF_ALLOC] + 2].arg.value->type == CESK_TYPE_SET);
+	assert(cesk_set_size(ret->data[ret->offset[CESK_DIFF_ALLOC] + 2].arg.value->pointer.set) == 1);
+
+	assert(ret->data[ret->offset[CESK_DIFF_ALLOC] + 5].addr == (CESK_STORE_ADDR_RELOC_PREFIX | 5));
+	assert(ret->data[ret->offset[CESK_DIFF_ALLOC] + 5].arg.value->type == CESK_TYPE_OBJECT);
+	assert(cesk_object_classpath(ret->data[ret->offset[CESK_DIFF_ALLOC] + 5].arg.value->pointer.object) == stringpool_query("TestClass1"));
+
+	assert(ret->data[ret->offset[CESK_DIFF_ALLOC] + 3].addr == (CESK_STORE_ADDR_RELOC_PREFIX | 3));
+	assert(ret->data[ret->offset[CESK_DIFF_ALLOC] + 3].arg.value->type == CESK_TYPE_OBJECT);
+	assert(cesk_object_classpath(ret->data[ret->offset[CESK_DIFF_ALLOC] + 3].arg.value->pointer.object) == stringpool_query("TestClass2"));
+	
+	assert(cesk_object_get_addr(
+				ret->data[ret->offset[CESK_DIFF_ALLOC] + 3].arg.value->pointer.object, 
+				stringpool_query("TestClass2"), 
+				stringpool_query("_value"), 
+				NULL, NULL, &val) == 0);
+	assert(CESK_STORE_ADDR_RELOC_PREFIX + 4 == val);
+	
+	assert(ret->data[ret->offset[CESK_DIFF_ALLOC] + 4].addr == CESK_STORE_ADDR_RELOC_PREFIX + 4);
+	assert(ret->data[ret->offset[CESK_DIFF_ALLOC] + 4].arg.value->type == CESK_TYPE_SET);
+	assert(cesk_set_size(ret->data[ret->offset[CESK_DIFF_ALLOC] + 4].arg.value->pointer.set) == 1);
+
+	assert(ret->data[ret->offset[CESK_DIFF_REG] + 0].addr == 0);
+	assert(cesk_set_size(ret->data[ret->offset[CESK_DIFF_REG] + 0].arg.set) == 2);
+	assert(cesk_set_contain(ret->data[ret->offset[CESK_DIFF_REG] + 0].arg.set, (CESK_STORE_ADDR_RELOC_PREFIX | 5)));
+	assert(cesk_set_contain(ret->data[ret->offset[CESK_DIFF_REG] + 0].arg.set, (CESK_STORE_ADDR_RELOC_PREFIX | 3)));
+	
+	assert(ret->data[ret->offset[CESK_DIFF_REG] + 1].addr == CESK_FRAME_REG_STATIC_PREFIX + 4);
+	assert(cesk_set_size(ret->data[ret->offset[CESK_DIFF_REG] + 1].arg.set) == 2);
+	assert(cesk_set_contain(ret->data[ret->offset[CESK_DIFF_REG] + 1].arg.set, (CESK_STORE_ADDR_RELOC_PREFIX | 0)));
+	assert(cesk_set_contain(ret->data[ret->offset[CESK_DIFF_REG] + 1].arg.set, (CESK_STORE_ADDR_RELOC_PREFIX | 1)));
+	
+	assert(ret->data[ret->offset[CESK_DIFF_STORE] + 0].addr == (CESK_STORE_ADDR_RELOC_PREFIX | 2));
+	assert(ret->data[ret->offset[CESK_DIFF_STORE] + 0].arg.value->type == CESK_TYPE_SET);
+	assert(cesk_set_size(ret->data[ret->offset[CESK_DIFF_STORE] + 0].arg.value->pointer.set) == 1);
+	assert(cesk_set_contain(ret->data[ret->offset[CESK_DIFF_STORE] + 0].arg.value->pointer.set, CESK_STORE_ADDR_NEG));
+	
+	assert(ret->data[ret->offset[CESK_DIFF_STORE] + 1].addr == CESK_STORE_ADDR_RELOC_PREFIX + 4);
+	assert(ret->data[ret->offset[CESK_DIFF_STORE] + 1].arg.value->type == CESK_TYPE_SET);
+	assert(cesk_set_size(ret->data[ret->offset[CESK_DIFF_STORE] + 1].arg.value->pointer.set) == 1);
+	assert(cesk_set_contain(ret->data[ret->offset[CESK_DIFF_STORE] + 1].arg.value->pointer.set, CESK_STORE_ADDR_NEG));
+	
+	cesk_frame_free(frame);
+	cesk_diff_free(ret); 
 
 	dalvik_type_free(tint);
 	dalvik_type_free(tobj);

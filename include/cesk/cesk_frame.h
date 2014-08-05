@@ -57,7 +57,7 @@ typedef struct _cesk_frame_t cesk_frame_t;
 /** 
  * @brief return the index of the static field 
  **/
-#define CESK_FRAME_REG_STATIC_IDX(id) ((id)&~CESK_FRAME_REG_STATIC_PREFIX)
+#define CESK_FRAME_REG_STATIC_IDX(id) ((uint32_t)((id)&~CESK_FRAME_REG_STATIC_PREFIX))
 
 /** 
  * @brief A Stack Frame of ADAM

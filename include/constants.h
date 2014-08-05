@@ -87,7 +87,7 @@
 
 #ifndef CESK_FRAME_REG_STATIC_PREFIX
 /** @brief the address prefix for a static address */
-#	define CESK_FRAME_REG_STATIC_PREFIX 0x80000000
+#	define CESK_FRAME_REG_STATIC_PREFIX 0x80000000ul
 #endif
 
 #ifndef CESK_SET_EMPTY_HASH
