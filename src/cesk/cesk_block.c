@@ -1264,7 +1264,7 @@ STATIC_INVOKE:
 			self[0] = NULL;
 			ret = 1;   /* there's only function might be called */
 			code[0] = dalvik_block_from_method(classpath, methodname, typelist, rtype);
-			if(NULL == code)
+			if(NULL == code[0])
 			{
 				LOG_ERROR("can not find the method!");
 				return -1;

@@ -10,12 +10,20 @@
 #include <constants.h>
 #include <const_assertion.h>
 
+/**
+ * @brief the static field table
+ **/
 typedef struct _cesk_static_table_t cesk_static_table_t;
 
 /**
  * @brief the iterator type for the static table
  **/
 typedef struct _cesk_static_table_iter_t cesk_static_table_iter_t;
+
+/**
+ * @biref the iterator to traverse all fields that contains relocated address
+ **/
+typedef struct _cesk_static_table_reloc_iter_t cesk_static_table_reloc_iter_t;
 
 #include <cesk/cesk_set.h>
 
@@ -29,6 +37,13 @@ struct _cesk_static_table_t;
  **/
 struct _cesk_static_table_iter_t {
 	const cesk_static_table_t* table;
+	uint32_t begin;
+};
+/**
+ * @brief the implementation of the reloc iter
+ **/
+struct _cesk_static_table_reloc_iter_t {
+	cesk_static_table_t* table;
 	uint32_t begin;
 };
 /**
@@ -88,6 +103,23 @@ cesk_set_t** cesk_static_table_get_rw(cesk_static_table_t* table, uint32_t addr,
  * @return the result for the operation, < 0 indicates an error
  **/
 int cesk_static_table_release_rw(cesk_static_table_t* table, uint32_t addr, const cesk_set_t* value);
+
+/**
+ * @brief update the relocated flag of a field
+ * @param table the static field table
+ * @param addr the target address
+ * @param val the flag value
+ * @param assume_writable if noreuse = 1, the caller assumes that the the node is currently writable
+ * @return the result < 0 indicates an error
+ **/
+int cesk_static_table_update_relocated_flag(cesk_static_table_t* table, uint32_t addr, uint32_t val, uint32_t assume_writable);
+
+/**
+ * @brief find the first static field that contains a relocated address
+ * @param table the static field table
+ * @return the register reference number, CESK_STORE_ADDR_NULL if there's no field contains relocated address
+ **/
+uint32_t cesk_static_table_first_reloc(cesk_static_table_t* table);
 
 /**
  * @brief initialize a new iterator to traverse the table
