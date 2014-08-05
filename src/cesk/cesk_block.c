@@ -708,7 +708,7 @@ static inline int _cesk_block_internal_addr_buf_check(uint32_t nfunc, cesk_diff_
 static inline int _cesk_block_allocation_address_assignment(
 		const cesk_diff_t* result,
 		const cesk_reloc_table_t* callee_rtab,
-		cesk_frame_t* frame,
+		const cesk_frame_t* frame,
 		cesk_reloc_table_t* rtab,
 		uint32_t* internal_addr)
 {
@@ -737,6 +737,224 @@ static inline int _cesk_block_allocation_address_assignment(
 		/* update the address map */
 		internal_addr[i - result->offset[CESK_DIFF_ALLOC]] = iaddr;
 		LOG_DEBUG("new address map "PRSAddr" --> "PRSAddr"", result->data[i].addr, iaddr);
+	}
+	return 0;
+}
+/**
+ * @brief tanslate the reuse record: only target address needs to be translated
+ * @param result the result diff
+ * @param internal_addr the internal address list
+ * @param frame the caller frame
+ * @param buf the diff buffer
+ * @return result of the operation < 0 indicates error
+ **/
+static inline int _cesk_block_invoke_result_reuse_section_translate(const cesk_diff_t* result, const uint32_t* internal_addr, const cesk_frame_t* frame, cesk_diff_buffer_t* buf)
+{
+	uint32_t i;
+	for(i = result->offset[CESK_DIFF_REUSE]; i < result->offset[CESK_DIFF_REUSE + 1]; i ++)
+	{
+		uint32_t ret_addr = result->data[i].addr;
+		uint32_t i_addr = _cesk_block_invoke_result_addr_translate(ret_addr, frame, result, internal_addr); 
+		if(cesk_diff_buffer_append(buf, CESK_DIFF_REUSE, i_addr, result->data[i].arg.generic) < 0)
+		{
+			LOG_ERROR("can not append reuse record to the diff buffer");
+			return -1;
+		}
+	}
+	return 0;
+}
+/**
+ * @brief translate the allocation section, do a value translation
+ * @param result the result diff
+ * @param internal_addr the internal address list
+ * @param frame the caller frame
+ * @param raddr_limit the relocated address limit
+ * @param buf the diff buffer
+ * @return result of operation < 0 indicates error 
+ **/
+static inline int _cesk_block_invoke_result_allocation_section_translate(cesk_diff_t* result, const uint32_t* internal_addr, const cesk_frame_t* frame, uint32_t raddr_limit, cesk_diff_buffer_t* buf)
+{
+	uint32_t i;
+	/* then allocation section, do a address translation and then object translation */
+	for(i = result->offset[CESK_DIFF_ALLOC]; i < result->offset[CESK_DIFF_ALLOC + 1]; i ++)
+	{
+		uint32_t iaddr = internal_addr[i - result->offset[CESK_DIFF_ALLOC]];
+		cesk_value_const_t* store_value;
+		/* if the the interal addrness is smaller than raddr_limit, this object 
+		 * has been allocated in the target store already, so that what we should do is
+		 * to maintain the reuse flag & translate the new address */
+		if(raddr_limit > iaddr && (store_value = cesk_store_get_ro(frame->store, iaddr)) != NULL) 
+		{
+			/* STEP1: reuse the address */
+			LOG_DEBUG("address "PRSAddr" is already allocated in this frame, just setup reuse flag", iaddr);
+			if(cesk_diff_buffer_append(buf, CESK_DIFF_REUSE, iaddr, CESK_DIFF_REUSE_VALUE(1)) < 0)
+			{
+				LOG_ERROR("can not append reuse record in the diff buffer");
+				return -1;
+			}
+			/* STEP2: translate and merge the set
+			 * after we reuse that address, we need to merge the new value to the address, but object value 
+			 * do not need to do this, because if an object is allocated by the same instruction, the field
+			 * set will have the same address, what we need to do this take care about the values in the set */
+			if(CESK_TYPE_SET == result->data[i].arg.value->type)
+			{
+				cesk_value_t* value = _cesk_block_invoke_result_value_translate(result->data[i].arg.value, frame, result, internal_addr);
+				if(NULL == value) 
+				{
+					LOG_ERROR("can not translate the value "PRSAddr, result->data[i].addr);
+					return -1;
+				}
+				/* after the address translation, we are to merge this value with the old store value */
+				if(NULL == store_value)
+				{
+					LOG_DEBUG("nothing in the address"PRSAddr, iaddr);
+				}
+				else if(cesk_set_merge(value->pointer.set, store_value->pointer.set) < 0)
+				{
+					LOG_ERROR("can not merge the value set");
+					return -1;
+				}
+				if(cesk_diff_buffer_append(buf, CESK_DIFF_STORE, iaddr, value) < 0)
+				{
+					LOG_ERROR("can not append the new value to the diff buffer at address "PRSAddr"", iaddr);
+					return -1;
+				}
+			}
+		}
+		/* otherwise, this object is new to the target store, so we need emit an allocation record to the buffer */
+		else
+		{
+			cesk_value_t* value = _cesk_block_invoke_result_value_translate(result->data[i].arg.value, frame, result, internal_addr);
+			if(NULL == value)
+			{
+				LOG_ERROR("can not translate the value");
+				return -1;
+			}
+			if(cesk_diff_buffer_append(buf, CESK_DIFF_ALLOC, iaddr, result->data[i].arg.value) < 0)
+			{
+				LOG_ERROR("can not append allocation record to the diff buffer");
+				return -1;
+			}
+		}
+	}
+	return 0;
+}
+/**
+ * @brief translate the register section, just address set translation
+ * @param result the result buffer
+ * @param internal_addr the internal address lit
+ * @param frame the caller frame
+ * @param buf the diff buffer
+ * @return the result of operations < 0 indicates error
+ **/
+static inline int _cesk_block_invoke_register_section_translation(cesk_diff_t* result, const uint32_t* internal_addr, const cesk_frame_t* frame, cesk_diff_buffer_t* buf)
+{
+	uint32_t i;
+	/* okay, register section, just address set translation*/
+	for(i = result->offset[CESK_DIFF_REG]; i < result->offset[CESK_DIFF_REG + 1]; i ++)
+	{
+		uint32_t regid = result->data[i].addr; 
+		/* translate the register value set */
+		cesk_set_t* set = _cesk_block_invoke_result_set_translate(result->data[i].arg.set, frame, result, internal_addr);
+		if(NULL == set)
+		{
+			LOG_ERROR("can not translate register v%d = %s", regid, cesk_set_to_string(result->data[i].arg.set, 0, 0));
+			return -1;
+		}
+		if(cesk_diff_buffer_append(buf, CESK_DIFF_REG, regid, set) < 0)
+		{
+			LOG_ERROR("can not append register record to the diff buffer");
+			return -1;
+		}
+	}
+	return 0;
+}
+/**
+ * @brief trnslate the store section
+ * @param result the result buffer
+ * @param internal_addr the internal address list
+ * @param frame the caller frame
+ * @param buf the diff buffer
+ * @return the result operations < 0 indicates error
+ **/
+static inline int _cesk_block_invoke_result_store_section_translation(cesk_diff_t* result, const uint32_t* internal_addr, const cesk_frame_t* frame, uint32_t raddr_limit, cesk_diff_buffer_t* buf)
+{
+	uint32_t i;
+	/* then, store section */
+	for(i = result->offset[CESK_DIFF_STORE]; i < result->offset[CESK_DIFF_STORE + 1]; i ++)
+	{
+		uint32_t addr = _cesk_block_invoke_result_addr_translate(result->data[i].addr, frame, result, internal_addr);
+		if(CESK_STORE_ADDR_NULL == addr)
+		{
+			LOG_ERROR("can not translate address");
+			return -1;
+		}
+		
+		cesk_value_t* value = _cesk_block_invoke_result_value_translate(result->data[i].arg.value, frame, result, internal_addr);
+		
+		if(NULL == value)
+		{
+			LOG_ERROR("can not translate the value");
+			return -1;
+		}
+		/* Because the object instance itself do not contain any pointer to actual value,
+		 * so the only possible situation that we should merge two instance is that this
+		 * is an instance of a built-in class */
+		if(CESK_TYPE_OBJECT == result->data[i].arg.value->type)
+		{
+			cesk_value_const_t* store_value;
+			cesk_object_t* dest = value->pointer.object;
+			
+			/* if this is an allocation that merged to existing address, we need to merge the old value */
+			if(CESK_STORE_ADDR_IS_RELOC(result->data[i].addr) && raddr_limit > addr && 
+			   (store_value = cesk_store_get_ro(frame->store, addr)) != NULL )
+			{
+				const cesk_object_t* sour = store_value->pointer.object;
+				if(NULL == sour->builtin || NULL == dest->builtin)
+				{
+					LOG_ERROR("can not merge two object instance that is non-built-in one");
+					return -1;
+				}
+				if(sour->builtin->class.bci->class != dest->builtin->class.bci->class)
+				{
+					LOG_ERROR("can not merge two object instance that is not the same type");
+					return -1;
+				}
+				if(bci_class_merge(dest->builtin->bcidata, sour->builtin->bcidata, dest->builtin->class.bci->class) < 0)
+				{
+					LOG_ERROR("can not merge the built-in instance %s", dest->builtin->class.path->value);
+					return -1;
+				}
+			}
+			if(bci_class_get_relocation_flag(dest->builtin->bcidata, dest->builtin->class.bci->class) > 0) result->data[i].arg.value->reloc = 1;
+		}
+		/* otherwise, we should merge the values in the set */
+		else
+		{
+			cesk_set_t* set = value->pointer.set;
+			cesk_value_const_t* store_value;
+			/* if this is an allocation that merged to existing address, we need to merge the old value */
+			if(CESK_STORE_ADDR_IS_RELOC(result->data[i].addr) && raddr_limit > addr && 
+			   (store_value = cesk_store_get_ro(frame->store, addr)) != NULL )
+			{
+				if(NULL == store_value)
+				{
+					LOG_ERROR("can not read store value at address "PRSAddr"", addr);
+					return -1;
+				}
+				if(cesk_set_merge(set, store_value->pointer.set) < 0)
+				{
+					LOG_ERROR("can not merge old value with the new value");
+					return -1;
+				}
+			}
+			if(cesk_set_get_reloc(set) > 0) result->data[i].arg.value->reloc = 1;
+		}
+		if(cesk_diff_buffer_append(buf, CESK_DIFF_STORE, addr, result->data[i].arg.value) < 0)
+		{
+			LOG_ERROR("can not append store record to the diff buffer");
+			return -1;
+		}
 	}
 	return 0;
 }
@@ -806,171 +1024,32 @@ static inline cesk_diff_t* _cesk_block_invoke_result_translate(
 		}
 	}
 
-	/****************CURRENT CURRENT CURRENT ********************************************/
-	/* TODO: CURRENT change the function so that it can handle the multiple result properly */
-	/* translate the reuse section first, the only thing we should do is address translation */
-	for(i = result->offset[CESK_DIFF_REUSE]; i < result->offset[CESK_DIFF_REUSE + 1]; i ++)
+	/* translate the reuse section */
+	for(i = 0; i < nfunc; i ++)
 	{
-		uint32_t ret_addr = result->data[i].addr;
-		uint32_t i_addr = _cesk_block_invoke_result_addr_translate(ret_addr, frame, result, internal_addr); 
-		if(cesk_diff_buffer_append(buf, CESK_DIFF_REUSE, i_addr, result->data[i].arg.generic) < 0)
+		if(_cesk_block_invoke_result_reuse_section_translate(results[i], internal_addr[i], frame, buf) < 0)
 		{
-			LOG_ERROR("can not append reuse record to the diff buffer");
+			LOG_ERROR("can not translate the reuse section of result diff #%u", i);
 			goto ERR;
 		}
 	}
-	/* then allocation section, do a address translation and then object translation */
-	for(i = result->offset[CESK_DIFF_ALLOC]; i < result->offset[CESK_DIFF_ALLOC + 1]; i ++)
+
+	/* translate the allocation section */
+	for(i = 0; i < nfunc; i ++)
 	{
-		uint32_t iaddr = internal_addr[i - result->offset[CESK_DIFF_ALLOC]];
-		cesk_value_const_t* store_value;
-		/* if the the interal address is smaller than raddr_limit, means this object 
-		 * has been allocated in the target store before, so that what we should do is
-		 * to maintain the reuse flag & translate the new address: */
-		if(raddr_limit > iaddr && (store_value = cesk_store_get_ro(frame->store, iaddr)) != NULL) 
+		if(_cesk_block_invoke_result_allocation_section_translate(results[i], internal_addr[i], frame, raddr_limit, buf) < 0)
 		{
-			/* STEP1: reuse the address */
-			LOG_DEBUG("address "PRSAddr" is already allocated in this frame, just setup reuse flag", iaddr);
-			if(cesk_diff_buffer_append(buf, CESK_DIFF_REUSE, iaddr, CESK_DIFF_REUSE_VALUE(1)) < 0)
-			{
-				LOG_ERROR("can not append reuse record in the diff buffer");
-				goto ERR;
-			}
-			/* STEP2: translate and merge the set
-			 * after we reuse that address, we need to merge the new value to the address, but object value 
-			 * do not need to do this, because if an object is allocated by the same instruction, the field
-			 * set will have the same address, what we need to do this take care about the values in the set */
-			if(CESK_TYPE_SET == result->data[i].arg.value->type)
-			{
-				cesk_value_t* value = _cesk_block_invoke_result_value_translate(result->data[i].arg.value, frame, result, internal_addr);
-				if(NULL == value) 
-				{
-					LOG_ERROR("can not translate the value "PRSAddr, result->data[i].addr);
-					goto ERR;
-				}
-				/* after the address translation, we are to merge this value with the old store value */
-				if(NULL == store_value)
-				{
-					LOG_DEBUG("nothing in the address"PRSAddr, iaddr);
-				}
-				else if(cesk_set_merge(value->pointer.set, store_value->pointer.set) < 0)
-				{
-					LOG_ERROR("can not merge the value set");
-					goto ERR;
-				}
-				if(cesk_diff_buffer_append(buf, CESK_DIFF_STORE, iaddr, value) < 0)
-				{
-					LOG_ERROR("can not append the new value to the diff buffer at address "PRSAddr"", iaddr);
-					goto ERR;
-				}
-			}
-		}
-		/* otherwise, this object is new to the target store, so we need emit an allocation record to the buffer */
-		else
-		{
-			cesk_value_t* value = _cesk_block_invoke_result_value_translate(result->data[i].arg.value, frame, result, internal_addr);
-			if(NULL == value)
-			{
-				LOG_ERROR("can not translate the value");
-				goto ERR;
-			}
-			if(cesk_diff_buffer_append(buf, CESK_DIFF_ALLOC, iaddr, result->data[i].arg.value) < 0)
-			{
-				LOG_ERROR("can not append allocation record to the diff buffer");
-				goto ERR;
-			}
-		}
-	}
-	/* okay, register section, just address set translation*/
-	for(i = result->offset[CESK_DIFF_REG]; i < result->offset[CESK_DIFF_REG + 1]; i ++)
-	{
-		uint32_t regid = result->data[i].addr; 
-		/* translate the register value set */
-		cesk_set_t* set = _cesk_block_invoke_result_set_translate(result->data[i].arg.set, frame, result, internal_addr);
-		if(NULL == set)
-		{
-			LOG_ERROR("can not translate register v%d = %s", regid, cesk_set_to_string(result->data[i].arg.set, 0, 0));
-			goto ERR;
-		}
-		if(cesk_diff_buffer_append(buf, CESK_DIFF_REG, regid, set) < 0)
-		{
-			LOG_ERROR("can not append register record to the diff buffer");
+			LOG_ERROR("can not translate the allocation section of result diff #%u", i);
 			goto ERR;
 		}
 	}
-	/* then, store section */
-	for(i = result->offset[CESK_DIFF_STORE]; i < result->offset[CESK_DIFF_STORE + 1]; i ++)
+
+	/* translate the store section */
+	for(i = 0; i < nfunc; i ++)
 	{
-		uint32_t addr = _cesk_block_invoke_result_addr_translate(result->data[i].addr, frame, result, internal_addr);
-		if(CESK_STORE_ADDR_NULL == addr)
+		if(_cesk_block_invoke_result_store_section_translation(results[i], internal_addr[i], frame, raddr_limit, buf) < 0)
 		{
-			LOG_ERROR("can not translate address");
-			goto ERR;
-		}
-		
-		cesk_value_t* value = _cesk_block_invoke_result_value_translate(result->data[i].arg.value, frame, result, internal_addr);
-		
-		if(NULL == value)
-		{
-			LOG_ERROR("can not translate the value");
-			goto ERR;
-		}
-		/* Because the object instance itself do not contain any pointer to actual value,
-		 * so the only possible situation that we should merge two instance is that this
-		 * is an instance of a built-in class */
-		if(CESK_TYPE_OBJECT == result->data[i].arg.value->type)
-		{
-			cesk_value_const_t* store_value;
-			cesk_object_t* dest = value->pointer.object;
-			
-			/* if this is an allocation that merged to existing address, we need to merge the old value */
-			if(CESK_STORE_ADDR_IS_RELOC(result->data[i].addr) && raddr_limit > addr && 
-			   (store_value = cesk_store_get_ro(frame->store, addr)) != NULL )
-			{
-				const cesk_object_t* sour = store_value->pointer.object;
-				if(NULL == sour->builtin || NULL == dest->builtin)
-				{
-					LOG_ERROR("can not merge two object instance that is non-built-in one");
-					goto ERR;
-				}
-				if(sour->builtin->class.bci->class != dest->builtin->class.bci->class)
-				{
-					LOG_ERROR("can not merge two object instance that is not the same type");
-					goto ERR;
-				}
-				if(bci_class_merge(dest->builtin->bcidata, sour->builtin->bcidata, dest->builtin->class.bci->class) < 0)
-				{
-					LOG_ERROR("can not merge the built-in instance %s", dest->builtin->class.path->value);
-					goto ERR;
-				}
-			}
-			if(bci_class_get_relocation_flag(dest->builtin->bcidata, dest->builtin->class.bci->class) > 0) result->data[i].arg.value->reloc = 1;
-		}
-		/* otherwise, we should merge the values in the set */
-		else
-		{
-			cesk_set_t* set = value->pointer.set;
-			cesk_value_const_t* store_value;
-			/* if this is an allocation that merged to existing address, we need to merge the old value */
-			if(CESK_STORE_ADDR_IS_RELOC(result->data[i].addr) && raddr_limit > addr && 
-			   (store_value = cesk_store_get_ro(frame->store, addr)) != NULL )
-			{
-				if(NULL == store_value)
-				{
-					LOG_ERROR("can not read store value at address "PRSAddr"", addr);
-					goto ERR;
-				}
-				if(cesk_set_merge(set, store_value->pointer.set) < 0)
-				{
-					LOG_ERROR("can not merge old value with the new value");
-					goto ERR;
-				}
-			}
-			if(cesk_set_get_reloc(set) > 0) result->data[i].arg.value->reloc = 1;
-		}
-		if(cesk_diff_buffer_append(buf, CESK_DIFF_STORE, addr, result->data[i].arg.value) < 0)
-		{
-			LOG_ERROR("can not append store record to the diff buffer");
+			LOG_ERROR("can not translate the store section of result diff #%u", i);
 			goto ERR;
 		}
 	}
@@ -983,13 +1062,13 @@ static inline cesk_diff_t* _cesk_block_invoke_result_translate(
 		goto ERR;
 	}
 	/* clean up */
-	cesk_diff_free(result);
+	for(i = 0; i < nfunc; i ++) if(results[i]) cesk_diff_free(results[i]);
 	cesk_diff_buffer_free(buf);
 	return ret;
 ERR:
 	if(buf) cesk_diff_buffer_free(buf);
 	for(i = 0; i < nfunc; i ++)
-		if(result[i]) cesk_diff_free(result[i]);
+		if(results[i]) cesk_diff_free(results[i]);
 	return NULL;
 }
 /**
@@ -1202,10 +1281,7 @@ static inline int _cesk_block_handler_invoke(
 		return -1;
 	}
 	
-
-	/** TODO invoke */
 	int k;
-	cesk_diff_t* result = NULL;
 	for(k = 0; k < nfunc; k ++)
 	{
 		
@@ -1247,7 +1323,7 @@ static inline int _cesk_block_handler_invoke(
 
 		/* do function call */
 		invoke_result[k] = cesk_method_analyze(code[k], callee_frame, context, callee_rtable + k);
-		if(NULL == result[k])
+		if(NULL == invoke_result[k])
 		{
 			LOG_ERROR("can not analyze the function invocation");
 			goto ERR;
@@ -1387,8 +1463,9 @@ ERR:
 int cesk_block_init()
 {
 	// do nothing, just follow the protocol
+	return 0;
 }
 void cesk_block_finalize()
 {
-	if(_cesk_block_interal_addr_buf) free(_cesk_block_interal_addr_buf);
+	if(_cesk_block_internal_addr_buf) free(_cesk_block_internal_addr_buf);
 }
