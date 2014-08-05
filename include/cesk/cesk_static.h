@@ -130,4 +130,18 @@ int cesk_static_table_equal(const cesk_static_table_t* left, const cesk_static_t
  * @note this function is used for verify the hashcode field in the table maintaning correctly
  **/
 hashval_t cesk_static_table_compute_hashcode(const cesk_static_table_t* table);
+/**
+ * @brief convert this static table to string
+ * @param table the static table to convert
+ * @param buf the result buffer
+ * @param sz the size of result buffer 
+ * @return the pointer the result string, NULL indicates an error 
+ **/
+const char* cesk_static_table_to_string(const cesk_static_table_t* table, char* buf, size_t sz);
+/**
+ * @brief print debug infomation in DEBUG log
+ * @param table the static field table to print
+ * @return nothing
+ **/
+void cesk_static_table_print_debug(const cesk_static_table_t* table);
 #endif

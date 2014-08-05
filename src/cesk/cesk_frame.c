@@ -1748,7 +1748,8 @@ const char* cesk_frame_to_string(const cesk_frame_t* frame, char* buf, size_t sz
 	__PR("[register ");
 	for(i = 0; i < frame->size; i ++)
 		__PR("(v%d %s) ", i, cesk_set_to_string(frame->regs[i], NULL, 0));
-	__PR("] [store %s]", cesk_store_to_string(frame->store, NULL, 0));
+	__PR("] [store %s] [static %s]", cesk_store_to_string(frame->store, NULL, 0),
+	                                 cesk_static_table_to_string(frame->statics, NULL, 0));
 	return buf;
 }
 void cesk_frame_print_debug(const cesk_frame_t* frame)
@@ -1760,6 +1761,8 @@ void cesk_frame_print_debug(const cesk_frame_t* frame)
 		LOG_DEBUG("\tv%d\t%s", i, cesk_set_to_string(frame->regs[i], NULL, 0));
 	LOG_DEBUG("Store");
 	cesk_store_print_debug(frame->store);
+	LOG_DEBUG("Static Fields");
+	cesk_static_table_print_debug(frame->statics);
 }
 #else
 {}

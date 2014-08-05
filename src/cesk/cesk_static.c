@@ -392,7 +392,7 @@ static inline uint32_t _cesk_static_tree_next(const _cesk_static_tree_node_t* ro
 		else l[level + 1] = m, r[level + 1] = r[level], path[level + 1] = path[level]->child[1];
 	}
 	/* if this index has been found in the tree, we do not need to find the larger node */
-	if(NULL != path[level] && path[level]->isleaf)
+	if(NULL != path[level] && path[level]->isleaf && l[level] == start)
 	{
 		if(NULL != p_target) *p_target = path[level];
 		return l[level];
@@ -695,3 +695,50 @@ hashval_t cesk_static_table_compute_hashcode(const cesk_static_table_t* table)
 {
 	return _cesk_static_tree_compute_hash(table->root, 0, dalvik_static_field_count) ^ INIT_HASHCODE;
 }
+
+#define __PR(fmt, args...) do{\
+	int pret = snprintf(p, buf + sz - p, fmt, ##args);\
+	if(pret > buf + sz - p) pret = buf + sz - p;\
+	p += pret;\
+}while(0)
+const char* cesk_static_table_to_string(const cesk_static_table_t* table, char* buf, size_t sz)
+{
+	static char _buf[1024];
+	if(NULL == buf)
+	{
+		buf = _buf;
+		sz = sizeof(_buf);
+	}
+	char* p = buf;
+	cesk_static_table_iter_t iter;
+	if(NULL == cesk_static_table_iter(table, &iter))
+	{
+		LOG_ERROR("can not get the iterator to traverse static field table");
+		return NULL;
+	}
+	const cesk_set_t* value;
+	uint32_t addr;
+	while(NULL != (value = cesk_static_table_iter_next(&iter, &addr)))
+	{
+		__PR("(F%u --> %s)", CESK_FRAME_REG_STATIC_IDX(addr), cesk_set_to_string(value, NULL, 0));
+	}
+	return buf;
+}
+
+void cesk_static_table_print_debug(const cesk_static_table_t* table)
+#if LOG_LEVEL >= 6
+{
+	cesk_static_table_iter_t iter;
+	if(NULL == cesk_static_table_iter(table, &iter))
+	{
+		LOG_ERROR("can not get the iterator to traverse static field table");
+		return;
+	}
+	const cesk_set_t* value;
+	uint32_t addr;
+	while(NULL != (value = cesk_static_table_iter_next(&iter, &addr)))
+		LOG_DEBUG("\tF%u\t%s", CESK_FRAME_REG_STATIC_IDX(addr), cesk_set_to_string(value, NULL, 0));
+}
+#else
+{}
+#endif

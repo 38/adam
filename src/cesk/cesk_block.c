@@ -1000,7 +1000,7 @@ static inline cesk_diff_t* _cesk_block_invoke_result_translate(
 {
 	/* create a new diff buffer for the result diff */
 	uint32_t i;
-	cesk_diff_buffer_t* buf = cesk_diff_buffer_new(0, 0);
+	cesk_diff_buffer_t* buf = cesk_diff_buffer_new(0, 1);
 	if(NULL == buf)
 	{
 		LOG_ERROR("can not create a new diff buffer for the traslation result");
@@ -1176,6 +1176,7 @@ static inline cesk_set_t* _cesk_block_method_heap_get_partition(const dalvik_blo
 		cesk_set_push(ret, _cesk_block_method_heap_addr[0]);
 		_cesk_block_method_heap_addr[0] = _cesk_block_method_heap_addr[_cesk_block_method_heap_size - 1];
 		_cesk_block_method_heap_code[0] = _cesk_block_method_heap_code[_cesk_block_method_heap_size - 1];
+		_cesk_block_method_heap_size --;
 		_cesk_block_method_heap_incrase(0);
 	}
 	return ret;
