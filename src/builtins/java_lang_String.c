@@ -105,6 +105,11 @@ int java_lang_String_equal(const void* this, const void* that)
 {
 	return *(const char**)this == *(const char**) that;
 }
+int java_lang_String_instance_of(const void* this, const char* classpath)
+{
+	extern bci_class_t java_lang_String_metadata;
+	return classpath ==  java_lang_String_metadata.provides[0];
+}
 bci_class_t java_lang_String_metadata = {
 	.size = sizeof(const char*),
 	.onload = java_lang_String_onload,
@@ -115,6 +120,7 @@ bci_class_t java_lang_String_metadata = {
 	.hash = java_lang_String_hash,
 	.equal = java_lang_String_equal,
 	.get_field = java_lang_String_get_field,
+	.instance_of = java_lang_String_instance_of,
 	.super = "java/lang/Object",
 	.provides = {
 		"java/lang/String", 

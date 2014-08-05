@@ -335,6 +335,31 @@ static inline int _cesk_block_handler_instance(
 				return -1;
 			}
 			return 0;
+		case DVM_FLAG_INSTANCE_OF:
+			dest = _cesk_block_operand_to_regidx(ins->operands + 0);
+			sour = _cesk_block_operand_to_regidx(ins->operands + 1);
+			clspath = ins->operands[2].payload.string;
+			set = frame->regs[sour];
+			if(NULL == cesk_set_iter(set, &it))
+			{
+				LOG_ERROR("can not read the value set of regsiter v%d", sour);
+			}
+			while(CESK_STORE_ADDR_NULL != (addr = cesk_set_iter_next(&it)))
+			{
+				cesk_value_const_t* value = cesk_store_get_ro(frame->store, addr);
+				if(NULL == value)
+				{
+					LOG_WARNING("can not read value from store "PRSAddr, addr);
+					continue;
+				}
+				if(CESK_TYPE_SET == value->type)
+				{
+					LOG_WARNING("try to check if a value set a instance of an object, must be an error");
+					continue;
+				}
+				//TODO TODO TODO TODO TODO HERE		
+			}
+
 		/* TODO other instance instructions, static things */
 		default:
 			LOG_ERROR("unknwon instruction flag %x", ins->flags);

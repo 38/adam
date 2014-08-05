@@ -65,12 +65,18 @@ int java_lang_Array_alist(const void* this, uint32_t offset, uint32_t* buf,size_
 		buf[ret] = addr;
 	return ret;
 }
+int java_lang_Array_instance_of(const void* this, const char* classpath)
+{
+	extern bci_class_t java_lang_Array_metadata;
+	return classpath ==  java_lang_Array_metadata.provides[0];
+}
 bci_class_t java_lang_Array_metadata = {
 	.size = sizeof(_array_t),
 	.initialization = java_lang_Array_init,
 	.finalization = java_lang_Array_fina,
 	.duplicate = java_lang_Array_dup,
 	.get_addr_list = java_lang_Array_alist,
+	.instance_of = java_lang_Array_instance_of,
 	.super = "java/lang/Object",
 	.provides = {
 		"java/lang/Array",

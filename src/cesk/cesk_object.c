@@ -365,7 +365,8 @@ int cesk_object_instance_of(const cesk_object_t* object, const char* classpath)
 		if(this->class.path->value == classpath) return 1;
 		if(this->built_in)
 		{
-			LOG_DEBUG("we do not support built-in class implements any class");
+			if(bci_class_instance_of(this->bcidata, classpath, this->class.bci->class))
+				return 1;
 		}
 		else
 		{

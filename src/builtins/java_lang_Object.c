@@ -26,6 +26,11 @@ int java_lang_Object_merge(void* this, const void* that)
 {
 	return 0;
 }
+int java_lang_Object_instance_of(const void* this, const char* classpath)
+{
+	extern bci_class_t java_lang_Object_metadata;
+	return classpath ==  java_lang_Object_metadata.provides[0];
+}
 bci_class_t java_lang_Object_metadata = {
 	.size = 0,
 	.get_addr_list = java_lang_Object_get_addr_list,
@@ -33,6 +38,7 @@ bci_class_t java_lang_Object_metadata = {
 	.equal = java_lang_Object_equal,
 	.duplicate = java_lang_Object_duplicate,
 	.to_string = java_lang_Object_to_string,
+	.instance_of = java_lang_Object_instance_of,
 	.merge = java_lang_Object_merge,
 	.super = NULL,
 	.provides = {
