@@ -12,7 +12,9 @@ typedef struct _bci_class_t bci_class_t;
 typedef struct _bci_class_wrap_t bci_class_wrap_t;
 #include <cesk/cesk_set.h>
 #include <cesk/cesk_store.h>
-
+#define BCI_BOOLEAN_FALSE 0
+#define BCI_BOOLEAN_TRUE  1
+#define BCI_BOOLEAN_UNKNOWN 2
 /**
  * @brief the wrapper type for a built-in class
  **/
@@ -53,6 +55,8 @@ struct _bci_class_t {
 	int (*modify)(void* this, uint32_t offset, uint32_t* new, size_t N);  /*!< how to modify the address list */
 
 	int (*instance_of)(const void* this, const char* classpath);     /*!< check wether or not this object is a instance of the class path */
+
+	int (*invoke)(const void* this, const char* classpath ,void* env);
 
 	const char* super;                           /*!< the super class of this built-in class, NULL means no super class */
 	const char* provides[BCI_CLASS_MAX_PROVIDES];/*!< the class that this build-in class provides, end with a NULL */

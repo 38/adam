@@ -1,3 +1,16 @@
+Current: BCI Support
+	How a BCI Function modifiy the callee frame?
+		1. Set vREG
+		2. Set Static Fields  (sput)
+		3. New Instance       (new-instance)
+		4. Invoke a Userdefined Function (invoke-xxxx)
+		5. Change a value In memory (iput)
+	What ops is needed in a BCI function?
+		1. Get a parameter
+		2. Get a field from parameter (iget)
+		3. Get a Static Field (sget)
+		4. Get a Object value from Static Field (iget)
+	So BCI Interface function should forward this function call to the callee block analyzer, and block analyzer is resposible to perform all those actions
 Current: Builtin Class Support, Exception Classes
 	Some modifies is needed because if we introduce the built-in class, the address slot which contains object instance will become subject to 
 	store modification. But currently we do not allow frame diff to do this. 

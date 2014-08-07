@@ -254,7 +254,7 @@ static inline int _cesk_block_handler_instance(
 			/* although the class can be a built-in class, but the instance-new instruction
 			 * itself do not perform any initialization action. So we do not pass any intialization
 			 * data to the creator, because we don't know how to initialize the object at this 
-			 * time. (Notice it's different from the instance created by the const/string instruction`)*/
+			 * time. (Notice it's different from the instance created by the const/string instruction)*/
 			cesk_alloc_param_t param = CESK_ALLOC_PARAM(CESK_ALLOC_NA, CESK_ALLOC_NA);
 
 			ret = cesk_frame_store_new_object(frame, rtab, ins, &param, clspath, NULL, D, I);
@@ -343,7 +343,9 @@ static inline int _cesk_block_handler_instance(
 			if(NULL == cesk_set_iter(set, &it))
 			{
 				LOG_ERROR("can not read the value set of regsiter v%d", sour);
+				return -1;
 			}
+			addr = CESK_STORE_ADDR_EMPTY;
 			while(CESK_STORE_ADDR_NULL != (addr = cesk_set_iter_next(&it)))
 			{
 				cesk_value_const_t* value = cesk_store_get_ro(frame->store, addr);
@@ -357,10 +359,21 @@ static inline int _cesk_block_handler_instance(
 					LOG_WARNING("try to check if a value set a instance of an object, must be an error");
 					continue;
 				}
-				//TODO TODO TODO TODO TODO HERE		
+				const cesk_object_t* object = value->pointer.object;
+				uint32_t rc = cesk_object_instance_of(object, clspath);
+				if(CESK_STORE_ADDR_NULL == rc)
+				{
+					LOG_ERROR("failed to check type of the object");
+					return -1;
+				}
+				addr |= rc;
 			}
-
-		/* TODO other instance instructions, static things */
+			if(cesk_frame_register_load(frame, dest, sour, D, I) < 0)
+			{
+				LOG_ERROR("can not load new value to register v%u", dest);
+				return -1;
+			}
+			return 0;
 		default:
 			LOG_ERROR("unknwon instruction flag %x", ins->flags);
 	}

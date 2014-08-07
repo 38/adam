@@ -157,9 +157,9 @@ const char* cesk_object_to_string(const cesk_object_t* object, char* buf, size_t
  * @brief check if the object is a instantce of the class 
  * @param object the object
  * @param classpath the class path of the class
- * @return the result of the check
+ * @return the result of the check, return an int addr indicates the result, CESK_STORE_ADDR_NULL indicates an error
  */
-int cesk_object_instance_of(const cesk_object_t* object, const char* classpath);
+uint32_t cesk_object_instance_of(const cesk_object_t* object, const char* classpath);
 /** 
  * @brief compute a non-incremental style hashcode, only for debugging 
  * @param object

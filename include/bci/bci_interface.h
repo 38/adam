@@ -45,6 +45,6 @@ void builtin_library_finalize()\
 struct _bci_invoke_env_t {
 	cesk_reloc_table_t* rtable;   /*!< relocation table */
 	cesk_frame_t*       frame;    /*!< envrion store */
-	cesk_diff_t*        result;   /*!< result */
+	uint32_t			param[0]; /*!< the register references */
 };
 #endif

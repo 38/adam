@@ -355,7 +355,7 @@ const char* cesk_object_to_string(const cesk_object_t* object, char* buf, size_t
 #undef __PR
 	return buf;
 }
-int cesk_object_instance_of(const cesk_object_t* object, const char* classpath)
+uint32_t cesk_object_instance_of(const cesk_object_t* object, const char* classpath)
 {
 	const cesk_object_struct_t* this = object->members;
 	int i;
@@ -365,8 +365,20 @@ int cesk_object_instance_of(const cesk_object_t* object, const char* classpath)
 		if(this->class.path->value == classpath) return 1;
 		if(this->built_in)
 		{
-			if(bci_class_instance_of(this->bcidata, classpath, this->class.bci->class))
-				return 1;
+			int rc = bci_class_instance_of(this->bcidata, classpath, this->class.bci->class);
+			if(rc > 0) 
+			{
+				switch(rc)
+				{
+					case BCI_BOOLEAN_TRUE: return CESK_STORE_ADDR_POS;
+					case BCI_BOOLEAN_UNKNOWN: return CESK_STORE_ADDR_POS | CESK_STORE_ADDR_ZERO;
+				}
+			}
+			else if(rc < 0)
+			{
+				LOG_ERROR("can not call function bci_class_instance_of for built-in class %s", classpath);
+				return CESK_STORE_ADDR_NULL;
+			}
 		}
 		else
 		{
@@ -377,5 +389,5 @@ int cesk_object_instance_of(const cesk_object_t* object, const char* classpath)
 		}
 		CESK_OBJECT_STRUCT_ADVANCE(this);
 	}
-	return 0;
+	return CESK_STORE_ADDR_ZERO;
 }

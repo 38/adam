@@ -13,7 +13,7 @@
  **/
 typedef struct {
 	uint32_t nparam;   /* how many parameters */
-	int (*invoke)(bci_invoke_env_t* env, void* result);   /* invoke this method */
+	int (*invoke)(bci_invoke_env_t* env);   /* invoke this method */
 } bci_method_t;
 
 #endif
