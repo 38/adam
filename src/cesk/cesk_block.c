@@ -1374,7 +1374,7 @@ STATIC_INVOKE:
 				int method = bci_class_get_method(NULL, methodname, typelist, rtype, bclass->class);
 				if(method < 0)
 				{
-					LOG_ERROR("the target class %s do not support %s", classname, methodname);
+					LOG_ERROR("the target class %s do not support %s", classpath, methodname);
 					return -1;
 				}
 				class[ret] = bclass->class;
