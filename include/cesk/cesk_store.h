@@ -43,8 +43,6 @@
 /* previous defs */
 typedef struct _cesk_store_t cesk_store_t;
 
-#include <cesk/cesk_value.h>
-#include <dalvik/dalvik_instruction.h>
 
 /* memory layout of a frame store : 
  *                                             OBJ_LIMIT
@@ -103,9 +101,14 @@ CONST_ASSERTION_EQ(CESK_STORE_ADDR_NULL, 0xffffffff);
 /** @brief check if or not an address is an object address */
 #define CESK_STORE_ADDR_IS_OBJ(addr) ((addr) < CESK_STORE_ADDR_OBJ_LIMIT)
 
-
-
 #include <cesk/cesk_alloctab.h>
+
+int cesk_store_set_alloc_table(cesk_store_t* store, cesk_alloctab_t* table);
+
+#include <cesk/cesk_value.h>
+#include <dalvik/dalvik_instruction.h>
+
+
 #include <cesk/cesk_static.h>
 
 /** @brief slot in virtual store */

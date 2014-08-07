@@ -228,7 +228,7 @@ static inline int _cesk_diff_gc(cesk_diff_t* diff)
 	for(store_ptr = store_begin; store_ptr < store_end; store_ptr ++)
 	{
 		cesk_value_t* value = diff->data[store_ptr].arg.value;
-		if(NULL == value || CESK_TYPE_SET != value->type)
+		if(NULL == value)
 		{
 			LOG_WARNING("ignore invalid value");
 			continue;

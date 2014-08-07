@@ -2,12 +2,19 @@
  * @brief this is the interface provided by BCI subsystem to 
  *        built-in classes.
  **/
+#ifndef __BCI_INTERFACE_H_PREV__
+#define __BCI_INTERFACE_H_PREV__
+typedef struct _bci_method_env_t bci_method_env_t;
+#endif
+
 #ifndef __BCI_INTERFACE_H__
 #define __BCI_INTERFACE_H__
-typedef struct _bci_invoke_env_t bci_invoke_env_t;
-#include <bci/bci.h>
+
 #include <stringpool.h>
-#include <cesk/cesk.h>
+#include <bci/bci.h>
+
+
+
 #define PackageInit_Begin \
 int builtin_library_init()\
 {
@@ -39,12 +46,4 @@ void builtin_library_finalize()\
 	}\
 }while(0)
 
-/**
- * @brief a invocation environment
- **/
-struct _bci_invoke_env_t {
-	cesk_reloc_table_t* rtable;   /*!< relocation table */
-	cesk_frame_t*       frame;    /*!< envrion store */
-	uint32_t			param[0]; /*!< the register references */
-};
 #endif

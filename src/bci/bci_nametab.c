@@ -8,7 +8,6 @@
 typedef struct _bci_nametab_node_t _bci_nametab_node_t;
 struct _bci_nametab_node_t{
 	const char* clspath;    /*!< the class path */
-	const char* methname;   /*!< the method name, NULL if this is a class */
 	void* def;              /*!< the definition */
 	_bci_nametab_node_t* next; /*!< the next node in table */
 };
@@ -30,12 +29,9 @@ void bci_nametab_finialize()
 		{
 			_bci_nametab_node_t* this = ptr;
 			ptr = ptr->next;
-			if(NULL == this->methname)
-			{
-				bci_class_wrap_t* class_wrap = (bci_class_wrap_t*)this->def;
-				if(class_wrap->class->ondelete) class_wrap->class->ondelete(this->clspath);
-				free(class_wrap);	
-			}
+			bci_class_wrap_t* class_wrap = (bci_class_wrap_t*)this->def;
+			if(class_wrap->class->ondelete) class_wrap->class->ondelete(this->clspath);
+			free(class_wrap);	
 			free(this);
 		}
 	}
@@ -47,11 +43,10 @@ void bci_nametab_finialize()
  * @param method_name the method name
  * @return the hash code for this object
  **/
-static inline hashval_t _bci_nametab_hash(const char* class_path, const char* method_name)
+static inline hashval_t _bci_nametab_hash(const char* class_path)
 {
 	hashval_t a = ((uintptr_t)class_path) & 0xffffffff;
-	hashval_t b = ((uintptr_t)method_name) & 0xffffffff;
-	return (a * a * 100003 * MH_MULTIPLY + b * MH_MULTIPLY );
+	return (a * a *  MH_MULTIPLY);
 }
 
 /**
@@ -61,7 +56,7 @@ static inline hashval_t _bci_nametab_hash(const char* class_path, const char* me
  * @param object the object pointer
  * @return the newly created node, NULL indicates an error
  **/
-static inline _bci_nametab_node_t* _bci_nametab_node_alloc(const char* class, const char* method, void* object)
+static inline _bci_nametab_node_t* _bci_nametab_node_alloc(const char* class, void* object)
 {
 	_bci_nametab_node_t* ret = (_bci_nametab_node_t*)malloc(sizeof(_bci_nametab_node_t));
 	if(NULL == ret)
@@ -70,16 +65,10 @@ static inline _bci_nametab_node_t* _bci_nametab_node_alloc(const char* class, co
 		return NULL;
 	}
 	ret->clspath = class;
-	ret->methname = method;
-	if(NULL == method)
-	{
-		bci_class_wrap_t* wrap = (bci_class_wrap_t*)malloc(sizeof(bci_class_wrap_t));
-		wrap->class = (bci_class_t*) object;
-		wrap->path = class;
-		ret->def = wrap;
-	}
-	else
-		ret->def = object;
+	bci_class_wrap_t* wrap = (bci_class_wrap_t*)malloc(sizeof(bci_class_wrap_t));
+	wrap->class = (bci_class_t*) object;
+	wrap->path = class;
+	ret->def = wrap;
 	ret->next = NULL;
 	return ret;
 }
@@ -90,10 +79,10 @@ static inline _bci_nametab_node_t* _bci_nametab_node_alloc(const char* class, co
  * @param object the BCI object
  * @return < 0 indicates error
  **/
-static inline int _bci_nametab_insert(const char* class, const char* method, void* object)
+static inline int _bci_nametab_insert(const char* class, void* object)
 {
-	uint32_t h = _bci_nametab_hash(class, method) % BCI_NAMETAB_SIZE;
-	_bci_nametab_node_t* node = _bci_nametab_node_alloc(class, method, object);
+	uint32_t h = _bci_nametab_hash(class) % BCI_NAMETAB_SIZE;
+	_bci_nametab_node_t* node = _bci_nametab_node_alloc(class, object);
 	if(NULL == node) return -1;
 	node->next = _bci_nametab[h];
 	_bci_nametab[h] = node;
@@ -106,36 +95,25 @@ static inline int _bci_nametab_insert(const char* class, const char* method, voi
  * @param method the method name
  * @return the node found in the table, NULL indicates not found
  **/
-static inline _bci_nametab_node_t* _bci_nametab_find(const char* class, const char* method)
+static inline _bci_nametab_node_t* _bci_nametab_find(const char* class)
 {
-	uint32_t h = _bci_nametab_hash(class, method) % BCI_NAMETAB_SIZE;
+	uint32_t h = _bci_nametab_hash(class) % BCI_NAMETAB_SIZE;
 	_bci_nametab_node_t* ptr;
 	for(ptr = _bci_nametab[h]; NULL != ptr; ptr = ptr->next)
-		if(ptr->clspath == class && ptr->methname == method)
+		if(ptr->clspath == class)
 			return ptr;
 	return NULL;
 }
 
 int bci_nametab_register_class(const char* clspath, bci_class_t* def)
 {
-	return _bci_nametab_insert(clspath, NULL, def);
-}
-
-int bci_nametab_register_method(const char* clspath, const char* mthname, bci_method_t* def)
-{
-	return _bci_nametab_insert(clspath, mthname, def);
+	return _bci_nametab_insert(clspath, def);
 }
 
 const bci_class_wrap_t* bci_nametab_get_class(const char* clspath)
 {
-	_bci_nametab_node_t* ret = _bci_nametab_find(clspath, NULL);
+	_bci_nametab_node_t* ret = _bci_nametab_find(clspath);
 	if(NULL == ret) return NULL;
 	return (const bci_class_wrap_t*)ret->def;
 }
 
-const bci_method_t* bci_nametab_get_method(const char* clspath, const char* methname)
-{
-	_bci_nametab_node_t* ret = _bci_nametab_find(clspath, methname);
-	if(NULL == ret) return NULL;
-	return (const bci_method_t*)ret->def;
-}

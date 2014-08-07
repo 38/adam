@@ -1,4 +1,5 @@
 #include <bci/bci_class.h>
+#include <bci/bci_interface.h>
 int bci_class_initialize(void* mem, const void* init_param, const bci_class_t* class)
 {
 	if(NULL == mem || NULL == class)
@@ -85,4 +86,16 @@ int bci_class_instance_of(const void* this, const char* classpath, const bci_cla
 {
 	if(NULL == this || NULL == class) return -1;
 	return (NULL == class->modify)?0:class->instance_of(this, classpath);
+}
+int bci_class_get_method(const void* this, const char* methodname, 
+                         const dalvik_type_t * const * typelist, 
+						 const dalvik_type_t* rtype, const bci_class_t* class)
+{
+	if(NULL == methodname || NULL == class) return -1;
+	return (NULL == class->get_method)?-1:class->get_method(this, methodname, typelist, rtype);
+}
+int bci_class_invoke(void* this, int method_id, bci_method_env_t* env, const bci_class_t* class)
+{
+	if(method_id < 0 || NULL == class) return -1;
+	return (NULL == class->invoke)?-1:class->invoke(this, method_id, env);
 }

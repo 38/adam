@@ -2,6 +2,7 @@
 
 #include <cesk/cesk_block.h>
 #include <cesk/cesk_method.h>
+#include <bci/bci_nametab.h>
 
 /** 
  * @brief convert an register referencing operand to index of register 
@@ -1150,6 +1151,15 @@ static uint32_t _cesk_block_method_heap_addr[CESK_BLOCK_METHOD_PARTITION_HEAP_SI
  **/
 static const dalvik_block_t* _cesk_block_method_heap_code[CESK_BLOCK_METHOD_PARTITION_HEAP_SIZE];
 /**
+ * @brief the method id of a built-in method
+ **/
+static int _cesk_block_method_heap_midx[CESK_BLOCK_METHOD_PARTITION_HEAP_SIZE];
+/**
+ * @brief the built-in class def
+ **/
+static const bci_class_t* _cesk_block_method_heap_bcls[CESK_BLOCK_METHOD_PARTITION_HEAP_SIZE];
+
+/**
  * @brief the size of method partition heap
  **/
 static uint32_t _cesk_block_method_heap_size;
@@ -1163,6 +1173,13 @@ static inline int _cesk_block_method_heap_compare(int a, int b)
 {
 	if(_cesk_block_method_heap_code[a] > _cesk_block_method_heap_code[b]) return 1;
 	if(_cesk_block_method_heap_code[a] < _cesk_block_method_heap_code[b]) return -1;
+	if(_cesk_block_method_heap_code[a] == NULL)
+	{
+		if(_cesk_block_method_heap_bcls[a] > _cesk_block_method_heap_bcls[b]) return 1;
+		if(_cesk_block_method_heap_bcls[a] > _cesk_block_method_heap_bcls[b]) return -1;
+		if(_cesk_block_method_heap_midx[a] > _cesk_block_method_heap_midx[b]) return 1;
+		if(_cesk_block_method_heap_midx[a] < _cesk_block_method_heap_midx[b]) return -1;
+	}
 	if(_cesk_block_method_heap_addr[a] > _cesk_block_method_heap_addr[b]) return 1;
 	if(_cesk_block_method_heap_addr[a] < _cesk_block_method_heap_addr[b]) return -1;
 	return 0;
@@ -1182,10 +1199,16 @@ static inline void _cesk_block_method_heap_incrase(int node)
 		if(node == next) break;
 		uint32_t tmp_addr = _cesk_block_method_heap_addr[node];
 		const dalvik_block_t* tmp_code = _cesk_block_method_heap_code[node];
+		int   tmp_id = _cesk_block_method_heap_midx[node];
+		const bci_class_t* tmp_cls = _cesk_block_method_heap_bcls[node];
 		_cesk_block_method_heap_addr[node] = _cesk_block_method_heap_addr[next];
 		_cesk_block_method_heap_code[node] = _cesk_block_method_heap_code[next];
+		_cesk_block_method_heap_midx[node] = _cesk_block_method_heap_midx[next];
+		_cesk_block_method_heap_bcls[node] = _cesk_block_method_heap_bcls[next];
 		_cesk_block_method_heap_addr[next] = tmp_addr;
 		_cesk_block_method_heap_code[next] = tmp_code;
+		_cesk_block_method_heap_midx[next] = tmp_id;
+		_cesk_block_method_heap_bcls[next] = tmp_cls;
 		node = next;
 	}
 }
@@ -1201,19 +1224,29 @@ static inline void _cesk_block_method_heap_init()
 }
 /**
  * @brief get a group address of which the code fields are the same
- * @param p_code the buffer to pass the code to caller
+ * @param p_code the buffer for the code to caller
+ * @param p_bcls  the buffer for the built-in class
+ * @param p_midx  the buffer for the method id for built-ins 
  * @return the result set, NULL if there's no more group
  **/
-static inline cesk_set_t* _cesk_block_method_heap_get_partition(const dalvik_block_t** p_code)
+static inline cesk_set_t* _cesk_block_method_heap_get_partition(const dalvik_block_t** p_code, const bci_class_t **p_bcls, int* p_midx)
 {
 	if(_cesk_block_method_heap_size == 0) return NULL;
 	cesk_set_t* ret = cesk_set_empty_set();
 	*p_code = _cesk_block_method_heap_code[0];
-	for(;_cesk_block_method_heap_size > 0 && _cesk_block_method_heap_code[0] == *p_code;)
+	*p_bcls = _cesk_block_method_heap_bcls[0];
+	*p_midx = _cesk_block_method_heap_midx[0];
+	for(;_cesk_block_method_heap_size > 0 && 
+		_cesk_block_method_heap_code[0] == *p_code &&
+		(NULL != _cesk_block_method_heap_code[0] || 
+		 (_cesk_block_method_heap_bcls[0] == *p_bcls &&
+		  _cesk_block_method_heap_midx[0] == *p_midx));)
 	{
 		cesk_set_push(ret, _cesk_block_method_heap_addr[0]);
 		_cesk_block_method_heap_addr[0] = _cesk_block_method_heap_addr[_cesk_block_method_heap_size - 1];
 		_cesk_block_method_heap_code[0] = _cesk_block_method_heap_code[_cesk_block_method_heap_size - 1];
+		_cesk_block_method_heap_bcls[0] = _cesk_block_method_heap_bcls[_cesk_block_method_heap_size - 1];
+		_cesk_block_method_heap_midx[0] = _cesk_block_method_heap_midx[_cesk_block_method_heap_size - 1];
 		_cesk_block_method_heap_size --;
 		_cesk_block_method_heap_incrase(0);
 	}
@@ -1227,7 +1260,12 @@ static inline cesk_set_t* _cesk_block_method_heap_get_partition(const dalvik_blo
  * @param self the self pointer buffer
  * @return the number of method adopted, < 0 indicates errors
  **/
-static inline int _cesk_block_find_invoke_method(const dalvik_instruction_t* ins, const cesk_frame_t* frame, const dalvik_block_t** code, cesk_set_t** self)
+static inline int _cesk_block_find_invoke_method(const dalvik_instruction_t* ins, 
+	const cesk_frame_t* frame, 
+	const dalvik_block_t** code, 
+	cesk_set_t** self,
+	const bci_class_t** class,
+	int *method_id)
 {
 	const char* classpath = ins->operands[0].payload.methpath;
 	const char* methodname = ins->operands[1].payload.methpath;
@@ -1284,12 +1322,30 @@ static inline int _cesk_block_find_invoke_method(const dalvik_instruction_t* ins
 					/* for super call, just skip the class methods */
 					if(0 == i && DVM_FLAG_INVOKE_SUPER == (ins->flags & DVM_FLAG_INVOKE_TYPE_MSK)) 
 						continue; 
-					const char* clspath = current->class.path->value;
-					_cesk_block_method_heap_code[_cesk_block_method_heap_size] = dalvik_block_from_method(clspath, methodname, typelist, rtype);
-					if(NULL != _cesk_block_method_heap_code[_cesk_block_method_heap_size]) 
+					/* this is an instance of an user defined class */
+					if(!current->built_in)
 					{
-						LOG_DEBUG("method %s.%s is actually adopted for address " PRSAddr, clspath, methodname, addr);
-						break;
+						const char* clspath = current->class.path->value;
+						_cesk_block_method_heap_code[_cesk_block_method_heap_size] = dalvik_block_from_method(clspath, methodname, typelist, rtype);
+						if(NULL != _cesk_block_method_heap_code[_cesk_block_method_heap_size]) 
+						{
+							LOG_DEBUG("method %s.%s is actually adopted for address " PRSAddr, clspath, methodname, addr);
+							break;
+						}
+					}
+					else
+					{
+						/* TODO: test this branch */
+						int method_id = bci_class_get_method(current->bcidata, methodname, typelist, rtype, current->class.bci->class);
+						_cesk_block_method_heap_code[_cesk_block_method_heap_size] = NULL;
+						/* if this method is supported by this method */ 
+						if(method_id >= 0)
+						{
+							LOG_DEBUG("built-in method %s.%s has been adopted as a candidate function", current->class.path->value, methodname);
+							_cesk_block_method_heap_midx[_cesk_block_method_heap_size] = method_id;
+							_cesk_block_method_heap_bcls[_cesk_block_method_heap_size] = current->class.bci->class;
+							break;
+						}
 					}
 					CESK_OBJECT_STRUCT_ADVANCE(current);
 				}
@@ -1299,17 +1355,30 @@ static inline int _cesk_block_find_invoke_method(const dalvik_instruction_t* ins
 					_cesk_block_method_heap_size ++;
 			}
 			_cesk_block_method_heap_init();
-			for(;NULL != (self[ret] = _cesk_block_method_heap_get_partition(code + ret)); ret ++);
+			for(;NULL != (self[ret] = _cesk_block_method_heap_get_partition(code + ret, class + ret, method_id + ret)); ret ++);
 			break;
 		case DVM_FLAG_INVOKE_STATIC:
 STATIC_INVOKE:
 			self[0] = NULL;
 			ret = 1;   /* there's only function might be called */
 			code[0] = dalvik_block_from_method(classpath, methodname, typelist, rtype);
+			/* might be either an error or a built-in method */
 			if(NULL == code[0])
 			{
-				LOG_ERROR("can not find the method!");
-				return -1;
+				const bci_class_wrap_t* bclass = bci_nametab_get_class(classpath);
+				if(NULL == bclass)
+				{
+					LOG_ERROR("can not find the method!");
+					return -1;
+				}
+				int method = bci_class_get_method(NULL, methodname, typelist, rtype, bclass->class);
+				if(method < 0)
+				{
+					LOG_ERROR("the target class %s do not support %s", classname, methodname);
+					return -1;
+				}
+				class[ret] = bclass->class;
+				method_id[ret] = method;
 			}
 			LOG_DEBUG("direct function call %s/%s ", classpath, methodname);
 			break;
@@ -1345,26 +1414,30 @@ static inline int _cesk_block_handler_invoke(
 	
 	const dalvik_block_t* code[CESK_BLOCK_MAX_NUM_OF_FUNC];
 	cesk_set_t  * this[CESK_BLOCK_MAX_NUM_OF_FUNC];
+	const bci_class_t * class[CESK_BLOCK_MAX_NUM_OF_FUNC];
+	int  method_id[CESK_BLOCK_MAX_NUM_OF_FUNC];
 
 	cesk_reloc_table_t* callee_rtable[CESK_BLOCK_MAX_NUM_OF_FUNC];
 	cesk_diff_t* invoke_result[CESK_BLOCK_MAX_NUM_OF_FUNC];
 
-	int nfunc = _cesk_block_find_invoke_method(ins, frame, code, this);
+	int nfunc = _cesk_block_find_invoke_method(ins, frame, code, this, class, method_id);
 	if(nfunc < 0)
 	{
 		LOG_ERROR("can not find method to call");
 		return -1;
 	}
-	
+	/* the diff buffer for the BCIs */
+	cesk_diff_buffer_t* bci_D = NULL;
+	cesk_diff_buffer_t* bci_I = NULL;
+
 	int k;
 	for(k = 0; k < nfunc; k ++)
 	{
 		
-		/* make a param list */
 		cesk_frame_t* callee_frame = NULL;
-		nregs = code[k]->nregs;
 		/* if the arg list contains a this pointer */
 		int has_this = (NULL != this[k]);
+		
 		if(ins->flags & DVM_FLAG_INVOKE_RANGE)
 		{
 			uint32_t arg_from  = CESK_FRAME_GENERAL_REG(ins->operands[4].payload.uint16 + has_this);
@@ -1388,20 +1461,37 @@ static inline int _cesk_block_handler_invoke(
 				if(NULL == args[i]) goto PARAMERR;
 			}
 		}
+		
+		if(NULL != code[k]) nregs = code[k]->nregs;
+		else nregs = nargs;
 
-		callee_frame = cesk_frame_make_invoke(frame, nregs, nargs, args);
-		if(NULL == callee_frame || NULL == code)
-		{
-			LOG_ERROR("can not invoke the function");
-			goto ERR;
-		}
 
 		/* do function call */
-		invoke_result[k] = cesk_method_analyze(code[k], callee_frame, context, callee_rtable + k);
-		if(NULL == invoke_result[k])
+		if(NULL != code[k])
 		{
-			LOG_ERROR("can not analyze the function invocation");
-			goto ERR;
+			callee_frame = cesk_frame_make_invoke(frame, nregs, nargs, args);
+			if(NULL == callee_frame)
+			{
+				LOG_ERROR("can not invoke the function");
+				goto ERR;
+			}
+
+			invoke_result[k] = cesk_method_analyze(code[k], callee_frame, context, callee_rtable + k);
+			if(NULL == invoke_result[k])
+			{
+				LOG_ERROR("can not analyze the function invocation");
+				goto ERR;
+			}
+		}
+		else
+		{
+			cesk_diff_buffer_t* buf = cesk_diff_buffer_new(0, 1);
+			if(NULL == buf)
+			{
+				LOG_ERROR("can not initialize a diff buffer for invoke");
+				goto ERR;
+			}
+			/* TODO we need to make BCI interface works */
 		}
 		
 		cesk_frame_free(callee_frame);
@@ -1423,14 +1513,16 @@ static inline int _cesk_block_handler_invoke(
 	return 0;
 PARAMERR:
 	LOG_ERROR("can not create argument list"); 
-	for(i = 0; i < nargs; i ++)
-		if(NULL != args[i]) cesk_set_free(args[i]);
 	goto ERR;
 PARAMERR_RANGE:
 	LOG_ERROR("can not create argument list");
+ERR:
+	if(bci_D) cesk_diff_buffer_free(bci_D);
+	if(bci_I) cesk_diff_buffer_free(bci_I);
 	for(i = 0; i < nargs; i ++)
 		if(NULL != args[i]) cesk_set_free(args[i]);
-ERR:
+	for(i = 0; i < nfunc; i ++)
+		if(NULL != this[k]) cesk_set_free(this[k]);
 	return -1;
 }
 int cesk_block_analyze(
@@ -1501,6 +1593,9 @@ int cesk_block_analyze(
 				break;
 			case DVM_BINOP:
 				if(_cesk_block_handler_binop(ins, frame, dbuf, ibuf) < 0) goto EXE_ERR;
+				break;
+			case DVM_MONITOR:
+				LOG_TRACE("fixme: multi-threading support");
 				break;
 			/* TODO implement other instructions */
 			default:

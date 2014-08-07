@@ -29,13 +29,15 @@
 */
 #ifndef __CESK_RELOC_H__
 #define __CESK_RELOC_H__
+#include <vector.h>
+typedef vector_t cesk_reloc_table_t;
+
 #include <const_assertion.h>
 #include <cesk/cesk_alloc_param.h>
 #include <cesk/cesk_store.h>
 #include <cesk/cesk_value.h>
+#include <cesk/cesk_arithmetic.h>
 #include <dalvik/dalvik_instruction.h>
-#include <vector.h>
-typedef vector_t cesk_reloc_table_t;
 
 /**
  * @brief the value list item 

@@ -12,11 +12,13 @@
 #ifndef __CESK_FRAME_H__
 #define __CESK_FRAME_H__
 typedef struct _cesk_frame_t cesk_frame_t;
+#include <const_assertion.h>
+
 #include <cesk/cesk_set.h>
 #include <cesk/cesk_reloc.h>
 #include <dalvik/dalvik_instruction.h>
 #include <cesk/cesk_diff.h>
-#include <const_assertion.h>
+#include <cesk/cesk_static.h>
 
 /* For all register and static field, we use a uint32_t interger to address them
  * The register is a 'register reference number'

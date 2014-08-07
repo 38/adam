@@ -36,26 +36,9 @@ void bci_nametab_finialize();
 int bci_nametab_register_class(const char* clspath, bci_class_t* def); 
 
 /**
- * @brief insert a method to the table
- * @param clspath the classpath
- * @param mthname the method name
- * @param def the method definition
- * @return the result of operation, < 0 indicates error
- **/
-int bci_nametab_register_method(const char* clspath, const char* mthname, bci_method_t* def);
-
-/**
  * @brief look for a class definition
  * @param clspath the class path
  * @return the class object, NULL if not found
  **/
 const bci_class_wrap_t* bci_nametab_get_class(const char* clspath);
-
-/**
- * @brief look for a method definition
- * @param clspath the class path
- * @param methname the method name
- * @return the method object, NULL if not found
- **/
-const bci_method_t* bci_nametab_get_method(const char* clspath, const char* methname);
 #endif
