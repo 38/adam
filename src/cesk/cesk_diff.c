@@ -665,9 +665,22 @@ cesk_diff_t* cesk_diff_from_buffer(cesk_diff_buffer_t* buffer)
 										{
 											LOG_WARNING("trying to merge two values of different types");
 										}
-										else if(bci_class_merge(dest->builtin->bcidata, sour->builtin->bcidata, dest->builtin->class.bci->class) < 0)
+										else
 										{
-											LOG_ERROR("can not merge result values, some return value is ignired");
+											cesk_object_struct_t *dest_struct = dest->builtin;
+											const cesk_object_struct_t *sour_struct = sour->builtin;
+											for(;;)
+											{
+												int rc = bci_class_merge(dest_struct, sour_struct, dest->builtin->class.bci->class);
+												if(rc == 0) break;
+												else if(rc < 0)
+												{
+													LOG_WARNING("can not merge the bci class %s", dest_struct->class.path->value);
+													break;
+												}
+												CESK_OBJECT_STRUCT_ADVANCE(dest_struct);
+												CESK_OBJECT_STRUCT_ADVANCE(sour_struct);
+											}
 										}
 									}
 									else if(type == CESK_TYPE_SET)

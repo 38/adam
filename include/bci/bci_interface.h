@@ -2,13 +2,10 @@
  * @brief this is the interface provided by BCI subsystem to 
  *        built-in classes.
  **/
-#ifndef __BCI_INTERFACE_H_PREV__
-#define __BCI_INTERFACE_H_PREV__
-typedef struct _bci_method_env_t bci_method_env_t;
-#endif
-
 #ifndef __BCI_INTERFACE_H__
 #define __BCI_INTERFACE_H__
+
+typedef struct _bci_method_env_t bci_method_env_t;
 
 #include <stringpool.h>
 #include <bci/bci.h>
@@ -45,5 +42,6 @@ void builtin_library_finalize()\
 		}\
 	}\
 }while(0)
+
 
 #endif

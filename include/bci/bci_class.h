@@ -24,7 +24,7 @@ typedef struct _bci_class_wrap_t bci_class_wrap_t;
 #define BCI_BOOLEAN_TRUE  1
 #define BCI_BOOLEAN_UNKNOWN 2
 
-#define BCI_CLASS_METHOD_CONST 0x80000000ul
+#define BCI_CLASS_METHOD_CONST 0x40000000ul
 #define BCI_CLASS_METHOD_IS_CONST(id) (BCI_CLASS_METHOD_CONST & (id))
 
 /**
@@ -67,7 +67,7 @@ struct _bci_class_t {
 
 	int (*get_relocation_flag)(const void* this);/*!< how to get the relocation flag for this object */
 
-	int (*merge)(void* this, const void* that);  /*!< merge the two built-in instances */
+	int (*merge)(void* this, const void* that);  /*!< merge the two built-in instances, if return value > 0, caller should merge the super class */
 
 	int (*modify)(void* this, uint32_t offset, uint32_t* new, size_t N);  /*!< how to modify the address list */
 

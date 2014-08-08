@@ -95,7 +95,7 @@ int java_lang_String_merge(void* this, const void* that)
 {
 	if(*(const char**)this == *(const char**)that)
 		*(const char**) this = _UNDETERM;
-	return 0;
+	return 1;
 }
 hashval_t java_lang_String_hash(const void* this)
 {
