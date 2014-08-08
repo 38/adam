@@ -94,8 +94,8 @@ int bci_class_get_method(const void* this, const char* methodname,
 	if(NULL == methodname || NULL == class) return -1;
 	return (NULL == class->get_method)?-1:class->get_method(this, methodname, typelist, rtype);
 }
-int bci_class_invoke(void* this, int method_id, bci_method_env_t* env, const bci_class_t* class)
+int bci_class_invoke(void* this, const void* const_this, int method_id, bci_method_env_t* env, const bci_class_t* class)
 {
 	if(method_id < 0 || NULL == class) return -1;
-	return (NULL == class->invoke)?-1:class->invoke(this, method_id, env);
+	return (NULL == class->invoke)?-1:class->invoke(this, const_this, method_id, env);
 }

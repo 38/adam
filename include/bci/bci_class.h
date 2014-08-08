@@ -24,6 +24,9 @@ typedef struct _bci_class_wrap_t bci_class_wrap_t;
 #define BCI_BOOLEAN_TRUE  1
 #define BCI_BOOLEAN_UNKNOWN 2
 
+#define BCI_CLASS_METHOD_CONST 0x80000000ul
+#define BCI_CLASS_METHOD_IS_CONST(id) (BCI_CLASS_METHOD_CONST & (id))
+
 /**
  * @brief the wrapper type for a built-in class
  **/
@@ -73,10 +76,10 @@ struct _bci_class_t {
 	int (*get_method)(const void* this, 
 	                  const char* method,
 	                  const dalvik_type_t * const * typelist,
-					  const dalvik_type_t*  rtype);         
-	/*!< return the method id, if this class can not handle this function call, return value should be < 0 */
+					  const dalvik_type_t*  rtype);    /*!< return the method id if the highest bit is 1 indicates that this method won't modify 
+														*  the object. if this class can not handle this function call, return value should be < 0 */
 
-	int (*invoke)(void* this, int method_id, bci_method_env_t* env); /*< invoke a method sepecified by method_id using env as envrionment */
+	int (*invoke)(void* this, const void* const_this, int method_id, bci_method_env_t* env); /*< invoke a method sepecified by method_id using env as envrionment */
 
 	const char* super;                           /*!< the super class of this built-in class, NULL means no super class */
 	
@@ -222,9 +225,10 @@ int bci_class_get_method(const void* this, const char* methodname,
 /**
  * @brief invoke a built-in method
  * @param this the this pointer
+ * @param this_const the this pointer but with const attribute
  * @param method_id the id of the method to invoke
  * @param class the class def
  * @return the invoke result, < 0 indicates an error
  **/
-int bci_class_invoke(void* this, int method_id, bci_method_env_t* env, const bci_class_t* class);
+int bci_class_invoke(void* this, const void* const_this , int method_id, bci_method_env_t* env, const bci_class_t* class);
 #endif
