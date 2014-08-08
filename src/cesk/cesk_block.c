@@ -1507,7 +1507,7 @@ static inline int _cesk_block_handler_invoke(
 				cesk_diff_buffer_free(buf);
 				goto ERR;
 			}
-			uint32_t this_addr;
+			uint32_t this_addr = CESK_STORE_ADDR_NULL;
 			/* for each `this' */
 			while(NULL == this || CESK_STORE_ADDR_NULL == (this_addr = cesk_set_iter_next(&iter)))
 			{
