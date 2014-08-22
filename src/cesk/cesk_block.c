@@ -1508,7 +1508,8 @@ static inline int _cesk_block_handler_invoke(
 				goto ERR;
 			}
 			uint32_t this_addr = CESK_STORE_ADDR_NULL;
-			/* for each `this' */
+			/* TODO: we pass all `this' to target function
+			 * for each `this' */
 			while(NULL == this || CESK_STORE_ADDR_NULL == (this_addr = cesk_set_iter_next(&iter)))
 			{
 				callee_frame = cesk_frame_make_invoke(frame, nregs - (NULL == this), nargs - (NULL == this), args + (NULL == this));
