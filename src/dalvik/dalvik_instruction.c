@@ -1,10 +1,12 @@
 /**
+ * @file dalvik_instruction.c
  * @brief: The Dalvik Instruction Parser
  */
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
 #include <stdio.h>
+#include <errno.h>
 #include <inttypes.h>
 
 #include <log.h>
@@ -13,33 +15,42 @@
 #include <dalvik/dalvik_tokens.h>
 #include <debug.h>
 
-
+/* if we need to count how many instruction has been parsed */
 #ifdef PARSER_COUNT
 int dalvik_instruction_count = 0;
 #endif
-/**@brief The instruction pool, all instruction is allcoated in the pool,
+/**
+ * @brief The instruction pool, all instruction is allcoated in the pool,
  *        So that we do not need to free the memory for the instruction,
  *        because all memory will be freed when the fianlization fucntion 
  *        is called
  *        NOTICE that the memory address of an instruction might be change
- *        after they are allocated, so use the instruction ID rather than 
- *        the pointer to instruction for refering the instruction.
- */
+ *        after they are allocated, so *use the instruction ID rather than 
+ *        the pointer* to instruction as references to instruction.
+ **/
 dalvik_instruction_t* dalvik_instruction_pool = NULL;
 
-/** @brief The capacity of the pool, although the sizeof the pool can increase dynamically,
+/** 
+ * @brief The capacity of the pool, although the sizeof the pool can increase dynamically,
  * 		   But it's a relateively slow operation to reallocate the memory for the pool,
- * 		   so that, we must set up a proper initial value of the size. */
+ * 		   so that, we must set up a proper initial value of the size. 
+ **/
 static size_t _dalvik_instruction_pool_capacity = DALVIK_POOL_INIT_SIZE;
 
+/**
+ * @brief The size of the instruction pool (in bytes) 
+ **/
 static size_t _dalvik_instruction_pool_size = 0;
-/** @brief double the size of  the instruction pool when there's no space */
+
+/** 
+ * @brief double the size of the instruction pool when there's no space for a new instruction 
+ **/
 static int _dalvik_instruction_pool_resize()
 {
 	LOG_DEBUG("resize dalvik instruction pool from %zu to %zu", _dalvik_instruction_pool_capacity, 
 															  _dalvik_instruction_pool_capacity *2);
 	dalvik_instruction_t* old_pool;
-	//assert(dalvik_instruction_pool != NULL);
+	
 	if(NULL == dalvik_instruction_pool) 
 	{
 		LOG_ERROR("can not resize an uninitialized pool");
@@ -52,10 +63,11 @@ static int _dalvik_instruction_pool_resize()
 
 	if(NULL == dalvik_instruction_pool) 
 	{
-		LOG_ERROR("can not double the size of instruction pool");
+		LOG_ERROR("can not double the size of instruction pool: %s", strerror(errno));
 		dalvik_instruction_pool = old_pool;
 		return -1;
 	}
+
 	_dalvik_instruction_pool_capacity *= 2;
 	return 0;
 }
@@ -82,13 +94,10 @@ int dalvik_instruction_finalize( void )
 	int i;
 	if(NULL != dalvik_instruction_pool)
 	{
-		/* Although all instruction can be freed by freeing the instruction pool,
-		 * But before this we should free the additional data attached to each instruction
-		 * first
-		 */
 		for(i = 0; i < _dalvik_instruction_pool_size; i ++)
+			/* we must take care about the additional data attached to instructions */
 			dalvik_instruction_free(dalvik_instruction_pool + i);
-
+		/* ok, deallocate the pool */
 		free(dalvik_instruction_pool);
 	}
 	return 0;
@@ -96,6 +105,7 @@ int dalvik_instruction_finalize( void )
 
 dalvik_instruction_t* dalvik_instruction_new( void )
 {
+	/* if pool is full, try to increase the size of the pool */
 	if(_dalvik_instruction_pool_size >= _dalvik_instruction_pool_capacity)
 	{
 		if(_dalvik_instruction_pool_resize() < 0) 
@@ -106,22 +116,30 @@ dalvik_instruction_t* dalvik_instruction_new( void )
 	}
 	dalvik_instruction_t* val = dalvik_instruction_pool + (_dalvik_instruction_pool_size ++);
 	memset(val, 0, sizeof(dalvik_instruction_t));
-	/* 
-	 * TODO: because we assume the next instruction is the following instruction in the pool, so 
-	 * is this field a useless one? 
-	 */
-	val->next = DALVIK_INSTRUCTION_INVALID;   
+	
+	val->next = DALVIK_INSTRUCTION_INVALID;
 	return val;
 }
-/** @brief setup an operand */
+/** 
+ * @brief setup an operand 
+ * @param operand the operand buffer
+ * @param flags operand flags
+ * @param payload the actual data payload (at most 8 bytes)
+ * @return nothing
+ **/
 static inline void _dalvik_instruction_operand_setup(dalvik_operand_t* operand, uint8_t flags, uint64_t payload)
 {
 	operand->header.flags = flags;
 	operand->payload.uint64 = payload;
 }
-/** @brief write an annotation to the instruction. The annotation is 
- * 	some additional information that is stored in the unused space
- * 	in a instruction
+/** 
+ * @brief write an annotation to the instruction. The annotation is 
+ *        some additional information that is stored in the unused space
+ *        in a instruction
+ * @param inst the target instruction
+ * @param value the annotation value
+ * @param size the size of annotation
+ * @return < 0 indicates an error
  */
 static inline int _dalvik_instruction_write_annotation(dalvik_instruction_t* inst, const void* value, size_t size)
 {
@@ -132,15 +150,18 @@ static inline int _dalvik_instruction_write_annotation(dalvik_instruction_t* ins
 		return 0;
 	}
 	else
-		LOG_WARNING("no space for annotation for instruction(opcode = 0x%x, flags = 0x%x)", inst->opcode, inst->flags);
-	return -1;
+	{
+		LOG_WARNING("no space for annotation for instruction(opcode = 0x%x, flags = 0x%x), simple ignored this annotation", inst->opcode, inst->flags);
+		return -1;
+	}
 }
 
 //#pragma GCC diagnostic ignored "-Wpointer-to-int-cast"  /* turn off the annoying warning options */
 
 /** 
  * @brief this macro is used to define a function that is used to initialize a instruction. 
- * 		  `next' is the S-Expression that has not been parsed yet, `buf' is the output buffer
+* 		  `next' is the S-Expression that has not been parsed yet, `buf' is the output buffer
+*  @param kw the instruction keyword
  **/
 #define __DI_CONSTRUCTOR(kw) static inline int _dalvik_instruction_##kw(const sexpression_t* next, dalvik_instruction_t* buf)
 /**
@@ -167,8 +188,20 @@ static inline int _dalvik_instruction_write_annotation(dalvik_instruction_t* ins
  * @param buf the input buffer
  **/
 #define __DI_REGNUM(buf) (atoi((buf)+1))
+/**
+ * @brief parse a instant value 
+ * @param buf input buffer
+ **/
 #define __DI_INSNUM(buf) (atoi(buf))
+/**
+ * @brief parse a 64 bit instant value 
+ * @param buf input buffer
+ **/
 #define __DI_INSNUMLL(buf) (atoll(buf))
+/**
+ * @brief parse a `nop' instruction
+ * @detials No Operations @newline xxxx 
+ **/
 __DI_CONSTRUCTOR(NOP)
 {
 	buf->opcode = DVM_NOP;
