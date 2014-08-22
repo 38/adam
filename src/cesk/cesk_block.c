@@ -930,6 +930,7 @@ static inline int _cesk_block_invoke_result_register_section_translation(
  * @param result the result buffer
  * @param internal_addr the internal address list
  * @param frame the caller frame
+ * @param raddr_limit the relocated address boundary
  * @param buf the diff buffer
  * @return the result operations < 0 indicates error
  **/
@@ -1143,7 +1144,7 @@ ERR:
 	return NULL;
 }
 /**
- * @breif the address field of method partition heap
+ * @brief the address field of method partition heap
  **/
 static uint32_t _cesk_block_method_heap_addr[CESK_BLOCK_METHOD_PARTITION_HEAP_SIZE];
 /**
@@ -1254,7 +1255,7 @@ static inline cesk_set_t* _cesk_block_method_heap_get_partition(const dalvik_blo
 }
 /**
  * @brief find proper methods for the function call
- * @param inst the invoke instruction
+ * @param ins the invoke instruction
  * @param frame current stack frame
  * @param code the code buffer
  * @param self the self pointer buffer

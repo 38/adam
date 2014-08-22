@@ -40,7 +40,6 @@ void bci_nametab_finialize()
 /**
  * @brief the hash code for the BCI object
  * @param class_path the class path
- * @param method_name the method name
  * @return the hash code for this object
  **/
 static inline hashval_t _bci_nametab_hash(const char* class_path)
@@ -52,7 +51,6 @@ static inline hashval_t _bci_nametab_hash(const char* class_path)
 /**
  * @brief allocate a new name table node
  * @param class the class paht
- * @param method the method name
  * @param object the object pointer
  * @return the newly created node, NULL indicates an error
  **/
@@ -75,7 +73,6 @@ static inline _bci_nametab_node_t* _bci_nametab_node_alloc(const char* class, vo
 /**
  * @brief insert a new BCI object to the table
  * @param class the class name
- * @param method the method name
  * @param object the BCI object
  * @return < 0 indicates error
  **/
@@ -92,7 +89,6 @@ static inline int _bci_nametab_insert(const char* class, void* object)
 /**
  * @brief find a node in the name table
  * @param class the class path
- * @param method the method name
  * @return the node found in the table, NULL indicates not found
  **/
 static inline _bci_nametab_node_t* _bci_nametab_find(const char* class)

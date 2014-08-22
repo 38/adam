@@ -148,6 +148,7 @@ int cesk_frame_apply_diff(
 	cesk_diff_buffer_t* invbuf);
 /**
  * @brief load the value in the source register to destination static field
+ * @param frame the target frame
  * @param dst_reg the register reference address for the static field(which sould be a valid static field reference)
  * @param src_reg the source register reference
  * @param diff_buf the diff buffer
@@ -164,6 +165,7 @@ int cesk_frame_static_load_from_register(
 
 /**
  * @brief load the value in the source static field to the destination register
+ * @param frame the target frame
  * @param dst_reg the register reference to destination register
  * @param src_reg the register reference to the source static field
  * @param diff_buf the diff buffer

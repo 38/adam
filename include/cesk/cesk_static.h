@@ -21,7 +21,7 @@ typedef struct _cesk_static_table_t cesk_static_table_t;
 typedef struct _cesk_static_table_iter_t cesk_static_table_iter_t;
 
 /**
- * @biref the iterator to traverse all fields that contains relocated address
+ * @brief the iterator to traverse all fields that contains relocated address
  **/
 typedef struct _cesk_static_table_reloc_iter_t cesk_static_table_reloc_iter_t;
 

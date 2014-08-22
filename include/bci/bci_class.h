@@ -216,6 +216,8 @@ int bci_class_instance_of(const void* this, const char* classpath, const bci_cla
  * @param this the this pointer
  * @param methodname the methodname to get
  * @param class the class def
+ * @param rtype the return value type
+ * @param typelist the argument list or function signature
  * @return the method id, < 0 indicates an error / method not found
  **/
 int bci_class_get_method(const void* this, const char* methodname, 
@@ -225,8 +227,9 @@ int bci_class_get_method(const void* this, const char* methodname,
 /**
  * @brief invoke a built-in method
  * @param this the this pointer
- * @param this_const the this pointer but with const attribute
+ * @param const_this the this pointer but with const attribute
  * @param method_id the id of the method to invoke
+ * @param env the invoke environ
  * @param class the class def
  * @return the invoke result, < 0 indicates an error
  **/

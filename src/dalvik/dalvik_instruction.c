@@ -172,11 +172,13 @@ static inline int _dalvik_instruction_write_annotation(dalvik_instruction_t* ins
  * @param value the value of the operand
  **/
 #   define __DI_SETUP_OPERAND(id, flag, value) do{_dalvik_instruction_operand_setup(buf->operands + (id), (flag), (uint64_t)(value));}while(0)
+
 #if PTRWIDTH == 32
 #   define __DI_SETUP_OPERANDPTR(id, flag, value) do{_dalvik_instruction_operand_setup(buf->operands + (id), (flag), (uint32_t)(value));}while(0)
 #else
 #   define __DI_SETUP_OPERANDPTR __DI_SETUP_OPERAND
 #endif
+
 /**
  * @brief write an annotation to the buffer
  * @param what what to write to the instruction
@@ -200,7 +202,9 @@ static inline int _dalvik_instruction_write_annotation(dalvik_instruction_t* ins
 #define __DI_INSNUMLL(buf) (atoll(buf))
 /**
  * @brief parse a `nop' instruction
- * @detials No Operations @newline xxxx 
+ * @details No Operation <br/> 
+ * 			Opcode = DVM_NOP <br/> 
+ * 			operands = [] <br/>
  **/
 __DI_CONSTRUCTOR(NOP)
 {
@@ -209,6 +213,12 @@ __DI_CONSTRUCTOR(NOP)
 	buf->flags = 0;
 	return 0;
 }
+/**
+ * @brief parse a `move' instruction
+ * @details Move value from one register to another <br/> 
+ *         Opcode = DVM_MOVE <br/>
+ *         operands = [from_reg, to_reg] <br/>
+ **/
 __DI_CONSTRUCTOR(MOVE)
 {
 	const char *sour, *dest;
@@ -296,6 +306,12 @@ __DI_CONSTRUCTOR(MOVE)
 	}
 	return 0;
 }
+/**
+ * @brief parse a `return' instruction
+ * @details Return from a function and move the content of register to result register of callee <br/> 
+ *         Opcode = DVM_RETURN <br/>
+ *         operands = [register] 
+ **/
 __DI_CONSTRUCTOR(RETURN)
 {
 	buf->opcode = DVM_RETURN;
@@ -334,6 +350,12 @@ __DI_CONSTRUCTOR(RETURN)
 	}
 	return 0;
 }
+/**
+ * @brief parse a `const' instruction
+ * @details Load a instant number to a register <br/> 
+ *         Opcode = DVM_CONST <br/>
+ *         operands = [dest_reg, inst_value] 
+ **/
 __DI_CONSTRUCTOR(CONST)
 {
 	buf->opcode = DVM_CONST;
@@ -428,6 +450,13 @@ __DI_CONSTRUCTOR(CONST)
 	}
 	return 0;
 }
+/**
+ * @brief parse a `monitor' instruction
+ * @details The thread monitor instruction <br/>
+ *         Flags = DVM_FLAG_MONITOR_ENT(monitor-enter) | DVM_FLAG_MONITOR_EXT(monitor-exit) <br/>
+ *         Opcode = DVM_CONST <br/>
+ *         operands = [reg] 
+ **/
 __DI_CONSTRUCTOR(MONITOR)
 {
 	buf->opcode = DVM_MONITOR;
@@ -456,6 +485,12 @@ __DI_CONSTRUCTOR(MONITOR)
 	}
 	return 0;
 }
+/**
+ * @brief parse a `check-cast' instruction
+ * @detials The check-cast instruction <br/>
+ *          Opcode = DVM_CHECK_CAST <br/>
+ *          operands = [sour_addr, classpath]
+ **/
 __DI_CONSTRUCTOR(CHECK)
 {
 	buf->opcode = DVM_CHECK_CAST;
