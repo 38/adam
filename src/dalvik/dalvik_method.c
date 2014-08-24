@@ -85,9 +85,8 @@ dalvik_method_t* dalvik_method_from_sexp(const sexpression_t* sexp, const char* 
 	
 	int current_line_number = 0;    /* Current Line Number */
 	uint32_t last = DALVIK_INSTRUCTION_INVALID;
-	//int last_label = -1;
 	int label_stack[DALVIK_METHOD_LABEL_STACK_SIZE];  /* how many label can one isntruction assign to */
-	int label_sp;
+	int label_sp;                              /* label stack pointer */
 	int from_label[DALVIK_MAX_CATCH_BLOCK];    /* NOTICE: the maximum number of catch block is limited to this constant */
 	int to_label  [DALVIK_MAX_CATCH_BLOCK];
 	int label_st  [DALVIK_MAX_CATCH_BLOCK];    /* 0: haven't seen any label related to the label. 
