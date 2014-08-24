@@ -217,7 +217,7 @@ __DI_CONSTRUCTOR(NOP)
  * @brief parse a `move' instruction
  * @details Move value from one register to another <br/> 
  *         Opcode = DVM_MOVE <br/>
- *         operands = [from_reg, to_reg] <br/>
+ *         operands = [from: RegisterID, to: RegisterID] <br/>
  **/
 __DI_CONSTRUCTOR(MOVE)
 {
@@ -310,7 +310,7 @@ __DI_CONSTRUCTOR(MOVE)
  * @brief parse a `return' instruction
  * @details Return from a function and move the content of register to result register of callee <br/> 
  *         Opcode = DVM_RETURN <br/>
- *         operands = [register] 
+ *         operands = [from:RegisterID] 
  **/
 __DI_CONSTRUCTOR(RETURN)
 {
@@ -354,7 +354,7 @@ __DI_CONSTRUCTOR(RETURN)
  * @brief parse a `const' instruction
  * @details Load a instant number to a register <br/> 
  *         Opcode = DVM_CONST <br/>
- *         operands = [dest_reg, inst_value] 
+ *         operands = [dest:RegisterID, inst:InstantValue] 
  **/
 __DI_CONSTRUCTOR(CONST)
 {
@@ -455,7 +455,7 @@ __DI_CONSTRUCTOR(CONST)
  * @details The thread monitor instruction <br/>
  *         Flags = DVM_FLAG_MONITOR_ENT(monitor-enter) | DVM_FLAG_MONITOR_EXT(monitor-exit) <br/>
  *         Opcode = DVM_CONST <br/>
- *         operands = [reg] 
+ *         operands = [reg:RegisterID] 
  **/
 __DI_CONSTRUCTOR(MONITOR)
 {
@@ -487,9 +487,9 @@ __DI_CONSTRUCTOR(MONITOR)
 }
 /**
  * @brief parse a `check-cast' instruction
- * @detials The check-cast instruction <br/>
+ * @details The check-cast instruction <br/>
  *          Opcode = DVM_CHECK_CAST <br/>
- *          operands = [sour_addr, classpath]
+ *          operands = [sour:RegisterID, classpath:ClassPath]
  **/
 __DI_CONSTRUCTOR(CHECK)
 {
@@ -521,6 +521,12 @@ __DI_CONSTRUCTOR(CHECK)
 	}
 	return 0;
 }
+/**
+ * @brief parse a `throw' instruction
+ * @details The throw instruction <br/>
+ *          Opcode = DVM_THROW <br/>
+ *          operands = [classpath:ClassPath] 
+ **/
 __DI_CONSTRUCTOR(THROW)
 {
 	buf->opcode = DVM_THROW;
@@ -537,6 +543,12 @@ __DI_CONSTRUCTOR(THROW)
 	}
 	return 0;
 }
+/**
+ * @brief parse a `goto' instruction
+ * @details The goto instruction <br/>
+ *          Opcode = DVM_GOTO <br/>
+ *          operands = [target:InstructionID] 
+ **/
 __DI_CONSTRUCTOR(GOTO)
 {
 	buf->opcode = DVM_GOTO;
@@ -555,6 +567,13 @@ __DI_CONSTRUCTOR(GOTO)
 	}
 	return 0;
 }
+/**
+ * @brief parse a `packed-switch' instruction
+ * @details The packed-switch instruction <br/>
+ *          Opcode = DVM_SWITCH <br/>
+ *          Flags = DVM_FLAG_SWITCH_PACKED <br/?>
+ *          operands = [cond: RegisterID, begin:InstantVaLUE, jump_table:JumpTable] 
+ **/
 __DI_CONSTRUCTOR(PACKED)
 {
 	buf->opcode = DVM_SWITCH;
@@ -605,6 +624,13 @@ __DI_CONSTRUCTOR(PACKED)
 	}
 	return 0;
 }
+/**
+ * @brief parse a `sparse-switch' instruction
+ * @details The sparse-switch instruction <br/>
+ *          Opcode = DVM_SWITCH <br/>
+ *          Flags = DVM_FLAG_SWITCH_SPARSE <br/>
+ *          operands = [cond:RegisterID, jump_table:JumpTable] 
+ **/
 __DI_CONSTRUCTOR(SPARSE)
 {
 	buf->opcode = DVM_SWITCH;
@@ -669,6 +695,12 @@ __DI_CONSTRUCTOR(SPARSE)
 	}
 	return 0;
 }
+/**
+ * @brief parse a `cmp' instruction
+ * @details The cmp instruction <br/>
+ *          Opcode = DVM_CMP <br/>
+ *          operands = [dest:RegisterID, sour_1:RegisterID, sour_2:RegisterID] 
+ **/
 __DI_CONSTRUCTOR(CMP)
 {
 	buf->opcode = DVM_CMP;
@@ -699,6 +731,13 @@ __DI_CONSTRUCTOR(CMP)
 	}
 	return 0;
 }
+/**
+ * @brief parse a `if' instruction
+ * @details The if instruction <br/>
+ *          Opcode = DVM_IF <br/>
+ *          Flags = DVM_FLAG_IF_(NE|LE|GE|GT|LT|EQ) <br/>
+ *          operands = [sour_1:RegisterID, sour_2:RegisterID, target:InstructionID] 
+ **/
 __DI_CONSTRUCTOR(IF)
 {
 	buf->opcode = DVM_IF;
@@ -761,10 +800,14 @@ __DI_CONSTRUCTOR(IF)
 	}
 	return 0;
 }
-/** @brief: This function is used for build a group of similar instructions :
- *          
- *          iget iput aget aput sget sput
- */
+/** 
+ * @brief: This function is used for build a group of similar instructions : iget iput aget aput sget sput
+ * @param opcode the opcode for this instruction
+ * @param flag the instruction flag
+ * @param next the sexpression
+ * @param buf the instruction buffer for output
+ * @return < 0 indicates an error 
+ **/
 static inline int _dalvik_instruction_setup_object_operations(
 		int opcode,                 /* opcode we what to set */
 		int flags,                  /* opcode flags */
@@ -910,30 +953,82 @@ static inline int _dalvik_instruction_setup_object_operations(
 	}
 	return 0;
 }
+/**
+ * @brief parse a `aget' instruction
+ * @details The aget instruction <br/>
+ *          Opcode = DVM_ARRAY <br/>
+ *          Flags = DVM_FLAG_ARRAY_GET <br/>
+ *          operands = [dest:RegisterID, sour:RegisterID, index:RegisterID] 
+ **/
 __DI_CONSTRUCTOR(AGET)
 {
 	return _dalvik_instruction_setup_object_operations(DVM_ARRAY, DVM_FLAG_ARRAY_GET, next, buf);
 }
+/**
+ * @brief parse a `aput' instruction
+ * @details The aget instruction <br/>
+ *          Opcode = DVM_ARRAY <br/>
+ *          Flags = DVM_FLAG_ARRAY_PUT <br/>
+ *          operands = [sour:RegisterID, dest:RegisterID, index:RegisterID] 
+ **/
 __DI_CONSTRUCTOR(APUT)
 {
 	return _dalvik_instruction_setup_object_operations(DVM_ARRAY, DVM_FLAG_ARRAY_PUT, next, buf);
 }
+/**
+ * @brief parse a `iget' instruction
+ * @details The iget instruction <br/>
+ *          Opcode = DVM_INSTANCE <br/>
+ *          Flags = DVM_FLAG_INSTANCE_GET <br/>
+ *          operands = [dest:RegisterID, sour:RegisterID, class_path:ClassPath, field_name:FieldName, type:Type] 
+ **/
 __DI_CONSTRUCTOR(IGET)
 {
 	return _dalvik_instruction_setup_object_operations(DVM_INSTANCE, DVM_FLAG_INSTANCE_GET, next, buf);
 }
+/**
+ * @brief parse a `iput' instruction
+ * @details The iput instruction <br/>
+ *          Opcode = DVM_INSTANCE <br/>
+ *          Flags = DVM_FLAG_INSTANCE_PUT <br/>
+ *          operands = [dest:RegisterID, class:ClassPath, field:FieldName, type:Type] 
+ **/
 __DI_CONSTRUCTOR(IPUT)
 {
 	return _dalvik_instruction_setup_object_operations(DVM_INSTANCE, DVM_FLAG_INSTANCE_PUT, next, buf);
 }
+/**
+ * @brief parse a `sget' instruction
+ * @details The sget instruction <br/>
+ *          Opcode = DVM_INSTANCE <br/>
+ *          Flags = DVM_FLAG_INSTANCE_SGET <br/>
+ *          operands = [dest:RegisterID, class:ClassPath, field:FieldName, type] 
+ **/
 __DI_CONSTRUCTOR(SGET)
 {
 	return _dalvik_instruction_setup_object_operations(DVM_INSTANCE, DVM_FLAG_INSTANCE_SGET, next, buf);
 }
+/**
+ * @brief parse a `sput' instruction
+ * @details The sget instruction <br/>
+ *          Opcode = DVM_INSTANCE <br/>
+ *          Flags = DVM_FLAG_INSTANCE_SPUT <br/>
+ *          operands = [sour:RegisterID, class:ClassPath, field:FieldName, type:Type] 
+ **/
 __DI_CONSTRUCTOR(SPUT)
 {
 	return _dalvik_instruction_setup_object_operations(DVM_INSTANCE, DVM_FLAG_INSTANCE_SPUT, next, buf);
 }
+/**
+ * @brief parse `invoke' instrtuction
+ * @details Two cases <br/>
+ *          Case1: flag DVM_FLAG_INVOKE_RANGE is set <br/>
+ *          Opcode = DVM_INVOKE <br/>
+ *          operands = [classpath:ClassPath, methodname:MethodName, signature:TypeList, return-type:Type, reg_begin:InstantValue, reg_end:InstantValue] <br/>
+ *          Case2: flag DVM_FLAG_INVOKE_RANGE is not set <br/>
+ *          Opcode = DVM_INVOKE<br/>
+ *          operands = [classpath:ClassPath, methodname:MethodName, signature:TypeList, return-type:Type, arg0:RegisterID, arg1:RegisterID, arg2:RegisterID, arg3:RegisterID, ..., argN:RegisterID]
+ **/
 __DI_CONSTRUCTOR(INVOKE)
 {
 	buf->opcode = DVM_INVOKE;
@@ -1080,7 +1175,8 @@ __DI_CONSTRUCTOR(INVOKE)
 					__DI_SETUP_OPERAND(buf->num_operands ++, 0, __DI_REGNUM(reg1));
 					if(buf->num_operands == 0) 
 					{
-						LOG_WARNING("num_operands overflow");
+						LOG_ERROR("num_operands overflow");
+						return -1;
 					}
 				}
 				else 
@@ -1136,7 +1232,12 @@ __DI_CONSTRUCTOR(INVOKE)
 	}
 	return 0;
 }
-/** @brief get the type flags from S-Expression */
+/** 
+ * @brief get the type flags from S-Expression 
+ * @param psexp the pointer to S-Expression parser
+ * @param additional_flag the additional flags that to be add to the type
+ * @return the result type flag value,  < 0 indicates error
+ **/
 static inline int32_t _dalvik_instruction_sexpression_fetch_type(const sexpression_t** psexp, int addtional_flags)
 {
 	int ret = addtional_flags;
@@ -1163,12 +1264,21 @@ static inline int32_t _dalvik_instruction_sexpression_fetch_type(const sexpressi
 	else return -1;
 	return ret;
 }
-/** @brief set upo a arithmetic instruction */
+/** 
+ * @brief set upo a arithmetic instruction 
+ * @param opcode the opcode for the instruction
+ * @param flags the flags of this instruction
+ * @param num_operands how many operands do this instruction have 
+ * @param operand_flags the flags list of each operands
+ * @param next the expression
+ * @param buf the instruction buffer
+ * @return < 0 if error occurs
+ **/
 static inline int _dalvik_instruction_setup_arithmetic(
 		int opcode, 
 		int flags,    /* flag of the instruction */
 		int num_operands,
-		int operand_flags[],   /* flag of the first operand */
+		int operand_flags[], 
 		const sexpression_t* next,
 		dalvik_instruction_t* buf)
 {
@@ -1199,19 +1309,38 @@ static inline int _dalvik_instruction_setup_arithmetic(
 	}
 	return 0;
 }
+/**
+ * @brief parse a `neg' instruction
+ * @details The neg instruction <br/>
+ *          Opcode = DVM_UNOP <br/>
+ *          Flags = DVM_FLAG_UOP_NEG <br/>
+ *          operands = [dest:RegisterID, sour:RegisterID] 
+ **/
 __DI_CONSTRUCTOR(NEG)
 {
 	int operand_flags[2];
 	operand_flags[0] = operand_flags[1] = _dalvik_instruction_sexpression_fetch_type(&next, 0);
 	return _dalvik_instruction_setup_arithmetic(DVM_UNOP, DVM_FLAG_UOP_NEG, 2, operand_flags, next, buf);
 }
+/**
+ * @brief parse a `not' instruction
+ * @details The not instruction <br/>
+ *          Opcode = DVM_UNOP <br/>
+ *          Flags = DVM_FLAG_UOP_NOT <br/>
+ *          operands = [dest:RegisterID, sour:RegisterID] 
+ **/
 __DI_CONSTRUCTOR(NOT)
 {
 	int operand_flags[2];
 	operand_flags[0] = operand_flags[1] = _dalvik_instruction_sexpression_fetch_type(&next, 0);
 	return _dalvik_instruction_setup_arithmetic(DVM_UNOP, DVM_FLAG_UOP_NOT, 2, operand_flags, next, buf);
 }
-/** @brief used for converting (convert-xxx ) insturction */
+/**
+ * @brief used for setting up the operands of converting (convert-xxx ) insturction 
+ * @param next the expression 
+ * @param buf the instruction buffer
+ * @param type the type of the source operator
+ **/
 static inline int _dalvik_instruction_convert_operator(const sexpression_t* next, dalvik_instruction_t* buf, int type)
 {
 	int operand_flags[2];
@@ -1224,22 +1353,57 @@ static inline int _dalvik_instruction_convert_operator(const sexpression_t* next
 	operand_flags[1] = _dalvik_instruction_sexpression_fetch_type(&next, 0);
 	return _dalvik_instruction_setup_arithmetic(DVM_UNOP, DVM_FLAG_UOP_TO, 2, operand_flags, next, buf);
 }
+/**
+ * @brief parse `int-to-????' instruction
+ * @details Convert a integer value to some specific type <br/>
+ *          Opcode = DVM_UNOP <br/>
+ *          Flags = DVM_FLAG_UOP_TO <br/>
+ *          Operands = [dest:RegisterID, sour:RegisterID]
+ **/
 __DI_CONSTRUCTOR(INT)
 {
 	return _dalvik_instruction_convert_operator(next, buf, DVM_OPERAND_TYPE_INT);
 }
+/**
+ * @brief parse `long-to-????' instruction
+ * @details Convert a long integer value to some specific type <br/>
+ *          Opcode = DVM_UNOP <br/>
+ *          Flags = DVM_FLAG_UOP_TO <br/>
+ *          Operands = [dest:RegisterID, sour:RegisterID]
+ **/
 __DI_CONSTRUCTOR(LONG)
 {
 	return _dalvik_instruction_convert_operator(next, buf, DVM_OPERAND_TYPE_LONG);
 }
+/**
+ * @brief parse `float-to-????' instruction
+ * @details Convert a float value to some specific type <br/>
+ *          Opcode = DVM_UNOP <br/>
+ *          Flags = DVM_FLAG_UOP_TO <br/>
+ *          Operands = [dest:RegisterID, sour:RegisterID]
+ **/
 __DI_CONSTRUCTOR(FLOAT)
 {
 	return _dalvik_instruction_convert_operator(next, buf, DVM_OPERAND_TYPE_FLOAT);
 }
+/**
+ * @brief parse `double-to-????' instruction
+ * @details Convert a double value to some specific type <br/>
+ *          Opcode = DVM_UNOP <br/>
+ *          Flags = DVM_FLAG_UOP_TO <br/>
+ *          Operands = [dest:RegisterID, sour:RegisterID]
+ **/
 __DI_CONSTRUCTOR(DOUBLE)
 {
 	return _dalvik_instruction_convert_operator(next, buf, DVM_OPERAND_TYPE_DOUBLE);
 }
+/**
+ * @brief set up binary operator instruction
+ * @param flags the instruction flags
+ * @param next the S-Expression
+ * @param buf the instruction buffer
+ * @return < 0 indicates errors 
+ **/
 static inline int _dalvik_instruction_setup_binary_operator(int flags, const sexpression_t* next, dalvik_instruction_t *buf)
 {
 	buf->opcode = DVM_BINOP;
@@ -1296,54 +1460,145 @@ static inline int _dalvik_instruction_setup_binary_operator(int flags, const sex
 	}
 	return 0;
 }
+/**
+ * @brief parse the add instruction
+ * @details parse the `add' instruction <br/>
+ *          Opcode = DVM_BINOP <br/>
+ *          Flags =  DVM_FLAG_BINOP_ADD <br/>
+ *          Operands = [dest:RegisterID, sour1:RegisterID, sour2:RegisterID]
+ **/
 __DI_CONSTRUCTOR(ADD)
 {
 	return _dalvik_instruction_setup_binary_operator(DVM_FLAG_BINOP_ADD, next, buf);
 }
+/**
+ * @brief parse the sub instruction
+ * @details parse the `sub' instruction <br/>
+ *          Opcode = DVM_BINOP <br/>
+ *          Flags =  DVM_FLAG_BINOP_SUB <br/>
+ *          Operands = [dest:RegisterID, sour1:RegisterID, sour2:RegisterID]
+ **/
 __DI_CONSTRUCTOR(SUB)
 {
 	return _dalvik_instruction_setup_binary_operator(DVM_FLAG_BINOP_SUB, next, buf);
 }
+/**
+ * @brief parse the mul instruction
+ * @details parse the `mul' instruction <br/>
+ *          Opcode = DVM_BINOP <br/>
+ *          Flags =  DVM_FLAG_BINOP_MUL <br/>
+ *          Operands = [dest:RegisterID, sour1:RegisterID, sour2:RegisterID]
+ **/
 __DI_CONSTRUCTOR(MUL)
 {
 	return _dalvik_instruction_setup_binary_operator(DVM_FLAG_BINOP_MUL, next, buf);
 }
+/**
+ * @brief parse the div instruction
+ * @details parse the `div' instruction <br/>
+ *          Opcode = DVM_BINOP <br/>
+ *          Flags =  DVM_FLAG_BINOP_DIV <br/>
+ *          Operands = [dest:RegisterID, sour1:RegisterID, sour2:RegisterID]
+ **/
 __DI_CONSTRUCTOR(DIV)
 {
 	return _dalvik_instruction_setup_binary_operator(DVM_FLAG_BINOP_DIV, next, buf);
 }
+/**
+ * @brief parse the rem instruction
+ * @details parse the `rem' instruction <br/>
+ *          Opcode = DVM_BINOP <br/>
+ *          Flags =  DVM_FLAG_BINOP_REM <br/>
+ *          Operands = [dest:RegisterID, sour1:RegisterID, sour2:RegisterID]
+ **/
 __DI_CONSTRUCTOR(REM)
 {
 	return _dalvik_instruction_setup_binary_operator(DVM_FLAG_BINOP_REM, next, buf);
 }
+/**
+ * @brief parse the and instruction
+ * @details parse the `and' instruction <br/>
+ *          Opcode = DVM_BINOP <br/>
+ *          Flags =  DVM_FLAG_BINOP_AND <br/>
+ *          Operands = [dest:RegisterID, sour1:RegisterID, sour2:RegisterID]
+ **/
 __DI_CONSTRUCTOR(AND)
 {
 	return _dalvik_instruction_setup_binary_operator(DVM_FLAG_BINOP_AND, next, buf);
 }
+/**
+ * @brief parse the or instruction
+ * @details parse the `or' instruction <br/>
+ *          Opcode = DVM_BINOP <br/>
+ *          Flags =  DVM_FLAG_BINOP_OR <br/>
+ *          Operands = [dest:RegisterID, sour1:RegisterID, sour2:RegisterID]
+ **/
 __DI_CONSTRUCTOR(OR)
 {
 	return _dalvik_instruction_setup_binary_operator(DVM_FLAG_BINOP_OR, next, buf);
 }
+/**
+ * @brief parse the xor instruction
+ * @details parse the `xor' instruction <br/>
+ *          Opcode = DVM_BINOP <br/>
+ *          Flags =  DVM_FLAG_BINOP_XOR <br/>
+ *          Operands = [dest:RegisterID, sour1:RegisterID, sour2:RegisterID]
+ **/
 __DI_CONSTRUCTOR(XOR)
 {
 	return _dalvik_instruction_setup_binary_operator(DVM_FLAG_BINOP_XOR, next, buf);
 }
+/**
+ * @brief parse the shl instruction
+ * @details parse the `shl' instruction <br/>
+ *          Opcode = DVM_BINOP <br/>
+ *          Flags =  DVM_FLAG_BINOP_SHL <br/>
+ *          Operands = [dest:RegisterID, sour1:RegisterID, sour2:RegisterID]
+ **/
 __DI_CONSTRUCTOR(SHL)
 {
 	return _dalvik_instruction_setup_binary_operator(DVM_FLAG_BINOP_SHL, next, buf);
 }
+/**
+ * @brief parse the shl instruction
+ * @details parse the `shr' instruction <br/>
+ *          Opcode = DVM_BINOP <br/>
+ *          Flags =  DVM_FLAG_BINOP_SHR <br/>
+ *          Operands = [dest:RegisterID, sour1:RegisterID, sour2:RegisterID]
+ **/
 __DI_CONSTRUCTOR(SHR)
 {
 	return _dalvik_instruction_setup_binary_operator(DVM_FLAG_BINOP_SHR, next, buf);
 }
+/**
+ * @brief parse the ushr instruction
+ * @details parse the `ushr' instruction <br/>
+ *          Opcode = DVM_BINOP <br/>
+ *          Flags =  DVM_FLAG_BINOP_USHR <br/>
+ *          Operands = [dest:RegisterID, sour1:RegisterID, sour2:RegisterID]
+ **/
 __DI_CONSTRUCTOR(USHR)
 {
 	return _dalvik_instruction_setup_binary_operator(DVM_FLAG_BINOP_USHR, next, buf);
 }
+/**
+ * @brief parse the ushl instruction
+ * @details parse the `ushl' instruction <br/>
+ *          Opcode = DVM_BINOP <br/>
+ *          Flags =  DVM_FLAG_BINOP_USHL <br/>
+ *          Operands = [dest:RegisterID, sour1:RegisterID, sour2:RegisterID]
+ **/
 __DI_CONSTRUCTOR(RSUB)
 {
 	return _dalvik_instruction_setup_binary_operator(DVM_FLAG_BINOP_RSUB, next, buf);
 }
+/**
+ * @brief parse the instance-of instruction
+ * @details parse the `instance-of' instruction <br/>
+ *          Opcode = DVM_INSTANCE <br/>
+ *          Flags =  DVM_FLAG_INSTANCE_OF <br/>
+ *          Operands = [dest:RegisterID, sour:RegisterID, classpath:ClassPath]
+ **/
 __DI_CONSTRUCTOR(INSTANCE)
 {
 	buf->opcode = DVM_INSTANCE;
@@ -1382,6 +1637,13 @@ __DI_CONSTRUCTOR(INSTANCE)
 	}
 	return 0;
 }
+/**
+ * @brief parse the array-length instruction
+ * @details parse the `array-length' instruction <br/>
+ *          Opcode = DVM_ARRAY <br/>
+ *          Flags =  DVM_FLAG_ARRAY_LENGTH <br/>
+ *          Operands = [dest:RegisterID, sour_reg:RegisterID]
+ **/
 __DI_CONSTRUCTOR(ARRAY)
 {
 	buf->opcode = DVM_ARRAY;
@@ -1397,6 +1659,18 @@ __DI_CONSTRUCTOR(ARRAY)
 	__DI_SETUP_OPERAND(1, DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_OBJECT), __DI_REGNUM(sour));
 	return 0;
 }
+/**
+ * @brief parse the new instruction
+ * @details parse the `new' instruction <br/>
+ *          Case 1: new-instance <br/>
+ *          Opcode = DVM_INSTANCE <br/>
+ *          Flags = DVM_FLAG_INSTANCE_NEW <br/>
+ *          Operands = [dest:RegisterID, class:ClassPath] <br/>
+ *          Case 2: new-array <br/>
+ *          Opcode = DVM_ARRAY <br/>
+ *          Flags = DVM_FLAG_ARRAY_NEW <br/>
+ *          Operands = [dest:RegisterID, size:InstantValue, base_type:Type] 
+ **/ 
 __DI_CONSTRUCTOR(NEW)
 {
 	const char* curlit;
@@ -1592,6 +1866,13 @@ void dalvik_instruction_free(dalvik_instruction_t* buf)
 	if(pret > buf + sz - p) pret = buf + sz - p;\
 	p += pret;\
 }while(0)
+/**
+ * @brief convert the constant operands to a human-readable string
+ * @param op the operand
+ * @param buf the output buffer
+ * @param sz the size of buffer
+ * @return < 0 indicates an error
+ **/
 static inline int _dalvik_instruction_operand_const_to_string(const dalvik_operand_t* op, char* buf, size_t sz)
 {
 	char *p = buf;
@@ -1645,6 +1926,13 @@ static inline int _dalvik_instruction_operand_const_to_string(const dalvik_opera
 	}
 	return p - buf;
 }
+/**
+ * @brief convert the non-constant operands to a human-readable string
+ * @param op the operand
+ * @param buf the output buffer
+ * @param sz the size of buffer
+ * @return < 0 indicates an error
+ **/
 static inline int _dalvik_instruction_operand_to_string(const dalvik_operand_t* opr, char* buf, size_t sz)
 {
 	char *p = buf;
@@ -1662,6 +1950,13 @@ static inline int _dalvik_instruction_operand_to_string(const dalvik_operand_t* 
 }
 #define __PO(id) do{p += _dalvik_instruction_operand_to_string(inst->operands + id, p, buf + sz - p);} while(0)
 #define __CI(_name) name = #_name; break
+/**
+ * @brief convert the instruction to a human-readable string
+ * @param inst the input instruction
+ * @param buf the output buffer
+ * @param sz the size of buffer
+ * @return the result string, NULL indicates an error
+ **/
 const char* dalvik_instruction_to_string(const dalvik_instruction_t* inst, char* buf, size_t sz)
 {
 	static char default_buf[1024];
