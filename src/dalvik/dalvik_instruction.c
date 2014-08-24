@@ -803,7 +803,7 @@ __DI_CONSTRUCTOR(IF)
 /** 
  * @brief: This function is used for build a group of similar instructions : iget iput aget aput sget sput
  * @param opcode the opcode for this instruction
- * @param flag the instruction flag
+ * @param flags the instruction flag
  * @param next the sexpression
  * @param buf the instruction buffer for output
  * @return < 0 indicates an error 
@@ -1235,12 +1235,12 @@ __DI_CONSTRUCTOR(INVOKE)
 /** 
  * @brief get the type flags from S-Expression 
  * @param psexp the pointer to S-Expression parser
- * @param additional_flag the additional flags that to be add to the type
+ * @param additional_flags the additional flags that to be add to the type
  * @return the result type flag value,  < 0 indicates error
  **/
-static inline int32_t _dalvik_instruction_sexpression_fetch_type(const sexpression_t** psexp, int addtional_flags)
+static inline int32_t _dalvik_instruction_sexpression_fetch_type(const sexpression_t** psexp, int additional_flags)
 {
-	int ret = addtional_flags;
+	int ret = additional_flags;
 	const sexpression_t* sexp = *psexp;
 	const char* type;
 	if(sexp_match(sexp, "(L?A", &type, psexp))
@@ -1928,7 +1928,7 @@ static inline int _dalvik_instruction_operand_const_to_string(const dalvik_opera
 }
 /**
  * @brief convert the non-constant operands to a human-readable string
- * @param op the operand
+ * @param opr the operand
  * @param buf the output buffer
  * @param sz the size of buffer
  * @return < 0 indicates an error
