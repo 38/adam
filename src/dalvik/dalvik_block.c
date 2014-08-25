@@ -1,6 +1,7 @@
-/**@file dalvik_block.c 
+/**
+ * @file dalvik_block.c 
  * @brief implementation of code block.
- */
+ **/
 #include <string.h>
 #include <assert.h>
 #include <inttypes.h>
@@ -47,12 +48,6 @@ static inline dalvik_block_cache_node_t* _dalvik_block_cache_node_alloc(
 		const dalvik_type_t * const * typelist,
 		dalvik_block_t* block)
 {
-	if(NULL == block ||
-	   NULL == class ||
-	   NULL == block )
-	{
-		return NULL;
-	}
 	dalvik_block_cache_node_t* ret = (dalvik_block_cache_node_t*) malloc(sizeof(dalvik_block_cache_node_t));
 	if(NULL == ret) 
 	{
@@ -74,10 +69,7 @@ static inline dalvik_block_cache_node_t* _dalvik_block_cache_node_alloc(
 static inline void _dalvik_block_cache_node_free(dalvik_block_cache_node_t* block)
 {
 	if(NULL == block) return;
-	if(block->typelist != NULL)
-	{
-		dalvik_type_list_free((dalvik_type_t**)block->typelist); 
-	}
+	if(block->typelist != NULL) dalvik_type_list_free((dalvik_type_t**)block->typelist); 
 	free(block);
 }
 /**
@@ -87,17 +79,15 @@ static inline void _dalvik_block_cache_node_free(dalvik_block_cache_node_t* bloc
  * @param result a vector that used to store the result of DFS
  * @return nothing
  **/
-static inline void _dalvik_block_tranverse_graph(dalvik_block_t* node, vector_t* result)
+static inline void _dalvik_block_traverse_graph(dalvik_block_t* node, vector_t* result)
 {
-	if(NULL == node ||
-	   NULL == result ||
-	   DALVIK_BLOCK_INDEX_INVALID == node->index) 
+	if(NULL == node || NULL == result || DALVIK_BLOCK_INDEX_INVALID == node->index) 
 		return;
 	vector_pushback(result, &node); 
 	node->index = DALVIK_BLOCK_INDEX_INVALID;  /* mark the node visited */
 	int i;
 	for(i = 0; i < node->nbranches; i ++)
-		_dalvik_block_tranverse_graph(node->branches[i].block, result);
+		_dalvik_block_traverse_graph(node->branches[i].block, result);
 }
 /**
  * @brief from the entry point, free the block graph 
@@ -108,7 +98,12 @@ static inline void _dalvik_block_graph_free(dalvik_block_t* entry)
 {
 	
 	vector_t* vec = vector_new(sizeof(dalvik_block_t*));
-	_dalvik_block_tranverse_graph(entry, vec);
+	if(NULL == vec)
+	{
+		LOG_WARNING("failed to initialize block list, aborting");
+		return;
+	}
+	_dalvik_block_traverse_graph(entry, vec);
 	int i;
 	size_t size = vector_size(vec);
 	for(i = 0; i < size; i ++)
@@ -180,19 +175,18 @@ static int _dalvik_block_key_comp(const void* this, const void* that)
  * @brief Tranverse all instructions in this method, figure out which is key instruction that we really take care
  * and return the offset of the address in the array.
  * @details 
- * 	Q: What is key instruction?
- *
- * 	A: Key instruction is the instruction that involves non-linear control flows, including 
+ * 	   <hl> What is key instruction? </hl> <br/>
+ * 	   Key instruction is the instruction that involves non-linear control flows, including 
  * 	   jump instruction, invoke instruction, branch instruction and the jump target(although 
- * 	   the target can be any instruction)
+ * 	   the target can be any instruction) <br/>
  * 	   Based on the key instruction list we can split the method into pieces that just contains linear control flow
- * 	   We called this piece a BASIC BLOCK.
+ * 	   We called this piece a BASIC BLOCK. <br/>
+ * 	   Actually, key instruction is the last instruction in each basic block 
  *
  * @param entry_point the entry point of this function
  * @param key the memory used to store the key instructions
  * @param size the memory size in how many number of int32_t.
  * @return the number of key instructions, < 0 indicates an error
- * @todo exception handler support
  **/
 static inline int _dalvik_block_get_key_instruction_list(uint32_t entry_point, uint32_t* key, size_t size)
 {
@@ -278,10 +272,6 @@ static inline int _dalvik_block_get_key_instruction_list(uint32_t entry_point, u
 					 LOG_ERROR("invalid instruction switch(flags = %d)", current_inst->flags);
 				 break;
 			 case DVM_INVOKE:
-				 if(inst != entry_point)
-				 	__PUSH(inst-1);   /* because invoke itself forms a block, so it's previous instruction is also a key instruction */
-				 __PUSH(inst);
-				 break;
 			 case DVM_RETURN:
 				 if(inst != entry_point)
 				 	__PUSH(inst-1);   /* because invoke itself forms a block, so it's previous instruction is also a key instruction */
@@ -311,7 +301,7 @@ static inline int _dalvik_block_get_key_instruction_list(uint32_t entry_point, u
 
 	if(0 == kcnt)
 	{
-		LOG_WARNING("can not find any key instruction here");
+		LOG_WARNING("can not find any key instruction here(normally at least 1)");
 		return 0;
 	}
 	/* sort all key instructions */
@@ -335,6 +325,7 @@ static inline int _dalvik_block_get_key_instruction_list(uint32_t entry_point, u
 /**
  * @brief allocate a new code block with nbranches 
  * @param nbranches the number of branches that this block have
+ * @return the newly created block
  **/
 static inline dalvik_block_t* _dalvik_block_new(size_t nbranches)
 {
@@ -350,6 +341,7 @@ static inline dalvik_block_t* _dalvik_block_new(size_t nbranches)
  * @param inst the instruction id
  * @param key the key array
  * @param kcnt the number of keys
+ * @return the block index, < 0 if not found
  **/
 static inline int32_t _dalvik_block_find_blockid_by_instruction(uint32_t inst, const uint32_t *key, int kcnt)
 {
@@ -359,8 +351,8 @@ static inline int32_t _dalvik_block_find_blockid_by_instruction(uint32_t inst, c
 	while(r - l > 1)
 	{
 		int m = (l + r)/2;
-		if(key[m] >= inst) r = m;
-		else l = m;
+		if(key[m] < inst) l = m;
+		else r = m;
 	}
 	return r;
 }
@@ -525,14 +517,20 @@ static inline dalvik_block_t* _dalvik_block_setup_keyinst_switch(const dalvik_in
 	}
 	return block;
 }
+/**
+ * @brief set up the normal linear control-flow instructions
+ * @details the tricky part of this function is the exception handlers, which might make the
+ *          instruction has more than one branch
+ **/
 static inline dalvik_block_t* _dalvik_block_setup_keyinst(const dalvik_instruction_t* inst, const uint32_t *key, size_t kcnt, uint32_t index)
 {
 	int branch_count = 1, i;   /* normal execution path */
 
+	/* we should count how many exception handler there */
 	dalvik_exception_handler_set_t* hptr;
 	for(hptr = inst->handler_set; NULL != hptr; hptr = hptr->next, branch_count ++);
 
-	dalvik_block_t* block = _dalvik_block_new(branch_count);  /* only 1 path is possible */
+	dalvik_block_t* block = _dalvik_block_new(branch_count);  /* only 1 path is possible, but there might be expcetion handlers */
 	if(NULL == block)
 	{
 		LOG_ERROR("can not allocate memory for the instruction");
@@ -549,6 +547,7 @@ static inline dalvik_block_t* _dalvik_block_setup_keyinst(const dalvik_instructi
 	}
 	LOG_DEBUG("possible path block %d --> %"PRIuPTR, index, block->branches[0].block_id[0]);
 
+	/* set up the exception branch */
 	for(hptr = inst->handler_set, i = 1; NULL != hptr; hptr = hptr->next, i ++)
 	{
 		int32_t target = _dalvik_block_find_blockid_by_instruction(dalvik_label_jump_table[hptr->handler->handler_label], key, kcnt);
@@ -565,6 +564,9 @@ static inline dalvik_block_t* _dalvik_block_setup_keyinst(const dalvik_instructi
 	}
 	return block;
 }
+/**
+ * @brief set up the return block
+ **/
 static inline dalvik_block_t* _dalvik_block_setup_return(const dalvik_instruction_t* inst, const uint32_t *key, size_t kcnt, uint32_t index)
 {
 	dalvik_block_t* block = _dalvik_block_new(1);  /* there's an special branch which is actually a dead end, however, left operand is set
@@ -619,6 +621,7 @@ static inline int _dalvik_block_build_graph(uint32_t entry, dalvik_block_t** blo
 				block = _dalvik_block_setup_return(inst, key, kcnt, i);
 				break;
 			case DVM_INVOKE:  /* acutally invoke instruction is not a jump instruction */
+				/* do default routine */
 			default:
 				block_end = inst->next;  /* also incuding current instruction, cuz it does more than a jump instruction */
 				block = _dalvik_block_setup_keyinst(inst, key, kcnt, i);
@@ -696,21 +699,22 @@ dalvik_block_t* dalvik_block_from_method(const char* classpath, const char* meth
 	uint32_t key[DALVIK_BLOCK_MAX_KEYS];     /* the maximum key instruction we are expecting */
 	dalvik_block_t* blocks[DALVIK_BLOCK_MAX_KEYS] = {}; /* block list */ 
 	
-	/* Get a list of key instructions */
+	/* Step 1: Scan the method, get a list of key instructions */
 	int32_t kcnt = _dalvik_block_get_key_instruction_list(method->entry, key, sizeof(key)/sizeof(*key));
 	if(kcnt < 0) 
 	{
 		LOG_ERROR("can not generate the key instruction list");
 		return NULL;
 	}
-
+	
+	/* Step 2: Bult the graph */
 	if(_dalvik_block_build_graph(method->entry, blocks, DALVIK_BLOCK_MAX_KEYS, key, kcnt) < 0)
 	{
 		LOG_ERROR("can not build block graph for method %s/%s", classpath, methodname);
 		return NULL;
 	}
 
-	/* Ok, link the program */
+	/* Step 3: Ok, link the program */
 	int i;
 	for(i = 0; i < kcnt; i ++)
 	{
@@ -729,6 +733,7 @@ dalvik_block_t* dalvik_block_from_method(const char* classpath, const char* meth
 		}
 	}
 
+	/* Step 4: Reachablity check */
 	/* then, we delete all unreachable blocks */
 	uint32_t* visit_flags = key;          /* here we reuse the memory for key to store the visit flags */
 	memset(key, 0, sizeof(key));
@@ -766,6 +771,7 @@ dalvik_block_t* dalvik_block_from_method(const char* classpath, const char* meth
 		}
 	}
 
+	/* insert the result to cache and return */
 	node->next = _dalvik_block_cache[h];
 	_dalvik_block_cache[h] = node;
 
