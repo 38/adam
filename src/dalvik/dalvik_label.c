@@ -1,3 +1,7 @@
+/**
+ * @file dalvik_label.c
+ * @brief impkementation of label table which map label --> label index and jump table which maps label id --> instruction id
+ **/
 #include <dalvik/dalvik_label.h>
 #include <string.h>
 #include <log.h>
@@ -7,15 +11,27 @@
 int dalvik_label_count = 0;
 #endif
 
+/**
+ * @brief map label id --> jump table 
+ **/
 uint32_t dalvik_label_jump_table[DAVLIK_LABEL_POOL_SIZE];
 
+/**
+ * @brief the type for label map (label name --> label index)
+ **/
 typedef struct _dalvik_label_map_t {
 	const char* label;
 	uint32_t    idx;
 	struct _dalvik_label_map_t* next;
 } dalvik_label_map_t;
 
+/**
+ * @brief the hash table for the label map
+ **/
 static dalvik_label_map_t* _dalvik_label_map_table[DAVLIK_LABEL_POOL_SIZE];
+/**
+ * @brief how many label are there in the table
+ **/
 static int _dalvik_label_count;
 
 int dalvik_label_init(void)

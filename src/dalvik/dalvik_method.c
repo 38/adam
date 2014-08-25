@@ -138,11 +138,14 @@ dalvik_method_t* dalvik_method_from_sexp(const sexpression_t* sexp, const char* 
 			}
 			else 
 				lid = dalvik_label_get_label_id(arg);
-			if(lid == -1) 
+			if(lid < -1) 
 			{
 				LOG_ERROR("can not create label for %s", arg);
 				goto ERR;
 			}
+			/* since there might be more than one labels at this pointer, so that we 
+			 * need a label stack to record all label id which is pointing to current
+			 * instruction */
 			if(label_sp < DALVIK_METHOD_LABEL_STACK_SIZE)
 				label_stack[label_sp++] = lid;
 			else
