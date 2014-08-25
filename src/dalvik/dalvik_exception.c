@@ -7,8 +7,13 @@
 #include <log.h>
 #include <debug.h>
 
-
+/**
+ * @brief the vector that contains all exception handler 
+ **/
 vector_t *_dalvik_exception_handler_vector     = NULL;
+/**
+ * @biref the vector that contains all expcetion handler set
+ **/
 vector_t *_dalvik_exception_handler_set_vector = NULL;
 int dalvik_exception_init()
 {
@@ -53,7 +58,12 @@ void dalvik_exception_finalize()
 		vector_free(_dalvik_exception_handler_set_vector);
 	}
 }
-/** @brief allocate an exception handler */
+/** 
+ * @brief allocate an exception handler 
+ * @param expection the class path of this exception
+ * @param handler the handler label ID
+ * @return the newly created exception handler set
+ **/
 static inline dalvik_exception_handler_t* _dalvik_exception_handler_alloc(const char* exception, int handler)
 {
 	dalvik_exception_handler_t* ret;
@@ -68,11 +78,19 @@ static inline dalvik_exception_handler_t* _dalvik_exception_handler_alloc(const 
 	vector_pushback(_dalvik_exception_handler_vector, &ret);
 	return ret;
 }
-/** @brief allocate an exception handler set */
+/** 
+ * @brief allocate an exception handler set 
+ * @return the newly created exception handler set
+ **/
 static inline dalvik_exception_handler_set_t* _dalvik_exception_handler_set_alloc()
 {
 	dalvik_exception_handler_set_t* ret;
 	ret = (dalvik_exception_handler_set_t*)malloc(sizeof(dalvik_exception_handler_set_t));
+	if(NULL == ret)
+	{
+		LOG_ERROR("can not allocate memory for exception handler set");
+		return NULL;
+	}
 	ret->next = NULL;
 	return ret;   /* Because we do not push the new allocated object into the vecotr,
 					 So we should do it by callee */
@@ -129,13 +147,12 @@ dalvik_exception_handler_t* dalvik_exception_handler_from_sexp(const sexpression
 		}
 		(*from) = lid1;
 		(*to) = lid2;
-		dalvik_exception_handler_t* handler = _dalvik_exception_handler_alloc(classpath, lid3);
-		return handler;
+		return _dalvik_exception_handler_alloc(classpath, lid3);
 	}
 	else if(sexp_match(sexp, "(L=A", DALVIK_TOKEN_CATCHALL, &sexp))
 	{
 		const char *label1, *label2, *label3;
-		/* (catch classpath from label1 to label2 using label3) */
+		/* (catchall from label1 to label2 using label3) */
 		const char* classpath = sexp_get_object_path(sexp, &sexp);
 		if(NULL == classpath) return NULL;
 		if(!sexp_match(sexp,"(L=L?L=L?L=L?", 

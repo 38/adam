@@ -775,10 +775,11 @@ dalvik_block_t* dalvik_block_from_method(const char* classpath, const char* meth
 	node->next = _dalvik_block_cache[h];
 	_dalvik_block_cache[h] = node;
 
-	LOG_DEBUG("block graph for function %s/%s with type [%s] has been cached (contains %d blocks)", 
+	LOG_DEBUG("block graph for function %s/%s with type [%s] with return type %s has been cached (contains %d blocks)", 
 			   classpath,
 			   methodname,
 			   dalvik_type_list_to_string(typelist,NULL, 0),
+			   dalvik_type_to_string(rtype, NULL, 0),
 			   block_cnt);
 	return blocks[0];
 }

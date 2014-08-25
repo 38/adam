@@ -1,4 +1,7 @@
 #include <dalvik/dalvik.h>
+/**
+ * @brief the number of static fileds 
+ **/
 int dalvik_static_field_count = 0;
 int dalvik_init(void)
 {

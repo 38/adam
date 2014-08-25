@@ -11,6 +11,7 @@
 #ifdef PARSER_COUNT
 int dalvik_class_count = 0;
 #endif
+/* the static field counter */
 extern int dalvik_static_field_count;
 
 dalvik_class_t* dalvik_class_from_sexp(const sexpression_t* sexp)
@@ -18,13 +19,12 @@ dalvik_class_t* dalvik_class_from_sexp(const sexpression_t* sexp)
 #ifdef PARSER_COUNT
 	dalvik_class_count ++;
 #endif
-
-	dalvik_class_t* class = NULL;
-	int length;
-	int is_interface;
-	const char* class_path;
-	int attrs;
-	int field_count = 0;
+	dalvik_class_t* class = NULL; /* result class */
+	int length; /* length of the arg list */
+	int is_interface; /* wether or not this class is a interface */
+	const char* class_path; /* class path of this class */
+	int attrs;  /* attritube flags */
+	int field_count = 0;  /* how many fields */
 	if(SEXP_NIL == sexp) 
 	{
 		LOG_ERROR("bad S-Expression");
@@ -34,7 +34,7 @@ dalvik_class_t* dalvik_class_from_sexp(const sexpression_t* sexp)
 	sexpression_t* attr_list;
 	if(!sexp_match(sexp, "(L?C?A", &firstlit, &attr_list, &sexp))
 	{
-		LOG_ERROR("can't peek the first literial");
+		LOG_ERROR("can't peek the first literial and the attribute list");
 		goto ERR;
 	}
 	if(DALVIK_TOKEN_CLASS == firstlit)
@@ -46,7 +46,7 @@ dalvik_class_t* dalvik_class_from_sexp(const sexpression_t* sexp)
 		LOG_ERROR("first literal of a class should not be %s", firstlit);
 		goto ERR;
 	}
-	
+
 	if((attrs = dalvik_attrs_from_sexp(attr_list)) < 0)
 	{
 		LOG_ERROR("invalid attribute %s", sexp_to_string(attr_list, NULL, 0));
@@ -67,7 +67,6 @@ dalvik_class_t* dalvik_class_from_sexp(const sexpression_t* sexp)
 
 	/* We allocate length + 1 because we need a NULL at the end of member list */
 	class = (dalvik_class_t*)malloc(sizeof(dalvik_class_t) + sizeof(const char*) * (length + 1));  
-
 	if(class == NULL) 
 	{
 		LOG_ERROR("can not allocate memory for class");
@@ -106,9 +105,10 @@ dalvik_class_t* dalvik_class_from_sexp(const sexpression_t* sexp)
 		}
 		else if(sexp_match(this_def, "(L=A", DALVIK_TOKEN_IMPLEMENTS, &tail))
 		{
-			if(num_implements >= 128)
+			if(num_implements >= DALVIK_CLASS_MAX_NUM_IMPLEMENTS)
 			{
-				LOG_WARNING("class %s implements more than 128 interfaces, is this a mistake?", class_path);
+				LOG_WARNING("class %s implements more than %d interfaces, try to adjust DALVIK_CLASS_MAX_NUM_IMPLEMENTS and recompile", 
+				             class_path, DALVIK_CLASS_MAX_NUM_IMPLEMENTS);
 				continue;
 			}
 			if(NULL == (class->implements[num_implements] = sexp_get_object_path(tail, NULL)))
@@ -123,8 +123,8 @@ dalvik_class_t* dalvik_class_from_sexp(const sexpression_t* sexp)
 		}
 		else if(sexp_match(this_def, "(L=A", DALVIK_TOKEN_ANNOTATION, &tail))
 		{
+			/* TODO annotations are currently ignored */
 			LOG_NOTICE("fixme: ingored psuedo-instruction (annotation)");
-			/* just ingore */
 		}
 		else
 		{
@@ -136,7 +136,6 @@ dalvik_class_t* dalvik_class_from_sexp(const sexpression_t* sexp)
 			}
 			if(firstlit == DALVIK_TOKEN_METHOD)
 			{
-				//LOG_DEBUG("we are resuloving method %s", sexp_to_string(this_def, buf));
 				dalvik_method_t* method;
 				if(NULL == (method = dalvik_method_from_sexp(this_def, class->path, source)))
 				{

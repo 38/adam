@@ -1,6 +1,7 @@
-/** @file constants.h
- *  @brief this file constains constants
- */
+/** 
+ * @file constants.h
+ * @brief this file constains constants
+ **/
 #ifndef __CONSTANTS_H__
 #define __CONSTANTS_H__
 
@@ -13,6 +14,11 @@
 /** @brief initial size of a vector */
 #   define VECTOR_INIT_CAP 32
 #endif /* VECTOR_INIT_CAP */
+
+#ifndef DALVIK_CLASS_MAX_NUM_IMPLEMENTS
+/** @biref the max number a class can implement interfaces **/
+#	define DALVIK_CLASS_MAX_NUM_IMPLEMENTS 128
+#endif
 
 #ifndef DAVLIK_LABEL_POOL_SIZE
 /** @brief the size of label pool */
@@ -134,7 +140,8 @@
 #endif
 
 #ifndef CESK_BLOCK_MAX_NUM_OF_FUNC
-/** @brief the max number of function the invoke function can handle (because the virtual function call can refer to different function in a single instruction) */
+/** @brief the max number of function the invoke function can handle 
+ * (because the virtual function call can refer to different function in a single instruction) */
 #	define CESK_BLOCK_MAX_NUM_OF_FUNC 128
 #endif
 
