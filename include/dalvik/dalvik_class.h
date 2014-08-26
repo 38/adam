@@ -3,6 +3,7 @@
 #include <sexp.h>
 #include <dalvik/dalvik_attrs.h>
 #include <const_assertion.h>
+#include <constants.h>
 /** @file dalvik_class.h
  *  @brief defination of a class
  */

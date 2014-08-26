@@ -1,12 +1,21 @@
+/**
+ * @files dalvik_tokens.c
+ * @brief define lexical tokens 
+ **/
 #include <sexp.h>
 #include <dalvik/dalvik_tokens.h>
 #include <stringpool.h>
 #include <log.h>
 #include <debug.h>
 
+/**
+ * @brief the queried keyworkds
+ **/
 const char* dalvik_keywords[DALVIK_MAX_NUM_KEYWORDS];
-
-const char* _dalvik_token_defs[DALVIK_MAX_NUM_KEYWORDS] = {
+/**
+ * @brief the unqueried keywords
+ **/
+static const char* _dalvik_token_defs[DALVIK_MAX_NUM_KEYWORDS] = {
 	"move",
 	"return",
 	"const",

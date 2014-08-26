@@ -108,7 +108,7 @@ dalvik_method_t* dalvik_method_from_sexp(const sexpression_t* sexp, const char* 
 		/* First check if the statement is a psuedo-instruction */
 		const char* arg;
 #if LOG_LEVEL >= 6
-		char buf[40906];
+		char buf[4096];
 		static int counter = 0;
 #endif
 		LOG_DEBUG("#%d current instruction : %s",(++counter) ,sexp_to_string(this_smt, buf, sizeof(buf)) );
@@ -205,7 +205,11 @@ dalvik_method_t* dalvik_method_from_sexp(const sexpression_t* sexp, const char* 
 					  excepthandler[number_of_exception_handler]->exception, 
 					  excepthandler[number_of_exception_handler]->handler_label);
 			label_st[number_of_exception_handler] = 0;
-			number_of_exception_handler ++;
+			if(DALVIK_MAX_CATCH_BLOCK < ++ number_of_exception_handler)
+			{
+				LOG_ERROR("too many catch blocks in a signle method, try to adjust DALVIK_MAX_CATCH_BLOCK (currently %d", DALVIK_MAX_CATCH_BLOCK);
+				goto ERR;
+			}
 		}
 		else if(sexp_match(this_smt, "(L=A", DALVIK_TOKEN_FILL, &arg))
 		{

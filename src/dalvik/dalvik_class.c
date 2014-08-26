@@ -150,8 +150,7 @@ dalvik_class_t* dalvik_class_from_sexp(const sexpression_t* sexp)
 				}
 				LOG_DEBUG("new class method %s.%s", class->path, method->name);
 				/* because the method in fact is static object, we can retrive the method thru member dict
-				 * So we do not add them to the memberlist
-				 */
+				 * So we do not add them to the memberlist */
 			}
 			else if(firstlit == DALVIK_TOKEN_FIELD)
 			{
