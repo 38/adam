@@ -28,7 +28,7 @@ int main()
 	cesk_reloc_table_t* rtable;
 	
 	uint32_t val;
-	
+#if 0	
 	graph = dalvik_block_from_method(classpath, methodname, type, tint);
 	assert(NULL != graph);
 
@@ -104,6 +104,7 @@ int main()
 	assert(cesk_set_contain(ret->data[ret->offset[CESK_DIFF_REG]].arg.set, CESK_STORE_ADDR_NEG));
 	cesk_frame_free(frame);
 	cesk_diff_free(ret);
+
 
 	classpath = stringpool_query("listNode");
 	methodname = stringpool_query("run");
@@ -193,6 +194,8 @@ int main()
 	assert(cesk_set_contain(ret->data[ret->offset[CESK_DIFF_STORE] + 2].arg.value->pointer.set, CESK_STORE_ADDR_RELOC_PREFIX + 3));
 	assert(cesk_set_contain(ret->data[ret->offset[CESK_DIFF_STORE] + 2].arg.value->pointer.set, CESK_STORE_ADDR_ZERO));
 	cesk_frame_free(frame);
+#endif
+#if 0
 	cesk_diff_free(ret);
 	
 	classpath = stringpool_query("treeNode");
@@ -397,8 +400,8 @@ int main()
 	assert(cesk_set_contain(ret->data[ret->offset[CESK_DIFF_REG] + 2].arg.set, CESK_STORE_ADDR_NEG));
 	
 	cesk_frame_free(frame);
-	cesk_diff_free(ret); 
-	
+	cesk_diff_free(ret);
+#endif
 /*[(allocate @0xff000000 (objval (refcnt 4) [class TestClass1 ()][class BaseClass ()][class java/lang/Object ()])) (allocate @0xff000001 (objval (refcnt 1) [class TestClass2 ((_value @0xff000002) )][class BaseClass ()][class java/lang/Object ()])) (allocate @0xff000002 (setval (refcnt 2) {@0xffffff02})) (allocate @0xff000003 (objval (refcnt 1) [class TestClass2 ((_value @0xff000004) )][class BaseClass ()][class java/lang/Object ()])) (allocate @0xff000004 (setval (refcnt 1) {@0xffffff02})) (allocate @0xff000005 (objval (refcnt 1) [class TestClass1 ()][class BaseClass ()][class java/lang/Object ()]))][(reuse @0xff000000 1) (reuse @0xff000001 1) (reuse @0xff000002 1)][(register v0 {@0xff000005,@0xff000003}) (register f4 {@0xff000000,@0xff000001})][(store @0xff000002 (setval (refcnt 1) {@0xffffff01})) (store @0xff000004 (setval (refcnt 1) {@0xffffff01}))][]*/
 	classpath = stringpool_query("virtualTest");
 	methodname = stringpool_query("Case2");

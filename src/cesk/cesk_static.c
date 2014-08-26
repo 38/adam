@@ -117,6 +117,7 @@ static inline _cesk_static_tree_node_t* _cesk_static_tree_node_new(uint32_t left
 	}
 	ret->refcnt = 0;
 	ret->isleaf = isleaf;
+	ret->reloc = 0;
 	return ret;
 }
 /**
@@ -136,6 +137,7 @@ static inline _cesk_static_tree_node_t* _cesk_static_tree_node_duplicate(_cesk_s
 	}
 	ret->refcnt = 0;
 	ret->isleaf = isleaf;
+	ret->reloc = 0;
 	/* for the leaf node, we should duplicate the set */
 	if(isleaf)
 	{

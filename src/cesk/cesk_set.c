@@ -305,9 +305,10 @@ void cesk_set_free(cesk_set_t* set)
 		/* get the info node of this */
 		cesk_set_node_t* info_node = (cesk_set_node_t*)(((char*)info) - sizeof(cesk_set_node_t));
 		cesk_set_node_t* data_node;
-		/* tranverse all members of this set */
+		/* traverse all members of this set */
 		for(data_node = info->first; data_node != NULL;)
 		{
+			/* delete it from hash chain */
 			if(NULL != data_node->prev) 
 				data_node->prev->next = data_node->next;
 			else 
@@ -315,7 +316,6 @@ void cesk_set_free(cesk_set_t* set)
 				/* first element of the slot */
 				uint32_t h = _cesk_set_idx_hashcode(data_node->set_idx, data_node->addr) % CESK_SET_HASH_SIZE;
 				_cesk_set_hash[h] = data_node->next;
-				data_node->prev = NULL;
 			}
 			if(NULL != data_node->next) 
 				data_node->next->prev = data_node->prev;
