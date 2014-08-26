@@ -1,24 +1,37 @@
+/**
+ * @file cesk_alloctab.c
+ * @brief the allocation table implementation, allocation table matches a pair of related address (typically relocated address and object address)
+ **/
+
 #include <cesk/cesk_alloctab.h>
 /**
  * @brief node type of  allocation table
  **/
 typedef struct _cesk_alloc_node_t{
-	uint32_t token;  
-	uint32_t key;
-	uint32_t val;
-	struct _cesk_alloc_node_t* next;
+	uint32_t token;       /*!< the allocation token, because we allow multiple store share one alloctab, so that we have
+	                           need a token to identify the node is belong to which store.
+							   The store should call cesk_alloctab_get_token first to get a fresh token, before actual use of 
+							   alloctab*/
+	uint32_t key;         /*!< the address from which we map the address to the val address */ 
+	uint32_t val;         /*!< the address to which we map the address from the key address */
+	struct _cesk_alloc_node_t* next;   /*!< the linked list structure */
 } cesk_alloc_node_t;
+/**
+ * @brief the data structure of a allocation table
+ **/
 struct _cesk_alloctab_t{
-	cesk_alloc_node_t* slot[CESK_ALLOC_TABLE_NSLOTS];
-	uint32_t chain_size[CESK_ALLOC_TABLE_NSLOTS];
-	uint32_t next_token;
-	uint32_t max_chain_size;
-	uint32_t using;
+	cesk_alloc_node_t* slot[CESK_ALLOC_TABLE_NSLOTS];    /*!< hash slot of allocation table */
+	uint32_t chain_size[CESK_ALLOC_TABLE_NSLOTS];        /*!< the chain size in each slot */
+	uint32_t next_token;                                 /*!< the next fresh token */
+	uint32_t max_chain_size;                             /*!< the maximum chain size in the allocation table */
+	uint32_t using;                                      /*!< how many stores are using this allocation table */
 };
 cesk_alloctab_t* cesk_alloctab_new(cesk_alloctab_t* old)
 {
+	LOG_DEBUG("the allocation table at %p has max chain size = %u", old, (NULL == old)?0:old->max_chain_size);
 	if(NULL == old || old->max_chain_size > CESK_ALLOC_TABLE_MAX_CHAIN_SIZE)
 	{
+		LOG_DEBUG("not to reuse the old allocation table");
 		cesk_alloctab_t* ret = (cesk_alloctab_t*)malloc(sizeof(cesk_alloctab_t));
 		if(NULL == ret)
 		{
@@ -32,6 +45,7 @@ cesk_alloctab_t* cesk_alloctab_new(cesk_alloctab_t* old)
 	else
 	{
 		old->using ++;
+		LOG_DEBUG("use the old allocation table, number of users = %u\n", old->using);
 		return old;
 	}
 }
@@ -60,6 +74,9 @@ void cesk_alloctab_free(cesk_alloctab_t* mem)
 }
 /**
  * @brief the hashcode for key <store, address> pair
+ * @param token the uniqe token used to identify user store
+ * @param addr the key address
+ * @return the result hashcode
  **/
 static inline hashval_t _cesk_alloctab_hashcode(uint32_t token, uint32_t addr)
 {

@@ -1,17 +1,23 @@
 /** 
  * @file cesk_value.c
- * @brief the implementation of abstract value */
+ * @brief the implementation of abstract value 
+ **/
 #include <stdio.h>
 #include <log.h>
 #include <cesk/cesk_value.h>
 #include <dalvik/dalvik_instruction.h>
 
-/** @brief the value list actuall record all values, and deallocate 
+/** 
+ * @brief the value list actuall record all values, and deallocate 
  *         the memory when exiting 
- */
+ **/
 static cesk_value_t*  _cesk_value_list = NULL;
 
-/** @brief allocator */
+/** 
+ * @brief allocator
+ * @param type the type code
+ * @return a pointer  to the newly created value, NULL indicates an error
+ **/
 static inline cesk_value_t* _cesk_value_alloc(uint32_t type)
 {
 	cesk_value_t* ret = (cesk_value_t*)malloc(sizeof(cesk_value_t));
@@ -32,7 +38,11 @@ int cesk_value_init()
 	_cesk_value_list = NULL;
 	return 0;
 }
-/** @brief deallocate the memory for the value */
+/** 
+ * @brief deallocate the memory for the value
+ * @param val the value to be freed 
+ * @return nothing
+ **/
 static void _cesk_value_free(cesk_value_t* val)
 {
 	if(val->prev) val->prev->next = val->next;
@@ -113,6 +123,9 @@ cesk_value_t* cesk_value_empty_set()
 	ret->reloc = 0;
 	return ret;
 }
+/**
+ * @note don't put a set belongs to others here ! 
+ **/
 cesk_value_t* cesk_value_from_set(cesk_set_t* set)
 {
 	if(NULL == set) 
@@ -134,6 +147,10 @@ cesk_value_t* cesk_value_from_set(cesk_set_t* set)
 	ret->reloc = (cesk_set_get_reloc(set) > 0);
 	return ret;
 }
+/**
+ * @note this function just makes a duplication, if you need Copy-On-Write copy,
+ *       you should use cesk_value_incref 
+ **/
 cesk_value_t* cesk_value_fork(const cesk_value_t* value)
 {
 	cesk_value_t* newval = _cesk_value_alloc(value->type);
@@ -156,11 +173,6 @@ cesk_value_t* cesk_value_fork(const cesk_value_t* value)
 			if(NULL == newset) goto ERROR;
 			newval->pointer.set = newset;
 			break;
-#if 0
-		case CESK_TYPE_ARRAY:
-			LOG_INFO("fixme: array support");
-			/* TODO: array support */
-#endif 
 		default:
 			LOG_ERROR("unsupported type");
 			goto ERROR;
@@ -169,8 +181,9 @@ cesk_value_t* cesk_value_fork(const cesk_value_t* value)
 		newval->reloc = 1;
 	else
 		newval->reloc = 0;
+	
 	newval->write_count = 0;
-	//newval->reloc = value->reloc;
+	
 	return newval;
 ERROR:
 	LOG_ERROR("error during forking a value");
@@ -187,13 +200,6 @@ hashval_t cesk_value_hashcode(const cesk_value_t* value)
 			return cesk_object_hashcode(value->pointer.object);
 		case CESK_TYPE_SET:
 			return cesk_set_hashcode(value->pointer.set);
-#if 0
-		/* TODO we can use a built-in class to represent an array */
-		case CESK_TYPE_ARRAY:
-			/* array */
-			LOG_INFO("fixme: array type support");
-			//return cesk_set_hashcode((*(cesk_value_array_t**)value->data)->values);
-#endif
 		default:
 			return 0;
 	}
@@ -207,12 +213,6 @@ hashval_t cesk_value_compute_hashcode(const cesk_value_t* value)
 			return cesk_object_compute_hashcode(value->pointer.object);
 		case CESK_TYPE_SET:
 			return cesk_set_compute_hashcode(value->pointer.set);
-#if 0
-		/* TODO we can use a built-in class to represent an array */
-		case CESK_TYPE_ARRAY:
-			/* array */
-			LOG_INFO("fixme: array type support");
-#endif
 		default:
 			return 0;
 	}

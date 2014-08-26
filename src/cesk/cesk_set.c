@@ -1,6 +1,7 @@
-/** @file cesk_set.h
- *  @brief implementation of CESK address set
- */
+/** 
+ * @file cesk_set.h
+ * @brief implementation of CESK address set
+ **/
 #include <stdio.h>
 #include <string.h>
 #include <log.h>
@@ -57,8 +58,12 @@ static cesk_set_node_t* _cesk_set_hash[CESK_SET_HASH_SIZE];
 #define INFO_ENTRY 1
 
 #define INFO_ADDR CESK_STORE_ADDR_NULL  /* this is a dumb address to distingush between data_entry and info_entry */
+/**
+ * @brief this is a debug function which checks the hash structure, but for normal build, just does nothing 
+ * @return nothing
+ **/
 static inline void _cesk_verify_hash_structure()
-#if 0
+#if __DEBUG_VERIFY_HASH_STRCUTURE__
 {
 	int i, j = 0;
 	cesk_set_node_t* ptr;
@@ -96,6 +101,11 @@ ERR:
 #else
 {}
 #endif
+/**
+ * @brief allocate a new set node
+ * @param type what is the type of this node data/meta_data
+ * @return the newly created node 
+ **/
 static inline cesk_set_node_t* _cesk_set_node_alloc(int type)
 {
 	size_t size = sizeof(cesk_set_node_t);
@@ -120,7 +130,12 @@ static inline cesk_set_node_t* _cesk_set_node_alloc(int type)
 	memset(ret, 0, size);
 	return ret;
 }
-
+/**
+ * @brief the hash function used in the global hash table for set
+ * @prama hashidx the index of the set
+ * @param addr the actual data
+ * @return result
+ **/
 static inline uint32_t _cesk_set_idx_hashcode(uint32_t hashidx, uint32_t addr)
 {
 	return (hashidx * MH_MULTIPLY) ^ ((addr & 0xffff) * MH_MULTIPLY) ^ (addr >> 16);
@@ -128,6 +143,9 @@ static inline uint32_t _cesk_set_idx_hashcode(uint32_t hashidx, uint32_t addr)
 /**
  * @brief the function will insert a node in the hash table regardless if it's duplicated
  * The return value of the function is the header address of data section
+ * @param setidx the index of the set to insert
+ * @param addr data
+ * @return the pointer to the data section of the newly created node
  **/
 static inline void* _cesk_set_hash_insert(uint32_t setidx, uint32_t addr)
 {
@@ -151,7 +169,12 @@ static inline void* _cesk_set_hash_insert(uint32_t setidx, uint32_t addr)
 
 	return ret->data_section;
 }
-/** @brief look for a value in the hash table, return the address of data section */
+/** 
+ * @brief look for a value in the hash table, return the address of data section. In other words check if an address belongs to a set
+ * @param setidx the set index
+ * @param addr the data
+ * @return the data section of the target node, if not found, return NULL
+ **/
 static inline void* _cesk_set_hash_find(uint32_t setidx, uint32_t addr)
 {
 	uint32_t h = _cesk_set_idx_hashcode(setidx, addr) % CESK_SET_HASH_SIZE;
@@ -167,7 +190,11 @@ static inline void* _cesk_set_hash_find(uint32_t setidx, uint32_t addr)
 	LOG_TRACE("can not find the set hash entry (%d, "PRSAddr")", setidx, addr);
 	return NULL;
 }
-/** @brief allocate a fresh set index, and append the info entry to hash table */
+/** 
+ * @brief allocate a fresh set index, and append the info entry to hash table 
+ * @param p_enbtry pointer to a buffer used to return a reference to the newly created entry node
+ * @return the fresh index for the new set, CESK_SET_INVALID if failed
+ **/
 static inline uint32_t _cesk_set_idx_alloc(cesk_set_info_entry_t** p_entry)
 {
 	static uint32_t next_idx = 0;
@@ -184,7 +211,14 @@ static inline uint32_t _cesk_set_idx_alloc(cesk_set_info_entry_t** p_entry)
 	*(p_entry) = entry;
 	return next_idx ++;
 }
+/**
+ * @brief the singleton of empty set
+ **/
 static cesk_set_t* _cesk_empty_set;   /* this is the only empty set in the table */
+/**
+ * @brief the metadata of the empty set 
+ **/
+static cesk_set_info_entry_t* _cesk_empty_set_metadata;
 int cesk_set_init()
 {
 	/* make the constant empty set */
@@ -194,14 +228,13 @@ int cesk_set_init()
 		LOG_ERROR("can not allocate memory for the constant set {}");
 		return -1;
 	}
-	cesk_set_info_entry_t* entry = NULL;
-	_cesk_empty_set->set_idx = _cesk_set_idx_alloc(&entry);
-	if(NULL == entry)
+	_cesk_empty_set->set_idx = _cesk_set_idx_alloc(&_cesk_empty_set_metadata);
+	if(NULL == _cesk_empty_set_metadata)
 	{
 		LOG_ERROR("invalid hash info entry");
 		return -1;
 	}
-	entry->refcnt ++;
+	_cesk_empty_set_metadata->refcnt ++;
 	return 0;
 }
 void cesk_set_finalize()
@@ -239,10 +272,17 @@ cesk_set_t* cesk_set_fork(const cesk_set_t* sour)
 	info->refcnt ++;
 	return ret;
 }
-/* make an empty set */
+/* make an empty set, it actually a fork, but we can simplify the operation because we are forking a singleton */
 cesk_set_t* cesk_set_empty_set()
 {
-	return cesk_set_fork(_cesk_empty_set);   /* fork the empty set to user */
+	cesk_set_t* ret = (cesk_set_t*)malloc(sizeof(cesk_set_t));
+	if(NULL == ret) return NULL;
+
+	ret->set_idx = _cesk_empty_set->set_idx;
+
+	_cesk_empty_set_metadata->refcnt ++;
+
+	return ret;
 }
 
 size_t cesk_set_size(const cesk_set_t* set)

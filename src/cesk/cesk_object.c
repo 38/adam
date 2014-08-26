@@ -1,3 +1,8 @@
+/**
+ * @file cesk_object.c
+ * @brief implementation of object instance
+ **/
+
 #include <string.h>
 
 #include <log.h>
@@ -17,44 +22,49 @@ cesk_object_t* cesk_object_new(const char* classpath)
 	int class_count = 0;
 	size_t builtin_size = 0;
 	int nbci = 0;
-	const bci_class_wrap_t* bci_class[1024];
-	const dalvik_class_t* classes[1024]; 
+	const bci_class_wrap_t* bci_class[CESK_OBJECT_MAX_BUILTIN_CLASSES];
+	const dalvik_class_t* classes[CESK_OBJECT_MAX_USER_DEFINED_CLASSES]; 
 	/* because BCI Classes can not use a user defined class as superclass,
 	 * So that if we can see an built-in class here, that means there's no
 	 * super class anymore, so we only need one slot for that */
 	/* find classes inherent relationship, and determine its memory layout */
-	for(;;)
+	for(;NULL != classpath;)
 	{
 		LOG_DEBUG("try to find class %s", classpath);
 		const dalvik_class_t* target_class = dalvik_memberdict_get_class(classpath);
+		/* not found, try to find built-in class */
 		if(NULL == target_class)
 		{
 			const bci_class_wrap_t* class_wrap = bci_nametab_get_class(classpath);
+			/* we found a built-in class */
 			if(NULL != class_wrap)
 			{
 				LOG_DEBUG("found built-in class %s", classpath);
 				builtin_size += class_wrap->class->size + sizeof(cesk_object_struct_t);
 				bci_class[nbci ++] = class_wrap;
-				if(NULL == class_wrap->class->super) break;
-				else classpath = class_wrap->class->super;
+				if(nbci >= CESK_OBJECT_MAX_BUILTIN_CLASSES)
+				{
+					LOG_ERROR("too many built-in class in the class inherent tree"
+					          "(try to adjust CESK_OBJECT_MAX_BUILTIN_CLASSES)"
+							  "which currently is %u", CESK_OBJECT_MAX_BUILTIN_CLASSES);
+					return NULL;
+				}
+				classpath = class_wrap->class->super;
 				continue;
 			}
-			if(0 == class_count)
-			{
-				/* if we can't find the first class, this is an error */
-				LOG_ERROR("can not find class %s", classpath);
-				return NULL;
-			}
+			/* not a built-in class, so we don't know the type of this class. */
 			LOG_WARNING("can not find class %s", classpath);
 			break;
 		}
 		int i;
-		for(i = 0; target_class->members[i]; i ++)
-			field_count ++;
+		/* we should count how many members there */
+		for(i = 0; target_class->members[i]; i ++) field_count ++;
 		classes[class_count ++] = target_class;
-		if(class_count >= 1024)
+		if(class_count >= CESK_OBJECT_MAX_USER_DEFINED_CLASSES)
 		{
-			LOG_ERROR("a class with inherent from more than 1024 classes? are you kidding me?");
+			LOG_ERROR("a class with inherent from more than 1024 classes? are you kidding me?"
+			          "(try to adjust CESK_OBJECT_MAX_USER_DEFINED_CLASSES which currently is"
+					  " %u", CESK_OBJECT_MAX_USER_DEFINED_CLASSES);
 			return NULL;
 		}
 		LOG_DEBUG("found class %s at %p", classpath, target_class);
@@ -65,15 +75,19 @@ cesk_object_t* cesk_object_new(const char* classpath)
 				  sizeof(cesk_object_struct_t) * class_count +     /* class header */
 				  sizeof(cesk_set_t*) * field_count +              /* fields */
 				  builtin_size;                                    /* memory for built-ins */         
+	
 	/* okay, create the new object */
 	cesk_object_t* object = (cesk_object_t*)malloc(size);
-	cesk_object_struct_t* base = object->members; 
 	if(NULL == object)
 	{
 		LOG_ERROR("can not allocate memory for new object %s", classes[0]->path);
 		return NULL;
 	}
+	
+	cesk_object_struct_t* base = object->members; 
 	object->builtin = NULL;
+
+	/* initialize the user-defined class */
 	int i;
 	for(i = 0; i < class_count; i ++)
 	{
@@ -81,7 +95,7 @@ cesk_object_t* cesk_object_new(const char* classpath)
 		int j;
 		for(j = 0; classes[i]->members[j]; j ++)
 		{
-			const dalvik_field_t* field = dalvik_memberdict_get_field(classes[i]->path, classes[i]->members[j]);   /* because only function can overload */
+			const dalvik_field_t* field = dalvik_memberdict_get_field(classes[i]->path, classes[i]->members[j]); 
 			if(NULL == field)
 			{
 				LOG_WARNING("Can not find field %s/%s, skip", classes[i]->path, classes[i]->members[j]);
@@ -105,7 +119,7 @@ cesk_object_t* cesk_object_new(const char* classpath)
 		base->class.bci = bci_class[i];
 		base->num_members = bci_class[i]->class->size;
 		if(NULL == object->builtin) object->builtin = base;
-		memset(base->bcidata, 0, bci_class[i]->class->size);
+		//memset(base->bcidata, 0, bci_class[i]->class->size);  /* TODO make sure this is not needed */
 		CESK_OBJECT_STRUCT_ADVANCE(base);
 	}
 	object->depth = class_count + nbci;
@@ -129,6 +143,7 @@ uint32_t* cesk_object_get(
 	}
 	if(NULL != p_bci_class) *p_bci_class = NULL;
 	if(NULL != p_bci_data) *p_bci_data = NULL;
+
 	int i;
 	cesk_object_struct_t* this = object->members;
 	for(i = 0; i < object->depth; i ++)
@@ -148,7 +163,6 @@ uint32_t* cesk_object_get(
 	/* because the instruction only provides an lower bound, so that we have to go all the way up */
 	for(; i < object->depth; i ++)
 	{
-		/* for built-in classes, the class itself is resonpsible for forwarding the field request which actually visits the field in ancestor class */
 		if(this->built_in)
 		{
 			if(NULL == p_bci_class || NULL == p_bci_data)
@@ -168,6 +182,7 @@ uint32_t* cesk_object_get(
 		CESK_OBJECT_STRUCT_ADVANCE(this);
 		classpath = this->class.path->value;
 	}
+
 	LOG_WARNING("No field named %s/%s", classpath, field_name);
 	return NULL;
 }
@@ -176,6 +191,10 @@ void cesk_object_free(cesk_object_t* object)
 	if(NULL == object) return;
 	free(object);   /* the object is just an array */
 }
+/**
+ * @note this function is actually a simple copy function, Copy-On-Write machenism is 
+ *       acomplished by cesk_value_t type
+ **/
 cesk_object_t* cesk_object_fork(const cesk_object_t* object)
 {
 	LOG_TRACE("copy object %s@%p", cesk_object_classpath(object), object);
@@ -384,7 +403,7 @@ uint32_t cesk_object_instance_of(const cesk_object_t* object, const char* classp
 		{
 			for(j = 0; this->class.udef->implements[j] != NULL; j ++)
 			{
-				if(classpath == this->class.udef->implements[i]) return 1;
+				if(classpath == this->class.udef->implements[i]) return CESK_STORE_ADDR_POS;
 			}
 		}
 		CESK_OBJECT_STRUCT_ADVANCE(this);

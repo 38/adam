@@ -71,6 +71,16 @@
 #   define DALVIK_METHOD_LABEL_STACK_SIZE 32
 #endif
 
+#ifndef CESK_OBJECT_MAX_USER_DEFINED_CLASSES
+/** @brief The limit of the number of  user defined classes are there in the inheritance path to an object **/
+#	define CESK_OBJECT_MAX_USER_DEFINED_CLASSES 1024u
+#endif
+
+#ifndef CESK_OBJECT_MAX_BUILTIN_CLASSES
+/** @brief The limit of the number of built-in classes are there in the inheritance path to an object */
+#	define CESK_OBJECT_MAX_BUILTIN_CLASSES 1024u
+#endif
+
 #ifndef CESK_SET_HASH_SIZE
 /** @brief the number of slots that used for implementation of set */
 #   define CESK_SET_HASH_SIZE 100007
