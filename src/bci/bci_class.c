@@ -62,11 +62,6 @@ const char* bci_class_to_string(const void* this, char* buf, size_t size, const 
 	}
 	return (NULL == class->to_string)?"":class->to_string(this, buf, size);
 }
-int bci_class_apply_atable(void* this, const cesk_store_t* store, const bci_class_t* class)
-{
-	if(NULL == this || NULL == store || NULL == class) return -1;
-	return (NULL == class->apply_atable)?0:class->apply_atable(this, store);
-}
 int bci_class_get_relocation_flag(const void* this, const bci_class_t* class)
 {
 	if(NULL == this || NULL == class) return -1;

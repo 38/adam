@@ -10,9 +10,10 @@
 #define HASH_CMP(addr,val,reuse) ((addr * MH_MULTIPLY + cesk_value_compute_hashcode(val))^((reuse) * ~MH_MULTIPLY))
 /** 
  * @brief make a copy of a store block, but *do not touch store-block refcnt*
+ * @param block store to copy
  * @note caller is responsible for update the ref-counts
  **/
-static inline cesk_store_block_t* _cesk_store_block_fork(cesk_store_block_t* block)
+static inline cesk_store_block_t* _cesk_store_block_duplicate(cesk_store_block_t* block)
 {
 	/* copy the store block */
 	cesk_store_block_t* new_block = (cesk_store_block_t*)malloc(CESK_STORE_BLOCK_SIZE);
@@ -104,7 +105,9 @@ static inline int _cesk_store_free_object(cesk_store_t* store, cesk_object_t* ob
 	}
 	return 0;
 }
-/** @brief make an address empty, but do not affect the intra-frame refcnt for this address */
+/** 
+ * @brief make an address empty, but do not affect the intra-frame refcnt to this address 
+ **/
 static inline int _cesk_store_swipe(cesk_store_t* store, cesk_store_block_t* block, uint32_t addr)
 {
 	uint32_t ofs = addr % CESK_STORE_BLOCK_NSLOTS;
@@ -125,15 +128,11 @@ static inline int _cesk_store_swipe(cesk_store_t* store, cesk_store_block_t* blo
 		case CESK_TYPE_SET:
 			rc = _cesk_store_free_set(store, value->pointer.set);
 			break;
-#if 0
-		case CESK_TYPE_ARRAY:
-			LOG_TRACE("fixme: array support: decref of its reference here");
-#endif   /* array is a built-in class */
+		default:
+			rc = -1;
+			LOG_WARNING("invalid object type code %u", value->type);
 	}
-	if(rc < 0)
-	{
-		LOG_WARNING("can not dispose the object");
-	}
+	if(rc < 0) LOG_WARNING("can not dispose the object");
 	/* unreference from this frame */
 	cesk_value_decref(value);
 	return 0;
@@ -159,8 +158,8 @@ static inline cesk_store_block_t* _cesk_store_getblock_rw(cesk_store_t* store, u
 	if(block->refcnt > 1)
 	{
 		/* used by more than one store? copy it */
-		LOG_DEBUG("%d stores are using this block, copy before modification", block->refcnt);
-		cesk_store_block_t* newblock = _cesk_store_block_fork(block);
+		LOG_DEBUG("%d stores are using this block, copy before change", block->refcnt);
+		cesk_store_block_t* newblock = _cesk_store_block_duplicate(block);
 		if(NULL == newblock)
 		{
 			LOG_ERROR("can not copy the block");
@@ -246,11 +245,6 @@ static inline int _cesk_store_apply_alloc_tab(cesk_store_t* store, uint32_t base
 		/* switch for each type */
 		switch(value->type)
 		{
-#if 0
-			case CESK_TYPE_ARRAY:
-				LOG_NOTICE("fixme: array support here");
-				break;
-#endif 
 			case CESK_TYPE_SET:
 				set = value->pointer.set;
 				if(NULL == cesk_set_iter(set, &iter))
@@ -279,9 +273,44 @@ static inline int _cesk_store_apply_alloc_tab(cesk_store_t* store, uint32_t base
 				{
 					if(object_base->built_in)
 					{
-						if(bci_class_apply_atable(object_base->bcidata, store,object_base->class.bci->class) < 0)
+						/*if(bci_class_apply_atable(object_base->bcidata, store,object_base->class.bci->class) < 0)
 						{
 							LOG_WARNING("failed to apply the allocation table for object %s", object_base->class.path->value);
+						}*/
+						uint32_t addr_list[1024];
+						uint32_t offset = 0;
+						for(;;)
+						{
+							/* first of all, read data from built-in class */
+							int rc = bci_class_get_addr_list(object_base->bcidata, offset, addr_list, sizeof(addr_list) / sizeof(addr_list[0]), object_base->class.bci->class);
+							if(rc < 0)
+							{
+								LOG_WARNING("can not read the address list");
+								break;
+							}
+							/* then try to translate it */
+							int i;
+							for(i = 0; i < rc; i ++)
+							{
+								if(CESK_STORE_ADDR_IS_RELOC(addr_list[i]))
+								{
+									uint32_t result = cesk_alloctab_query(store->alloc_tab, store, addr_list[i]);
+									if(CESK_STORE_ADDR_NULL == result)
+									{
+										LOG_WARNING("failed to query the allocation table for relocated address" PRSAddr, addr_list[i]);
+										continue;
+									}
+									addr_list[i] = result;
+								}
+							}
+							/* fianlly write back to the object */
+							if(bci_class_modify(object_base->bcidata, offset, addr_list, rc, object_base->class.bci->class) < 0)
+							{
+								LOG_WARNING("failed to write the modified data to object");
+								continue;
+							}
+							offset += rc;
+							if(rc < sizeof(addr_list) / sizeof(addr_list[0])) break;
 						}
 					}
 					else
@@ -307,10 +336,9 @@ static inline int _cesk_store_apply_alloc_tab(cesk_store_t* store, uint32_t base
 				}
 				break;
 			default:
-				LOG_ERROR("invalid value typecode(%d)", value->type);
+				LOG_ERROR("invalid value typecode(%u)", value->type);
 				return -1;
 		}
-		value->reloc = 0;
 		/* release the write pointer */
 		cesk_store_release_rw(store, base_addr + ofs);
 	}
@@ -735,6 +763,9 @@ void cesk_store_free(cesk_store_t* store)
 	if(store->nblocks > 0) free(store->blocks);
 	free(store);
 }
+/**
+ * @note this is actually increase the slot refcnt(which used for gabage collection)
+ **/
 int cesk_store_incref(cesk_store_t* store, uint32_t addr)
 {
 	if(CESK_STORE_ADDR_NULL == (addr = _cesk_store_make_object_address(store, addr))) return -1;
@@ -756,6 +787,9 @@ int cesk_store_incref(cesk_store_t* store, uint32_t addr)
 		return -1;
 	}
 }
+/**
+ * @note this is actually increase the slot refcnt(which used for gabage collection)
+ **/
 int cesk_store_decref(cesk_store_t* store, uint32_t addr)
 {
 	if(CESK_STORE_ADDR_NULL == (addr = _cesk_store_make_object_address(store, addr))) return -1;

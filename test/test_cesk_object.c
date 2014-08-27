@@ -21,7 +21,7 @@ int main()
 	assert(cesk_object_hashcode(object) == cesk_object_compute_hashcode(object));
 
 	/* try to clone it */
-	cesk_object_t* object_clone = cesk_object_fork(object);
+	cesk_object_t* object_clone = cesk_object_duplicate(object);
 	assert(NULL != object_clone);
 	LOG_ERROR("cloned object dump: %s", cesk_object_to_string(object, NULL, 0, 0));
 	LOG_ERROR("hash value of cloned object: %x", cesk_object_hashcode(object_clone));

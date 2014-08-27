@@ -118,7 +118,7 @@ void cesk_object_free(cesk_object_t* object);
  * @param object the source object
  * @return the forked object
  */
-cesk_object_t* cesk_object_fork(const cesk_object_t* object);
+cesk_object_t* cesk_object_duplicate(const cesk_object_t* object);
 /**
  * @brief get the hash code of an object 
  * @param object

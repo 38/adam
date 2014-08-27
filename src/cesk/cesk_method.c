@@ -817,7 +817,9 @@ cesk_diff_t* cesk_method_analyze(const dalvik_block_t* code, cesk_frame_t* frame
 	node->result = result;
 	*p_rtab = node->rtable = context->rtable;
 	_cesk_method_context_free(context);
-	LOG_DEBUG("result diff = %s", cesk_diff_to_string(result, NULL, 0));
+	LOG_DEBUG("---------------------");
+	LOG_DEBUG("Function return with diff = %s", cesk_diff_to_string(result, NULL, 0));
+	LOG_DEBUG("---------------------");
 	return cesk_diff_fork(result);
 ERR:
 	if(result) cesk_diff_free(result);

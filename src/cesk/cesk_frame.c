@@ -27,7 +27,16 @@
 #include <log.h>
 #include <cesk/cesk_frame.h>
 #include <cesk/cesk_store.h>
-
+static uint32_t *_cesk_frame_gc_fb = NULL;
+static uint32_t _cesk_frame_gc_fb_size = 0;
+int cesk_frame_init()
+{
+	return 0;
+}
+void cesk_frame_finalize()
+{
+	if(NULL != _cesk_frame_gc_fb) free(_cesk_frame_gc_fb);
+}
 cesk_frame_t* cesk_frame_new(uint16_t size)
 {
 	if(0 == size)
@@ -307,7 +316,6 @@ ERR:
 		case 1: regcnt = i; break;
 		case 0: break;
 	}
-	printf("%d\n", regcnt);
 	for(i = 0; i < regcnt; i ++)
 		cesk_set_free(frame->regs[i]);
 	return NULL;
@@ -347,10 +355,10 @@ int cesk_frame_equal(const cesk_frame_t* first, const cesk_frame_t* second)
  * @param addr the start address
  * @param store the target store
  * @param f the bit map used to flag reachibilities of each addresses
+ * @param __true__ the value stands for true
  **/
-static inline void _cesk_frame_store_dfs(uint32_t addr, cesk_store_t* store, uint8_t* f)
+static inline void _cesk_frame_store_dfs(uint32_t addr, cesk_store_t* store, uint32_t* f, const uint32_t __true__)
 {
-#define BITAT(f,n) (((f)[n/8]&(1<<(n%8))) != 0)
 	if(CESK_STORE_ADDR_NULL == addr) return;
 	/* constants do not need to collect */
 	if(CESK_STORE_ADDR_IS_CONST(addr)) return;
@@ -368,9 +376,9 @@ static inline void _cesk_frame_store_dfs(uint32_t addr, cesk_store_t* store, uin
 			return;
 		}
 	}
-	if(1 == BITAT(f, addr)) return;
+	if(__true__ == f[addr]) return;
 	/* set the flag */
-	f[addr/8] |= (1<<(addr%8));
+	f[addr] = __true__;
 	cesk_value_const_t* val = cesk_store_get_ro(store, addr);
 	if(NULL == val) return;
 	cesk_set_iter_t iter_buf;
@@ -384,7 +392,7 @@ static inline void _cesk_frame_store_dfs(uint32_t addr, cesk_store_t* store, uin
 		case CESK_TYPE_SET:
 			for(iter = cesk_set_iter(val->pointer.set, &iter_buf);
 				CESK_STORE_ADDR_NULL != (next_addr = cesk_set_iter_next(iter));)
-				_cesk_frame_store_dfs(next_addr, store, f);
+				_cesk_frame_store_dfs(next_addr, store, f, __true__);
 			break;
 		case CESK_TYPE_OBJECT:
 			obj = val->pointer.object;
@@ -402,7 +410,7 @@ static inline void _cesk_frame_store_dfs(uint32_t addr, cesk_store_t* store, uin
 						if(rc < 0)
 						{
 							LOG_WARNING("can not get the address list");
-							continue;
+							break;
 						}
 						else
 						{
@@ -410,7 +418,7 @@ static inline void _cesk_frame_store_dfs(uint32_t addr, cesk_store_t* store, uin
 							offset += rc;
 							int i;
 							for(i = 0; i < rc; i ++)
-								_cesk_frame_store_dfs(buf[i], store, f);
+								_cesk_frame_store_dfs(buf[i], store, f, __true__);
 						}
 					}
 				}
@@ -420,7 +428,7 @@ static inline void _cesk_frame_store_dfs(uint32_t addr, cesk_store_t* store, uin
 					for(j = 0; j < this->num_members; j ++)
 					{
 						next_addr = this->addrtab[j];
-						_cesk_frame_store_dfs(next_addr, store, f);
+						_cesk_frame_store_dfs(next_addr, store, f, __true__);
 					}
 				}
 				CESK_OBJECT_STRUCT_ADVANCE(this);
@@ -433,8 +441,27 @@ int cesk_frame_gc(cesk_frame_t* frame)
 	LOG_DEBUG("start run gc on frame@%p", frame);
 	cesk_store_t* store = frame->store;
 	size_t nslot = store->nblocks * CESK_STORE_BLOCK_NSLOTS;
-	uint8_t *fb = (uint8_t*)malloc(nslot / 8 + 1);     /* the flag bits */
-	memset(fb, 0, nslot / 8 + 1);
+	static uint32_t __true__ = 1;
+	if(NULL == _cesk_frame_gc_fb && 0 == _cesk_frame_gc_fb_size)
+	{
+		_cesk_frame_gc_fb_size = nslot;
+		if(nslot < 1024) _cesk_frame_gc_fb_size = 1024;
+		_cesk_frame_gc_fb = (uint32_t*)malloc(sizeof(uint32_t) * _cesk_frame_gc_fb_size);
+	}
+	if(_cesk_frame_gc_fb_size < nslot && NULL != _cesk_frame_gc_fb)
+	{
+		_cesk_frame_gc_fb_size *= 2;
+		free(_cesk_frame_gc_fb);
+		_cesk_frame_gc_fb = (uint32_t*)malloc(sizeof(uint32_t) * _cesk_frame_gc_fb_size);
+		__true__ = 1;
+	}
+	if(NULL == _cesk_frame_gc_fb)
+	{
+		LOG_ERROR("can not allocate flag array with proper size, aborting");
+		_cesk_frame_gc_fb_size = 0;
+		return -1;
+	}
+
 	int i;
 	/* traverse from register */
 	for(i = 0; i < frame->size; i ++)
@@ -447,7 +474,7 @@ int cesk_frame_gc(cesk_frame_t* frame)
 		}
 		uint32_t addr;
 		while(CESK_STORE_ADDR_NULL != (addr = cesk_set_iter_next(&iter)))
-			_cesk_frame_store_dfs(addr, store, fb);
+			_cesk_frame_store_dfs(addr, store, _cesk_frame_gc_fb, __true__);
 	}
 	/* traverse from static fields */
 	cesk_static_table_iter_t iter;
@@ -464,7 +491,7 @@ int cesk_frame_gc(cesk_frame_t* frame)
 			}
 			uint32_t addr;
 			while(CESK_STORE_ADDR_NULL != (addr = cesk_set_iter_next(&iter)))
-				_cesk_frame_store_dfs(addr, store, fb);
+				_cesk_frame_store_dfs(addr, store, _cesk_frame_gc_fb, __true__);
 		}
 	}
 	else
@@ -474,7 +501,7 @@ int cesk_frame_gc(cesk_frame_t* frame)
 	uint32_t addr = 0;
 	for(addr = 0; addr < nslot; addr ++)
 	{
-		if(BITAT(fb,addr) == 0 && cesk_store_get_ro(store, addr) != NULL)
+		if(_cesk_frame_gc_fb[addr] != __true__ && cesk_store_get_ro(store, addr) != NULL)
 		{
 			cesk_store_attach(store,addr,NULL);
 			cesk_store_clear_refcnt(store, addr);
@@ -485,7 +512,7 @@ int cesk_frame_gc(cesk_frame_t* frame)
 	{
 		LOG_WARNING("failed to compact the store, something might be wrong");
 	}
-	free(fb);
+	__true__ ++;
 	return 0;
 }
 hashval_t cesk_frame_hashcode(const cesk_frame_t* frame)

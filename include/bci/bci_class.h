@@ -63,8 +63,6 @@ struct _bci_class_t {
 
 	const char* (*to_string)(const void* this, char* buf, size_t size);/*!< convert this object instance to string */
 	
-	int (*apply_atable)(void* this, const cesk_store_t* store);/*!< apply a relocated address mapping to this object */
-
 	int (*get_relocation_flag)(const void* this);/*!< how to get the relocation flag for this object */
 
 	int (*merge)(void* this, const void* that);  /*!< merge the two built-in instances, if return value > 0, caller should merge the super class */
@@ -164,15 +162,6 @@ int bci_class_equal(const void* this, const void* that, const bci_class_t* class
  * @return the converted string, if it's NULL, an error is happend
  **/
 const char* bci_class_to_string(const void* this, char* buf, size_t size, const bci_class_t* class);
-
-/**
- * @brief apply a relocated address mapping to this object
- * @param this the object instanace
- * @param store the store holds this object
- * @param class the class def
- * @return the result of application < 0 indicates errors
- **/
-int bci_class_apply_atable(void* this, const cesk_store_t* store, const bci_class_t* class);
 
 /**
  * @brief get the relocation flag for this object

@@ -31,10 +31,16 @@ int cesk_init(void)
 		LOG_FATAL("can not initialize static field table module");
 		return -1;
 	}
+	if(cesk_frame_init() < 0)
+	{
+		LOG_FATAL("can not initialize frame module");
+		return -1;
+	}
 	return 0;
 }
 void cesk_finalize(void)
 {
+	cesk_frame_finalize();
 	cesk_static_finalize();
 	cesk_method_finalize();
 	cesk_block_finalize();

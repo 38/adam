@@ -163,7 +163,7 @@ cesk_value_t* cesk_value_fork(const cesk_value_t* value)
 	{
 		case CESK_TYPE_OBJECT:
 			object = value->pointer.object;
-			newobj = cesk_object_fork(object);
+			newobj = cesk_object_duplicate(object);
 			if(NULL == newobj) goto ERROR;
 			newval->pointer.object = newobj;
 			break;

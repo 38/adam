@@ -195,7 +195,7 @@ void cesk_object_free(cesk_object_t* object)
  * @note this function is actually a simple copy function, Copy-On-Write machenism is 
  *       acomplished by cesk_value_t type
  **/
-cesk_object_t* cesk_object_fork(const cesk_object_t* object)
+cesk_object_t* cesk_object_duplicate(const cesk_object_t* object)
 {
 	LOG_TRACE("copy object %s@%p", cesk_object_classpath(object), object);
 	size_t objsize = object->size;
@@ -222,7 +222,7 @@ cesk_object_t* cesk_object_fork(const cesk_object_t* object)
 			free(newobj);
 			return NULL;
 		}
-		if(bci_class_duplicate(this->bcidata, that->bcidata, this->class.bci->class) < 0)
+		else if(bci_class_duplicate(this->bcidata, that->bcidata, this->class.bci->class) < 0)
 		{
 			LOG_ERROR("failed to initalize builtin class %s", object->builtin->class.path->value);
 			free(newobj);

@@ -799,6 +799,8 @@ cesk_diff_t* cesk_diff_apply(int N, cesk_diff_t** args)
 	int i;
 	if(0 == N)
 		return cesk_diff_empty();
+	for(i = 0; i < N; i ++)
+		LOG_DEBUG("Input %d: %s", i, cesk_diff_to_string(args[i], NULL, 0));
 	cesk_diff_t* ret = _cesk_diff_allocate_result(N, args, 0);
 	if(NULL == ret)
 	{
@@ -917,8 +919,11 @@ cesk_diff_t* cesk_diff_apply(int N, cesk_diff_t** args)
 }
 cesk_diff_t* cesk_diff_factorize(int N, cesk_diff_t** diffs, const cesk_frame_t** current_frame)
 {
+	int i;
 	if(0 == N)
 		return cesk_diff_empty();
+	for(i = 0; i < N; i ++)
+		LOG_DEBUG("Input %d: %s", i, cesk_diff_to_string(diffs[i], NULL, 0));
 	cesk_diff_t* ret = _cesk_diff_allocate_result(N, diffs, 1);
 	if(NULL == ret)
 	{
@@ -927,7 +932,6 @@ cesk_diff_t* cesk_diff_factorize(int N, cesk_diff_t** diffs, const cesk_frame_t*
 	}
 
 	/* initialize the _index for each input */
-	int i;
 	uint32_t max_n_alloc_reuse = 0;
 	for(i = 0; i < N; i ++)
 	{

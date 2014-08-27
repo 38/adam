@@ -79,6 +79,17 @@ CONST_ASSERTION_FOLLOWS(cesk_frame_t, reg_exception, general_regs);
 CONST_ASSERTION_SIZE(cesk_frame_t, regs, 0);
 CONST_ASSERTION_SIZE(cesk_frame_t, general_regs, 0);
 
+/**
+ * @brief initialize the module, actually does nothing just follow the initialization protocol
+ * @return always 0
+ **/
+int cesk_frame_init();
+/**
+ * @brief finalize the module
+ * @return nothing
+ **/
+void cesk_frame_finalize();
+
 /** @brief duplicate the frame 
  *  @param frame input frame
  *  @return a copy of this frame
