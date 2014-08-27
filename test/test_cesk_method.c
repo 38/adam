@@ -28,7 +28,6 @@ int main()
 	cesk_reloc_table_t* rtable;
 	
 	uint32_t val;
-#if 0	
 	graph = dalvik_block_from_method(classpath, methodname, type, tint);
 	assert(NULL != graph);
 
@@ -194,8 +193,6 @@ int main()
 	assert(cesk_set_contain(ret->data[ret->offset[CESK_DIFF_STORE] + 2].arg.value->pointer.set, CESK_STORE_ADDR_RELOC_PREFIX + 3));
 	assert(cesk_set_contain(ret->data[ret->offset[CESK_DIFF_STORE] + 2].arg.value->pointer.set, CESK_STORE_ADDR_ZERO));
 	cesk_frame_free(frame);
-#endif
-#if 0
 	cesk_diff_free(ret);
 	
 	classpath = stringpool_query("treeNode");
@@ -401,7 +398,6 @@ int main()
 	
 	cesk_frame_free(frame);
 	cesk_diff_free(ret);
-#endif
 /*[(allocate @0xff000000 (objval (refcnt 4) [class TestClass1 ()][class BaseClass ()][class java/lang/Object ()])) (allocate @0xff000001 (objval (refcnt 1) [class TestClass2 ((_value @0xff000002) )][class BaseClass ()][class java/lang/Object ()])) (allocate @0xff000002 (setval (refcnt 2) {@0xffffff02})) (allocate @0xff000003 (objval (refcnt 1) [class TestClass2 ((_value @0xff000004) )][class BaseClass ()][class java/lang/Object ()])) (allocate @0xff000004 (setval (refcnt 1) {@0xffffff02})) (allocate @0xff000005 (objval (refcnt 1) [class TestClass1 ()][class BaseClass ()][class java/lang/Object ()]))][(reuse @0xff000000 1) (reuse @0xff000001 1) (reuse @0xff000002 1)][(register v0 {@0xff000005,@0xff000003}) (register f4 {@0xff000000,@0xff000001})][(store @0xff000002 (setval (refcnt 1) {@0xffffff01})) (store @0xff000004 (setval (refcnt 1) {@0xffffff01}))][]*/
 	classpath = stringpool_query("virtualTest");
 	methodname = stringpool_query("Case2");
@@ -424,65 +420,74 @@ int main()
 	assert(ret->offset[CESK_DIFF_REG + 1] - ret->offset[CESK_DIFF_REG] == 2);
 	assert(ret->offset[CESK_DIFF_STORE + 1] - ret->offset[CESK_DIFF_STORE] == 2);
 	assert(ret->offset[CESK_DIFF_DEALLOC + 1] - ret->offset[CESK_DIFF_DEALLOC] == 0);
-	
-	assert(ret->data[ret->offset[CESK_DIFF_ALLOC]].addr == (CESK_STORE_ADDR_RELOC_PREFIX | 0));
-	assert(ret->data[ret->offset[CESK_DIFF_ALLOC]].arg.value->type == CESK_TYPE_OBJECT);
-	assert(cesk_object_classpath(ret->data[ret->offset[CESK_DIFF_ALLOC]].arg.value->pointer.object) == stringpool_query("TestClass1"));
 
-	assert(ret->data[ret->offset[CESK_DIFF_ALLOC] + 1].addr == (CESK_STORE_ADDR_RELOC_PREFIX | 1));
-	assert(ret->data[ret->offset[CESK_DIFF_ALLOC] + 1].arg.value->type == CESK_TYPE_OBJECT);
-	assert(cesk_object_classpath(ret->data[ret->offset[CESK_DIFF_ALLOC] + 1].arg.value->pointer.object) == stringpool_query("TestClass2"));
-	
-	assert(cesk_object_get_addr(
-				ret->data[ret->offset[CESK_DIFF_ALLOC] + 1].arg.value->pointer.object, 
+	uint32_t cloned_TestClass1 = CESK_STORE_ADDR_NULL, cloned_TestClass2 = CESK_STORE_ADDR_NULL, cloned_ValueSet = CESK_STORE_ADDR_NULL;
+	uint32_t origin_TestClass1 = CESK_STORE_ADDR_NULL, origin_TestClass2 = CESK_STORE_ADDR_NULL, origin_ValueSet = CESK_STORE_ADDR_NULL;
+	cesk_set_iter_t iter;
+	uint32_t addr;
+	/* first we need to check register v0 */
+	assert(ret->data[ret->offset[CESK_DIFF_REG]].addr == 0);
+	assert(2 == cesk_set_size(ret->data[ret->offset[CESK_DIFF_REG]].arg.set));
+	assert(cesk_set_iter(ret->data[ret->offset[CESK_DIFF_REG]].arg.set, &iter));
+	while(CESK_STORE_ADDR_NULL != (addr = cesk_set_iter_next(&iter)))
+	{
+		uint32_t i;
+		for(i = ret->offset[CESK_DIFF_ALLOC]; i < ret->offset[CESK_DIFF_ALLOC + 1]; i ++)
+			if(ret->data[i].addr == addr) break;
+		assert(i != ret->offset[CESK_DIFF_ALLOC + 1]);
+		assert(ret->data[i].arg.value->type == CESK_TYPE_OBJECT);
+		const char* classpath = cesk_object_classpath(ret->data[i].arg.value->pointer.object);
+		if(stringpool_query("TestClass1") == classpath) cloned_TestClass1 = addr;
+		else if(stringpool_query("TestClass2") == classpath) 
+		{
+			cloned_TestClass2 = addr;
+			assert(cesk_object_get_addr(
+				ret->data[i].arg.value->pointer.object, 
 				stringpool_query("TestClass2"), 
 				stringpool_query("_value"), 
-				NULL, NULL, &val) == 0);
-	assert(CESK_STORE_ADDR_RELOC_PREFIX + 2 == val);
+				NULL, NULL, &cloned_ValueSet) == 0);
+			for(i = ret->offset[CESK_DIFF_ALLOC]; i < ret->offset[CESK_DIFF_ALLOC + 1]; i ++)
+				if(ret->data[i].addr == cloned_ValueSet) break;
+			if(i == ret->offset[CESK_DIFF_ALLOC + 1]) cloned_ValueSet = CESK_STORE_ADDR_NULL;
+		}
+	}
+	assert(CESK_STORE_ADDR_NULL != cloned_TestClass1);
+	assert(CESK_STORE_ADDR_NULL != cloned_TestClass2);
+	assert(CESK_STORE_ADDR_NULL != cloned_ValueSet);
 	
-	assert(ret->data[ret->offset[CESK_DIFF_ALLOC] + 2].addr == CESK_STORE_ADDR_RELOC_PREFIX + 2);
-	assert(ret->data[ret->offset[CESK_DIFF_ALLOC] + 2].arg.value->type == CESK_TYPE_SET);
-	assert(cesk_set_size(ret->data[ret->offset[CESK_DIFF_ALLOC] + 2].arg.value->pointer.set) == 1);
-
-	assert(ret->data[ret->offset[CESK_DIFF_ALLOC] + 5].addr == (CESK_STORE_ADDR_RELOC_PREFIX | 5));
-	assert(ret->data[ret->offset[CESK_DIFF_ALLOC] + 5].arg.value->type == CESK_TYPE_OBJECT);
-	assert(cesk_object_classpath(ret->data[ret->offset[CESK_DIFF_ALLOC] + 5].arg.value->pointer.object) == stringpool_query("TestClass1"));
-
-	assert(ret->data[ret->offset[CESK_DIFF_ALLOC] + 3].addr == (CESK_STORE_ADDR_RELOC_PREFIX | 3));
-	assert(ret->data[ret->offset[CESK_DIFF_ALLOC] + 3].arg.value->type == CESK_TYPE_OBJECT);
-	assert(cesk_object_classpath(ret->data[ret->offset[CESK_DIFF_ALLOC] + 3].arg.value->pointer.object) == stringpool_query("TestClass2"));
-	
-	assert(cesk_object_get_addr(
-				ret->data[ret->offset[CESK_DIFF_ALLOC] + 3].arg.value->pointer.object, 
-				stringpool_query("TestClass2"), 
-				stringpool_query("_value"), 
-				NULL, NULL, &val) == 0);
-	assert(CESK_STORE_ADDR_RELOC_PREFIX + 4 == val);
-	
-	assert(ret->data[ret->offset[CESK_DIFF_ALLOC] + 4].addr == CESK_STORE_ADDR_RELOC_PREFIX + 4);
-	assert(ret->data[ret->offset[CESK_DIFF_ALLOC] + 4].arg.value->type == CESK_TYPE_SET);
-	assert(cesk_set_size(ret->data[ret->offset[CESK_DIFF_ALLOC] + 4].arg.value->pointer.set) == 1);
-
-	assert(ret->data[ret->offset[CESK_DIFF_REG] + 0].addr == 0);
-	assert(cesk_set_size(ret->data[ret->offset[CESK_DIFF_REG] + 0].arg.set) == 2);
-	assert(cesk_set_contain(ret->data[ret->offset[CESK_DIFF_REG] + 0].arg.set, (CESK_STORE_ADDR_RELOC_PREFIX | 5)));
-	assert(cesk_set_contain(ret->data[ret->offset[CESK_DIFF_REG] + 0].arg.set, (CESK_STORE_ADDR_RELOC_PREFIX | 3)));
-	
+	/* then check f4 */	
 	assert(ret->data[ret->offset[CESK_DIFF_REG] + 1].addr == CESK_FRAME_REG_STATIC_PREFIX + 4);
-	assert(cesk_set_size(ret->data[ret->offset[CESK_DIFF_REG] + 1].arg.set) == 2);
-	assert(cesk_set_contain(ret->data[ret->offset[CESK_DIFF_REG] + 1].arg.set, (CESK_STORE_ADDR_RELOC_PREFIX | 0)));
-	assert(cesk_set_contain(ret->data[ret->offset[CESK_DIFF_REG] + 1].arg.set, (CESK_STORE_ADDR_RELOC_PREFIX | 1)));
-	
-	assert(ret->data[ret->offset[CESK_DIFF_STORE] + 0].addr == (CESK_STORE_ADDR_RELOC_PREFIX | 2));
-	assert(ret->data[ret->offset[CESK_DIFF_STORE] + 0].arg.value->type == CESK_TYPE_SET);
-	assert(cesk_set_size(ret->data[ret->offset[CESK_DIFF_STORE] + 0].arg.value->pointer.set) == 1);
-	assert(cesk_set_contain(ret->data[ret->offset[CESK_DIFF_STORE] + 0].arg.value->pointer.set, CESK_STORE_ADDR_NEG));
-	
-	assert(ret->data[ret->offset[CESK_DIFF_STORE] + 1].addr == CESK_STORE_ADDR_RELOC_PREFIX + 4);
-	assert(ret->data[ret->offset[CESK_DIFF_STORE] + 1].arg.value->type == CESK_TYPE_SET);
-	assert(cesk_set_size(ret->data[ret->offset[CESK_DIFF_STORE] + 1].arg.value->pointer.set) == 1);
-	assert(cesk_set_contain(ret->data[ret->offset[CESK_DIFF_STORE] + 1].arg.value->pointer.set, CESK_STORE_ADDR_NEG));
-	
+	assert(2 == cesk_set_size(ret->data[ret->offset[CESK_DIFF_REG] + 1].arg.set));
+	assert(cesk_set_iter(ret->data[ret->offset[CESK_DIFF_REG] + 1].arg.set, &iter));
+	while(CESK_STORE_ADDR_NULL != (addr = cesk_set_iter_next(&iter)))
+	{
+		uint32_t i;
+		for(i = ret->offset[CESK_DIFF_ALLOC]; i < ret->offset[CESK_DIFF_ALLOC + 1]; i ++)
+			if(ret->data[i].addr == addr) break;
+		assert(i != ret->offset[CESK_DIFF_ALLOC + 1]);
+		assert(ret->data[i].arg.value->type == CESK_TYPE_OBJECT);
+		const char* classpath = cesk_object_classpath(ret->data[i].arg.value->pointer.object);
+		if(stringpool_query("TestClass1") == classpath) origin_TestClass1 = addr;
+		else if(stringpool_query("TestClass2") == classpath) 
+		{
+			origin_TestClass2 = addr;
+			assert(cesk_object_get_addr(
+				ret->data[i].arg.value->pointer.object, 
+				stringpool_query("TestClass2"), 
+				stringpool_query("_value"), 
+				NULL, NULL, &origin_ValueSet) == 0);
+			for(i = ret->offset[CESK_DIFF_ALLOC]; i < ret->offset[CESK_DIFF_ALLOC + 1]; i ++)
+				if(ret->data[i].addr == origin_ValueSet) break;
+			if(i == ret->offset[CESK_DIFF_ALLOC + 1]) origin_ValueSet = CESK_STORE_ADDR_NULL;
+		}
+	}
+	assert(CESK_STORE_ADDR_NULL != origin_TestClass1);
+	assert(CESK_STORE_ADDR_NULL != origin_TestClass2);
+	assert(CESK_STORE_ADDR_NULL != origin_ValueSet);
+	assert(origin_TestClass1 != cloned_TestClass1);
+	assert(origin_TestClass2 != cloned_TestClass2);
+	assert(origin_ValueSet != cloned_ValueSet);
+
 	cesk_frame_free(frame);
 	cesk_diff_free(ret); 
 
