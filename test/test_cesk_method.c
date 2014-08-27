@@ -415,7 +415,7 @@ int main()
 
 	assert(NULL != ret);
 
-	puts(cesk_diff_to_string(ret, NULL, 0));
+	//puts(cesk_diff_to_string(ret, NULL, 0));
 	assert(ret->offset[CESK_DIFF_ALLOC + 1] - ret->offset[CESK_DIFF_ALLOC] == 6);
 	assert(ret->offset[CESK_DIFF_REG + 1] - ret->offset[CESK_DIFF_REG] == 2);
 	assert(ret->offset[CESK_DIFF_STORE + 1] - ret->offset[CESK_DIFF_STORE] == 2);

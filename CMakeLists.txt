@@ -36,6 +36,11 @@ else("$ENV{O}" STREQUAL "")
 	set(OPTLEVEL	$ENV{O})
 endif("$ENV{O}" STREQUAL "")
 
+if(NOT "$ENV{CC}" STREQUAL "")
+	set(CMAKE_C_COMPILER "$ENV{CC}")
+endif(NOT "$ENV{CC}" STREQUAL "")
+
+message("Compiler: ${CMAKE_C_COMPILER}")
 message("Log Level: ${LOG}")
 message("Optimization Level: ${OPTLEVEL}")
 set(CFLAGS -O${OPTLEVEL}\ -Wall\ -Werror\ -g\ -DLOG_LEVEL=${LOG}\ -DPARSER_COUNT)
@@ -60,14 +65,18 @@ set_target_properties(adam_dbg PROPERTIES COMPILE_DEFINITIONS "DEBUGGER")
 
 file(GLOB tools RELATIVE ${CMAKE_CURRENT_BINARY_DIR}/${tools_DIR} "${tools_DIR}/*")
 foreach(tool ${tools})
-	if(IS_DIRECTORY ${tools_DIR}/${tool})
-		set(tool_FILES "" )
-		aux_source_directory(${tools_DIR}/${tool} tool_FILES)
-		include(${tools_DIR}/${tool}/build.cmake)
-		set_source_files_properties(${tool_FILES} PROPERTIES COMPILE_FLAGS "${CFLAGS} ${LOCAL_CFLAGS}")
-		add_executable(${tool} ${tool_FILES})
-		target_link_libraries(${tool} ${LOCAL_LIBS})
-	endif(IS_DIRECTORY ${tools_DIR}/${tool})
+	if(NOT "${build_${tool}}" STREQUAL "no")
+		if(IS_DIRECTORY ${tools_DIR}/${tool})
+			set(tool_FILES "" )
+			aux_source_directory(${tools_DIR}/${tool} tool_FILES)
+			include(${tools_DIR}/${tool}/build.cmake)
+			set_source_files_properties(${tool_FILES} PROPERTIES COMPILE_FLAGS "${CFLAGS} ${LOCAL_CFLAGS}")
+			add_executable(${tool} ${tool_FILES})
+			target_link_libraries(${tool} ${LOCAL_LIBS})
+		endif(IS_DIRECTORY ${tools_DIR}/${tool})
+	else(NOT "${build_${tool}}" STREQUAL "no")
+		message("Skipped package ${tool}")
+	endif(NOT "${build_${tool}}" STREQUAL "no")
 endforeach(tool ${tools})
 
 
@@ -107,3 +116,9 @@ add_custom_target(tags
 	COMMAND ctags -R include/ src/
 	WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
 )
+
+add_custom_target(show-flags
+	COMMAND echo "Compiler = ${CMAKE_C_COMPILER}" && 
+	        echo "Log Level = ${LOG}" &&
+			echo "Optimaization = ${OPTLEVEL}" &&
+			echo "Compiler Flags = ${CFLAGS}")

@@ -447,12 +447,14 @@ int cesk_frame_gc(cesk_frame_t* frame)
 		_cesk_frame_gc_fb_size = nslot;
 		if(nslot < 1024) _cesk_frame_gc_fb_size = 1024;
 		_cesk_frame_gc_fb = (uint32_t*)malloc(sizeof(uint32_t) * _cesk_frame_gc_fb_size);
+		memset(_cesk_frame_gc_fb, 0, sizeof(uint32_t) * _cesk_frame_gc_fb_size);
 	}
 	if(_cesk_frame_gc_fb_size < nslot && NULL != _cesk_frame_gc_fb)
 	{
 		_cesk_frame_gc_fb_size *= 2;
 		free(_cesk_frame_gc_fb);
 		_cesk_frame_gc_fb = (uint32_t*)malloc(sizeof(uint32_t) * _cesk_frame_gc_fb_size);
+		memset(_cesk_frame_gc_fb, 0, sizeof(uint32_t) * _cesk_frame_gc_fb_size);
 		__true__ = 1;
 	}
 	if(NULL == _cesk_frame_gc_fb)
@@ -592,299 +594,376 @@ static inline int _cesk_frame_set_ref(cesk_frame_t* frame, const cesk_set_t* set
 	}
 	return ret;
 }
-int cesk_frame_apply_diff(
-	cesk_frame_t* frame, 
-	const cesk_diff_t* diff, 
-	const cesk_reloc_table_t* reloctab, 
-	cesk_diff_buffer_t* fwdbuf,
-	cesk_diff_buffer_t* invbuf)
+/**
+ * @brief apply the allocation section to the target frame
+ * @param frame target frame
+ * @param section the allocation section 
+ * @param size how many records 
+ * @param reloctab the relocation table
+ * @param fwdbuf forward buffer
+ * @param invbuf inversion of forward buffer
+ * @return the number of record actually applied, < 0 ==> error
+ **/
+static inline int _cesk_frame_apply_diff_alloc_sec(
+		cesk_frame_t* frame,
+		const cesk_diff_rec_t* section,
+		size_t size,
+		const cesk_reloc_table_t* reloctab,
+		cesk_diff_buffer_t* fwdbuf,
+		cesk_diff_buffer_t* invbuf)
 {
 	int ret = 0;
-	if(NULL == frame || NULL == diff)
+	size_t i;
+	for(i = 0; i < size; i ++)
 	{
-		LOG_ERROR("invalid argument");
-		return -1;
-	}
-	int section;
-	for(section = 0; section < CESK_DIFF_NTYPES; section ++)
-	{
-		int offset;
-		for(offset = diff->offset[section]; offset < diff->offset[section + 1]; offset ++)
+		const cesk_diff_rec_t* rec = section + i;
+		LOG_DEBUG("allocating object %s at store address "PRSAddr"", cesk_value_to_string(rec->arg.value, NULL, 0) ,rec->addr);
+		if(cesk_reloc_addr_init(reloctab, frame->store, rec->addr, rec->arg.value) == CESK_STORE_ADDR_NULL)
 		{
-			const cesk_diff_rec_t* rec = diff->data + offset;
-			switch(section)
+			LOG_ERROR("can not initialize relocated address "PRSAddr" in store %p", rec->addr, frame->store);
+			return -1;
+		}
+		else
+			ret ++;
+		if(NULL != invbuf && cesk_diff_buffer_append(invbuf, CESK_DIFF_DEALLOC, rec->addr, NULL) < 0)
+		{
+			LOG_ERROR("can not append a new record to the inverse diff buf");
+			return -1;
+		}
+		if(NULL != fwdbuf && cesk_diff_buffer_append(fwdbuf, CESK_DIFF_ALLOC, rec->addr, rec->arg.value) < 0)
+		{
+			LOG_ERROR("can not append a new record to the foward diff buffer");
+			return -1;
+		}
+	}
+	return ret;
+}
+/**
+ * @brief apply the reuse section to the target frame
+ * @param frame target frame
+ * @param section the allocation section 
+ * @param size how many records 
+ * @param reloctab the relocation table
+ * @param fwdbuf forward buffer
+ * @param invbuf inversion of forward buffer
+ * @return the number of record actually applied, < 0 ==> error
+ **/
+static inline int _cesk_frame_apply_diff_reuse_sec(
+		cesk_frame_t* frame,
+		const cesk_diff_rec_t* section,
+		size_t size,
+		const cesk_reloc_table_t* reloctab,
+		cesk_diff_buffer_t* fwdbuf,
+		cesk_diff_buffer_t* invbuf)
+{
+	int ret = 0;
+	size_t i;
+	for(i = 0; i < size; i ++)
+	{
+		const cesk_diff_rec_t* rec = section + i;
+		LOG_DEBUG("setting reuse flag at store address "PRSAddr" to %u", rec->addr, rec->arg.boolean);
+		if(rec->arg.boolean == cesk_store_get_reuse(frame->store, rec->addr)) 
+		{
+			LOG_DEBUG("the value reuse bit is already as excepted, no operation needed");
+			continue;
+		}
+		ret ++;
+		/* set the reuse flag */
+		if(rec->arg.boolean)
+		{
+			if(cesk_store_set_reuse(frame->store, rec->addr) < 0)
 			{
-				case CESK_DIFF_ALLOC:
-					LOG_DEBUG("allocating object %s at store address "PRSAddr"", cesk_value_to_string(rec->arg.value, NULL, 0) ,rec->addr);
-					if(cesk_reloc_addr_init(reloctab, frame->store, rec->addr, rec->arg.value) == CESK_STORE_ADDR_NULL)
-					{
-						LOG_ERROR("can not initialize relocated address "PRSAddr" in store %p", rec->addr, frame->store);
-						return -1;
-					}
-					else
-						ret ++;
-					if(NULL != invbuf && cesk_diff_buffer_append(invbuf, CESK_DIFF_DEALLOC, rec->addr, NULL) < 0)
-					{
-						LOG_ERROR("can not append a new record to the inverse diff buf");
-						return -1;
-					}
-					if(NULL != fwdbuf && cesk_diff_buffer_append(fwdbuf, CESK_DIFF_ALLOC, rec->addr, rec->arg.value) < 0)
-					{
-						LOG_ERROR("can not append a new record to the foward diff buffer");
-						return -1;
-					}
-					break;
-				case CESK_DIFF_REUSE:
-					LOG_DEBUG("setting reuse flag at store address "PRSAddr" to %u", rec->addr, rec->arg.boolean);
-					if(rec->arg.boolean == cesk_store_get_reuse(frame->store, rec->addr)) 
-					{
-						LOG_DEBUG("the value reuse bit is already as excepted, no operation needed");
-						break;
-					}
-					ret ++;
-					if(rec->arg.boolean)
-					{
-						if(cesk_store_set_reuse(frame->store, rec->addr) < 0)
-						{
-							LOG_ERROR("can not set reuse bit for "PRSAddr" in store %p", rec->addr, frame->store);
-							return -1;
-						}
-						if(NULL != invbuf && cesk_diff_buffer_append(invbuf, CESK_DIFF_REUSE, rec->addr, CESK_DIFF_REUSE_VALUE(0)) < 0)
-						{
-							LOG_ERROR("can not append a new record for the inverse diff buf");
-							return -1;
-						}
-						if(NULL != fwdbuf && cesk_diff_buffer_append(fwdbuf, CESK_DIFF_REUSE, rec->addr, CESK_DIFF_REUSE_VALUE(1)) < 0)
-						{
-							LOG_ERROR("can not append a new record to the foward diff buffer");
-							return -1;
-						}
-					}
-					else
-					{
-						if(cesk_store_clear_reuse(frame->store, rec->addr) < 0)
-						{
-							LOG_ERROR("can not clear reuse bit for "PRSAddr" in store %p", rec->addr, frame->store);
-							return -1;
-						}
-						if(NULL != invbuf && cesk_diff_buffer_append(invbuf, CESK_DIFF_REUSE, rec->addr, CESK_DIFF_REUSE_VALUE(1)) < 0)
-						{
-							LOG_ERROR("can not append a new record for the inverse diff buf");
-							return -1;
-						}
-						if(NULL != fwdbuf && cesk_diff_buffer_append(fwdbuf, CESK_DIFF_REUSE, rec->addr, CESK_DIFF_REUSE_VALUE(0)) < 0)
-						{
-							LOG_ERROR("can not append a new record to the foward diff buffer");
-							return -1;
-						}
-					}
-					break;
-				case CESK_DIFF_REG:
-					/* if this is a real register */
-					if(!CESK_FRAME_REG_IS_STATIC(rec->addr))
-					{
-						LOG_DEBUG("setting register #%u to value %s", rec->addr, cesk_set_to_string(rec->arg.set, NULL, 0));
-						if(cesk_set_equal(frame->regs[rec->addr], rec->arg.set))
-						{
-							LOG_DEBUG("the register value is already the target value, no operation needed");
-							break;
-						}
-						if(NULL != invbuf && cesk_diff_buffer_append(invbuf, CESK_DIFF_REG, rec->addr, frame->regs[rec->addr]) < 0)
-						{
-							LOG_ERROR("can not append a new record for the inverse diff buf");
-							return -1;
-						}
-						if(NULL != fwdbuf && cesk_diff_buffer_append(fwdbuf, CESK_DIFF_REG, rec->addr, rec->arg.set) < 0)
-						{
-							LOG_ERROR("can not append a new record to the foward diff buffer");
-							return -1;
-						}
-						ret ++;
-						/* we need to make reference to the new values before the old register is freed, because
-						 * if we don't do this, some value which contains in both old register value and new register
-						 * value will die at after this, which leads the new register reference to a invalid address,
-						 * But if we initialize the refcount at this point, this won't happen */
-						if(_cesk_frame_set_ref(frame, rec->arg.set) < 0)
-						{
-							LOG_ERROR("can not make reference from the register %d", rec->addr);
-							return -1;
-						}
-
-						if(_cesk_frame_free_set(frame, frame->regs[rec->addr]) < 0)
-						{
-							LOG_ERROR("can not clean the old value in the register %d", rec->addr);
-							return -1;
-						}
-						if(NULL == (frame->regs[rec->addr] = cesk_set_fork(rec->arg.set)))
-						{
-							LOG_ERROR("can not set the new value for register %d", rec->addr);
-							return -1;
-						}
-					}
-					/* otherwise this register is a static field actually */
-					else
-					{
-						LOG_DEBUG("setting static field #%u to value %s", CESK_FRAME_REG_STATIC_IDX(rec->addr), cesk_set_to_string(rec->arg.set, NULL, 0));
-						const cesk_set_t* old_value = cesk_static_table_get_ro(frame->statics, rec->addr, 1);
-						if(NULL == old_value)
-						{
-							LOG_ERROR("I can not get the value of field #%u, aborting", CESK_FRAME_REG_STATIC_IDX(rec->addr));
-							return -1;
-						}
-						if(cesk_set_equal(old_value, rec->arg.set))
-						{
-							LOG_DEBUG("the field value is already the target value, no operation need");
-							break;
-						}
-						if(NULL != invbuf && cesk_diff_buffer_append(invbuf, CESK_DIFF_REG, rec->addr, old_value))
-						{
-							LOG_ERROR("can not append a new record to the inverse diff buf");
-							return -1;
-						}
-						if(NULL != fwdbuf && cesk_diff_buffer_append(fwdbuf, CESK_DIFF_REG, rec->addr, rec->arg.set))
-						{
-							LOG_ERROR("can not append a new record to the foward diff buf");
-							return -1;
-						}
-						ret ++;
-						/* change the frame! */
-						/* becuase we should keep all value that is in use safe, so we first make reference for new value 
-						 * and then derefernce the old_value */
-						int reloc;
-						if((reloc = _cesk_frame_set_ref(frame, rec->arg.set)) < 0)
-						{
-							LOG_ERROR("can not make reference from the static field #%u", CESK_FRAME_REG_STATIC_IDX(rec->addr));
-							return -1;
-						}
-						/* this slot has been created before this function call, so the last param wouldn't have any effect */
-						cesk_set_t** slot = cesk_static_table_get_rw(frame->statics, rec->addr, 1);
-						if(NULL == slot)
-						{
-							LOG_ERROR("I can not get a write pointer to the slot for field #%u", CESK_FRAME_REG_STATIC_IDX(rec->addr));
-							return -1;
-						}
-						if(NULL == *slot)
-						{
-							LOG_ERROR("The slot contains no set? This is impossible");
-							return -1;
-						}
-						/* derefernce from the old value */
-						if(_cesk_frame_free_set(frame, *slot) < 0)
-						{
-							LOG_ERROR("can not derefernce from the old value of static field #%u", CESK_FRAME_REG_STATIC_IDX(rec->addr));
-							return -1;
-						}
-						/* set the new value */
-						if(NULL == (*slot = cesk_set_fork(rec->arg.set)))
-						{
-							LOG_ERROR("can not set the new value to field #%u", CESK_FRAME_REG_STATIC_IDX(rec->addr));
-							return -1;
-						}
-						/* finally, we need to clean up the field reference */
-						if(cesk_static_table_release_rw(frame->statics, rec->addr, *slot) < 0)
-						{
-							LOG_ERROR("can not release the field reference at static field #%u", CESK_FRAME_REG_STATIC_IDX(rec->addr));
-							return -1;
-						}
-						/* update the relocated flags */
-						if(cesk_static_table_update_relocated_flag(frame->statics, rec->addr, reloc, 1) < 0)
-						{
-							LOG_ERROR("can not update the relocated flag of static field #%u", CESK_FRAME_REG_STATIC_IDX(rec->addr));
-							return -1;
-						}
-					}
-					break;
-				case CESK_DIFF_STORE:
-					LOG_DEBUG("setting store address "PRSAddr" to value %s", rec->addr, cesk_value_to_string(rec->arg.value, NULL, 0));
-					cesk_value_const_t* oldval = cesk_store_get_ro(frame->store, rec->addr);
-					if(oldval->type != rec->arg.value->type)
-					{
-						LOG_ERROR("the diff record value and the target value was supposed to be the same type, but they are not");
-						return -1;
-					}
-					/* TODO: elimiate this dirty hack */
-					if(NULL != oldval && cesk_value_equal(rec->arg.value, (const cesk_value_t*)oldval))
-					{
-						LOG_DEBUG("the target value is already there, no nothing to patch");
-						break;
-					}
-					if(NULL != invbuf && cesk_diff_buffer_append(invbuf, CESK_DIFF_STORE, rec->addr, oldval) < 0)
-					{
-						LOG_ERROR("can not append a new record for the inverse diff buf");
-						return -1;
-					}
-					if(NULL != fwdbuf && cesk_diff_buffer_append(fwdbuf, CESK_DIFF_STORE, rec->addr, rec->arg.value) < 0)
-					{
-						LOG_ERROR("can not append a new record to the foward diff buffer");
-						return -1;
-					}
-				
-					/* update the refcnt first, so that we can keep the value we want */
-					/* if this value is a type */
-					if(CESK_TYPE_SET == oldval->type)
-					{
-						cesk_set_iter_t iter;
-						if(cesk_set_iter(rec->arg.value->pointer.set, &iter) < 0)
-						{
-							LOG_ERROR("can not aquire the iterator for set");
-							cesk_store_release_rw(frame->store, rec->addr);
-							return -1;
-						}
-						uint32_t addr;
-						while(CESK_STORE_ADDR_NULL != (addr = cesk_set_iter_next(&iter)))
-							cesk_store_incref(frame->store, addr);
-					}
-					else
-					{
-						int i;
-						const cesk_object_t* object = rec->arg.value->pointer.object;
-						const cesk_object_struct_t* this = object->members;
-						for(i = 0; i < object->depth; i ++)
-						{
-							if(this->built_in)
-							{
-								uint32_t offset = 0;
-								uint32_t buf[128];
-								for(;;)
-								{
-									int rc = bci_class_get_addr_list(this->bcidata, offset, buf, sizeof(buf)/sizeof(buf[0]), this->class.bci->class);
-									if(rc < 0)
-									{
-										LOG_ERROR("can not get the address list for this object");
-									}
-									if(rc == 0) break;
-									offset += rc;
-									int j;
-									for(j = 0; j < rc; j ++)
-										cesk_store_incref(frame->store, buf[j]);
-								}
-							}
-							else
-							{
-								int j;
-								for(j = 0; j < this->num_members; j ++)
-									cesk_store_incref(frame->store, this->addrtab[j]);
-							}
-							CESK_OBJECT_STRUCT_ADVANCE(this);
-						}
-					}
-
-					/* replace the value */
-					if(cesk_store_attach(frame->store, rec->addr, rec->arg.value) < 0)
-					{
-						LOG_ERROR("can not attach value to store address "PRSAddr" in store %p", rec->addr, frame->store);
-						return -1;
-					}
-					cesk_store_release_rw(frame->store, rec->addr);
-					ret ++;
-					break;
-				case CESK_DIFF_DEALLOC:
-					LOG_DEBUG("ignore deallocation section");
-					break;
+				LOG_ERROR("can not set reuse bit for "PRSAddr" in store %p", rec->addr, frame->store);
+				return -1;
+			}
+			if(NULL != invbuf && cesk_diff_buffer_append(invbuf, CESK_DIFF_REUSE, rec->addr, CESK_DIFF_REUSE_VALUE(0)) < 0)
+			{
+				LOG_ERROR("can not append a new record for the inverse diff buf");
+				return -1;
+			}
+			if(NULL != fwdbuf && cesk_diff_buffer_append(fwdbuf, CESK_DIFF_REUSE, rec->addr, CESK_DIFF_REUSE_VALUE(1)) < 0)
+			{
+				LOG_ERROR("can not append a new record to the foward diff buffer");
+				return -1;
+			}
+		}
+		/* otherwise clear the reuse flag */
+		else
+		{
+			if(cesk_store_clear_reuse(frame->store, rec->addr) < 0)
+			{
+				LOG_ERROR("can not clear reuse bit for "PRSAddr" in store %p", rec->addr, frame->store);
+				return -1;
+			}
+			if(NULL != invbuf && cesk_diff_buffer_append(invbuf, CESK_DIFF_REUSE, rec->addr, CESK_DIFF_REUSE_VALUE(1)) < 0)
+			{
+				LOG_ERROR("can not append a new record for the inverse diff buf");
+				return -1;
+			}
+			if(NULL != fwdbuf && cesk_diff_buffer_append(fwdbuf, CESK_DIFF_REUSE, rec->addr, CESK_DIFF_REUSE_VALUE(0)) < 0)
+			{
+				LOG_ERROR("can not append a new record to the foward diff buffer");
+				return -1;
 			}
 		}
 	}
-	/* and we should go over the allocation section again to fix the reference counter in the store */
+	return ret;
+}
+/**
+ * @brief apply the register section to the target frame
+ * @param frame target frame
+ * @param section the allocation section 
+ * @param size how many records 
+ * @param reloctab the relocation table
+ * @param fwdbuf forward buffer
+ * @param invbuf inversion of forward buffer
+ * @return the number of record actually applied, < 0 ==> error
+ **/
+static inline int _cesk_frame_apply_diff_reg_sec(
+		cesk_frame_t* frame,
+		const cesk_diff_rec_t* section,
+		size_t size,
+		const cesk_reloc_table_t* reloctab,
+		cesk_diff_buffer_t* fwdbuf,
+		cesk_diff_buffer_t* invbuf)
+{
+	size_t i;
+	int ret = 0;
+	for(i = 0; i < size; i ++)
+	{
+		const cesk_diff_rec_t* rec = section + i;
+
+		/* if this is a real register */
+		if(!CESK_FRAME_REG_IS_STATIC(rec->addr))
+		{
+			LOG_DEBUG("setting register #%u to value %s", rec->addr, cesk_set_to_string(rec->arg.set, NULL, 0));
+			if(cesk_set_equal(frame->regs[rec->addr], rec->arg.set))
+			{
+				LOG_DEBUG("the register value is already the target value, no operation needed");
+				continue;
+			}
+			if(NULL != invbuf && cesk_diff_buffer_append(invbuf, CESK_DIFF_REG, rec->addr, frame->regs[rec->addr]) < 0)
+			{
+				LOG_ERROR("can not append a new record for the inverse diff buf");
+				return -1;
+			}
+			if(NULL != fwdbuf && cesk_diff_buffer_append(fwdbuf, CESK_DIFF_REG, rec->addr, rec->arg.set) < 0)
+			{
+				LOG_ERROR("can not append a new record to the foward diff buffer");
+				return -1;
+			}
+			/* we need to make reference to the new values before the old register is freed, because
+			 * if we don't do this, some value which contains in both old register value and new register
+			 * value will die at after this, which leads the new register reference to a invalid address,
+			 * But if we initialize the refcount at this point, this won't happen */
+			if(_cesk_frame_set_ref(frame, rec->arg.set) < 0)
+			{
+				LOG_ERROR("can not make reference from the register %d", rec->addr);
+				return -1;
+			}
+
+			if(_cesk_frame_free_set(frame, frame->regs[rec->addr]) < 0)
+			{
+				LOG_ERROR("can not clean the old value in the register %d", rec->addr);
+				return -1;
+			}
+			if(NULL == (frame->regs[rec->addr] = cesk_set_fork(rec->arg.set)))
+			{
+				LOG_ERROR("can not set the new value for register %d", rec->addr);
+				return -1;
+			}
+		}
+		/* otherwise this register is a static field actually */
+		else
+		{
+			LOG_DEBUG("setting static field #%u to value %s", CESK_FRAME_REG_STATIC_IDX(rec->addr), cesk_set_to_string(rec->arg.set, NULL, 0));
+			const cesk_set_t* old_value = cesk_static_table_get_ro(frame->statics, rec->addr, 1);
+			if(NULL == old_value)
+			{
+				LOG_ERROR("I can not get the value of field #%u, aborting", CESK_FRAME_REG_STATIC_IDX(rec->addr));
+				return -1;
+			}
+			if(cesk_set_equal(old_value, rec->arg.set))
+			{
+				LOG_DEBUG("the field value is already the target value, no operation need");
+				continue;
+			}
+			if(NULL != invbuf && cesk_diff_buffer_append(invbuf, CESK_DIFF_REG, rec->addr, old_value))
+			{
+				LOG_ERROR("can not append a new record to the inverse diff buf");
+				return -1;
+			}
+			if(NULL != fwdbuf && cesk_diff_buffer_append(fwdbuf, CESK_DIFF_REG, rec->addr, rec->arg.set))
+			{
+				LOG_ERROR("can not append a new record to the foward diff buf");
+				return -1;
+			}
+			/* change the frame! */
+			/* becuase we should keep all value that is in use safe, so we first make reference for new value 
+			 * and then derefernce the old_value */
+			int reloc;
+			if((reloc = _cesk_frame_set_ref(frame, rec->arg.set)) < 0)
+			{
+				LOG_ERROR("can not make reference from the static field #%u", CESK_FRAME_REG_STATIC_IDX(rec->addr));
+				return -1;
+			}
+			/* this slot has been created before this function call, so the last param wouldn't have any effect */
+			cesk_set_t** slot = cesk_static_table_get_rw(frame->statics, rec->addr, 1);
+			if(NULL == slot)
+			{
+				LOG_ERROR("I can not get a write pointer to the slot for field #%u", CESK_FRAME_REG_STATIC_IDX(rec->addr));
+				return -1;
+			}
+			if(NULL == *slot)
+			{
+				LOG_ERROR("The slot contains no set? This is impossible");
+				return -1;
+			}
+			/* derefernce from the old value */
+			if(_cesk_frame_free_set(frame, *slot) < 0)
+			{
+				LOG_ERROR("can not derefernce from the old value of static field #%u", CESK_FRAME_REG_STATIC_IDX(rec->addr));
+				return -1;
+			}
+			/* set the new value */
+			if(NULL == (*slot = cesk_set_fork(rec->arg.set)))
+			{
+				LOG_ERROR("can not set the new value to field #%u", CESK_FRAME_REG_STATIC_IDX(rec->addr));
+				return -1;
+			}
+			/* finally, we need to clean up the field reference */
+			if(cesk_static_table_release_rw(frame->statics, rec->addr, *slot) < 0)
+			{
+				LOG_ERROR("can not release the field reference at static field #%u", CESK_FRAME_REG_STATIC_IDX(rec->addr));
+				return -1;
+			}
+			/* update the relocated flags */
+			if(cesk_static_table_update_relocated_flag(frame->statics, rec->addr, reloc, 1) < 0)
+			{
+				LOG_ERROR("can not update the relocated flag of static field #%u", CESK_FRAME_REG_STATIC_IDX(rec->addr));
+				return -1;
+			}
+		}
+		ret ++;
+	}
+	return ret;
+}
+/**
+ * @brief apply the store section to the target frame
+ * @param frame target frame
+ * @param section the allocation section 
+ * @param size how many records 
+ * @param reloctab the relocation table
+ * @param fwdbuf forward buffer
+ * @param invbuf inversion of forward buffer
+ * @return the number of record actually applied, < 0 ==> error
+ **/
+static inline int _cesk_frame_apply_diff_store_sec(
+		cesk_frame_t* frame,
+		const cesk_diff_rec_t* section,
+		size_t size,
+		const cesk_reloc_table_t* reloctab,
+		cesk_diff_buffer_t* fwdbuf,
+		cesk_diff_buffer_t* invbuf)
+{
+	size_t i;
+	int ret = 0;
+	for(i = 0; i < size; i ++)
+	{
+		const cesk_diff_rec_t* rec = section + i;
+		LOG_DEBUG("setting store address "PRSAddr" to value %s", rec->addr, cesk_value_to_string(rec->arg.value, NULL, 0));
+		cesk_value_const_t* oldval = cesk_store_get_ro(frame->store, rec->addr);
+		if(oldval->type != rec->arg.value->type)
+		{
+			LOG_ERROR("the diff record value and the target value was supposed to be the same type, but they are not");
+			return -1;
+		}
+		/* TODO: elimiate this dirty hack */
+		if(NULL != oldval && cesk_value_equal(rec->arg.value, (const cesk_value_t*)oldval))
+		{
+			LOG_DEBUG("the target value is already there, no nothing to patch");
+			continue;
+		}
+		if(NULL != invbuf && cesk_diff_buffer_append(invbuf, CESK_DIFF_STORE, rec->addr, oldval) < 0)
+		{
+			LOG_ERROR("can not append a new record for the inverse diff buf");
+			return -1;
+		}
+		if(NULL != fwdbuf && cesk_diff_buffer_append(fwdbuf, CESK_DIFF_STORE, rec->addr, rec->arg.value) < 0)
+		{
+			LOG_ERROR("can not append a new record to the foward diff buffer");
+			return -1;
+		}
+	
+		/* update the refcnt first, so that we can keep the value we want */
+		/* if this value is a type */
+		if(CESK_TYPE_SET == oldval->type)
+		{
+			cesk_set_iter_t iter;
+			if(cesk_set_iter(rec->arg.value->pointer.set, &iter) < 0)
+			{
+				LOG_ERROR("can not aquire the iterator for set");
+				cesk_store_release_rw(frame->store, rec->addr);
+				return -1;
+			}
+			uint32_t addr;
+			while(CESK_STORE_ADDR_NULL != (addr = cesk_set_iter_next(&iter)))
+				cesk_store_incref(frame->store, addr);
+		}
+		else
+		{
+			int i;
+			const cesk_object_t* object = rec->arg.value->pointer.object;
+			const cesk_object_struct_t* this = object->members;
+			for(i = 0; i < object->depth; i ++)
+			{
+				if(this->built_in)
+				{
+					uint32_t offset = 0;
+					uint32_t buf[128];
+					for(;;)
+					{
+						int rc = bci_class_get_addr_list(this->bcidata, offset, buf, sizeof(buf)/sizeof(buf[0]), this->class.bci->class);
+						if(rc < 0)
+						{
+							LOG_ERROR("can not get the address list for this object");
+						}
+						if(rc == 0) break;
+						offset += rc;
+						int j;
+						for(j = 0; j < rc; j ++)
+							cesk_store_incref(frame->store, buf[j]);
+					}
+				}
+				else
+				{
+					int j;
+					for(j = 0; j < this->num_members; j ++)
+						cesk_store_incref(frame->store, this->addrtab[j]);
+				}
+				CESK_OBJECT_STRUCT_ADVANCE(this);
+			}
+		}
+
+		/* replace the value */
+		if(cesk_store_attach(frame->store, rec->addr, rec->arg.value) < 0)
+		{
+			LOG_ERROR("can not attach value to store address "PRSAddr" in store %p", rec->addr, frame->store);
+			return -1;
+		}
+		cesk_store_release_rw(frame->store, rec->addr);
+		ret ++;
+	}
+	return ret;
+}
+/**
+ * @brief update the refcnt after applying frame diff
+ * @param frame 
+ * @param diff
+ * @return < 0 error
+ **/
+static inline int _cesk_frame_apply_diff_update_refcnt(cesk_frame_t* frame, const cesk_diff_t* diff)
+{
 	int offset;
 	for(offset = diff->offset[CESK_DIFF_ALLOC]; offset < diff->offset[CESK_DIFF_ALLOC + 1]; offset ++)
 	{
@@ -911,6 +990,7 @@ int cesk_frame_apply_diff(
 							if(rc < 0)
 							{
 								LOG_ERROR("can not get the address list for this object");
+								return -1;
 							}
 							if(rc == 0) break;
 							offset += rc;
@@ -939,6 +1019,79 @@ int cesk_frame_apply_diff(
 				while(CESK_STORE_ADDR_NULL != (addr = cesk_set_iter_next(&iter)))
 					cesk_store_incref(frame->store, addr);
 		}
+	}
+	return 0;
+}
+int cesk_frame_apply_diff(
+	cesk_frame_t* frame, 
+	const cesk_diff_t* diff, 
+	const cesk_reloc_table_t* reloctab, 
+	cesk_diff_buffer_t* fwdbuf,
+	cesk_diff_buffer_t* invbuf)
+{
+	int ret = 0;
+	int rc;
+	if(NULL == frame || NULL == diff)
+	{
+		LOG_ERROR("invalid argument");
+		return -1;
+	}
+
+	/* apply allocation section */
+	rc = _cesk_frame_apply_diff_alloc_sec(
+			frame, diff->data + diff->offset[CESK_DIFF_ALLOC], 
+			diff->offset[CESK_DIFF_ALLOC + 1] - diff->offset[CESK_DIFF_ALLOC],
+			reloctab, fwdbuf, invbuf);
+	if(rc < 0)
+	{
+		LOG_ERROR("can not apply allocation section of the input diff to target frame");
+		return -1;
+	}
+	ret += rc;
+
+	/* apply reuse section */
+	rc = _cesk_frame_apply_diff_reuse_sec(
+			frame, diff->data + diff->offset[CESK_DIFF_REUSE],
+			diff->offset[CESK_DIFF_REUSE + 1] - diff->offset[CESK_DIFF_REUSE],
+			reloctab, fwdbuf, invbuf);
+	if(rc < 0)
+	{
+		LOG_ERROR("can not apply reuse section of the input diff to target frame");
+		return -1;
+	}
+	ret += rc;
+
+	/* apply register section */
+	rc = _cesk_frame_apply_diff_reg_sec(
+			frame, diff->data + diff->offset[CESK_DIFF_REG],
+			diff->offset[CESK_DIFF_REG + 1] - diff->offset[CESK_DIFF_REG],
+			reloctab, fwdbuf, invbuf);
+	if(rc < 0)
+	{
+		LOG_ERROR("can not apply register section of the input diff to target frame");
+		return -1;
+	}
+	ret += rc;
+
+	/* apply store section */
+	rc = _cesk_frame_apply_diff_store_sec(
+			frame, diff->data + diff->offset[CESK_DIFF_STORE],
+			diff->offset[CESK_DIFF_STORE + 1] - diff->offset[CESK_DIFF_STORE],
+			reloctab, fwdbuf, invbuf);
+	if(rc < 0)
+	{
+		LOG_ERROR("can not apply store section of the input diff to target frame");
+		return -1;
+	}
+	ret += rc;
+
+	/* simply ignore the deallocation section */
+	
+	/* and we should go over the allocation section again to fix the reference counter in the store */
+	if(_cesk_frame_apply_diff_update_refcnt(frame, diff) < 0)
+	{
+		LOG_ERROR("can not update refcnt after applying diff");
+		return -1;
 	}
 	return ret;
 }
