@@ -1387,7 +1387,7 @@ int cesk_frame_register_append_from_store(
 	
 	if(NULL == value)
 	{
-		LOG_ERROR("can not aquire the value @ %x", src_addr);
+		LOG_ERROR("can not peek the value @ %x", src_addr);
 		return -1;
 	}
 	if(CESK_TYPE_SET != value->type)
@@ -1458,6 +1458,7 @@ int cesk_frame_register_load_from_object(
 		}
 	}
 
+	/* for each object address */
 	uint32_t obj_addr;
 	while(CESK_STORE_ADDR_NULL != (obj_addr = cesk_set_iter_next(&iter)))
 	{
@@ -1500,11 +1501,10 @@ int cesk_frame_register_load_from_object(
 					cesk_store_incref(frame->store, addr);
 				continue;
 			}
-			LOG_WARNING("failed to fetch field %s/%s at store address "PRSAddr", ignoring this object",
+			else LOG_WARNING("failed to fetch field %s/%s at store address "PRSAddr", ignoring this object",
 						clspath,
 						fldname,
 						obj_addr);
-			continue;
 		}
 		/* this is a user defined class */
 		else
