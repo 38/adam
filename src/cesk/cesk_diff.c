@@ -7,7 +7,6 @@
  *		Register Section  :   [regid, set]
  *		Store Section     :   [addr,  value]
  *		Deallocate Section:   [addr]
- * @todo review the code, and the idea of diff
  **/
 #include <stdio.h> 
 
@@ -182,6 +181,7 @@ const void* cesk_diff_buffer_append_peek(cesk_diff_buffer_t* buffer, int type, u
 	}
 }
 /**
+ * @brief the compare function used to sort the diff buffer items by pair <type, addr>
  * @todo use faster sorting algorihtm
  **/
 static int _cesk_diff_buffer_cmp(const void* left, const void* right)
@@ -198,45 +198,29 @@ static int _cesk_diff_buffer_cmp(const void* left, const void* right)
 	return lnode->time - rnode->time;
 }
 /**
- * @brief remove the garbage allocation
- * @details If the newly created object is dereferenced in this block, the 
- *          diff will contains an allocation instruction at that address, 
- *          but without corresponding register/store reference. In this case
- *          we should delete those block 
- * @param diff the diff package
- * @return the result, < 0 indicates an error
+ * @brief check if the address is used by the store section, set the buffer array to tick value if 
+ *        the address is in use
+ * @param data the data record array
+ * @param N how many records in the data array
+ * @param buf the result buffer
+ * @param tick the tick 
+ * @return < 0 indicates an error occurred
  **/
-static inline int _cesk_diff_gc(cesk_diff_t* diff)
+static inline int _cesk_diff_gc_check_store_rec_inuse(const cesk_diff_rec_t* data, size_t N, uint32_t* buf, uint32_t tick)
 {
-	int alloc_begin = diff->offset[CESK_DIFF_ALLOC];
-	int alloc_end = diff->offset[CESK_DIFF_ALLOC + 1];
-	int reg_begin = diff->offset[CESK_DIFF_REG];
-	int reg_end = diff->offset[CESK_DIFF_REG + 1];
-	int store_begin = diff->offset[CESK_DIFF_STORE];
-	int store_end = diff->offset[CESK_DIFF_STORE + 1];
-	int reuse_begin = diff->offset[CESK_DIFF_REUSE];
-	int reuse_end = diff->offset[CESK_DIFF_REUSE + 1];
-	int dealloc_begin = diff->offset[CESK_DIFF_DEALLOC];
-	int dealloc_end = diff->offset[CESK_DIFF_DEALLOC + 1];
-	int alloc_ptr, reg_ptr, store_ptr, reuse_ptr,dealloc_ptr, alloc_free, store_free, reuse_free;
-	
-	static uint32_t flags[CESK_STORE_ADDR_RELOC_SIZE];
-	static uint32_t store_flags[CESK_STORE_ADDR_RELOC_SIZE];
-	static uint32_t tick = 0;
-	tick ++;
-
-	for(store_ptr = store_begin; store_ptr < store_end; store_ptr ++)
+	size_t i;
+	for(i = 0; i < N; i ++)
 	{
-		cesk_value_t* value = diff->data[store_ptr].arg.value;
+		const cesk_value_t* value = data[i].arg.value;
 		if(NULL == value)
 		{
 			LOG_WARNING("ignore invalid value");
 			continue;
 		}
-		/* if this is a value */
+		/* if this is a set */
 		if(CESK_TYPE_SET == value->type)
 		{
-			cesk_set_t* set = value->pointer.set;
+			const cesk_set_t* set = value->pointer.set;
 			cesk_set_iter_t iter;
 			if(NULL == cesk_set_iter(set, &iter))
 			{
@@ -249,22 +233,23 @@ static inline int _cesk_diff_gc(cesk_diff_t* diff)
 				if(CESK_STORE_ADDR_IS_RELOC(addr))
 				{
 					uint32_t idx = CESK_STORE_ADDR_RELOC_IDX(addr);
-					flags[idx] = tick;
-					LOG_DEBUG("address "PRSAddr" is safe", addr);
+					buf[idx] = tick;
+					LOG_DEBUG("address "PRSAddr" is in use", addr);
 				}
 			}
 		}
+		/* otherwisethis is an object */
 		else
 		{
-			cesk_object_t* object = value->pointer.object;
-			cesk_object_struct_t* this = object->members;
+			const cesk_object_t* object = value->pointer.object;
+			const cesk_object_struct_t* this = object->members;
 			int i;
 			for(i = 0; i < object->depth; i ++)
 			{
 				/* if this is an instance of a built-in class */
 				if(this->built_in)
 				{
-					uint32_t buf[128];
+					static uint32_t buf[1024];
 					uint32_t offset = 0;
 					int rc;
 					for(;;)
@@ -284,8 +269,8 @@ static inline int _cesk_diff_gc(cesk_diff_t* diff)
 							if(CESK_STORE_ADDR_IS_RELOC(addr))
 							{
 								uint32_t idx = CESK_STORE_ADDR_RELOC_IDX(addr);
-								flags[idx] = tick;
-								LOG_DEBUG("address "PRSAddr" is safe", addr);
+								buf[idx] = tick;
+								LOG_DEBUG("address "PRSAddr" is in use", addr);
 							}
 						}
 					}
@@ -300,8 +285,8 @@ static inline int _cesk_diff_gc(cesk_diff_t* diff)
 						if(CESK_STORE_ADDR_IS_RELOC(addr))
 						{
 							uint32_t idx = CESK_STORE_ADDR_RELOC_IDX(addr);
-							flags[idx] = tick;
-							LOG_DEBUG("address "PRSAddr" is safe", addr);
+							buf[idx] = tick;
+							LOG_DEBUG("address "PRSAddr" is in use", addr);
 						}
 					}
 				}
@@ -309,9 +294,23 @@ static inline int _cesk_diff_gc(cesk_diff_t* diff)
 			}
 		}
 	}
-	for(reg_ptr = reg_begin; reg_ptr < reg_end; reg_ptr ++)
+	return 0;
+}
+/**
+ * @brief check if the address is used by the register section, set the buffer array to tick value if 
+ *        the address is in use
+ * @param data the data record array
+ * @param N how many records in the data array
+ * @param buf the result buffer
+ * @param tick the tick 
+ * @return < 0 indicates an error occurred
+ **/
+static inline int _cesk_diff_gc_check_register_rec_inuse(const cesk_diff_rec_t* data, size_t N, uint32_t* buf, uint32_t tick)
+{
+	size_t i;
+	for(i = 0; i < N; i ++)
 	{
-		cesk_set_t* set = diff->data[reg_ptr].arg.set;
+		cesk_set_t* set = data[i].arg.set;
 		if(NULL == set)
 		{
 			LOG_WARNING("invalid register value");
@@ -329,16 +328,30 @@ static inline int _cesk_diff_gc(cesk_diff_t* diff)
 			if(CESK_STORE_ADDR_IS_RELOC(addr))
 			{
 				uint32_t idx = CESK_STORE_ADDR_RELOC_IDX(addr);
-				flags[idx] = tick;
+				buf[idx] = tick;
 				LOG_DEBUG("address "PRSAddr" is safe", addr);
 			}
 		}
 	}
+	return 0;
+}
+/**
+ * @brief check if the address is used by the allocation section, set the buffer array to tick value if 
+ *        the address is in use
+ * @param data the data record array
+ * @param N how many records in the data array
+ * @param flags the result buffer
+ * @param tick the tick 
+ * @return < 0 indicates an error occurred
+ **/
+static inline int _cesk_diff_gc_check_allocation_rec_inuse(const cesk_diff_rec_t* data, size_t N, uint32_t* flags, uint32_t tick)
+{
+	size_t i;
 	/* because some allocation is used by other allocation, therefore, we need to keep them */
-	for(alloc_ptr = alloc_begin; alloc_ptr < alloc_end; alloc_ptr ++)
+	for(i = 0; i < N; i ++)
 	{
-		uint32_t addr = diff->data[alloc_ptr].addr;
-		cesk_value_t* value = diff->data[alloc_ptr].arg.value;
+		uint32_t addr = data[i].addr;
+		cesk_value_t* value = data[i].arg.value;
 		if(!CESK_STORE_ADDR_IS_RELOC(addr))
 		{
 			LOG_WARNING("no way to allocate an new object in non-relocated address, must be an mistake");
@@ -426,12 +439,28 @@ static inline int _cesk_diff_gc(cesk_diff_t* diff)
 			}
 		}
 	}
-	alloc_ptr = alloc_end - 1;
-	alloc_free = alloc_end - 1;
-	for(;alloc_ptr >= alloc_begin; alloc_ptr --)
+	return 0;
+}
+/**
+ * @brief compact the allocation section, base on the reachability flags, remove the allocation rection and compact it
+ * @details this function will compact the array and align it to the right, which means input array [1,2,3] and 1 is
+ *          deleted then the array becomes [_,1,2]
+ * @param data the array of allocation rectords
+ * @param N how many records in the array
+ * @param flags the reachability flag
+ * @param del_flag the deletion flag
+ * @param tick the clock tick
+ * @return the subscript in which the compacted array begins < 0 indicates an error occurred
+ */
+static inline int _cesk_diff_gc_alloc_compact(cesk_diff_rec_t* data, size_t N, const uint32_t *flags, uint32_t *del_flag, uint32_t tick)
+{
+	if(0 == N) return 0;
+	int i, ret;
+	/* because we use right alignment, so that we need to start scanning the array from right to left */
+	for(i = ret = N - 1; i >= 0; i --)
 	{
 		int alive = 0;
-		uint32_t addr = diff->data[alloc_ptr].addr;
+		uint32_t addr = data[i].addr;
 		uint32_t idx;
 		if(CESK_STORE_ADDR_IS_RELOC(addr))
 		{
@@ -442,75 +471,149 @@ static inline int _cesk_diff_gc(cesk_diff_t* diff)
 
 		if(alive)
 		{
-			LOG_DEBUG("keep living allocation record "PRSAddr"", addr);
-			diff->data[alloc_free--] = diff->data[alloc_ptr];
+			LOG_DEBUG("keep reachable allocation record "PRSAddr"", addr);
+			data[ret--] = data[i];
 		}
 		else
 		{
 			LOG_DEBUG("delete garbage allocation record "PRSAddr"", addr);
 			/* mark store ops on this address can be deleted */
-			store_flags[idx] = tick;
-			cesk_value_decref(diff->data[alloc_ptr].arg.value);
+			del_flag[idx] = tick;
+			cesk_value_decref(data[i].arg.value);
 		}
 	}
-	diff->offset[CESK_DIFF_ALLOC] = alloc_free + 1;
-	for(dealloc_ptr = dealloc_begin; dealloc_ptr < dealloc_end; dealloc_ptr ++)
-	{
-		uint32_t addr = diff->data[dealloc_ptr].addr;
-		if(CESK_STORE_ADDR_RELOC_IDX(addr))
-		{
-			uint32_t idx = CESK_STORE_ADDR_RELOC_IDX(addr);
-			store_flags[idx] = tick;
-		}
-	}
-
-	store_free = store_begin;
-	for(store_ptr = store_begin; store_ptr < store_end; store_ptr ++)
+	return ret + 1;
+}
+/**
+ * @brief compact the reuse section and store section in a single pass
+ * @param diff the diff to be compact
+ * @param del_store the deleted flag of a store
+ * @param tick the clock tick
+ * @return < 0 indicates errors
+ */
+static inline int _cesk_diff_gc_reuse_store_compact(cesk_diff_t* diff, const uint32_t* del_store, uint32_t tick)
+{
+	int store_begin = diff->offset[CESK_DIFF_STORE];
+	int store_end = diff->offset[CESK_DIFF_STORE + 1];
+	int reuse_begin = diff->offset[CESK_DIFF_REUSE];
+	int reuse_end = diff->offset[CESK_DIFF_REUSE + 1];
+	/* compact the store section and align the remaining element to the left */
+	uint32_t store_free = store_begin, ptr;
+	for(ptr = store_begin; ptr < store_end; ptr ++)
 	{
 		int alive = 1;
-		uint32_t addr = diff->data[store_ptr].addr;
+		uint32_t addr = diff->data[ptr].addr;
 		if(CESK_STORE_ADDR_IS_RELOC(addr))
 		{
 			uint32_t idx = CESK_STORE_ADDR_RELOC_IDX(addr);
-			if(store_flags[idx] == tick) alive = 0;
+			if(del_store[idx] == tick) alive = 0;
 		}
 		if(alive)
-			diff->data[store_free ++] = diff->data[store_ptr];
+			diff->data[store_free ++] = diff->data[ptr];
 		else
 		{
 			LOG_DEBUG("delete store operation on a garbage address "PRSAddr"", addr);
-			cesk_value_decref(diff->data[store_ptr].arg.value);
+			cesk_value_decref(diff->data[ptr].arg.value);
 		}
 	}
-	int i, j = store_free;
-	/* compact the arrary*/
-	for(i = store_end; i < diff->offset[CESK_DIFF_NTYPES]; i ++)
-		diff->data[j++] = diff->data[i];
-	/* update offset */
-	for(i = CESK_DIFF_STORE + 1; i <= CESK_DIFF_NTYPES; i ++)
-		diff->offset[i] -= (store_end - store_free);
-
-	reuse_free = reuse_begin;
-	for(reuse_ptr = reuse_begin; reuse_ptr < reuse_end; reuse_ptr ++)
+	/* compact the reuse section and align the remaining element to the left */
+	uint32_t reuse_free = reuse_begin;
+	for(ptr = reuse_begin; ptr < reuse_end; ptr ++)
 	{
 		int alive = 1;
-		uint32_t addr = diff->data[reuse_ptr].addr;
+		uint32_t addr = diff->data[ptr].addr;
 		if(CESK_STORE_ADDR_IS_RELOC(addr))
 		{
 			uint32_t idx = CESK_STORE_ADDR_RELOC_IDX(addr);
-			if(store_flags[idx] == tick) 
+			if(del_store[idx] == tick) 
 				alive = 0;
 		}
 		if(alive)
-			diff->data[reuse_free ++] = diff->data[reuse_ptr];
+			diff->data[reuse_free ++] = diff->data[ptr];
 	}
-	j = reuse_free;
-	/* compact the arrary*/
-	for(i = reuse_end; i < diff->offset[CESK_DIFF_NTYPES]; i ++)
-		diff->data[j++] = diff->data[i];
+	/* then compact the array */
+	int i, j = reuse_free;
+	/* for each slot but skip the unused slot after store_free */
+	for(i = reuse_end; i < diff->offset[CESK_DIFF_NTYPES]; i = ((i + 1 == store_free)?store_end:i + 1))
+		diff->data[j ++] = diff->data[i];
 	/* update offset */
 	for(i = CESK_DIFF_REUSE + 1; i <= CESK_DIFF_NTYPES; i ++)
-		diff->offset[i] -= (reuse_end - reuse_free);
+		diff->offset[i] -= (reuse_end - reuse_free) + (i > CESK_DIFF_STORE?store_end - store_free: 0);
+	return 0;
+}
+/**
+ * @brief remove the garbage allocation
+ * @details If the newly created object is dereferenced in this block, the 
+ *          diff will contains an allocation instruction at that address, 
+ *          but without corresponding register/store reference. In this case
+ *          we should delete those block 
+ * @param diff the diff package
+ * @return the result, < 0 indicates an error
+ **/
+static inline int _cesk_diff_gc(cesk_diff_t* diff)
+{
+	CONST_ASSERTION_LT(CESK_DIFF_REUSE, CESK_DIFF_STORE); /* because the code assume that CESK_DIFF_REUSE < CESK_DIFF_STORE, so check this */
+	int alloc_begin = diff->offset[CESK_DIFF_ALLOC];
+	int alloc_end = diff->offset[CESK_DIFF_ALLOC + 1];
+	int reg_begin = diff->offset[CESK_DIFF_REG];
+	int reg_end = diff->offset[CESK_DIFF_REG + 1];
+	int store_begin = diff->offset[CESK_DIFF_STORE];
+	int store_end = diff->offset[CESK_DIFF_STORE + 1];
+	int dealloc_begin = diff->offset[CESK_DIFF_DEALLOC];
+	int dealloc_end = diff->offset[CESK_DIFF_DEALLOC + 1];
+	
+	static uint32_t keep_alloc[CESK_STORE_ADDR_RELOC_SIZE];
+	static uint32_t del_store[CESK_STORE_ADDR_RELOC_SIZE];
+	static uint32_t tick = 0;
+	tick ++;
+
+	/* check the reachability from store, register and allocation section */
+	if(_cesk_diff_gc_check_store_rec_inuse(diff->data + store_begin, store_end - store_begin, keep_alloc, tick) < 0)
+	{
+		LOG_ERROR("can not check the reachability of addresses in store section");
+		return -1;
+	}
+
+	if(_cesk_diff_gc_check_register_rec_inuse(diff->data + reg_begin, reg_end - reg_begin, keep_alloc, tick) < 0)
+	{
+		LOG_ERROR("can not check the reachability of addresses in register section");
+		return -1;
+	}
+
+	if(_cesk_diff_gc_check_allocation_rec_inuse(diff->data + alloc_begin, alloc_end - alloc_begin, keep_alloc, tick) < 0)
+	{
+		LOG_ERROR("can not check the reachability of addresses in register section");
+		return -1;
+	}
+
+	/* compact the allocation section based on the reachability check */
+	int rc = _cesk_diff_gc_alloc_compact(diff->data + alloc_begin, alloc_end - alloc_begin, keep_alloc, del_store, tick);
+	if(rc < 0)
+	{
+		LOG_ERROR("can not compact allocation section based on the result of reachability check");
+		return -1;
+	}
+	diff->offset[CESK_DIFF_ALLOC] += rc;
+
+	/* if there's an deallocation record, the coresponding store modification record will have no effect, 
+	 * so mark this store address deletable */
+	uint32_t ptr;
+	for(ptr = dealloc_begin; ptr < dealloc_end; ptr ++)
+	{
+		uint32_t addr = diff->data[ptr].addr;
+		if(CESK_STORE_ADDR_RELOC_IDX(addr))
+		{
+			uint32_t idx = CESK_STORE_ADDR_RELOC_IDX(addr);
+			del_store[idx] = tick;
+		}
+	}
+
+	if(_cesk_diff_gc_reuse_store_compact(diff, del_store, tick) < 0)
+	{
+		LOG_ERROR("can not compact reuse section and store section");
+		return -1;
+	}
+
 	return 0;
 }
 cesk_diff_t* cesk_diff_from_buffer(cesk_diff_buffer_t* buffer)
