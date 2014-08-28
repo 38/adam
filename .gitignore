@@ -52,3 +52,6 @@ unused/*
 
 #testing
 Testing/*
+
+#pyc
+*.pyc

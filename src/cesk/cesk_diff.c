@@ -633,7 +633,7 @@ cesk_diff_t* cesk_diff_from_buffer(cesk_diff_buffer_t* buffer)
 	size_t sz = vector_size(buffer->buffer);
 	qsort(buffer->buffer->data, sz, buffer->buffer->elem_size, _cesk_diff_buffer_cmp);
 
-	/* then we determine the size of the diff */
+	/* then we need to determine the size of the diff */
 	size_t size = 0;
 	int i, prev_type = 0;
 	uint32_t prev_addr = CESK_STORE_ADDR_NULL;
@@ -661,7 +661,7 @@ cesk_diff_t* cesk_diff_from_buffer(cesk_diff_buffer_t* buffer)
 	ret->_index = 0;
 	/* then we start to scan the buffer, and build our result */
 	int section;
-	for(i = 0, section = 0; section < CESK_DIFF_NTYPES; section ++)
+	for(i = section = 0; section < CESK_DIFF_NTYPES; section ++)
 	{
 		ret->offset[section + 1] = ret->offset[section];
 		/* for each record in this buffer which should be in current section*/
@@ -700,7 +700,7 @@ cesk_diff_t* cesk_diff_from_buffer(cesk_diff_buffer_t* buffer)
 							ret->data[ret->offset[section + 1]].arg.value = (cesk_value_t*) node->value;
 							break;
 						case CESK_DIFF_DEALLOC:
-							LOG_WARNING("ignore the dumplicated deallocation record at the same store address "PRSAddr"", prev_addr);
+							LOG_WARNING("ignore the duplicated deallocation record at the same store address "PRSAddr"", prev_addr);
 							break;
 						case CESK_DIFF_REUSE:
 							if(buffer->merge)
