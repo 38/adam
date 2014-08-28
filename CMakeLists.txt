@@ -57,9 +57,15 @@ aux_source_directory(src/cesk adam_FILES)
 aux_source_directory(src/bci adam_FILES)
 aux_source_directory(src/builtins adam_FILES)
 set_source_files_properties(${adam_FILES} PROPERTIES COMPILE_FLAGS ${CFLAGS})
-add_library(adam ${adam_FILES})
 
+if("${STATIC}" STREQUAL "yes")
+	add_library(adam ${adam_FILES})
+else("${STATIC}" STREQUAL "yes")
+	add_library(adam SHARED ${adam_FILES})
+endif("${STATIC}" STREQUAL "yes")
+	
 add_library(adam_dbg ${adam_FILES})
+
 set_target_properties(adam_dbg PROPERTIES COMPILE_DEFINITIONS "DEBUGGER")
 
 
@@ -121,4 +127,5 @@ add_custom_target(show-flags
 	COMMAND echo "Compiler = ${CMAKE_C_COMPILER}" && 
 	        echo "Log Level = ${LOG}" &&
 			echo "Optimaization = ${OPTLEVEL}" &&
-			echo "Compiler Flags = ${CFLAGS}")
+			echo "Compiler Flags = ${CFLAGS}" &&
+			echo "Static Library = ${STATIC}")

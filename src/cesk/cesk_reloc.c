@@ -1,3 +1,8 @@
+/**
+ * @file cesk_reloc.c
+ * @brief relocation table, the table is used to record relocation address and its allocation parameter.
+ *        It also responsible for relocation address allocation
+ **/
 #include <cesk/cesk_reloc.h>
 typedef struct _cesk_reloc_reverse_hash_node_t _cesk_reloc_reverse_hash_node_t;
 /**
