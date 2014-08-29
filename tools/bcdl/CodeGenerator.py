@@ -43,6 +43,9 @@ class Declearation(CodeGenerator):
 		return ""
 dep = 0
 class CSource(CodeGenerator):
+	"""
+		A C Code here. You can make invocation to a C code in BCDL
+	"""
 	_data = ["_filename"]
 	def __init__(self, filename):
 		self._filename = Declearation("#include <%s>"%filename)
@@ -54,7 +57,12 @@ class CSource(CodeGenerator):
 		def function(*args):
 			class CInvokeWrap(object):
 				def __getattribute__(self, T):
-					if T[-1] == '_': T = T[:-1] + "*"
+					#if T[-1] == '_': T = T[:-1] + "*"
+					L = 0
+					for i in range(0, len(T)): 
+						if T[len(T) - 1 - i] != '_': break
+						L += 1
+					if L: T = T[:-L] + "*" * L
 					class CInvoke(CodeGenerator):
 						arglist = args
 						source = source_obj
@@ -78,7 +86,8 @@ class CSource(CodeGenerator):
 					return CInvoke()
 			return CInvokeWrap()
 		return function
-#TODO foreach
+
+
 if __name__ == "__main__":
 	test_h = CSource("test.h")
 	invoke = test_h.foo(test_h.goo().size_t, test_h.koo(test_h.zoo().double).cesk_set_t_).int

@@ -54,7 +54,7 @@ struct _cesk_value_t {
 	union {
 		__CESK_POINTER_LIST()
 	} __attribute__((__packed__)) pointer; /*!<actuall data pointer*/
-	uint32_t    refcnt;     /*!<the reference counter */
+	uint32_t    refcnt:32;  /*!<the reference counter */
 	hashval_t   hashcode;   /*!<the hashcode */
 	struct _cesk_value_t  *prev, 
 						  *next; /*!<the previous and next pointer used by value list */
