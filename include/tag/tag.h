@@ -2,17 +2,19 @@
  * @file trac.h
  * @brief The top level header file for tag tracker
  **/
-#ifndef __TRAC_H__
+#ifndef __TAG_H__
+#include <tag/tag_def.h>
+#include <tag/tag_set.h>
 /**
  * @brief initialization
  * @return < 0 if failed to initialize
  **/
-int trac_init();
+int tag_init();
 /**
  * @brief finalization
  * @return nothing
  **/
-void trac_finalization();
+void tag_finalization();
 
 #endif
 
