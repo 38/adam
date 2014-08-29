@@ -17,8 +17,9 @@ enum {
  * @brief resolution level of a tag
  **/
 enum {
-	TAG_FULL,     /*!< the value carries all information to rebuild the data the tag concerns */
-	TAG_PARTIAL,  /*!< the value only carries partial information to rebuild the data */
 	TAG_NOTHING,  /*!< the vlaue carries no information relocated to this tag */
+	TAG_PARTIAL,  /*!< the value only carries partial information to rebuild the data */
+	TAG_FULL,     /*!< the value carries all information to rebuild the data the tag concerns */
+	TAG_EXACT,    /*!< the value is exactly what this tag descriibe */
 };
 #endif

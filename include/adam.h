@@ -11,6 +11,7 @@
 #include <dalvik/dalvik.h>
 #include <cesk/cesk.h>
 #include <bci/bci.h>
+#include <tag/tag.h>
 /** @brief Intialize libadam
  *  @return nothing
  */

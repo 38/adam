@@ -14,7 +14,7 @@ int tag_init();
  * @brief finalization
  * @return nothing
  **/
-void tag_finalization();
+void tag_finalize();
 
 #endif
 

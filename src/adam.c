@@ -25,10 +25,16 @@ int adam_init(void)
 		LOG_FATAL("failed to initialize analyzer");
 		return -1;
 	}
+	if(tag_init() < 0)
+	{
+		LOG_FATAL("failed to intialize the tag system");
+		return -1;
+	}
 	return 0;
 }
 void adam_finalize(void)
 {
+	tag_finalize();
 	cesk_finalize();
 	bci_finalize();
 	dalvik_finalize();
