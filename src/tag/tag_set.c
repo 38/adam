@@ -1,4 +1,6 @@
 #include <tag/tag_set.h>
+#include <tag/tag_fs.h>
+#define HASH_INIT 0x376514fbu
 /**
  * @brief the structure of an item in a tag set
  **/
@@ -15,8 +17,14 @@ struct _tag_set_t {
 	hashval_t hashcode; /*!< current hashcode */
 	_tag_set_item_t data[0];   /*!< the actual data set */
 };
+CONST_ASSERTION_LAST(tag_set_t, data);
+CONST_ASSERTION_SIZE(tag_set_t, data, 0);
 /** @brief the only empty in tag system **/
-static tag_set_t _tag_set_empty; 
+static tag_set_t _tag_set_empty = {
+	.refcnt = 0,
+	.size = 0,
+	.hashcode = HASH_INIT,
+}; 
 /**
  * @brief compute the hashcode for a signle set item
  * @param item the set item
@@ -41,7 +49,7 @@ static inline tag_set_t* _tag_set_new(size_t N)
 	}
 	ret->size = 0;
 	ret->refcnt = 0;
-	ret->hashcode = 0x376514fbu; /* just a magic number */
+	ret->hashcode = HASH_INIT; /* just a magic number */
 	return ret;
 }
 /**
@@ -86,6 +94,9 @@ static inline tag_set_t* _tag_set_duplicate(tag_set_t* set)
 int tag_set_init()
 {
 	_tag_set_incref(&_tag_set_empty);
+	
+	tag_fs_init();
+
 	return 0;
 }
 void tag_set_finalize()
@@ -168,15 +179,23 @@ tag_set_t* tag_set_merge(const tag_set_t* first, const tag_set_t* second)
 			current_id = first->data[i].tid;
 		if(j < second->size && second->data[j].tid < current_id) 
 			current_id = second->data[j].tid;
-		uint32_t resol = 0xffffffffu;
-		if(i < first->size && current_id == first->data[i].tid && resol > first->data[i].resol)
-			resol = first->data[i].resol, i ++;
-		if(j < second->size && current_id == second->data[i].tid && resol > second->data[i].resol)
-			resol = second->data[i].resol, j ++;
+		uint32_t resol = 0;
+		if(i < first->size && current_id == first->data[i].tid)
+		{
+			if(resol < first->data[i].resol) resol = first->data[i].resol;
+			i ++;
+		}
+		if(j < second->size && current_id == second->data[j].tid)
+		{
+			if(resol < second->data[i].resol) resol = second->data[j].resol;
+			j ++;
+		}
 		if(resol == TAG_NOTHING) continue;
 		ret->data[ret->size].tid = current_id;
 		ret->data[ret->size].resol = resol;
+		ret->hashcode ^= _tag_set_item_hashcode(ret->data[ret->size]);
 		ret->size ++;
+		LOG_DEBUG("append item <%d, %d>", current_id, resol);
 	}
 	return ret;
 }
@@ -210,7 +229,9 @@ tag_set_t* tag_set_change_resolution(tag_set_t* set, uint32_t tagid, uint32_t va
 	{
 		LOG_WARNING("try to increase the resolution of a tag, obviously this is  impossible");
 	}
+	set->hashcode ^= _tag_set_item_hashcode(set->data[l]);
 	set->data[l].resol = value;
+	set->hashcode ^= _tag_set_item_hashcode(set->data[l]);
 	return NULL;
 ERR:
 	LOG_ERROR("can not find the target tag id %u, so I can not modify the tag set", tagid);
@@ -230,7 +251,7 @@ static tag_set_checker_callback_t _tag_checker[TAG_NUM_OF_TAGS];
  **/
 static tag_set_strreason_callback_t _tag_strreason[TAG_NUM_OF_TAGS];
 
-void tag_set_register_checker(uint32_t tagid, tag_set_checker_callback_t checker, tag_set_strreason_callback_t strreason)
+void tag_set_register_handler(uint32_t tagid, tag_set_checker_callback_t checker, tag_set_strreason_callback_t strreason)
 {
 	_tag_checker[tagid] = checker;
 	_tag_strreason[tagid] = strreason;
@@ -271,7 +292,26 @@ const char* tag_set_reason_code_to_string(int why)
 	if(NULL == _tag_strreason[tid]) return "(strreason function is not supported for this tag)";
 	return _tag_strreason[tid](tid,code);
 }
-
-
-
-
+size_t tag_set_size(const tag_set_t* set)
+{
+	if(NULL == set) return 0;
+	return set->size;
+}
+uint32_t tag_set_get_tagid(const tag_set_t* set, uint32_t k)
+{
+	if(NULL == set || set->size <= k) return 0xfffffffful;
+	return set->data[k].tid;
+}
+uint32_t tag_set_get_resol(const tag_set_t* set, uint32_t k)
+{
+	if(NULL == set || set->size <= k) return 0xfffffffful;
+	return set->data[k].resol;
+}
+hashval_t tag_set_compute_hashcode(const tag_set_t* set)
+{
+	hashval_t ret = HASH_INIT;
+	uint32_t i;
+	for(i = 0; i < set->size; i ++)
+		ret ^= _tag_set_item_hashcode(set->data[i]);
+	return ret;
+}

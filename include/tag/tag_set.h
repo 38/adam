@@ -118,7 +118,7 @@ tag_set_t* tag_set_change_resolution(tag_set_t* set, uint32_t tagid, uint32_t va
  * @param tagid the tagid
  * @param callback the callback fuction
  **/
-void tag_set_register_tag_handler(uint32_t tagid, tag_set_checker_callback_t checker, tag_set_strreason_callback_t strreason);
+void tag_set_register_handler(uint32_t tagid, tag_set_checker_callback_t checker, tag_set_strreason_callback_t strreason);
 
 /**
  * @brief check wether or not this function call is malicious
@@ -143,5 +143,33 @@ int tag_set_check_malicious(
  **/
 const char* tag_set_reason_code_to_string(int why);
 
+/**
+ * @brief get the size of the tag set, for debugging only
+ * @param set the tag set
+ * @return the size of the tag set
+ **/
+size_t tag_set_size(const tag_set_t* set);
 
+/**
+ * @brief get the tag-id of the k-th tag in the tag set. for debugging only
+ * @param set the tag set
+ * @param k which one do you want
+ * @return the tag id of the element in tag set
+ **/
+uint32_t tag_set_get_tagid(const tag_set_t* set, uint32_t k);
+
+/**
+ * @brief get the resolution value of the k-th tag in the tag set, for debuggin only
+ * @param set the tag set
+ * @param k which one do you want
+ * @return the tag resolution value of the element in tag set
+ **/
+uint32_t tag_set_get_resol(const tag_set_t* set, uint32_t k);
+
+/**
+ * @brief compute the hashcode, this is used to verify the hashcode function works properly
+ * @param set the tag set
+ * @return the result hashcode
+ **/
+hashval_t tag_set_compute_hashcode(const tag_set_t* set);
 #endif
