@@ -232,7 +232,7 @@ tag_set_t* tag_set_change_resolution(tag_set_t* set, uint32_t tagid, uint32_t va
 	set->hashcode ^= _tag_set_item_hashcode(set->data[l]);
 	set->data[l].resol = value;
 	set->hashcode ^= _tag_set_item_hashcode(set->data[l]);
-	return NULL;
+	return set;
 ERR:
 	LOG_ERROR("can not find the target tag id %u, so I can not modify the tag set", tagid);
 	if(NULL != prev_set)

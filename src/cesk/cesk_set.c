@@ -7,6 +7,7 @@
 #include <log.h>
 #include <const_assertion.h>
 #include <cesk/cesk_set.h>
+#include <tag/tag_set.h>
 /** @brief invalid set id */
 #define CESK_SET_INVALID (~0u)
 /* We do not maintain a hash table for each set, because
@@ -30,6 +31,7 @@ typedef struct {
 	uint32_t refcnt;        /*!<the reference count of this, indicates how many cesk_set_t for this set are returned */
 	uint32_t reloc;         /*!<if this set contains relocated address */
 	hashval_t hashcode;     /*!<the hash code of the set */
+	tag_set_t* tags;          /*!<the value tags */
 	cesk_set_node_t* first; /*!<first element of the set */
 } cesk_set_info_entry_t;
 
@@ -207,6 +209,12 @@ static inline uint32_t _cesk_set_idx_alloc(cesk_set_info_entry_t** p_entry)
 	entry->size = 0;
 	entry->refcnt = 0;
 	entry->first = NULL;
+	entry->tags = tag_set_empty();
+	if(NULL == entry->tags)
+	{
+		LOG_WARNING("can not create an empty tag set for this");
+		return 0;
+	}
 	entry->hashcode = CESK_SET_EMPTY_HASH;  /* any magic number */
 	*(p_entry) = entry;
 	return next_idx ++;

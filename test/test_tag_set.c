@@ -41,8 +41,12 @@ int main()
 	assert(2 == tag_set_size(ts5));
 	assert(tag_set_equal(ts5, ts4));
 
-	assert(0 == tag_set_change_resolution(ts5, TAG_FILENAME, TAG_PARTIAL));
-	assert(tag_set_equal(ts5, ts3));
+	tag_set_t* ts6 = tag_set_fork(ts5);
+	assert(NULL != ts6);
+	assert(tag_set_equal(ts5, ts6));
+	assert(NULL != (ts6 = tag_set_change_resolution(ts6, TAG_FILENAME, TAG_PARTIAL)));
+	assert(tag_set_equal(ts6, ts3));
+	assert(tag_set_equal(ts5, ts4));
 
 	tag_set_free(ts4);
 	tag_set_free(ts5);
