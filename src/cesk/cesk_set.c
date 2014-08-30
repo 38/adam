@@ -215,7 +215,7 @@ static inline uint32_t _cesk_set_idx_alloc(cesk_set_info_entry_t** p_entry)
 		LOG_WARNING("can not create an empty tag set for this");
 		return 0;
 	}
-	entry->hashcode = CESK_SET_EMPTY_HASH;  /* any magic number */
+	entry->hashcode = CESK_SET_EMPTY_HASH ^ tag_set_hashcode(entry->tags);  /* any magic number */
 	*(p_entry) = entry;
 	return next_idx ++;
 }
@@ -256,6 +256,8 @@ void cesk_set_finalize()
 		{
 			cesk_set_node_t *old = p;
 			p = p->next;
+			if(CESK_STORE_ADDR_NULL == old->addr) 
+				tag_set_free(old->info_entry->tags);
 			free(old);
 		}
 	}
@@ -341,6 +343,7 @@ void cesk_set_free(cesk_set_t* set)
 		}
 		if(NULL != info_node->next)
 			info_node->next->prev = info_node->prev;
+		tag_set_free(info_node->info_entry->tags);
 		free(info_node);
 	}
 	free(set);
@@ -349,7 +352,17 @@ void cesk_set_free(cesk_set_t* set)
 	
 	return;
 }
-
+/**
+ * @brief initialize a new set iterator from set info node
+ * @param info the info node
+ * @param buf the iter buffer
+ * @return the result iterator
+ **/
+static inline cesk_set_iter_t* _cesk_set_iter_from_info_node(cesk_set_info_entry_t* info, cesk_set_iter_t* buf)
+{
+	buf->next = info->first;
+	return buf;
+}
 cesk_set_iter_t* cesk_set_iter(const cesk_set_t* set, cesk_set_iter_t* buf)
 {
 	if(NULL == set || NULL == buf) 
@@ -358,13 +371,7 @@ cesk_set_iter_t* cesk_set_iter(const cesk_set_t* set, cesk_set_iter_t* buf)
 		return NULL;
 	}
 	cesk_set_info_entry_t* info = (cesk_set_info_entry_t*)_cesk_set_hash_find(set->set_idx, CESK_STORE_ADDR_NULL);
-	if(NULL == info)
-	{
-		LOG_ERROR("can not find the set (id = %d)", set->set_idx);
-		return NULL;
-	}
-	buf->next = info->first;
-	return buf;
+	return _cesk_set_iter_from_info_node(info, buf);
 }
 
 uint32_t cesk_set_iter_next(cesk_set_iter_t* iter)
@@ -398,6 +405,7 @@ static inline uint32_t _cesk_set_duplicate(cesk_set_info_entry_t* info, cesk_set
 	new_info->size = info->size;
 	new_info->hashcode = info->hashcode;
 	new_info->reloc = info->reloc;
+	new_info->tags = tag_set_fork(info->tags);
 
 	new_info->refcnt = 1;
 	info->refcnt --;
@@ -625,6 +633,16 @@ int cesk_set_merge(cesk_set_t* dest, const cesk_set_t* sour)
 			if(CESK_STORE_ADDR_IS_RELOC(addr)) info_dst->reloc ++;
 		}
 	}
+	info_dst->hashcode ^= tag_set_hashcode(info_dst->tags);
+	tag_set_t* new_tags = tag_set_merge(info_dst->tags, info_dst->tags);
+	if(NULL == new_tags)
+	{
+		LOG_ERROR("failed to merge tags");
+		return -1;
+	}
+	tag_set_free(info_dst->tags);
+	info_dst->tags = new_tags;
+	info_dst->hashcode ^= tag_set_hashcode(info_dst->tags);
 	return 0;
 }
 int cesk_set_contain(const cesk_set_t* set, uint32_t addr)
@@ -640,10 +658,27 @@ int cesk_set_equal(const cesk_set_t* first, const cesk_set_t* second)
 	if(cesk_set_size(first) != cesk_set_size(second)) return 0;
 	cesk_set_iter_t iter_buf;
 	cesk_set_iter_t *iter;
+	cesk_set_info_entry_t* info_fst = (cesk_set_info_entry_t*)_cesk_set_hash_find(first->set_idx, CESK_STORE_ADDR_NULL);
+	if(NULL == info_fst)
+	{
+		LOG_ERROR("set #%d not found", first->set_idx);
+		return -1;
+	}
+	cesk_set_info_entry_t* info_snd = (cesk_set_info_entry_t*)_cesk_set_hash_find(second->set_idx, CESK_STORE_ADDR_NULL);
+	if(NULL == info_snd)
+	{
+		LOG_ERROR("set #%d not found", second->set_idx);
+		return -1;
+	}
+	int rc = tag_set_equal(info_fst->tags, info_snd->tags);
+	if(rc < 0)
+	{
+		LOG_ERROR("can not compare the tag set of each set");
+		return -1;
+	}
+	if(rc == 0) return 0;
 	uint32_t addr;
-	for(iter = cesk_set_iter(first, &iter_buf); 
-		iter != NULL &&
-		CESK_STORE_ADDR_NULL != (addr = cesk_set_iter_next(iter));)
+	for(iter = _cesk_set_iter_from_info_node(info_fst, &iter_buf); iter != NULL && CESK_STORE_ADDR_NULL != (addr = cesk_set_iter_next(iter));)
 		if(cesk_set_contain(second, addr) == 0) return 0;
 	return 1;
 }
@@ -656,8 +691,11 @@ hashval_t cesk_set_hashcode(const cesk_set_t* set)
 }
 hashval_t cesk_set_compute_hashcode(const cesk_set_t* set)
 {
+	if(NULL == set) return 0;
+	cesk_set_info_entry_t* info = (cesk_set_info_entry_t*)_cesk_set_hash_find(set->set_idx, CESK_STORE_ADDR_NULL);
+	if(NULL == info) return 0;
 	cesk_set_iter_t iter;
-	if(NULL == cesk_set_iter(set, &iter))
+	if(NULL == _cesk_set_iter_from_info_node(info, &iter))
 	{
 		LOG_ERROR("can not aquire iterator for set %d", set->set_idx);
 		return 0;
@@ -668,6 +706,7 @@ hashval_t cesk_set_compute_hashcode(const cesk_set_t* set)
 	{
 		ret ^= (this * MH_MULTIPLY);
 	}
+	ret ^= tag_set_hashcode(info->tags); 
 	return ret;
 }
 uint32_t cesk_set_get_reloc(const cesk_set_t* set)

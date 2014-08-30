@@ -182,15 +182,15 @@ tag_set_t* tag_set_merge(const tag_set_t* first, const tag_set_t* second)
 		uint32_t resol = 0;
 		if(i < first->size && current_id == first->data[i].tid)
 		{
-			if(resol < first->data[i].resol) resol = first->data[i].resol;
+			resol |= first->data[i].resol;
 			i ++;
 		}
 		if(j < second->size && current_id == second->data[j].tid)
 		{
-			if(resol < second->data[i].resol) resol = second->data[j].resol;
+			resol |= second->data[j].resol;
 			j ++;
 		}
-		if(resol == TAG_NOTHING) continue;
+		if(resol == TAG_RES_NOTHING) continue;
 		ret->data[ret->size].tid = current_id;
 		ret->data[ret->size].resol = resol;
 		ret->hashcode ^= _tag_set_item_hashcode(ret->data[ret->size]);
@@ -225,10 +225,6 @@ tag_set_t* tag_set_change_resolution(tag_set_t* set, uint32_t tagid, uint32_t va
 		else r = m;
 	}
 	if(set->data[l].tid != tagid) goto ERR;
-	if(set->data[l].resol < value)
-	{
-		LOG_WARNING("try to increase the resolution of a tag, obviously this is  impossible");
-	}
 	set->hashcode ^= _tag_set_item_hashcode(set->data[l]);
 	set->data[l].resol = value;
 	set->hashcode ^= _tag_set_item_hashcode(set->data[l]);
