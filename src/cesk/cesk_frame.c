@@ -109,13 +109,15 @@ cesk_frame_t* cesk_frame_fork(const cesk_frame_t* frame)
 		return 0;
 	}
 	int i,j;
+	
 	cesk_frame_t* ret = (cesk_frame_t*)malloc(sizeof(cesk_frame_t) + frame->size * sizeof(cesk_set_t*));
-	memset(ret, 0, sizeof(cesk_frame_t) + frame->size * sizeof(cesk_set_t*));
 	if(NULL == ret)
 	{
 		LOG_ERROR("can not allocate memory");
 		return NULL;
 	}
+	memset(ret, 0, sizeof(cesk_frame_t) + frame->size * sizeof(cesk_set_t*));
+	
 	ret->size = frame->size;
 	for(i = 0; i < frame->size; i ++)
 	{

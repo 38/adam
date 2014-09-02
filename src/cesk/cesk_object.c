@@ -205,6 +205,7 @@ cesk_object_t* cesk_object_duplicate(const cesk_object_t* object)
 	}
 	memcpy(newobj, object, objsize);
 	newobj->builtin = (cesk_object_struct_t*)(((char *)newobj)  + CESK_OBJECT_FIELD_OFS(object, object->builtin));
+	newobj->tags = tag_set_fork(object->tags);
 
 	/* we have a builtin class struct section , duplicate it */
 	const cesk_object_struct_t* this = object->builtin;
