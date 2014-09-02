@@ -14,6 +14,8 @@ typedef struct _cesk_object_t cesk_object_t;
 #include <cesk/cesk_store.h>
 #include <dalvik/dalvik_class.h>
 #include <bci/bci_class.h>
+
+#include <tag/tag.h>
 /**
  * @brief an abstract object value
  *
@@ -31,12 +33,12 @@ typedef struct {
 			const char* value;                 /*!< value of class path */
 		}*path;                                /*!< the class path */
 		void*                    generic;      /*!< the generic pointer */
-	} __attribute__((__packed__)) class;       /*!<the class of this object struct*/
+	} class;                                   /*!<the class of this object struct*/
 	uint32_t                 num_members:31;   /*!<the number of members, if it's a built-in class, this is the size of the data area */
 	uint8_t                  built_in:1;       /*!<is this object a built-in class*/
 	uint32_t                 addrtab[0];       /*!<the value of the member */
 	char                     bcidata[0];       /*!< the storage for built-in class */
-} cesk_object_struct_t; 
+} __attribute__((packed)) cesk_object_struct_t; 
 CONST_ASSERTION_SIZE(cesk_object_struct_t, addrtab, 0);
 CONST_ASSERTION_LAST(cesk_object_struct_t, addrtab);
 CONST_ASSERTION_SIZE(cesk_object_struct_t, bcidata, 0);
@@ -52,6 +54,7 @@ struct _cesk_object_t {
 	size_t				  size;       /*!<the size of the object useful when clone an object */
 	size_t                nbuiltin;   /*!<the number of builtin classes */
 	cesk_object_struct_t* builtin;    /*!< a pointer to the built-in class structure, if this object has one */
+	tag_set_t*               tags;             /*!< the tag set */
 	cesk_object_struct_t  members[0]; /*!<the length of the tree */
 };
 CONST_ASSERTION_LAST(cesk_object_t, members);

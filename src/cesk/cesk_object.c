@@ -24,10 +24,7 @@ cesk_object_t* cesk_object_new(const char* classpath)
 	int nbci = 0;
 	const bci_class_wrap_t* bci_class[CESK_OBJECT_MAX_BUILTIN_CLASSES];
 	const dalvik_class_t* classes[CESK_OBJECT_MAX_USER_DEFINED_CLASSES]; 
-	/* because BCI Classes can not use a user defined class as superclass,
-	 * So that if we can see an built-in class here, that means there's no
-	 * super class anymore, so we only need one slot for that */
-	/* find classes inherent relationship, and determine its memory layout */
+	/* find classes inheritation relationship to determine its memory layout */
 	for(;NULL != classpath;)
 	{
 		LOG_DEBUG("try to find class %s", classpath);
@@ -44,7 +41,7 @@ cesk_object_t* cesk_object_new(const char* classpath)
 				bci_class[nbci ++] = class_wrap;
 				if(nbci >= CESK_OBJECT_MAX_BUILTIN_CLASSES)
 				{
-					LOG_ERROR("too many built-in class in the class inherent tree"
+					LOG_ERROR("too many built-in class in the class inheritate tree"
 					          "(try to adjust CESK_OBJECT_MAX_BUILTIN_CLASSES)"
 							  "which currently is %u", CESK_OBJECT_MAX_BUILTIN_CLASSES);
 					return NULL;
@@ -119,12 +116,13 @@ cesk_object_t* cesk_object_new(const char* classpath)
 		base->class.bci = bci_class[i];
 		base->num_members = bci_class[i]->class->size;
 		if(NULL == object->builtin) object->builtin = base;
-		//memset(base->bcidata, 0, bci_class[i]->class->size);  /* TODO make sure this is not needed */
+		/* TODO: not sure if it's ok not to initialize memory for BCI here */
 		CESK_OBJECT_STRUCT_ADVANCE(base);
 	}
 	object->depth = class_count + nbci;
 	object->nbuiltin = nbci;
 	object->size = size;
+	object->tags = tag_set_empty();
 	return object;
 }
 uint32_t* cesk_object_get(
@@ -262,12 +260,12 @@ hashval_t cesk_object_hashcode(const cesk_object_t* object)
 		}
 		CESK_OBJECT_STRUCT_ADVANCE(this);
 	}
-	return hash;
+	hashval_t ts_hash = tag_set_hashcode(object->tags);
+	return hash ^ (ts_hash * ts_hash + MH_MULTIPLY * ts_hash);
 }
 hashval_t cesk_object_compute_hashcode(const cesk_object_t* object)
 {
-	/* the object hash itself is non-incremental style, so call
-	 * the hashcode function directly */
+	/* the object hash itself is non-incremental style, so call the hashcode function directly */
 	return cesk_object_hashcode(object);
 }
 int cesk_object_equal(const cesk_object_t* first, const cesk_object_t* second)
@@ -277,14 +275,15 @@ int cesk_object_equal(const cesk_object_t* first, const cesk_object_t* second)
 	const cesk_object_struct_t* this = first->members;
 	const cesk_object_struct_t* that = second->members;
 
-	/* if the class path is the same, we assume that 
-	 * two object has the same depth  */
+	/* if the class path is the same, we assume that two object has the same depth  */
 	int i;
 	if(first->depth != second->depth)
 	{
 		LOG_WARNING("two object build from the same class %s has defferent inherent depth", cesk_object_classpath(first));
 		return 0;
 	}
+	/* compare the tag set first */
+	if(tag_set_equal(first->tags, second->tags) == 0) return 0;
 	/* do actuall comparasion */
 	for(i = 0; i < first->depth; i ++)
 	{

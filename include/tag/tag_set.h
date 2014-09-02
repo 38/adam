@@ -13,24 +13,6 @@
 typedef struct _tag_set_t tag_set_t;
 
 /**
- * @brief the callback function used to check wether or not specified tag is malicous with current closure
- * @param tagid the tag id
- * @param resolution the resolution
- * @param class the class name
- * @param method the method name
- * @param signature the signature of the function
- * @param the return type of the function
- * @param buf_why a optional buffer which carries the human readable information about why this is malicious
- * @return > 0 if it's possibly malicious, the result is actually a reason code; = 0 if not; < 0 if error
- **/
-typedef int (*tag_set_checker_callback_t)(
-		uint32_t tagid, 
-		uint32_t resolution,
-		const char* class, 
-		const char* method, 
-		const dalvik_type_t* const * signature,
-		const dalvik_type_t* return_type);
-/**
  * @brief the callback function that converts a reason code to human readable description
  * @param tagid the tag id
  * @param why the reason code
@@ -118,19 +100,19 @@ tag_set_t* tag_set_change_resolution(tag_set_t* set, uint32_t tagid, uint32_t va
  * @param tagid the tagid
  * @param callback the callback fuction
  **/
-void tag_set_register_handler(uint32_t tagid, tag_set_checker_callback_t checker, tag_set_strreason_callback_t strreason);
+void tag_set_register_handler(uint32_t tagid, tag_set_strreason_callback_t strreason);
 
 /**
- * @brief check wether or not this function call is malicious
- * @param set the tag set
+ * @brief report this function invokation is malicious
+ * @param why the reasoncode
  * @param class the class path
  * @param method the method name
  * @param sig the signature
  * @param rtype the return type
  * @return a reason code for why this is malicious(the reason code actually (TAGID << 16)|(TAG_REASON_CODE) ), < 0 when error happens
  **/
-int tag_set_check_malicious(
-		const tag_set_t* set, 
+int tag_set_report_malicious(
+		const uint32_t why,
 		const char* class, 
 		const char* method,
 		const dalvik_type_t* const * sig,
@@ -141,7 +123,7 @@ int tag_set_check_malicious(
  * @param why the reason code
  * @return the human readable code
  **/
-const char* tag_set_reason_code_to_string(int why);
+const char* tag_set_reason_code_to_string(uint32_t why);
 
 /**
  * @brief get the size of the tag set, for debugging only

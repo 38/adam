@@ -239,48 +239,26 @@ ERR:
 	return NULL;
 }
 /**
- * @brief the tag checker list 
- **/
-static tag_set_checker_callback_t _tag_checker[TAG_NUM_OF_TAGS];
-/**
  * @brief the convertor function
  **/
 static tag_set_strreason_callback_t _tag_strreason[TAG_NUM_OF_TAGS];
 
-void tag_set_register_handler(uint32_t tagid, tag_set_checker_callback_t checker, tag_set_strreason_callback_t strreason)
+void tag_set_register_handler(uint32_t tagid, tag_set_strreason_callback_t strreason)
 {
-	_tag_checker[tagid] = checker;
 	_tag_strreason[tagid] = strreason;
 }
-int tag_set_check_malicious(
-		const tag_set_t* set, 
+int tag_set_report_malicious(
+		const uint32_t why,
 		const char* class, 
 		const char* method,
 		const dalvik_type_t* const * sig,
 		const dalvik_type_t* rtype)
 {
-	if(NULL == set) return 0;
-	if(NULL == class || NULL == method || NULL == sig || NULL == rtype) 
-	{
-		LOG_ERROR("invalid argument");
-		return -1;
-	}
-	uint32_t i;
-	for(i = 0; i < set->size; i ++)
-	{
-		if(NULL == _tag_checker[set->data[i].tid]) continue;
-		int rc = _tag_checker[set->data[i].tid](set->data[i].tid, set->data[i].resol, class, method, sig, rtype);
-		if(rc < 0)
-		{
-			LOG_WARNING("the tag checker for tagid %u returns a failure, ignored", set->data[i].tid);
-			continue;
-		}
-		if(rc > 0) return (set->data[i].tid << 16) | rc;
-	}
+	/* TODO */
 	return 0;
 }
 
-const char* tag_set_reason_code_to_string(int why)
+const char* tag_set_reason_code_to_string(uint32_t why)
 {
 	uint32_t tid = why >> 16;
 	uint32_t code = why & 0xffff;
