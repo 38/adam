@@ -51,7 +51,7 @@ struct _bci_class_t {
 
 	int (*duplicate)(const void* this, void* that);/*!< how to make a duplicate return value < 0 means error*/
 
-	cesk_set_t* (*get_field)(const void* this, const char* fieldname);/*!< callback that get a pointer to a field return an new set contains the field*/
+	cesk_set_t* (*get_field)(const void* this, const char* fieldname);/*!< callback that get a pointer to a field return an *NEW* set contains the field*/
 	
 	int (*put_field)(void* this, const char* fieldname, const cesk_set_t* set, cesk_store_t* store, int keep); /*!< set the field value */
 

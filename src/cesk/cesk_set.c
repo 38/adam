@@ -431,6 +431,37 @@ static inline uint32_t _cesk_set_duplicate(cesk_set_info_entry_t* info, cesk_set
 
 	return new_idx;
 }
+/**
+ * @brief make the address set ready to be written
+ * @param dest the target set
+ * @return the info entry of the written-prepared set, NULL indicates errors
+ **/
+static inline cesk_set_info_entry_t* _cesk_set_prepare_to_write(cesk_set_t* dest)
+{
+	cesk_set_info_entry_t *info;
+	info = (cesk_set_info_entry_t*)_cesk_set_hash_find(dest->set_idx, CESK_STORE_ADDR_NULL);
+	if(NULL == info)
+	{
+		LOG_ERROR("can not find set #%d", dest->set_idx);
+		return NULL;
+	}
+	if(info->refcnt > 1)
+	{
+		LOG_DEBUG("set #%d is refered by %d set objects, duplicate before writing", 
+				   dest->set_idx,
+				   info->refcnt);
+		cesk_set_info_entry_t *new;
+		uint32_t idx = _cesk_set_duplicate(info, &new);
+		if(CESK_SET_INVALID == idx)
+		{
+			LOG_ERROR("error during duplicate the set");
+			return NULL;
+		}
+		dest->set_idx = idx;
+		info = new;
+	}
+	return info;
+}
 int cesk_set_modify(cesk_set_t* dest, uint32_t from, uint32_t to)
 {
 	_cesk_verify_hash_structure();
@@ -531,26 +562,10 @@ int cesk_set_push(cesk_set_t* dest, uint32_t addr)
 		return -1;
 	}
 	cesk_set_info_entry_t *info;
-	info = (cesk_set_info_entry_t*)_cesk_set_hash_find(dest->set_idx, CESK_STORE_ADDR_NULL);
-	if(NULL == info)
+	if(NULL == (info = _cesk_set_prepare_to_write(dest)))
 	{
-		LOG_ERROR("can not find set #%d", dest->set_idx);
+		LOG_ERROR("can not make the set #%d ready to be written", dest->set_idx);
 		return -1;
-	}
-	if(info->refcnt > 1)
-	{
-		LOG_DEBUG("set #%d is refered by %d set objects, duplicate before writing", 
-				   dest->set_idx,
-				   info->refcnt);
-		cesk_set_info_entry_t *new;
-		uint32_t idx = _cesk_set_duplicate(info, &new);
-		if(CESK_SET_INVALID == idx)
-		{
-			LOG_ERROR("error during duplicate the set");
-			return -1;
-		}
-		dest->set_idx = idx;
-		info = new;
 	}
 	/* here we need to check the duplicate element, because 
 	 * the set is not empty and might contains the same element
@@ -630,12 +645,12 @@ int cesk_set_merge_tags(cesk_set_t* dest, const cesk_set_t* sour)
 	info_dst->hashcode ^= tag_set_hashcode(info_dst->tags);
 	return 0;
 }
-const tag_set_t* cesk_set_tags(const cesk_set_t* set)
+const tag_set_t* cesk_set_get_tags(const cesk_set_t* set)
 {
 	if(NULL == set)
 	{
 		LOG_ERROR("invalid argument");
-		return 0;
+		return NULL;
 	}
 	cesk_set_info_entry_t* info = _cesk_set_hash_find(set->set_idx, CESK_STORE_ADDR_NULL);
 	if(NULL == info)
@@ -644,6 +659,24 @@ const tag_set_t* cesk_set_tags(const cesk_set_t* set)
 		return NULL;
 	}
 	return info->tags;
+}
+int cesk_set_assign_tags(cesk_set_t* set, tag_set_t* tags)
+{
+	if(NULL == set || NULL == tags)
+	{
+		LOG_ERROR("invalid argument");
+		return -1;
+	}
+	cesk_set_info_entry_t* info = _cesk_set_prepare_to_write(set);
+	if(NULL == info)
+	{
+		LOG_ERROR("can not make the set #%d ready to be written", set->set_idx);
+		return -1;
+	}
+	if(NULL != info->tags)
+		tag_set_free(info->tags);
+	info->tags = tags;
+	return 0;
 }
 int cesk_set_merge(cesk_set_t* dest, const cesk_set_t* sour)
 {

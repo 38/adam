@@ -143,5 +143,14 @@ int cesk_set_merge_tags(cesk_set_t* dest, const cesk_set_t* sour);
  * @param set the target set
  * @return a pointer to the result tag set, NULL if there's an error
  **/
-const tag_set_t* cesk_set_tags(const cesk_set_t* set);
+const tag_set_t* cesk_set_get_tags(const cesk_set_t* set);
+
+/**
+ * @brief set the tag-set of the target address set (the reference will be transferred from 
+ *        the caller to the target address set )
+ * @param set the target address set
+ * @param tags the tag set(NOTICE the function won't fork the tag set, so that just transfer the refercene)
+ * @return the result of the operation < 0 if some error occurried
+ **/
+int cesk_set_assign_tags(cesk_set_t* set, tag_set_t* tags);
 #endif /* __CESK_SET_H__ */
