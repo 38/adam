@@ -15,6 +15,7 @@ typedef struct _cesk_set_iter_t cesk_set_iter_t;
 
 #include <cesk/cesk_set.h>
 #include <cesk/cesk_store.h>
+#include <tag/tag.h>
 
 struct _cesk_set_iter_t{
 	cesk_set_node_t *next;
@@ -129,4 +130,18 @@ const char* cesk_set_to_string(const cesk_set_t* set, char* buffer, int size);
  * @return the number of relocated addfress
  **/
 uint32_t cesk_set_get_reloc(const cesk_set_t* set);
+/**
+ * @brief merge the tag set of two address set
+ * @param dest the target set
+ * @param sour the source set 
+ * @return < 0 if there's an error
+ **/
+int cesk_set_merge_tags(cesk_set_t* dest, const cesk_set_t* sour);
+
+/**
+ * @brief get a pointer to the tag set which has been attached to the given set
+ * @param set the target set
+ * @return a pointer to the result tag set, NULL if there's an error
+ **/
+const tag_set_t* cesk_set_tags(const cesk_set_t* set);
 #endif /* __CESK_SET_H__ */

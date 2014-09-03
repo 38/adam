@@ -609,6 +609,42 @@ static inline int _cesk_set_prepare_merge(
 	}
 	return 0;
 }
+int cesk_set_merge_tags(cesk_set_t* dest, const cesk_set_t* sour)
+{
+	cesk_set_info_entry_t* info_src = NULL;
+	cesk_set_info_entry_t* info_dst = NULL;
+	if(_cesk_set_prepare_merge(dest, sour, &info_dst, &info_src) < 0)
+	{
+		LOG_ERROR("failed to prepare for merging");
+		return -1;
+	}
+	info_dst->hashcode ^= tag_set_hashcode(info_dst->tags);
+	tag_set_t* new_tags = tag_set_merge(info_dst->tags, info_src->tags);
+	if(NULL == new_tags)
+	{
+		LOG_ERROR("failed to merge tags");
+		return -1;
+	}
+	tag_set_free(info_dst->tags);
+	info_dst->tags = new_tags;
+	info_dst->hashcode ^= tag_set_hashcode(info_dst->tags);
+	return 0;
+}
+const tag_set_t* cesk_set_tags(const cesk_set_t* set)
+{
+	if(NULL == set)
+	{
+		LOG_ERROR("invalid argument");
+		return 0;
+	}
+	cesk_set_info_entry_t* info = _cesk_set_hash_find(set->set_idx, CESK_STORE_ADDR_NULL);
+	if(NULL == info)
+	{
+		LOG_ERROR("can not find the info node for set #%d", set->set_idx);
+		return NULL;
+	}
+	return info->tags;
+}
 int cesk_set_merge(cesk_set_t* dest, const cesk_set_t* sour)
 {
 	cesk_set_info_entry_t* info_src = NULL;
@@ -634,7 +670,7 @@ int cesk_set_merge(cesk_set_t* dest, const cesk_set_t* sour)
 		}
 	}
 	info_dst->hashcode ^= tag_set_hashcode(info_dst->tags);
-	tag_set_t* new_tags = tag_set_merge(info_dst->tags, info_dst->tags);
+	tag_set_t* new_tags = tag_set_merge(info_src->tags, info_dst->tags);
 	if(NULL == new_tags)
 	{
 		LOG_ERROR("failed to merge tags");

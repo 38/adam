@@ -441,7 +441,7 @@ static inline void _cesk_frame_store_dfs(uint32_t addr, cesk_store_t* store, uin
 }
 int cesk_frame_gc(cesk_frame_t* frame)
 {
-	LOG_DEBUG("start run gc on frame@%p", frame);
+	LOG_DEBUG("start running garbage collector on frame@%p", frame);
 	cesk_store_t* store = frame->store;
 	size_t nslot = store->nblocks * CESK_STORE_BLOCK_NSLOTS;
 	static uint32_t __true__ = 1;
@@ -1296,7 +1296,9 @@ int cesk_frame_register_clear(
 	
 	return 0;
 }
-
+/**
+ * @note notice that this function do not update the tag flags 
+ **/
 int cesk_frame_register_push(
 		cesk_frame_t* frame,
 		uint32_t dst_reg,
@@ -1331,7 +1333,9 @@ int cesk_frame_register_push(
 
 	return 0;
 }
-
+/**
+ * @todo even a constant number will carry the background tags
+ **/
 int cesk_frame_register_load(
 		cesk_frame_t* frame,
 		uint32_t dst_reg,
@@ -1416,6 +1420,13 @@ int cesk_frame_register_append_from_store(
 		{
 			LOG_WARNING("can not push value %x to register %d", addr, dst_reg);
 		}
+	}
+
+	/* after that we should also append the tags */
+	if(cesk_set_merge_tags(frame->regs[dst_reg], set) < 0)
+	{
+		LOG_ERROR("can not merge the tag-set of two address set, aborting");
+		return -1;
 	}
 
 	_SNAPSHOT(diff_buf, CESK_DIFF_REG, dst_reg, frame->regs[dst_reg]);

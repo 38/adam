@@ -162,11 +162,15 @@ int tag_set_equal(const tag_set_t* first, const tag_set_t* second)
 	}
 	return 1;
 }
+/**
+ * @note notice that the newly created tag set will always has a refcnt of 1 
+ **/
 tag_set_t* tag_set_merge(const tag_set_t* first, const tag_set_t* second)
 {
 	/* try light weight copy if possible */
 	if(first == NULL || first->size == 0) return tag_set_fork(second);
-	if(second == NULL || second->size == 0) return tag_set_fork(first); 
+	if(second == NULL || second->size == 0) return tag_set_fork(first);
+	if(second == first) return tag_set_fork(first);
 	size_t N = first->size + second->size;
 	tag_set_t* ret = _tag_set_new(N);
 	if(NULL == ret) return NULL;
@@ -197,6 +201,8 @@ tag_set_t* tag_set_merge(const tag_set_t* first, const tag_set_t* second)
 		ret->size ++;
 		LOG_DEBUG("append item <%d, %d>", current_id, resol);
 	}
+
+	_tag_set_incref(ret);
 	return ret;
 }
 tag_set_t* tag_set_change_resolution(tag_set_t* set, uint32_t tagid, uint32_t value)
