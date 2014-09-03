@@ -10,7 +10,7 @@ typedef struct {
 	cesk_set_iter_t last_iter; /*!< The last iterator */
 	uint32_t last_addr;        /*!< The last address */
 } _array_t;
-int java_lang_Array_init(void* this, const void* param)
+int java_lang_Array_init(void* this, const void* param, tag_set_t** tags)
 {
 	_array_t* self = (_array_t*)this;
 	if(NULL == param)

@@ -23,6 +23,7 @@
  * 		 than the old value. If the register continas this value, we should override all value with new as timestamp
  * 		 should be replace.
  * @todo background tag set of each frame: the background tag set does not transmit during the merge, but this kinds of tag depends on the branch flags
+ * @todo unlike previous thought, background tag is everywhere! 
  */
 #include <stdio.h>
 #include <log.h>
@@ -1340,6 +1341,7 @@ int cesk_frame_register_load(
 		cesk_frame_t* frame,
 		uint32_t dst_reg,
 		uint32_t src_addr,
+		tag_set_t* tags,
 		cesk_diff_buffer_t* diff_buf,
 		cesk_diff_buffer_t* inv_buf)
 {
@@ -1370,6 +1372,8 @@ int cesk_frame_register_load(
 		LOG_ERROR("can not push address "PRSAddr" to register %d", src_addr, dst_reg);
 		return -1;
 	}
+
+	if(NULL != tags) cesk_set_assign_tags(frame->regs[dst_reg], tags);
 
 	_SNAPSHOT(diff_buf, CESK_DIFF_REG, dst_reg, frame->regs[dst_reg]);
 
@@ -1662,7 +1666,8 @@ uint32_t cesk_frame_store_new_object(
 			}
 			else
 			{
-				if(bci_class_initialize(this->bcidata, bci_init_param, this->class.bci->class) < 0)
+				/* instead of putting default 0, we call initializer on the reused object twice, this means we are going to reuse it */
+				if(bci_class_initialize(this->bcidata, bci_init_param, &object->tags, this->class.bci->class) < 0)
 				{
 					LOG_WARNING("failed to initlaize the built-in class");
 				}
@@ -1740,7 +1745,7 @@ uint32_t cesk_frame_store_new_object(
 			}
 			else
 			{
-				if(bci_class_initialize(this->bcidata, bci_init_param, this->class.bci->class) < 0)
+				if(bci_class_initialize(this->bcidata, bci_init_param, &object->tags, this->class.bci->class) < 0)
 				{
 					LOG_WARNING("failed to initlaize the built-in class");
 				}
@@ -1833,7 +1838,7 @@ int cesk_frame_store_put_field(
 		{
 			/* this address is used by mutliple objects, so we can not discard old value */
 			/* get the address of the value set */
-			LOG_DEBUG("this is a reused object, just keep the old value");
+			LOG_DEBUG("this is a reused object, keep the old value");
 			if(NULL == value_set)
 			{
 				LOG_ERROR("unknown error, but value_set should not be NULL");
@@ -1861,7 +1866,7 @@ int cesk_frame_store_put_field(
 					value_set->reloc = 1;
 			}
 
-			/* okay, append the value of registers to the set */
+			/* okay, append the value of registers to the set, at the same time, the tag set will be merged */
 			if(cesk_set_merge(set, frame->regs[src_reg]) < 0)
 			{
 				LOG_ERROR("can not merge set");
@@ -1927,6 +1932,9 @@ int cesk_frame_store_put_field(
 
 /**
  * @brief load content of set to an array
+ * @param set the set to load data from
+ * @param buf the output buffer
+ * @param size the size of output buffer
  * @return number of address loaded
  */
 static inline int _cesk_frame_load_set(const cesk_set_t* set, uint32_t* buf, size_t size)

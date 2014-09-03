@@ -112,11 +112,11 @@ int main()
 	cesk_diff_buffer_t *btmp = cesk_diff_buffer_new(0, 0);
 	uint32_t addr1 = cesk_frame_store_new_object(frame1, rtab, inst1, &param, classpath, NULL, btmp, NULL);  
 	assert(CESK_STORE_ADDR_NULL != addr1);
-	assert(0 == cesk_frame_register_load(frame1, 3, addr1, NULL, NULL));
+	assert(0 == cesk_frame_register_load(frame1, 3, addr1, NULL, NULL, NULL));
 
 	uint32_t addr2 = cesk_frame_store_new_object(frame2, rtab, inst2, &param, classpath, NULL, btmp, NULL);  
 	assert(CESK_STORE_ADDR_NULL != addr2);
-	assert(0 == cesk_frame_register_load(frame2, 3, addr2, NULL, NULL));
+	assert(0 == cesk_frame_register_load(frame2, 3, addr2, NULL, NULL, NULL));
 	/* make a record that can set reg #3 to {addd1, addr2} */
 	cesk_set_t* tmpset = cesk_set_empty_set();
 	assert(NULL != tmpset);
@@ -142,15 +142,15 @@ int main()
 	assert(CESK_STORE_ADDR_NULL != addr3);
 	assert(addr4 != addr1);
 
-	assert(0 == cesk_frame_register_load(frame1, 5, addr3, db1, ib1));
-	assert(0 == cesk_frame_register_load(frame2, 5, addr4, db2, ib2));
+	assert(0 == cesk_frame_register_load(frame1, 5, addr3, NULL,db1, ib1));
+	assert(0 == cesk_frame_register_load(frame2, 5, addr4, NULL,db2, ib2));
 
 	/* set a field of addr3*/
-	assert(0 == cesk_frame_register_load(frame1, 4, CESK_STORE_ADDR_POS, db1, ib1));
+	assert(0 == cesk_frame_register_load(frame1, 4, CESK_STORE_ADDR_POS, NULL,db1, ib1));
 	assert(0 == cesk_frame_store_put_field(frame1, addr3, 4, superclass, field, 0 ,db1, ib1));
 
 	/* set a field of addr4*/
-	assert(0 == cesk_frame_register_load(frame2, 4, CESK_STORE_ADDR_NEG, db2, ib2));
+	assert(0 == cesk_frame_register_load(frame2, 4, CESK_STORE_ADDR_NEG, NULL,db2, ib2));
 	assert(0 == cesk_frame_store_put_field(frame2 , addr4, 4, superclass, field, 0, db2, ib2));
 
 	/* build diff */

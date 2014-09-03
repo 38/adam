@@ -1,6 +1,6 @@
 #include <bci/bci_class.h>
 #include <bci/bci_interface.h>
-int bci_class_initialize(void* mem, const void* init_param, const bci_class_t* class)
+int bci_class_initialize(void* mem, const void* init_param, tag_set_t** p_tags, const bci_class_t* class)
 {
 	if(NULL == mem || NULL == class)
 	{
@@ -9,7 +9,7 @@ int bci_class_initialize(void* mem, const void* init_param, const bci_class_t* c
 	}
 	if(NULL != class->initialization)
 	{
-		if(class->initialization(mem, init_param) < 0)
+		if(class->initialization(mem, init_param, p_tags) < 0)
 		{
 			LOG_ERROR("failed initlaize the new built-in class");
 			return -1;

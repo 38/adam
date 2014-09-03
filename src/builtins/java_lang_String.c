@@ -26,7 +26,7 @@ int java_lang_String_onload()
 	}
 	return 0;
 }
-int java_lang_String_init(void* this, const void* param)
+int java_lang_String_init(void* this, const void* param, tag_set_t** tags)
 {
 	if(*(const char**)this == NULL)
 	{

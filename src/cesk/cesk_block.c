@@ -1,3 +1,7 @@
+/**
+ * @file cesk_block.c
+ * @brief implementation of the block analyzer
+ **/
 #include <dalvik/dalvik_instruction.h>
 
 #include <cesk/cesk_block.h>
@@ -59,6 +63,27 @@ static inline uint32_t _cesk_block_register_const_merge(const cesk_frame_t* fram
 		input |= current;
 	}
 	return input;
+}
+/**
+ * @brief read the tag set of a register
+ * @param frame the input frame
+ * @param reg the register index
+ * @return a constant pointer to the tag set (which means the refcnt does not increase)
+ **/
+static inline const tag_set_t* _cesk_block_register_get_tags(const cesk_frame_t* frame, uint32_t reg)
+{
+	return cesk_set_get_tags(frame->regs[reg]);
+}
+/**
+ * @brief set the tag set of a register to a new value(borrow the reference from the caller)
+ * @param frame the target frame
+ * @param reg the register index
+ * @param value the register value
+ * @return < 0 if there's an error
+ **/
+static inline int _cesk_block_register_assign_tags(cesk_frame_t* frame, uint32_t reg, tag_set_t* tags)
+{
+	return cesk_set_assign_tags(frame->regs[reg], tags);
 }
 /**
  * @brief the instruction handler for move instructions 
@@ -147,14 +172,14 @@ static inline int _cesk_block_handler_const(
 			return -1;
 		}
 		
-		return cesk_frame_register_load(frame, dest, ret, D, I);
+		return cesk_frame_register_load(frame, dest, ret, NULL, D, I);
 		
 	}
 	else
 	{
 		uint32_t dest = _cesk_block_operand_to_regidx(ins->operands + 0);
 		uint32_t sour = cesk_store_const_addr_from_operand(&ins->operands[1]);
-		if(cesk_frame_register_load(frame, dest, sour, D, I) < 0)
+		if(cesk_frame_register_load(frame, dest, sour, NULL,D, I) < 0)
 		{
 			LOG_ERROR("can not load the value "PRSAddr" to register %u", sour, dest);
 			return -1;
@@ -218,8 +243,27 @@ static inline int _cesk_block_handler_cmp(const dalvik_instruction_t* ins, cesk_
 		result |= _cesk_block_regcmp(frame, left + 1, right + 1);
 	}
 
+	const tag_set_t* left_tags = _cesk_block_register_get_tags(frame, left);
+	if(NULL == left_tags)
+	{
+		LOG_ERROR("can not read the tag set attached to the left operand");
+		return -1;
+	}
+	const tag_set_t* right_tags = _cesk_block_register_get_tags(frame, right);
+	if(NULL == right_tags)
+	{
+		LOG_ERROR("can not read the tag set attached to the right operand");
+		return -1;
+	}
+	tag_set_t* new_tags = tag_set_merge(left_tags, right_tags);
+	if(NULL == new_tags)
+	{
+		LOG_ERROR("can not merge the tag sets of the both operands");
+		return -1;
+	}
+
 	/* finally, we load the result to the destination */
-	return cesk_frame_register_load(frame, dest, result, D, I);
+	return cesk_frame_register_load(frame, dest, result, new_tags, D, I);
 }
 /**
  * @brief the instruction handler for instance operating instructions 
@@ -265,7 +309,7 @@ static inline int _cesk_block_handler_instance(
 				return -1;
 			}
 			LOG_DEBUG("allocated new instance of class %s at store address "PRSAddr"", clspath, ret);
-			return cesk_frame_register_load(frame, dest, ret, D, I);
+			return cesk_frame_register_load(frame, dest, ret, NULL, D, I);
 		case DVM_FLAG_INSTANCE_GET:
 			dest = _cesk_block_operand_to_regidx(ins->operands + 0);
 			sour = _cesk_block_operand_to_regidx(ins->operands + 1);
@@ -347,6 +391,13 @@ static inline int _cesk_block_handler_instance(
 				return -1;
 			}
 			addr = CESK_STORE_ADDR_EMPTY;
+			/* TODO: use a single pass tag set merge */
+			tag_set_t* tags = tag_set_empty();
+			if(NULL == tags)
+			{
+				LOG_ERROR("can not create a empty tag set for the return value");
+				return -1;
+			}
 			while(CESK_STORE_ADDR_NULL != (addr = cesk_set_iter_next(&it)))
 			{
 				cesk_value_const_t* value = cesk_store_get_ro(frame->store, addr);
@@ -368,8 +419,17 @@ static inline int _cesk_block_handler_instance(
 					return -1;
 				}
 				addr |= rc;
+				/* TODO: use a faster method to merge a series of tags */
+				tag_set_t* new_tags = tag_set_merge(tags, object->tags);
+				if(NULL == new_tags) 
+				{
+					LOG_ERROR("failed to merge the object tag set to result tag set");
+					return -1;
+				}
+				tag_set_free(tags);
+				tags = new_tags;
 			}
-			if(cesk_frame_register_load(frame, dest, sour, D, I) < 0)
+			if(cesk_frame_register_load(frame, dest, sour, tags, D, I) < 0)
 			{
 				LOG_ERROR("can not load new value to register v%u", dest);
 				return -1;
@@ -421,8 +481,21 @@ static inline int _cesk_block_handler_unop(const dalvik_instruction_t* ins, cesk
 			LOG_ERROR("unknown instruction flag %x", ins->flags);
 			return -1;
 	}
+	
+	const tag_set_t* left_tags = _cesk_block_register_get_tags(frame, sour);
+	if(NULL == left_tags)
+	{
+		LOG_ERROR("can not read the tag set attached to the operand");
+		return -1;
+	}
+	tag_set_t* new_tags = tag_set_fork(left_tags);
+	if(NULL == new_tags)
+	{
+		LOG_ERROR("can not fork the input tag set");
+		return -1;
+	}
 	/* load the new value */
-	return cesk_frame_register_load(frame, dest, output, D, I);
+	return cesk_frame_register_load(frame, dest, output, new_tags, D, I);
 }
 /**
  * @brief the instruction handler for binary operation  
@@ -437,14 +510,22 @@ static inline int _cesk_block_handler_binop(const dalvik_instruction_t* ins, ces
 	uint32_t dest = _cesk_block_operand_to_regidx(ins->operands + 0);
 	uint32_t left = CESK_STORE_ADDR_NULL;
 	uint32_t right = CESK_STORE_ADDR_NULL;
+	const tag_set_t* left_tags = NULL;
+	const tag_set_t* right_tags = NULL;
 	if(ins->operands[1].header.info.is_const)
 		left = cesk_store_const_addr_from_operand(ins->operands + 1);
 	else
+	{
 		left = _cesk_block_register_const_merge(frame, _cesk_block_operand_to_regidx(ins->operands + 1));
+		left_tags = _cesk_block_register_get_tags(frame, _cesk_block_operand_to_regidx(ins->operands + 1));
+	}
 	if(ins->operands[2].header.info.is_const)
 		right = cesk_store_const_addr_from_operand(ins->operands + 2);
 	else
+	{
 		right = _cesk_block_register_const_merge(frame, _cesk_block_operand_to_regidx(ins->operands + 2));
+		right_tags = _cesk_block_register_get_tags(frame, _cesk_block_operand_to_regidx(ins->operands + 2));
+	}
 	//uint32_t aleft = _cesk_block_register_const_merge(frame, left);
 	//uint32_t aright = _cesk_block_register_const_merge(frame, right);
 
@@ -485,8 +566,11 @@ static inline int _cesk_block_handler_binop(const dalvik_instruction_t* ins, ces
 			return -1;
 	}
 
+	
+	tag_set_t* new_tags = tag_set_merge(left_tags, right_tags);
+	/* we do not check the merge result here, because it might be empty */
 	/* finally load the result */
-	return cesk_frame_register_load(frame, dest, result, D, I);
+	return cesk_frame_register_load(frame, dest, result, new_tags, D, I);
 }
 /**
  * @brief binary search for the relocated address

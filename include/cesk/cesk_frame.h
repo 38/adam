@@ -220,9 +220,11 @@ int cesk_frame_register_clear(
 		cesk_diff_buffer_t* inv_buf);
 /**
  * @brief load a constant to the register
+ * @note because this fucntion is used by arithmetic operators, so that we need a parameter to carry the tags comes from the operand
  * @param frame the target frame
  * @param dst_reg destination register reference
  * @param src_addr source instant number address
+ * @param tags the tag set of the new value, NULL for not to assign the tags
  * @param diff_buf the diff buffer
  * @param inv_buf the inverse diff buffer
  * @return < 0 indicates errors
@@ -231,6 +233,7 @@ int cesk_frame_register_load(
 		cesk_frame_t* frame,
 		uint32_t dst_reg,
 		uint32_t src_addr,
+		tag_set_t* tags,
 		cesk_diff_buffer_t* diff_buf,
 		cesk_diff_buffer_t* inv_buf);
 /**

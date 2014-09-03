@@ -1,3 +1,6 @@
+TODO: the built-in function might request the store to change the tag.... because the built-function is the source of the tag
+
+
 TODO: we need to make the BCI interface work @ cesk_block.c 
 Current: BCI Support
 	How a BCI Function modifiy the callee frame?

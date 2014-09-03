@@ -16,6 +16,7 @@ typedef struct _bci_class_wrap_t bci_class_wrap_t;
 #include <cesk/cesk_set.h>
 #include <cesk/cesk_store.h>
 #include <bci/bci_interface.h>
+#include <tag/tag.h>
 
 #ifndef __BCI_CLASS_H__
 #define __BCI_CLASS_H__
@@ -45,7 +46,11 @@ struct _bci_class_t {
 	
 	int (*ondelete)();/*!< actions before this class remove from the name table return value < 0 means error */
 	
-	int (*initialization)(void* this, const void* init_param);/*!< how to initialize the data used by this instance, this is NOT CONSTRUCTOR return value < 0 means error */
+	int (*initialization)(void* this, const void* init_param, tag_set_t** p_tags);/*!< how to initialize the data used by this instance, 
+																				  this is NOT CONSTRUCTOR return value < 0 means error, 
+																				  tags is the pointer to the reference to the tag set of 
+																				  this value, this function is resposible for the tag set 
+																				  changes caused by object creation */
 	
 	int (*finalization)(void* this);/*!< how to clean up this instance, NOT DESTRUCTOR return value < 0 means error*/
 
@@ -89,10 +94,11 @@ struct _bci_class_t {
  * @param mem the memory for this instance
  * @param class the class def
  * @param init_param the initialzation parameter
+ * @param p_tags the pointer to the reference to the tag set of this value, used to modify the tag
  * @param class the class path
  * @return result of initialization, < 0 indicates an error
  **/
-int bci_class_initialize(void* mem, const void* init_param, const bci_class_t* class);
+int bci_class_initialize(void* mem, const void* init_param, tag_set_t** p_tags, const bci_class_t* class);
 /**
  * @brief get the value of the field
  * @param this the object memory

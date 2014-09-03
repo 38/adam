@@ -33,7 +33,7 @@ int main()
 	cesk_frame_set_alloctab(frame, alloc);
 	
 	/* try to load an address to the register */
-	assert(0 == cesk_frame_register_load(frame, 0 , CESK_STORE_ADDR_NEG, dif, inv));
+	assert(0 == cesk_frame_register_load(frame, 0 , CESK_STORE_ADDR_NEG, NULL, dif, inv));
 	/* verify the hashcode */
 	assert(cesk_frame_compute_hashcode(frame) == cesk_frame_hashcode(frame));
 	uint32_t prev_hash = cesk_frame_hashcode(frame); 
@@ -68,16 +68,16 @@ int main()
 	/* verify hashcode */
 	assert(cesk_frame_compute_hashcode(frame) == cesk_frame_hashcode(frame));
 	/* make the object a active object */
-	assert(0 == cesk_frame_register_load(frame, 20, addr, dif, inv));
+	assert(0 == cesk_frame_register_load(frame, 20, addr, NULL, dif, inv));
 	/* check the refcount */
 	assert(1 == cesk_store_get_refcnt(frame->store, addr));
 	/* test object get for new object */
-	assert(0 == cesk_frame_register_load(frame, 31, addr, dif, inv));
+	assert(0 == cesk_frame_register_load(frame, 31, addr, NULL, dif, inv));
 	assert(0 == cesk_frame_register_load_from_object(frame, 1, 31, superclass, field, dif, inv));
 	/* the result should be empty set */
 	assert(0 == cesk_set_size(frame->regs[0]));
 	/* move reg0, $0 */
-	assert(0 == cesk_frame_register_load(frame, 0, CESK_STORE_ADDR_ZERO, dif, inv));
+	assert(0 == cesk_frame_register_load(frame, 0, CESK_STORE_ADDR_ZERO, NULL, dif, inv));
 	/* verify the size of reg0 */
 	assert(1 == cesk_set_size(frame->regs[0]));
 	/* object-put addr, antlr.CharScanner.literals, reg0 */
@@ -85,14 +85,14 @@ int main()
 	/* verify the hash code */
 	assert(cesk_frame_compute_hashcode(frame) == cesk_frame_hashcode(frame));
 	/* try to get the field */
-	assert(0 == cesk_frame_register_load(frame, 31, addr, dif, inv));
+	assert(0 == cesk_frame_register_load(frame, 31, addr, NULL, dif, inv));
 	assert(0 == cesk_frame_register_load_from_object(frame, 1, 31, superclass, field, dif, inv));
 	/* verify the store */
 	assert(cesk_set_equal(frame->regs[0], frame->regs[1]) == 1);
 	
 	/* the address is attached to signle object, put will override the old value */
 	/* move reg2, $-1 */
-	assert(0 == cesk_frame_register_load(frame, 2, CESK_STORE_ADDR_NEG, dif, inv));
+	assert(0 == cesk_frame_register_load(frame, 2, CESK_STORE_ADDR_NEG, NULL, dif, inv));
 	/* verify the size of reg2 */
 	assert(1 == cesk_set_size(frame->regs[2]));
 	/* verify the hash code */
@@ -102,7 +102,7 @@ int main()
 	/* verify the hash code */
 	assert(cesk_frame_compute_hashcode(frame) == cesk_frame_hashcode(frame));
 	/* the value should be overrided , verify it */
-	assert(0 == cesk_frame_register_load(frame, 31, addr, dif, inv));
+	assert(0 == cesk_frame_register_load(frame, 31, addr, NULL, dif, inv));
 	assert(0 == cesk_frame_register_load_from_object(frame, 3, 31, superclass, field, dif, inv));
 	/* so the value should be same as reg2 */
 	assert(cesk_set_equal(frame->regs[2], frame->regs[3]) == 1);
@@ -116,7 +116,7 @@ int main()
 	/* verify hashcode */
 	assert(cesk_frame_compute_hashcode(frame) == cesk_frame_hashcode(frame));
 	/* load the add ress of address 2 to reg5. move reg5, addr2 */
-	assert(0 == cesk_frame_register_load(frame, 5, addr2, dif, inv));
+	assert(0 == cesk_frame_register_load(frame, 5, addr2, NULL, dif, inv));
 	/* verify hashcode */
 	assert(cesk_frame_compute_hashcode(frame) == cesk_frame_hashcode(frame));
 	/* object-put addr, antlr.CharScanner.literals, reg5 */
@@ -139,7 +139,7 @@ int main()
 	/* ok, let's test the logic of reuse */
 	/* at the same time, we test the decref on old value when a new value are to be loaded to the register */
 	/* move reg5, $true */
-	assert(0 == cesk_frame_register_load(frame, 5, CESK_STORE_ADDR_TRUE, dif, inv));
+	assert(0 == cesk_frame_register_load(frame, 5, CESK_STORE_ADDR_TRUE, NULL, dif, inv));
 	/* check the hash code after load */
 	assert(cesk_frame_hashcode(frame) == cesk_frame_compute_hashcode(frame));
 	/* now check the refcnt of addr2, should be 1, because register is not refer to the object any more */
@@ -150,7 +150,7 @@ int main()
 	/* check the hashcode */
 	assert(cesk_frame_hashcode(frame) == cesk_frame_compute_hashcode(frame));
 	/* then try to get the field */
-	assert(0 == cesk_frame_register_load(frame, 31, addr, dif, inv));
+	assert(0 == cesk_frame_register_load(frame, 31, addr, NULL, dif, inv));
 	assert(0 == cesk_frame_register_load_from_object(frame, 5, 31, superclass, field, dif, inv));
 	/* the value should be a set {object2, true} */
 	/* TODO: currently, this should be 3 due to the default zero, buf in the future this can not happend ,
@@ -163,7 +163,7 @@ int main()
 	assert(2 == cesk_store_get_refcnt(frame->store, addr2));
 
 	/* now check the refcnt of obj1 */
-	assert(0 == cesk_frame_register_load(frame, 31, CESK_STORE_ADDR_NEG, dif, inv));
+	assert(0 == cesk_frame_register_load(frame, 31, CESK_STORE_ADDR_NEG, NULL, dif, inv));
 	assert(1 == cesk_store_get_refcnt(frame->store, addr));
 	
 	/* okay, test the garbage collector, refcount first */
@@ -171,17 +171,17 @@ int main()
 	/* check the hash code*/
 	assert(cesk_frame_hashcode(frame) == cesk_frame_compute_hashcode(frame));
 	/* move reg21, addr4 */
-	assert(0 == cesk_frame_register_load(frame, 21, addr4, dif, inv));
+	assert(0 == cesk_frame_register_load(frame, 21, addr4, NULL, dif, inv));
 	/* instance-put addr2, antlr.CharScanner.literals ,reg4 */
 	assert(0 == cesk_frame_store_put_field(frame, addr2, 21, superclass, field, 0, dif, inv));
 	/* check the hash code*/
 	assert(cesk_frame_hashcode(frame) == cesk_frame_compute_hashcode(frame));
 	/* override the register that contains address of object 2 */
-	assert(0 == cesk_frame_register_load(frame, 5, CESK_STORE_ADDR_TRUE, dif, inv));
+	assert(0 == cesk_frame_register_load(frame, 5, CESK_STORE_ADDR_TRUE, NULL, dif, inv));
 	/* check the hash code*/
 	assert(cesk_frame_hashcode(frame) == cesk_frame_compute_hashcode(frame));
 	/* load a new value to the register, this cause dereference, this should also cause the death of object 2 */
-	assert(0 == cesk_frame_register_load(frame, 20, CESK_STORE_ADDR_ZERO, dif, inv));
+	assert(0 == cesk_frame_register_load(frame, 20, CESK_STORE_ADDR_ZERO, NULL, dif, inv));
 	/* check the hash code*/
 	assert(cesk_frame_hashcode(frame) == cesk_frame_compute_hashcode(frame));
 	/* addr2 is empty now */
@@ -202,7 +202,7 @@ int main()
 	int i = 0;
 	for(i = 0; i < frame->size; i ++)
 		assert(0 == cesk_frame_register_clear(frame, i, dif, inv));
-	assert(0 == cesk_frame_register_load(frame, 0, CESK_STORE_ADDR_NEG, dif, inv));
+	assert(0 == cesk_frame_register_load(frame, 0, CESK_STORE_ADDR_NEG, NULL, dif, inv));
 	/* check the hashcode again */
 	assert(cesk_frame_hashcode(frame) == cesk_frame_compute_hashcode(frame));
 	assert(prev_hash == cesk_frame_hashcode(frame));
@@ -223,9 +223,9 @@ int main()
 	/* verify the hashcode of the store */
 	assert(cesk_frame_hashcode(frame) == cesk_frame_compute_hashcode(frame));
 	/* load 3 object to register */
-	assert(0 == cesk_frame_register_load(frame, 1, obj1, dif, inv));
-	assert(0 == cesk_frame_register_load(frame, 2, obj2, dif, inv));
-	assert(0 == cesk_frame_register_load(frame, 3, obj3, dif, inv));
+	assert(0 == cesk_frame_register_load(frame, 1, obj1, NULL, dif, inv));
+	assert(0 == cesk_frame_register_load(frame, 2, obj2, NULL, dif, inv));
+	assert(0 == cesk_frame_register_load(frame, 3, obj3, NULL, dif, inv));
 	/* verify the hashcode of the store */
 	assert(cesk_frame_hashcode(frame) == cesk_frame_compute_hashcode(frame));
 	/* build a circle */
