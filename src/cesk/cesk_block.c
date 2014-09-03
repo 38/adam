@@ -1473,7 +1473,7 @@ static inline int _cesk_block_handler_invoke(
 		/* for a user defined call, call analyzer recursively */
 		if(NULL != code[k])
 		{
-			callee_frame = cesk_frame_make_invoke(frame, nregs, nargs, args);
+			callee_frame = cesk_frame_make_invocation_frame(frame, nregs, nargs, args);
 			if(NULL == callee_frame)
 			{
 				LOG_ERROR("can't initialize stack frame for callee");
@@ -1513,7 +1513,7 @@ static inline int _cesk_block_handler_invoke(
 			 * for each `this' */
 			while(NULL == this || CESK_STORE_ADDR_NULL == (this_addr = cesk_set_iter_next(&iter)))
 			{
-				callee_frame = cesk_frame_make_invoke(frame, nregs - (NULL == this), nargs - (NULL == this), args + (NULL == this));
+				callee_frame = cesk_frame_make_invocation_frame(frame, nregs - (NULL == this), nargs - (NULL == this), args + (NULL == this));
 				if(NULL == callee_frame)
 				{
 					LOG_ERROR("can't initialize stack frame for callee function");

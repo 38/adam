@@ -22,8 +22,7 @@
  * 		 And we can also implment a `new' tag, which indicates this register referencing the new value rather
  * 		 than the old value. If the register continas this value, we should override all value with new as timestamp
  * 		 should be replace.
- *
- * @todo background tags & branch flags 
+ * @todo background tag set of each frame: the background tag set does not transmit during the merge, but this kinds of tag depends on the branch flags
  */
 #include <stdio.h>
 #include <log.h>
@@ -156,7 +155,7 @@ ERR:
 	}
 	return NULL;
 }
-cesk_frame_t* cesk_frame_make_invoke(const cesk_frame_t* frame, uint32_t nregs, uint32_t nargs, cesk_set_t** args)
+cesk_frame_t* cesk_frame_make_invocation_frame(const cesk_frame_t* frame, uint32_t nregs, uint32_t nargs, cesk_set_t** args)
 {
 	uint32_t stage = 0;
 	uint32_t regcnt = 0;
@@ -214,7 +213,7 @@ cesk_frame_t* cesk_frame_make_invoke(const cesk_frame_t* frame, uint32_t nregs, 
 		cesk_set_iter_t iter;
 		if(cesk_set_iter(reg, &iter) == NULL)
 		{
-			LOG_ERROR("can not acquire iterator for the regsiter #%d", i);
+			LOG_ERROR("can not aquire iterator for the regsiter #%d", i);
 			goto ERR;
 		}
 		uint32_t addr;
@@ -263,7 +262,7 @@ cesk_frame_t* cesk_frame_make_invoke(const cesk_frame_t* frame, uint32_t nregs, 
 		cesk_set_iter_t iter;
 		if(cesk_set_iter(reg, &iter) == NULL)
 		{
-			LOG_ERROR("can not acquire iterator for the regsiter #%d", i);
+			LOG_ERROR("can not aquire iterator for the regsiter #%d", i);
 			goto ERR;
 		}
 		uint32_t addr;
@@ -475,7 +474,7 @@ int cesk_frame_gc(cesk_frame_t* frame)
 		cesk_set_iter_t iter;
 		if(NULL == cesk_set_iter(frame->regs[i], &iter))
 		{
-			LOG_WARNING("can not acquire iterator for a register %d", i);
+			LOG_WARNING("can not aquire iterator for a register %d", i);
 			continue;
 		}
 		uint32_t addr;
@@ -492,7 +491,7 @@ int cesk_frame_gc(cesk_frame_t* frame)
 			cesk_set_iter_t iter;
 			if(NULL == cesk_set_iter(cur_set, &iter))
 			{
-				LOG_WARNING("can not acquire set iterator for the static field value set");
+				LOG_WARNING("can not aquire set iterator for the static field value set");
 				continue;
 			}
 			uint32_t addr;
@@ -502,7 +501,7 @@ int cesk_frame_gc(cesk_frame_t* frame)
 	}
 	else
 	{
-		LOG_WARNING("can not acquire iterator for the static field table");
+		LOG_WARNING("can not aquire iterator for the static field table");
 	}
 	uint32_t addr = 0;
 	for(addr = 0; addr < nslot; addr ++)
@@ -561,7 +560,7 @@ static inline int _cesk_frame_free_set(cesk_frame_t* frame, cesk_set_t* set)
 	
 	if(NULL == cesk_set_iter(set, &iter))
 	{
-		LOG_ERROR("can not acquire iterator for the vlaue set");
+		LOG_ERROR("can not aquire iterator for the vlaue set");
 		return -1;
 	}
 	
@@ -585,7 +584,7 @@ static inline int _cesk_frame_set_ref(cesk_frame_t* frame, const cesk_set_t* set
 	cesk_set_iter_t iter;
 	if(NULL == cesk_set_iter(set, &iter))
 	{
-		LOG_ERROR("can not acquire iterator for set");
+		LOG_ERROR("can not aquire iterator for set");
 		return -1;
 	}
 	
@@ -906,7 +905,7 @@ static inline int _cesk_frame_apply_diff_store_sec(
 			cesk_set_iter_t iter;
 			if(cesk_set_iter(rec->arg.value->pointer.set, &iter) < 0)
 			{
-				LOG_ERROR("can not acquire the iterator for set");
+				LOG_ERROR("can not aquire the iterator for set");
 				cesk_store_release_rw(frame->store, rec->addr);
 				return -1;
 			}
@@ -1016,7 +1015,7 @@ static inline int _cesk_frame_apply_diff_update_refcnt(cesk_frame_t* frame, cons
 				set = val->pointer.set;
 				if(NULL == cesk_set_iter(set, &iter))
 				{
-					LOG_ERROR("can not acquire set iterator for set");
+					LOG_ERROR("can not aquire set iterator for set");
 					return -1;
 				}
 				uint32_t addr;
@@ -1406,7 +1405,7 @@ int cesk_frame_register_append_from_store(
 
 	if(NULL == cesk_set_iter(set, &iter))
 	{
-		LOG_ERROR("can not acquire iterator for set @ %x", src_addr);
+		LOG_ERROR("can not aquire iterator for set @ %x", src_addr);
 		return -1;
 	}
 
@@ -1447,7 +1446,7 @@ int cesk_frame_register_load_from_object(
 
 	if(NULL == cesk_set_iter(src_set, &iter))
 	{
-		LOG_ERROR("can not acquire iterator for register %d", src_reg);
+		LOG_ERROR("can not aquire iterator for register %d", src_reg);
 		return -1;
 	}
 
@@ -1476,7 +1475,7 @@ int cesk_frame_register_load_from_object(
 		cesk_value_const_t* obj_val = cesk_store_get_ro(frame->store, obj_addr);
 		if(NULL == obj_val)
 		{
-			LOG_WARNING("can not acquire readonly pointer to store address "PRSAddr"", obj_addr);
+			LOG_WARNING("can not aquire readonly pointer to store address "PRSAddr"", obj_addr);
 			continue;
 		}
 		const cesk_object_t* object = obj_val->pointer.object;
@@ -1498,7 +1497,7 @@ int cesk_frame_register_load_from_object(
 				uint32_t addr;
 				if(cesk_set_iter(set, &iter) == NULL)
 				{
-					LOG_WARNING("can not acquire set iterator");
+					LOG_WARNING("can not aquire set iterator");
 					continue;	
 				}
 				while(CESK_STORE_ADDR_NULL == (addr = cesk_set_iter_next(&iter)))
@@ -1834,7 +1833,7 @@ int cesk_frame_store_put_field(
 			cesk_set_iter_t iter;
 			if(NULL == cesk_set_iter(frame->regs[src_reg], &iter))
 			{
-				LOG_ERROR("can not acquire iterator for register %d", src_reg);
+				LOG_ERROR("can not aquire iterator for register %d", src_reg);
 				return -1;
 			}
 			uint32_t tmp_addr;
@@ -1868,7 +1867,7 @@ int cesk_frame_store_put_field(
 			cesk_set_iter_t iter;
 			if(NULL == cesk_set_iter(frame->regs[src_reg], &iter))
 			{
-				LOG_ERROR("can not acquire iterator for register %d", src_reg);
+				LOG_ERROR("can not aquire iterator for register %d", src_reg);
 				return -1;
 			}
 			uint32_t tmp_addr;
@@ -1923,7 +1922,7 @@ static inline int _cesk_frame_load_set(const cesk_set_t* set, uint32_t* buf, siz
 	cesk_set_iter_t iter;
 	if(NULL == cesk_set_iter(set, &iter))
 	{
-		LOG_ERROR("can not acquire iterator the set");
+		LOG_ERROR("can not aquire iterator the set");
 		return -1;
 	}
 	int ret = 0;
