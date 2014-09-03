@@ -258,7 +258,7 @@ uint32_t cesk_reloc_addr_init(const cesk_reloc_table_t* table, cesk_store_t* sto
 	cesk_reloc_item_t* item = vector_get(table, value_idx);
 	if(NULL == item)
 	{
-		LOG_ERROR("can not aquire the pointer to value table item #%d", value_idx);
+		LOG_ERROR("can not acquire the pointer to value table item #%d", value_idx);
 		return CESK_STORE_ADDR_NULL;
 	}
 	if(NULL == init_val)

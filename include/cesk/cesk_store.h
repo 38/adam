@@ -24,7 +24,7 @@
  * The store also have reference counters for each slot, in this way
  * we can perform gabage collection in the store.
  *
- * Readonly pointer & Writable pointer: user can aquire two kind of 
+ * Readonly pointer & Writable pointer: user can acquire two kind of 
  * value pointer from the store, readonly one and writeable one. 
  * 
  * The readonly one should not be used when user want to write to the 
@@ -220,7 +220,7 @@ uint32_t cesk_store_allocate(cesk_store_t* store, const cesk_alloc_param_t* para
 /* attach a value to an address, >0 means success, <0 error. If the value is NULL, means
  * dettach the address.
  * NOTICE: After the attach function, your parameter value becomes a 
- * writable pointer as aquired from cesk_store_get_rw.
+ * writable pointer as acquired from cesk_store_get_rw.
  * So YOU MUST RELEASE THE ADDRESS AFTER YOU DONE
  */
 /** @brief attach a value to an object address(OA), 

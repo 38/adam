@@ -39,7 +39,7 @@ static inline int _cesk_store_free_set(cesk_store_t* store, cesk_set_t* set)
 	cesk_set_iter_t iter;
 	if(NULL == cesk_set_iter(set, &iter))
 	{
-		LOG_ERROR("can not aquire iterator for the set");
+		LOG_ERROR("can not acquire iterator for the set");
 		return -1;
 	}
 	uint32_t addr;
@@ -214,7 +214,7 @@ static inline int _cesk_store_apply_alloc_tab(cesk_store_t* store, uint32_t base
 	cesk_store_block_t* blk = _cesk_store_getblock_rw(store, base_addr);
 	if(NULL == blk)
 	{
-		LOG_ERROR("can not aquire writable pointer to the store block");
+		LOG_ERROR("can not acquire writable pointer to the store block");
 		return -1;
 	}
 	int ofs;
@@ -226,7 +226,7 @@ static inline int _cesk_store_apply_alloc_tab(cesk_store_t* store, uint32_t base
 		if(NULL == blk->slots[ofs].value || !cesk_value_get_reloc(blk->slots[ofs].value)) continue;
 		/* if the value does contain a relocated address, apply the allocation table on that */
 		LOG_DEBUG("object @0x%x contains relocated address, apply the relocation table on it", base_addr + ofs);
-		/* aquire a writable pointer, get ready to write */
+		/* acquire a writable pointer, get ready to write */
 		cesk_value_t* value = cesk_store_get_rw(store, base_addr + ofs, 0);
 		if(NULL == value)
 		{
@@ -249,7 +249,7 @@ static inline int _cesk_store_apply_alloc_tab(cesk_store_t* store, uint32_t base
 				set = value->pointer.set;
 				if(NULL == cesk_set_iter(set, &iter))
 				{
-					LOG_ERROR("can not aquire set iterator");
+					LOG_ERROR("can not acquire set iterator");
 					return -1;
 				}
 				for(;(from_addr = cesk_set_iter_next(&iter)) != CESK_STORE_ADDR_NULL;)
@@ -407,7 +407,7 @@ static inline uint32_t _cesk_store_make_object_address(const cesk_store_t* store
 		/* if this address is a relocated address */
 		if(NULL == store->alloc_tab)
 		{
-			LOG_DEBUG("try to aquire a relocated address without an allocation table address=@0x%x", addr);
+			LOG_DEBUG("try to acquire a relocated address without an allocation table address=@0x%x", addr);
 			return CESK_STORE_ADDR_NULL;
 		}
 		ret = cesk_alloctab_query(store->alloc_tab, store, addr);
@@ -492,7 +492,7 @@ int cesk_store_clear_reuse(cesk_store_t* store, uint32_t addr)
 	store->hashcode ^= HASH_INC(addr, block->slots[offset].value, block->slots[offset].reuse);
 	if(NULL == block)
 	{
-		LOG_ERROR("can not aquire an writable pointer to the block");
+		LOG_ERROR("can not acquire an writable pointer to the block");
 		return -1;
 	}
 	block->slots[offset].reuse = 0;
@@ -535,7 +535,7 @@ cesk_value_t* cesk_store_get_rw(cesk_store_t* store, uint32_t addr, int noval)
 	 * value and update the hashcode */
 	store->hashcode ^= HASH_INC(addr, val, block->slots[offset].reuse);
 	if(val->write_count > 15) 
-		LOG_WARNING("too many write pointer aquired, which up to 15 at store address "PRSAddr, addr);
+		LOG_WARNING("too many write pointer acquired, which up to 15 at store address "PRSAddr, addr);
 	else
 		val->write_count ++;
 	return val;
@@ -711,7 +711,7 @@ int cesk_store_attach(cesk_store_t* store, uint32_t addr, cesk_value_t* value)
 		LOG_TRACE("value is already attached to this address");
 		return 0;
 	}
-	/* just aquire a writable pointer of this block */
+	/* just acquire a writable pointer of this block */
 	cesk_store_block_t* block_rw = _cesk_store_getblock_rw(store, addr);
 	/* Assign an empty slot to a non-empty value means we add some new value to store */
 	if(block_rw->slots[offset].value == NULL && value != NULL) 
@@ -801,7 +801,7 @@ int cesk_store_decref(cesk_store_t* store, uint32_t addr)
 	cesk_store_block_t* block = _cesk_store_getblock_rw(store, addr);
 	if(NULL == block)
 	{
-		LOG_ERROR("can not aquire writable pointer to block");
+		LOG_ERROR("can not acquire writable pointer to block");
 		return -1;
 	}
 

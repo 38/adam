@@ -8,6 +8,8 @@ int main()
 	assert(NULL != store);
 	cesk_alloctab_t* tab = cesk_alloctab_new(NULL);
 	assert(NULL != tab);
+
+	assert(0 == cesk_store_set_alloc_table(store, tab));
 	/* insert 10000 address pair */
 	for(i = 0; i < 10000; i ++)
 	{

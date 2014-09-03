@@ -44,7 +44,7 @@ static inline uint32_t _cesk_block_register_const_merge(const cesk_frame_t* fram
 	cesk_set_iter_t iter;
 	if(NULL == cesk_set_iter(sour_set, &iter))
 	{
-		LOG_ERROR("can not aquire set iterator for register v%d", sour);
+		LOG_ERROR("can not acquire set iterator for register v%d", sour);
 		return CESK_STORE_ADDR_NULL;
 	}
 	uint32_t input = CESK_STORE_ADDR_EMPTY;
@@ -282,7 +282,7 @@ static inline int _cesk_block_handler_instance(
 			else keep_old = 1;
 			if(NULL == cesk_set_iter(set, &it))
 			{
-				LOG_ERROR("can not aquire set iterator for register v%d", dest);
+				LOG_ERROR("can not acquire set iterator for register v%d", dest);
 				return -1;
 			}
 			while(CESK_STORE_ADDR_NULL != (addr = cesk_set_iter_next(&it)))
@@ -583,7 +583,7 @@ static inline cesk_set_t* _cesk_block_invoke_result_set_translate(
 	cesk_set_iter_t iter;
 	if(NULL == cesk_set_iter(set, &iter))
 	{
-		LOG_ERROR("can not aquire the set iterator");
+		LOG_ERROR("can not acquire the set iterator");
 		return NULL;
 	}
 	uint32_t addr;
@@ -758,7 +758,7 @@ static inline int _cesk_block_allocation_address_assignment(
 	uint32_t i;
 	for(i = result->offset[CESK_DIFF_ALLOC]; i < result->offset[CESK_DIFF_ALLOC + 1]; i ++)
 	{
-		/* append the allocation the relocation table and aquire a fresh relocated address for this allocation */
+		/* append the allocation the relocation table and acquire a fresh relocated address for this allocation */
 		uint32_t iaddr;
 		const cesk_reloc_item_t* info = cesk_reloc_addr_info(callee_rtab, result->data[i].addr);
 		if(NULL == info)

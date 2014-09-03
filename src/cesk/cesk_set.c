@@ -697,7 +697,7 @@ hashval_t cesk_set_compute_hashcode(const cesk_set_t* set)
 	cesk_set_iter_t iter;
 	if(NULL == _cesk_set_iter_from_info_node(info, &iter))
 	{
-		LOG_ERROR("can not aquire iterator for set %d", set->set_idx);
+		LOG_ERROR("can not acquire iterator for set %d", set->set_idx);
 		return 0;
 	}
 	uint32_t ret = CESK_SET_EMPTY_HASH;
@@ -737,7 +737,7 @@ const char* cesk_set_to_string(const cesk_set_t* set, char* buf, int sz)
 	cesk_set_iter_t iter;
 	if(NULL == cesk_set_iter(set, &iter))
 	{
-		LOG_ERROR("can not aquire interator for the set %d", set->set_idx);
+		LOG_ERROR("can not acquire interator for the set %d", set->set_idx);
 		return NULL;
 	}
 	uint32_t this;

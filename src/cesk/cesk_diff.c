@@ -224,7 +224,7 @@ static inline int _cesk_diff_gc_check_store_rec_inuse(const cesk_diff_rec_t* dat
 			cesk_set_iter_t iter;
 			if(NULL == cesk_set_iter(set, &iter))
 			{
-				LOG_WARNING("can not aquire the set iterator");
+				LOG_WARNING("can not acquire the set iterator");
 				continue;
 			}
 			uint32_t addr;
@@ -319,7 +319,7 @@ static inline int _cesk_diff_gc_check_register_rec_inuse(const cesk_diff_rec_t* 
 		cesk_set_iter_t iter;
 		if(NULL == cesk_set_iter(set, &iter))
 		{
-			LOG_WARNING("can not aquire the set iteartor");
+			LOG_WARNING("can not acquire the set iteartor");
 			continue;
 		}
 		uint32_t addr;
@@ -419,7 +419,7 @@ static inline int _cesk_diff_gc_check_allocation_rec_inuse(const cesk_diff_rec_t
 						cesk_set_iter_t iter;
 						if(NULL == cesk_set_iter(set, &iter))
 						{
-							LOG_WARNING("can not aquire iterator for the set");
+							LOG_WARNING("can not acquire iterator for the set");
 							break;
 						}
 						uint32_t eaddr;
