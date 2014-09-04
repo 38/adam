@@ -116,7 +116,7 @@ cesk_object_t* cesk_object_new(const char* classpath)
 		base->class.bci = bci_class[i];
 		base->num_members = bci_class[i]->class->size;
 		if(NULL == object->builtin) object->builtin = base;
-		/* TODO: not sure if it's ok not to initialize memory for BCI here */
+		if(base->num_members > 0) base->bcidata[0] = 0; /* just initialize the first byte */
 		CESK_OBJECT_STRUCT_ADVANCE(base);
 	}
 	object->depth = class_count + nbci;

@@ -1586,125 +1586,39 @@ static inline int _cesk_block_handler_invoke(
 				LOG_ERROR("can not initialize a diff buffer for invoke");
 				goto ERR;
 			}
-			/* this pointer */
-			const cesk_set_t* this = NULL;
-			cesk_set_iter_t iter;
-			if(DVM_FLAG_INVOKE_STATIC != (ins->flags & DVM_FLAG_INVOKE_TYPE_MSK))
-				this = args[0];
-			if(NULL != this && NULL == cesk_set_iter(this, &iter))
+			callee_frame = cesk_frame_make_invocation_frame(frame, nregs, nargs, args);
+			if(NULL == callee_frame)
 			{
-				LOG_ERROR("can not get an iterator to traverse `this' pointer");
-				cesk_diff_buffer_free(buf);
-				goto ERR;
+				LOG_ERROR("can't initialize stack frame for callee function");
+				goto BCI_INVOKE_ERR;
 			}
-			uint32_t this_addr = CESK_STORE_ADDR_NULL;
-			/* TODO: we pass all `this' to target function
-			 * for each `this' */
-			while(NULL == this || CESK_STORE_ADDR_NULL == (this_addr = cesk_set_iter_next(&iter)))
+			bci_method_env_t env = {
+				.frame = callee_frame,
+				.rtable = cesk_reloc_table_new(),
+				.D = buf
+			};
+			if(NULL == env.rtable)
 			{
-				callee_frame = cesk_frame_make_invocation_frame(frame, nregs - (NULL == this), nargs - (NULL == this), args + (NULL == this));
-				if(NULL == callee_frame)
-				{
-					LOG_ERROR("can't initialize stack frame for callee function");
-					goto BCI_INVOKE_ERR;
-				}
-				bci_method_env_t env = {
-					.frame = callee_frame,
-					.rtable = cesk_reloc_table_new(),
-					.D = buf
-				};
-				if(NULL == env.rtable)
-				{
-					LOG_ERROR("can not create relocation table for the callee function");
-					goto BCI_INVOKE_ERR;
-				}
-				/* if this is a static function */
-				if(NULL == this)
-				{
-					if(bci_class_invoke(NULL, NULL, method_id[k], &env, class[k]) < 0)
-					{
-						LOG_ERROR("function invoke returns an error");
-						goto BCI_INVOKE_ERR;
-					}
-					break;
-				}
-				/* we have a `this' pointer */ 
-				else
-				{
-					void* this = NULL;
-					const void* const_this = NULL;
-					int i;
-					if(BCI_CLASS_METHOD_IS_CONST(method_id[k]))
-					{
-						cesk_value_const_t* this_val = cesk_store_get_ro(frame->store, this_addr);
-						if(NULL == this_val)
-						{
-							LOG_ERROR("can not get `this' value in the store");
-							goto BCI_INVOKE_ERR;
-						}
-						if(CESK_TYPE_SET == this_val->type)
-						{
-							LOG_ERROR("the `this' pointer should not be a set");
-							goto BCI_INVOKE_ERR;
-						}
-						const cesk_object_t* obj = this_val->pointer.object;
-						const cesk_object_struct_t* current = obj->members;
-						for(i = 0; i < obj->depth && NULL == const_this; i ++)
-						{
-							if(!current->built_in) continue;
-							if(current->class.bci->class == class[k])
-								const_this =  current->bcidata;
-							CESK_OBJECT_STRUCT_ADVANCE(current);
-						}
-					}
-					else
-					{
-						cesk_value_t* this_val = cesk_store_get_rw(frame->store, this_addr, 0);
-						if(NULL == this_val)
-						{
-							LOG_ERROR("can not get `this' value from store");
-							goto BCI_INVOKE_ERR;
-						}
-						if(CESK_TYPE_SET == this_val->type)
-						{
-							LOG_ERROR("the `this' pointer should not be a set");
-							goto BCI_INVOKE_ERR;
-						}
-						cesk_object_t* obj = this_val->pointer.object;
-						cesk_object_struct_t* current = obj->members;
-						for(i = 0; i < obj->depth && NULL == const_this; i ++)
-						{
-							if(!current->built_in) continue;
-							if(current->class.bci->class == class[k])
-								this =  current->bcidata;
-							CESK_OBJECT_STRUCT_ADVANCE(current);
-						}
-					}
-					if(NULL == this && NULL == const_this)
-					{
-						LOG_ERROR("can not get `this' object");
-						goto BCI_INVOKE_ERR;
-					}
-					if(bci_class_invoke(this, const_this, method_id[k], &env, class[k]) <  0)
-					{
-						LOG_ERROR("function invoke error");
-						goto BCI_INVOKE_ERR;
-					}
-				}
-				cesk_frame_free(callee_frame);
-				invoke_result[k] = cesk_diff_from_buffer(buf);
-				if(NULL == invoke_result[k])
-				{
-					LOG_ERROR("failed to convert diff buffer to diff");
-					goto BCI_INVOKE_ERR;
-				}
-				continue;
+				LOG_ERROR("can not create relocation table for the callee function");
+				goto BCI_INVOKE_ERR;
+			}
+			if(bci_class_invoke(method_id[k], &env, class[k]) < 0)
+			{
+				LOG_ERROR("function invocation returns an error");
+				goto BCI_INVOKE_ERR;
+			}
+			cesk_frame_free(callee_frame);
+			invoke_result[k] = cesk_diff_from_buffer(buf);
+			if(NULL == invoke_result[k])
+			{
+				LOG_ERROR("failed to convert diff buffer to diff");
+				goto BCI_INVOKE_ERR;
+			}
 BCI_INVOKE_ERR:
-				if(NULL == callee_frame) cesk_frame_free(callee_frame);
-				if(NULL == env.rtable) cesk_reloc_table_free(env.rtable);
-				if(NULL != buf) cesk_diff_buffer_free(buf);
-				goto ERR;
-			}
+			if(NULL == callee_frame) cesk_frame_free(callee_frame);
+			if(NULL == env.rtable) cesk_reloc_table_free(env.rtable);
+			if(NULL != buf) cesk_diff_buffer_free(buf);
+			goto ERR;
 		}
 		
 	}

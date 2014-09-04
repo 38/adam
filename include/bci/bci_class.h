@@ -82,7 +82,7 @@ struct _bci_class_t {
 					  const dalvik_type_t*  rtype);    /*!< return the method id if the highest bit is 1 indicates that this method won't modify 
 														*  the object. if this class can not handle this function call, return value should be < 0 */
 
-	int (*invoke)(void* this, const void* const_this, int method_id, bci_method_env_t* env); /*< invoke a method sepecified by method_id using env as envrionment */
+	int (*invoke)(int method_id, bci_method_env_t* env); /*< invoke a method sepecified by method_id using env as envrionment */
 
 	const char* super;                           /*!< the super class of this built-in class, NULL means no super class */
 	
@@ -228,5 +228,5 @@ int bci_class_get_method(const void* this, const char* methodname,
  * @param class the class def
  * @return the invoke result, < 0 indicates an error
  **/
-int bci_class_invoke(void* this, const void* const_this , int method_id, bci_method_env_t* env, const bci_class_t* class);
+int bci_class_invoke(int method_id, bci_method_env_t* env, const bci_class_t* class);
 #endif

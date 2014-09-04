@@ -44,15 +44,11 @@ int java_lang_Object_onload()
 int java_lang_Object_get_method(const void* this, const char* methodname, const dalvik_type_t* const* args, const dalvik_type_t* rtype)
 {
 	if(methodname == _hashcode && dalvik_type_list_equal(args, (const dalvik_type_t* const*) _hashcdoe_args) && dalvik_type_equal(rtype, _hashcode_rtype))
-		return BCI_CLASS_METHOD_CONST | 0;
+		return 0;
 	return -1;
 }
-int java_lang_Object_invoke(void* this, const void* const_this, int method_id, bci_method_env_t* env)
+int java_lang_Object_invoke(int method_id, bci_method_env_t* env)
 {
-	if((BCI_CLASS_METHOD_CONST | 0) == method_id) 
-	{
-		//DO SOMETHING
-	}
 	return 0;
 }
 bci_class_t java_lang_Object_metadata = {
