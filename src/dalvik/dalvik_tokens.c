@@ -132,6 +132,7 @@ static const char* _dalvik_token_defs[DALVIK_MAX_NUM_KEYWORDS] = {
 	"__DEBUG__",
 	"true",
 	"false",
+	"_invoke",
 	NULL
 }; 
 

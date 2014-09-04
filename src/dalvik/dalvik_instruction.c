@@ -1737,7 +1737,7 @@ __DI_CONSTRUCTOR(NEW)
 		buf->num_operands = 3; 
 	}
 	static uint32_t idx = 0;
-	__DI_WRITE_ANNOTATION(idx, sizeof(idx));
+	//__DI_WRITE_ANNOTATION(idx, sizeof(idx));
 	idx ++;
 	return 0;
 }
@@ -1745,6 +1745,19 @@ __DI_CONSTRUCTOR(FILLED)
 {
 	//TODO filled array instruction
 	return 0;
+}
+__DI_CONSTRUCTOR(UINVOKE)
+{
+	const char* target;
+	if(!sexp_match(next, "(L?A", &target, &next))
+	{
+		LOG_ERROR("invalid instruction format");
+		return -1;
+	}
+	int rc = _dalvik_instruction_INVOKE(next, buf);
+	uint32_t tid = __DI_REGNUM(target);
+	__DI_WRITE_ANNOTATION(tid, sizeof(tid));
+	return rc;
 }
 #undef __DI_CONSTRUCTOR
 int dalvik_instruction_from_sexp(const sexpression_t* sexp, dalvik_instruction_t* buf, int line)
@@ -1823,6 +1836,8 @@ int dalvik_instruction_from_sexp(const sexpression_t* sexp, dalvik_instruction_t
 		__DI_CASE(NEW)
 
 		__DI_CASE(FILLED)
+
+		__DI_CASE(UINVOKE)
 
 
 	__DI_END

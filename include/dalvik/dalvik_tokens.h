@@ -128,6 +128,7 @@ extern const char* dalvik_keywords[DALVIK_MAX_NUM_KEYWORDS];
 #define DALVIK_TOKEN_DEBUG      DALVIK_TOKEN_TABLE_ENTITY(113)
 #define DALVIK_TOKEN_TRUE       DALVIK_TOKEN_TABLE_ENTITY(114)
 #define DALVIK_TOKEN_FALSE      DALVIK_TOKEN_TABLE_ENTITY(115)
+#define DALVIK_TOKEN_UINVOKE    DALVIK_TOKEN_TABLE_ENTITY(116) /* this is the _invoke (used to emliminate instructions like array-new */
 /** @brief initialize the token table. no need to finalize, because stringpool can dealing with this */
 int dalvik_tokens_init(void);
 

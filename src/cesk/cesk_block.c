@@ -981,11 +981,13 @@ static inline int _cesk_block_invoke_result_allocation_section_translate(
  * @param internal_addr the internal address lit
  * @param frame the caller frame
  * @param buf the diff buffer
+ * @param result_reg the register that is to carry the invocation result
  * @return the result of operations < 0 indicates error
  **/
 static inline int _cesk_block_invoke_result_register_section_translation(
 		cesk_diff_t* result, 
-		const uint32_t* internal_addr, 
+		const uint32_t* internal_addr,
+		uint32_t result_reg,
 		const cesk_frame_t* frame, 
 		cesk_diff_buffer_t* buf)
 {
@@ -994,6 +996,7 @@ static inline int _cesk_block_invoke_result_register_section_translation(
 	for(i = result->offset[CESK_DIFF_REG]; i < result->offset[CESK_DIFF_REG + 1]; i ++)
 	{
 		uint32_t regid = result->data[i].addr; 
+		if(CESK_FRAME_RESULT_REG == regid) regid = result_reg;
 		/* translate the register value set */
 		cesk_set_t* set = _cesk_block_invoke_result_set_translate(result->data[i].arg.set, frame, result, internal_addr);
 		if(NULL == set)
@@ -1112,6 +1115,7 @@ static inline int _cesk_block_invoke_result_store_section_translation(
  * @param callee_rtabs the list of relocation tables for callee
  * @param results the list of result diffs
  * @param nfunc the number of functions might be called here
+ * @param result_reg the register id of the target register, because we have _invoke-<target> instruction
  * @return the translated diff
  **/
 static inline cesk_diff_t* _cesk_block_invoke_result_translate(
@@ -1120,7 +1124,8 @@ static inline cesk_diff_t* _cesk_block_invoke_result_translate(
 		cesk_reloc_table_t* rtab,
 		cesk_reloc_table_t** callee_rtabs,
 		cesk_diff_t** results,
-		uint32_t nfunc)
+		uint32_t nfunc,
+		uint32_t result_reg)
 {
 	/* create a new diff buffer for the result diff */
 	uint32_t i;
@@ -1193,7 +1198,7 @@ static inline cesk_diff_t* _cesk_block_invoke_result_translate(
 	/* translate register section */
 	for(i = 0; i < nfunc; i ++)
 	{
-		if(_cesk_block_invoke_result_register_section_translation(results[i], internal_addr[i], frame, buf) < 0)
+		if(_cesk_block_invoke_result_register_section_translation(results[i], internal_addr[i], result_reg, frame, buf) < 0)
 		{
 			LOG_ERROR("can not translate the regiseter of result diff #%u", i);
 			goto ERR;
@@ -1704,7 +1709,17 @@ BCI_INVOKE_ERR:
 		
 	}
 
-	cesk_diff_t* result = _cesk_block_invoke_result_translate(ins, frame, rtab, callee_rtable, invoke_result, nfunc);
+	uint32_t result_reg = CESK_FRAME_RESULT_REG;
+	
+	/* if this instruction carries an annotation, redirect it to a general register */
+	if(ins->flags & DVM_FLAG_INVOKE_ANNOTATION)
+	{
+		uint32_t regid;
+		dalvik_instruction_read_annotation(ins, &regid, sizeof(regid));
+		result_reg = CESK_FRAME_GENERAL_REG(regid);
+	}
+
+	cesk_diff_t* result = _cesk_block_invoke_result_translate(ins, frame, rtab, callee_rtable, invoke_result, nfunc, result_reg);
 	if(NULL == result)
 	{
 		LOG_ERROR("can not traslate the result diff to interal diff");
