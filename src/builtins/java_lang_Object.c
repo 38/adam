@@ -30,10 +30,11 @@ int java_lang_Object_merge(void* this, const void* that)
 {
 	return 0;
 }
-int java_lang_Object_instance_of(const void* this, const char* classpath)
+int java_lang_Object_instance_of(const void* this, const dalvik_type_t* type)
 {
 	extern bci_class_t java_lang_Object_metadata;
-	return classpath ==  java_lang_Object_metadata.provides[0];
+	if(type->typecode != DALVIK_TYPECODE_OBJECT) return BCI_BOOLEAN_FALSE;
+	return type->data.object.path ==  java_lang_Object_metadata.provides[0];
 }
 int java_lang_Object_onload()
 {

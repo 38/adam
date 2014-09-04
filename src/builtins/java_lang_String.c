@@ -105,10 +105,11 @@ int java_lang_String_equal(const void* this, const void* that)
 {
 	return *(const char**)this == *(const char**) that;
 }
-int java_lang_String_instance_of(const void* this, const char* classpath)
+int java_lang_String_instance_of(const void* this, const dalvik_type_t* type)
 {
-	extern bci_class_t java_lang_String_metadata;
-	return classpath ==  java_lang_String_metadata.provides[0];
+	extern bci_class_t java_lang_Object_metadata;
+	if(type->typecode != DALVIK_TYPECODE_OBJECT) return BCI_BOOLEAN_FALSE;
+	return type->data.object.path ==  java_lang_Object_metadata.provides[0];
 }
 bci_class_t java_lang_String_metadata = {
 	.size = sizeof(const char*),

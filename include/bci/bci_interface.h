@@ -9,7 +9,8 @@ typedef struct _bci_method_env_t bci_method_env_t;
 
 #include <stringpool.h>
 #include <bci/bci.h>
-
+#include <cesk/cesk.h>
+#include <tag/tag.h>
 
 
 #define PackageInit_Begin \
@@ -43,5 +44,23 @@ void builtin_library_finalize()\
 	}\
 }while(0)
 
+
+/**
+ * @brief read the value of reigster from the envrion
+ * @param env the environ
+ * @param regid the register id
+ * @return the result set, NULL if error occurs
+ **/
+const cesk_set_t* bci_interface_read_register(const bci_method_env_t* env, uint32_t regid);
+
+/**
+ * @brief read a object field from the frame store
+ * @param env the environ
+ * @param set the reference set 
+ * @param classpath the class path
+ * @param field the fieldname
+ * @return the result set, NULL if error occurs
+ **/
+const cesk_set_t* bci_interface_read_object(const bci_method_env_t* env, cesk_set_t* set, const char* classpath, const char* field);
 
 #endif

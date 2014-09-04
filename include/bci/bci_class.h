@@ -74,7 +74,7 @@ struct _bci_class_t {
 
 	int (*modify)(void* this, uint32_t offset, uint32_t* new, size_t N);  /*!< how to modify the address list */
 
-	int (*instance_of)(const void* this, const char* classpath);     /*!< check wether or not this object is a instance of the class path */
+	int (*instance_of)(const void* this, const dalvik_type_t* classpath);     /*!< check wether or not this object is a instance of the class path */
 
 	int (*get_method)(const void* this, 
 	                  const char* method,
@@ -200,11 +200,11 @@ int bci_class_modify(void* this, uint32_t offset, uint32_t* new, size_t N, const
 /**
  * @brief check if this object is a instance of the given classpath
  * @param this the 'this pointer
- * @param classpath the class path
+ * @param type the type descriptor
  * @param class the class def
  * @return 0 = negative 1 = positive < 0 means error
  **/
-int bci_class_instance_of(const void* this, const char* classpath, const bci_class_t* class);
+int bci_class_instance_of(const void* this, const dalvik_type_t* type, const bci_class_t* class);
 
 /**
  * @brief get method id by method name, for static function, the this pointer should be NULL

@@ -291,6 +291,7 @@ static inline int _cesk_block_handler_instance(
 	cesk_set_iter_t it;
 	int keep_old = 0;
 	uint32_t addr;
+	const dalvik_type_t* type;
 	switch(ins->flags)
 	{
 		case DVM_FLAG_INSTANCE_NEW:
@@ -383,7 +384,7 @@ static inline int _cesk_block_handler_instance(
 		case DVM_FLAG_INSTANCE_OF:
 			dest = _cesk_block_operand_to_regidx(ins->operands + 0);
 			sour = _cesk_block_operand_to_regidx(ins->operands + 1);
-			clspath = ins->operands[2].payload.string;
+			type = ins->operands[2].payload.type;
 			set = frame->regs[sour];
 			if(NULL == cesk_set_iter(set, &it))
 			{
@@ -400,6 +401,11 @@ static inline int _cesk_block_handler_instance(
 			}
 			while(CESK_STORE_ADDR_NULL != (addr = cesk_set_iter_next(&it)))
 			{
+				if(CESK_STORE_ADDR_ZERO == addr) 
+				{
+					addr |= CESK_STORE_ADDR_ZERO;
+					continue;
+				}
 				cesk_value_const_t* value = cesk_store_get_ro(frame->store, addr);
 				if(NULL == value)
 				{
@@ -412,7 +418,7 @@ static inline int _cesk_block_handler_instance(
 					continue;
 				}
 				const cesk_object_t* object = value->pointer.object;
-				uint32_t rc = cesk_object_instance_of(object, clspath);
+				uint32_t rc = cesk_object_instance_of(object, type);
 				if(CESK_STORE_ADDR_NULL == rc)
 				{
 					LOG_ERROR("failed to check type of the object");

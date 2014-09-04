@@ -77,10 +77,10 @@ int bci_class_modify(void* this, uint32_t offset, uint32_t* new, size_t N, const
 	if(NULL == this || NULL == new || NULL == class) return -1;
 	return (NULL == class->modify)?0:class->modify(this, offset, new, N);
 }
-int bci_class_instance_of(const void* this, const char* classpath, const bci_class_t* class)
+int bci_class_instance_of(const void* this, const dalvik_type_t* type, const bci_class_t* class)
 {
 	if(NULL == this || NULL == class) return -1;
-	return (NULL == class->modify)?0:class->instance_of(this, classpath);
+	return (NULL == class->modify)?0:class->instance_of(this, type);
 }
 int bci_class_get_method(const void* this, const char* methodname, 
                          const dalvik_type_t * const * typelist, 

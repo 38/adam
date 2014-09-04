@@ -374,8 +374,18 @@ const char* cesk_object_to_string(const cesk_object_t* object, char* buf, size_t
 #undef __PR
 	return buf;
 }
-uint32_t cesk_object_instance_of(const cesk_object_t* object, const char* classpath)
+uint32_t cesk_object_instance_of(const cesk_object_t* object, const dalvik_type_t* type)
 {
+	const char* classpath = NULL;
+	if(DALVIK_TYPECODE_ARRAY == type->typecode)
+		classpath = NULL;
+	else if(DALVIK_TYPECODE_OBJECT == type->typecode)
+		classpath = type->data.object.path;
+	else
+	{
+		LOG_ERROR("invalid operand");
+		return CESK_STORE_ADDR_NULL;
+	}
 	const cesk_object_struct_t* this = object->members;
 	int i;
 	for(i = 0; i < object->depth; i ++)
@@ -384,7 +394,7 @@ uint32_t cesk_object_instance_of(const cesk_object_t* object, const char* classp
 		if(this->class.path->value == classpath) return 1;
 		if(this->built_in)
 		{
-			int rc = bci_class_instance_of(this->bcidata, classpath, this->class.bci->class);
+			int rc = bci_class_instance_of(this->bcidata, type, this->class.bci->class);
 			if(rc > 0) 
 			{
 				switch(rc)
