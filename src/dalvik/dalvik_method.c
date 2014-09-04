@@ -183,11 +183,6 @@ dalvik_method_t* dalvik_method_from_sexp(const sexpression_t* sexp, const char* 
 			/* Simplely ignore */
 			LOG_INFO("fixme: ignored psuedo-insturction (annotation)");
 		}
-		else if(sexp_match(this_smt, "(L=L=A", DALVIK_TOKEN_DATA, DALVIK_TOKEN_ARRAY, &arg))
-		{
-			/* TODO: what is (data-array ....)statement currently ignored */
-			LOG_INFO("fixme: (data-array) psuedo-insturction is to be implemented");
-		}
 		else if(sexp_match(this_smt, "(L=A", DALVIK_TOKEN_CATCH, &arg) || 
 				sexp_match(this_smt, "(L=A", DALVIK_TOKEN_CATCHALL, &arg))
 		{
