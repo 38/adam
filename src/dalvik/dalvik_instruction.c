@@ -962,7 +962,12 @@ static inline int _dalvik_instruction_setup_object_operations(
  **/
 __DI_CONSTRUCTOR(AGET)
 {
+#if DALVIK_ARRAY_SUPPORT
 	return _dalvik_instruction_setup_object_operations(DVM_ARRAY, DVM_FLAG_ARRAY_GET, next, buf);
+#else
+	LOG_ERROR("Array related instructions are not supported");
+	return -1;
+#endif
 }
 /**
  * @brief parse a `aput' instruction
@@ -973,7 +978,12 @@ __DI_CONSTRUCTOR(AGET)
  **/
 __DI_CONSTRUCTOR(APUT)
 {
+#if DALVIK_ARRAY_SUPPORT
 	return _dalvik_instruction_setup_object_operations(DVM_ARRAY, DVM_FLAG_ARRAY_PUT, next, buf);
+#else 
+	LOG_ERROR("Array related instructions are not supported");
+	return -1;
+#endif
 }
 /**
  * @brief parse a `iget' instruction
@@ -1646,6 +1656,7 @@ __DI_CONSTRUCTOR(INSTANCE)
  **/
 __DI_CONSTRUCTOR(ARRAY)
 {
+#if DALVIK_ARRAY_SUPPORT
 	buf->opcode = DVM_ARRAY;
 	buf->flags   = DVM_FLAG_ARRAY_LENGTH;
 	buf->num_operands = 2;
@@ -1658,6 +1669,10 @@ __DI_CONSTRUCTOR(ARRAY)
 	__DI_SETUP_OPERAND(0, 0, __DI_REGNUM(dest));
 	__DI_SETUP_OPERAND(1, DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_OBJECT), __DI_REGNUM(sour));
 	return 0;
+#else
+	LOG_ERROR("Array instruction is not supported");
+	return -1;
+#endif
 }
 /**
  * @brief parse the new instruction
@@ -1680,7 +1695,6 @@ __DI_CONSTRUCTOR(NEW)
 		return -1;
 	}
 	if(curlit == DALVIK_TOKEN_ARRAY)
-#define DALVIK_ARRAY_SUPPORT
 #ifdef DALVIK_ARRAY_SUPPORT
 		buf->opcode = DVM_ARRAY;
 #else
@@ -1755,8 +1769,12 @@ __DI_CONSTRUCTOR(NEW)
 }
 __DI_CONSTRUCTOR(FILLED)
 {
-	//TODO filled array instruction
-	return 0;
+#if DALVIK_ARRAY_SUPPORT
+	LOG_WARNING("Not implemented instruction handler filled-array-new");
+#else
+	LOG_ERROR("not supported instruction filled-array-new");
+#endif
+	return -1;
 }
 __DI_CONSTRUCTOR(UINVOKE)
 {
@@ -1771,6 +1789,50 @@ __DI_CONSTRUCTOR(UINVOKE)
 	buf->flags |= DVM_FLAG_INVOKE_ANNOTATION;
 	__DI_WRITE_ANNOTATION(tid, sizeof(tid));
 	return rc;
+}
+__DI_CONSTRUCTOR(DATA)
+{
+	if(!sexp_match(next, "(L=A", DALVIK_TOKEN_ARRAY, &next))
+	{
+		LOG_ERROR("invalid instruction format");
+		return -1;
+	}
+	buf->opcode = DVM_ARRAY;
+	buf->num_operands = 1;
+	
+	vector_t* data = vector_new(sizeof(uint32_t));
+	for(;SEXP_NIL == next;)
+	{
+		sexpression_t* item;
+		if(!sexp_match(next, "(C?A", &item, &next))
+		{
+			LOG_ERROR("invalid data list");
+			vector_free(data);
+			return -1;
+		}
+		uint32_t this_val = 0;
+		uint32_t this_byte = 1;
+		for(;SEXP_NIL != item;)
+		{
+			const char* byte;
+			if(!sexp_match(item, "(L?A", &byte, &next))
+			{
+				LOG_ERROR("invalid value item");
+				return -1;
+			}
+			if(strlen(byte) != 4 || byte[0] != '0' || byte[1] != 'x')
+			{
+				LOG_ERROR("invalid byte %s", byte);
+				return -1;
+			}
+			uint32_t current = strtoul(byte + 2, NULL, 16);
+			this_val |= this_byte * current;
+			this_byte <<= 4;
+		}
+		vector_pushback(data, &this_val);
+	}
+	__DI_SETUP_OPERANDPTR(0, DVM_OPERAND_FLAG_CONST | DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_ARRAYDATA), data);
+	return 0;
 }
 #undef __DI_CONSTRUCTOR
 int dalvik_instruction_from_sexp(const sexpression_t* sexp, dalvik_instruction_t* buf, int line)
@@ -1852,6 +1914,8 @@ int dalvik_instruction_from_sexp(const sexpression_t* sexp, dalvik_instruction_t
 
 		__DI_CASE(UINVOKE)
 
+		__DI_CASE(DATA)
+
 
 	__DI_END
 #undef __DI_END
@@ -1886,6 +1950,12 @@ void dalvik_instruction_free(dalvik_instruction_t* buf)
 			for(j = 0; buf->operands[i].payload.typelist[j] != NULL; j ++)
 				dalvik_type_free((dalvik_type_t*)buf->operands[i].payload.typelist[j]);
 			free((dalvik_type_t*)buf->operands[i].payload.typelist);
+		}
+		else if (buf->operands[i].header.info.is_const &&
+				 buf->operands[i].header.info.type == DVM_OPERAND_TYPE_ARRAYDATA)
+		{
+			vector_free(buf->operands[i].payload.data);
+
 		}
 	}
 }

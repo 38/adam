@@ -272,6 +272,7 @@ void test_sparse()
 }
 void test_arrayops()
 {
+#if DALVIK_ARRAY_SUPPORT
 	assert(NULL != sexp_parse("(aput v1 v2 v3)", &sexp));
 	assert(0 == dalvik_instruction_from_sexp(sexp, &inst, 0));
 	assert(inst.opcode == DVM_ARRAY);
@@ -313,6 +314,7 @@ void test_arrayops()
 	assert(inst.operands[2].payload.uint16 == 3);
 	sexp_free(sexp);
 	dalvik_instruction_free(&inst);
+#endif
 }
 void test_instanceops()
 {

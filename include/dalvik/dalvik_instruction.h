@@ -89,6 +89,7 @@ enum {
 	DVM_OPERAND_TYPE_TYPELIST,    /*!< list of type descriptor */
 	DVM_OPERAND_TYPE_FIELD,
 	DVM_OPERAND_TYPE_EXCEPTION,    /*!<If a operand is this type, that means the operand won't use the payload, data stored is in exception register*/
+	DVM_OPERAND_TYPE_ARRAYDATA,    /*!< This operand is actually an array data */
 	DVM_OPERAND_NUM_TYPES          /*!<Number of types */
 };
 /** @brief convert a type to flag
@@ -153,6 +154,7 @@ typedef struct {
 												 * points, which ends with a null pointer
 												 */
 		const char*        field;               /*!<The field we what to operate */
+		vector_t*          data;                /*!<The data array */
 	} payload;
 } dalvik_operand_t;
 CONST_ASSERTION_LE(DVM_NUM_OF_OPCODE, 16);   /* because the type requires a 4 bit opcode */
@@ -206,7 +208,8 @@ enum {
 	DVM_FLAG_ARRAY_FILLED_NEW, /*!<new-filled-array*/
 	DVM_FLAG_ARRAY_FILLED_NEW_RANGE, /*!<new-filled-array-range*/
 	DVM_FLAG_ARRAY_GET, /*!<array-get*/
-	DVM_FLAG_ARRAY_PUT /*!<array-put*/
+	DVM_FLAG_ARRAY_PUT, /*!<array-put*/
+	DVM_FALG_ARRAY_DATA /*!<array-data */
 };
 
 /** @brief flags for invoke instruction */
