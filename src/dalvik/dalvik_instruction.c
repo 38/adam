@@ -1680,7 +1680,16 @@ __DI_CONSTRUCTOR(NEW)
 		return -1;
 	}
 	if(curlit == DALVIK_TOKEN_ARRAY)
+#define DALVIK_ARRAY_SUPPORT
+#ifdef DALVIK_ARRAY_SUPPORT
 		buf->opcode = DVM_ARRAY;
+#else
+	{
+		LOG_ERROR("Compiled without array support, try to recompile with flag DALVIK_ARRAY_SUPPORT(probably not malfunctional)"
+		          "or use a new version of dex2sex");
+		return -1;
+	}
+#endif
 	else if(curlit == DALVIK_TOKEN_INSTANCE)
 		buf->opcode = DVM_INSTANCE;
 	else 
@@ -1688,7 +1697,7 @@ __DI_CONSTRUCTOR(NEW)
 		LOG_ERROR("invalid instruction format");
 		return -1;
 	}
-	const char *dest, *size, *path;
+	const char *dest, *path;
 	if(!sexp_match(next, "(L?A", &dest, &next)) 
 	{
 		LOG_ERROR("invalid instruction format");
@@ -1709,8 +1718,10 @@ __DI_CONSTRUCTOR(NEW)
 						   path);
 		buf->num_operands = 2; 
 	}
+#ifdef DALVIK_ARRAY_SUPPORT
 	else
 	{
+		const char* size;
 		buf->flags = DVM_FLAG_ARRAY_NEW;
 		if(!sexp_match(next, "(L?A", &size, &next)) 
 		{
@@ -1736,6 +1747,7 @@ __DI_CONSTRUCTOR(NEW)
 						   type);
 		buf->num_operands = 3; 
 	}
+#endif
 	static uint32_t idx = 0;
 	//__DI_WRITE_ANNOTATION(idx, sizeof(idx));
 	idx ++;
