@@ -30,6 +30,14 @@ This package is enabled by default, if you want to enable it explicitly, run `cm
 
 You can use ADB to test the analyzer if you compile adam with ADB package.
 
+Dalvik Disassembly Tool
+---
+ADAM takes the output of [dex2sex](https://github.com/38/dex2sex) which produces S-Expression represented dalvik disassmebly code.
+
+You can get a compiled binary from [here](http://www.cs.utah.edu/~haohou/adam/dex2sex.tar.gz).
+
+To disassmble a APK package, simple use `dex2sex <apk-package>`. 
+
 Documentation
 ---
 You can either extract doxygen documentation from the source code by `make docs` 
