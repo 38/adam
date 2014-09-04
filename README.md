@@ -2,13 +2,36 @@ ADAM
 ========
 Another Dalvik Abstract Machine
 
-Adam is an experimental implementation of a static analyzer for Dalvik Bytecode in C Programming Language.
+This is an experimental static analysis based security checker for Android Apps. 
 
-How to compile:
-	cmake . && make
+How to compile
+---
+Simplely `cmake . && make`
 
-Test:
-	make data #will download the test/data
-	make test
+More Options
+---
+To enable/disable building a tool package `cmake -Dbuild_<package_name>=yes|no .` 
+	
+To change the log level and the optimization level, `L=<log-level> O=<opt-level> cmake .`
 
-The analyzer currently does not work with real APKs. 
+Use `make show-flags` to print the compile flags
+
+Test
+---
+Prepare the test data, use `make data` to download a sample input of ADAM from [http://www.cs.utah.edu/~haohou/adam/data.tar.gz](http://www.cs.utah.edu/~haohou/adam/data.tar.gz).
+
+Then run test cases `make test`
+
+How to use
+---
+Currently only Adam Debugger is avaliable. 
+
+This package is enabled by default, if you want to enable it explicitly, run `cmake - Dbuild_adb=yes .` before compilation.
+
+You can use ADB to test the analyzer if you compile adam with ADB package.
+
+Documentation
+---
+You can either extract doxygen documentation from the source code by `make docs` 
+
+or visit the online version documentation at [http://www.cs.utah.edu/~haohou/adam/html/](http://www.cs.utah.edu/~haohou/adam/html)

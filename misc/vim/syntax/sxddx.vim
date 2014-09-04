@@ -1,7 +1,7 @@
 if exists("b:current_syntax")
 	finish
 endif
-syn keyword sxddxKeyword move return const monitor check instance array new filled 16 from16 wide object result exception void high16 jumbo enter exit cast of length range throw goto packed switch sparse cmpl cmpg cmp float double long if eq ne le ge gt lt eqz nez lez gez gtz ltz boolean byte char short aget aput sget sput iget iput invoke virtual super direct static int to neg not add sub mul div rem and or xor shl shr ushl ushr 2addr lit8 lit16 nop string default rsub attrs line limit registers label source implements data catch catchall fill using from
+syn keyword sxddxKeyword move return const monitor check instance array new filled 16 from16 wide object result exception void high16 jumbo enter exit cast of length range throw goto packed switch sparse cmpl cmpg cmp float double long if eq ne le ge gt lt eqz nez lez gez gtz ltz boolean byte char short aget aput sget sput iget iput invoke virtual super direct static int to neg not add sub mul div rem and or xor shl shr ushl ushr 2addr lit8 lit16 nop string default rsub attrs line limit registers label source implements data catch catchall fill using from _invoke
 syn keyword defination class method field interface
 syn keyword sxddxAttribute final private protected public synchronized transient abstract annotation
 syn region sxStorageClass start=/(\s*attrs/ end=/)/ contains=sxddxAttribute

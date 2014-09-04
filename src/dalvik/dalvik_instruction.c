@@ -1190,7 +1190,7 @@ __DI_CONSTRUCTOR(INVOKE)
 			sexpression_t* type;
 			if(!sexp_match(next, "(C?_?", &next, &type))
 			{
-				LOG_ERROR("invalid function name");
+				LOG_ERROR("invalid type list");
 				return -1;
 			}
 			dalvik_type_t* rtype = dalvik_type_from_sexp(type);
@@ -1768,6 +1768,7 @@ __DI_CONSTRUCTOR(UINVOKE)
 	}
 	int rc = _dalvik_instruction_INVOKE(next, buf);
 	uint32_t tid = __DI_REGNUM(target);
+	buf->flags |= DVM_FLAG_INVOKE_ANNOTATION;
 	__DI_WRITE_ANNOTATION(tid, sizeof(tid));
 	return rc;
 }
