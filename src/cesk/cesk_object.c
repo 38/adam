@@ -187,6 +187,23 @@ uint32_t* cesk_object_get(
 void cesk_object_free(cesk_object_t* object)
 {
 	if(NULL == object) return;
+	/* before we free the object, we should call finailize function for each BCI instance */
+	cesk_object_struct_t* this = object->builtin;
+	int i;
+	for(i = 0; i < object->nbuiltin; i ++)
+	{
+		if(!this->built_in)
+		{
+			LOG_WARNING("an built-in class %s interitate from an user-defined class %s, this is impossible",
+					  cesk_object_classpath(object), this->class.path->value);
+		}
+		else if(bci_class_finalize(this->bcidata, this->class.bci->class) < 0)
+		{
+			LOG_WARNING("the finalization function of class %s returns an error", 
+			          cesk_object_classpath(object));
+		}
+		CESK_OBJECT_STRUCT_ADVANCE(this);
+	}
 	free(object);   /* the object is just an array */
 }
 /**

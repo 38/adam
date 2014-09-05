@@ -17,7 +17,11 @@ int bci_class_initialize(void* mem, const void* init_param, tag_set_t** p_tags, 
 	}
 	return 0;
 }
-
+int bci_class_finalize(void* mem, const bci_class_t* class)
+{
+	if(NULL == mem || NULL == class) return -1;
+	return (class->finalization == NULL)?0:class->finalization(mem);
+}
 cesk_set_t* bci_class_get_field(const void* this, const char* fieldname, const bci_class_t* class)
 {
 	if(NULL == this || NULL == fieldname || NULL == class) return NULL;

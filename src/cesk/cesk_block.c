@@ -1630,7 +1630,10 @@ static inline int _cesk_block_handler_invoke(
 				goto BCI_INVOKE_ERR;
 			}
 			cesk_frame_free(callee_frame);
+			cesk_alloctab_free(callee_atab);
+			callee_rtable[k] = env.rtable;
 			invoke_result[k] = cesk_diff_from_buffer(buf);
+			cesk_diff_buffer_free(buf);
 			if(NULL == invoke_result[k])
 			{
 				LOG_ERROR("failed to convert diff buffer to diff");
@@ -1668,6 +1671,11 @@ BCI_INVOKE_ERR:
 	{
 		LOG_ERROR("can not apply the result diff to the frame");
 		return -1;
+	}
+	for(i = 0; i < nfunc; i ++)
+	{
+		/* if this is a BCI function, free the relocation table */
+		if(code[i] == NULL) cesk_reloc_table_free(callee_rtable[i]);
 	}
 	cesk_diff_free(result);
 	return 0;

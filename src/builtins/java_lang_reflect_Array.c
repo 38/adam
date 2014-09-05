@@ -130,7 +130,11 @@ int java_lang_reflect_Array_init(void* this_ptr, const void* init_param, tag_set
 {
 	array_data_t* this = (array_data_t*)this_ptr;
 	if(this->init_cnt == 0) this->init_cnt = 1;
-	else if(this->init_cnt == 1) this->init_cnt = 2;
+	else if(this->init_cnt == 1) 
+	{
+		this->init_cnt = 2;
+		return 0;
+	}
 	this->set = cesk_set_empty_set();
 	this->next_offset = -1;
 	if(NULL == this->set) 
@@ -139,6 +143,12 @@ int java_lang_reflect_Array_init(void* this_ptr, const void* init_param, tag_set
 		return -1;
 	}
 	this->element_type = (dalvik_type_t*) init_param;
+	return 0;
+}
+int java_lang_reflect_Array_finalize(void* this_ptr)
+{
+	array_data_t* this = (array_data_t*)this_ptr;
+	cesk_set_free(this->set);
 	return 0;
 }
 int java_lang_reflect_Array_finialize(void* this_ptr)
@@ -196,7 +206,8 @@ int java_lang_reflect_Array_modify(void* this_ptr, uint32_t offset, uint32_t* ne
 }
 hashval_t java_lang_reflect_Array_hashcode(const void* data)
 {
-	return cesk_set_hashcode((const cesk_set_t*)data);
+	const array_data_t* this = (const array_data_t*)data;
+	return cesk_set_hashcode(this->set);
 }
 int java_lang_reflect_Array_equal(const void* this_ptr, const void* that_ptr)
 {
@@ -207,7 +218,10 @@ int java_lang_reflect_Array_equal(const void* this_ptr, const void* that_ptr)
 const char* java_lang_reflect_Array_to_string(const void* this_ptr, char* buf, size_t size)
 {
 	const array_data_t* this = (const array_data_t*)this_ptr;
-	return cesk_set_to_string(this->set, buf, size);
+	const char* ret = cesk_set_to_string(this->set, buf, size);
+	buf += strlen(ret);
+	dalvik_type_to_string(this->element_type, buf, size - strlen(ret));
+	return ret;
 }
 int java_lang_reflect_Array_get_reloc_flag(const void* this_ptr)
 {
@@ -308,6 +322,7 @@ bci_class_t java_lang_reflect_Array_metadata = {
 	.onload = java_lang_reflect_Array_onload,
 	.ondelete = java_lang_reflect_Array_ondelete,
 	.initialization = java_lang_reflect_Array_init,
+	.finalization = java_lang_reflect_Array_finalize,
 	.get_addr_list = java_lang_reflect_Array_get_addr_list,
 	.hash = java_lang_reflect_Array_hashcode,
 	.equal = java_lang_reflect_Array_equal,

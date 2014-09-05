@@ -100,6 +100,12 @@ struct _bci_class_t {
  **/
 int bci_class_initialize(void* mem, const void* init_param, tag_set_t** p_tags, const bci_class_t* class);
 /**
+ * @brief do cleanup before this instance finally get deleted
+ * @param mem the memory for this instance
+ * @return < 0 if there's any error
+ **/
+int bci_class_finalize(void* mem, const bci_class_t* class);
+/**
  * @brief get the value of the field
  * @param this the object memory
  * @param fieldname the name of the field

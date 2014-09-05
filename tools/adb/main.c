@@ -302,8 +302,9 @@ static inline void cli_do_frame(sexpression_t* sexp)
 		for(i = 0;SEXP_NIL != tl && sexp_match(tl, "(_?A", &this, &tl);i ++)
 			T[i] = dalvik_type_from_sexp(this);
 		T[i] = NULL;
-		const dalvik_type_t *R = dalvik_type_from_sexp(sexp);
+		dalvik_type_t *R = dalvik_type_from_sexp(sexp);
 		const dalvik_block_t* graph = dalvik_block_from_method(class, name, T, R);
+		dalvik_type_free(R);
 		if(NULL == graph)
 		{
 			cli_error("can not find method %s.%s", class, name);
