@@ -1475,10 +1475,10 @@ STATIC_INVOKE:
 					LOG_ERROR("the target class %s do not support %s", classpath, methodname);
 					return -1;
 				}
-				class[ret] = bclass->class;
-				method_id[ret] = method;
-				ret = 1;   /* there's only function might be called */
+				class[0] = bclass->class;
+				method_id[0] = method;
 			}
+			ret = 1;   /* there's only function might be called */
 			LOG_DEBUG("direct function call %s/%s ", classpath, methodname);
 			break;
 		default:
