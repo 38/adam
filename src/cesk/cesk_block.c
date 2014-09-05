@@ -1459,7 +1459,6 @@ static inline int _cesk_block_find_invoke_method(const dalvik_instruction_t* ins
 		case DVM_FLAG_INVOKE_STATIC:
 STATIC_INVOKE:
 			self[0] = NULL;
-			ret = 1;   /* there's only function might be called */
 			code[0] = dalvik_block_from_method(classpath, methodname, typelist, rtype);
 			/* might be either an error or a built-in method */
 			if(NULL == code[0])
@@ -1478,6 +1477,7 @@ STATIC_INVOKE:
 				}
 				class[ret] = bclass->class;
 				method_id[ret] = method;
+				ret = 1;   /* there's only function might be called */
 			}
 			LOG_DEBUG("direct function call %s/%s ", classpath, methodname);
 			break;
@@ -1620,6 +1620,7 @@ static inline int _cesk_block_handler_invoke(
 				LOG_ERROR("failed to convert diff buffer to diff");
 				goto BCI_INVOKE_ERR;
 			}
+			continue;
 BCI_INVOKE_ERR:
 			if(NULL == callee_frame) cesk_frame_free(callee_frame);
 			if(NULL == env.rtable) cesk_reloc_table_free(env.rtable);
