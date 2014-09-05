@@ -267,6 +267,8 @@ int java_lang_reflect_Array_get_method(const void* this_ptr, const char* method,
 }
 static inline int _new_array_handler(bci_method_env_t* env, const dalvik_type_t* elem_type)
 {
+	LOG_ERROR("%s", dalvik_type_to_string(elem_type, NULL, 0));
+	//TODO create a new array
 	return 0;
 }
 int java_lang_reflect_Array_invoke(int method_id, bci_method_env_t* env)

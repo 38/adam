@@ -32,6 +32,8 @@ int dalvik_attrs_from_sexp(const sexpression_t* sexp)
 			flags |= DALVIK_ATTRS_STATIC;
 		else if(DALVIK_TOKEN_TRANSIENT == this_attr)
 			flags |= DALVIK_ATTRS_TRASIENT;
+		else if(DALVIK_TOKEN_VOLATILE == this_attr)
+			flags |= DALVIK_ATTRS_VOLATILE;
 		else 
 		{
 			LOG_WARNING("unknown method attribute %s", this_attr);

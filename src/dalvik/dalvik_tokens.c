@@ -133,9 +133,9 @@ static const char* _dalvik_token_defs[DALVIK_MAX_NUM_KEYWORDS] = {
 	[114]="true",
 	[115]="false",
 	[116]="_invoke",
+	[117]="volatile",
 	NULL
 }; 
-
 int dalvik_tokens_init(void)
 {
 	int i;
