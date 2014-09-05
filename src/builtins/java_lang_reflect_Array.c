@@ -44,6 +44,10 @@ static _method_t* _method_list[HASH_SIZE];
  **/
 static _method_t* _method_hash[HASH_SIZE];
 /**
+ * @brief pooled strings for the function name
+ **/
+static const char *_new_array, *_new_array_filled, *_fill_array, *_array_get, *_array_put;
+/**
  * @brief the hashcode of a method 
  * @param typecode the type of this method
  * @param signature the method signature of this function
@@ -85,6 +89,11 @@ static inline const _method_t* _method_query(uint32_t typecode, const dalvik_typ
 
 int java_lang_reflect_Array_onload()
 {
+	_new_array = stringpool_query("<new_array>");
+	_new_array_filled = stringpool_query("<new_array_filled>");
+	_fill_array = stringpool_query("<fill_array>");
+	_array_get = stringpool_query("<array_get>");
+	_array_put = stringpool_query("<array_put>");
 	return 0;
 }
 int java_lang_reflect_Array_ondelete()
@@ -232,12 +241,51 @@ int java_lang_reflect_Array_instance_of(const void* this_ptr, const dalvik_type_
 int java_lang_reflect_Array_get_method(const void* this_ptr, const char* method, const dalvik_type_t* const * typelist, const dalvik_type_t* rtype)
 {
 	/* we have to handle the functions to emulate the array instructions: <new_array>, <new_array_filled>, <fill_array>, <array_get>, <array_set> */
-
+	uint32_t typecode = 0;
+	if(_new_array == method)
+		typecode = NEW_ARRAY;
+	else if(_new_array_filled == method)
+		typecode = NEW_ARRAY_FILLED;
+	else if(_fill_array == method)
+		typecode = FILL_ARRAY;
+	else if(_array_get == method)
+		typecode = ARRAY_GET;
+	else if(_array_put == method)
+		typecode = ARRAY_SET;
+	else
+	{
+		/* TODO other functions */
+		return -1;
+	}
+	const _method_t* item = _method_query(typecode, typelist);
+	if(NULL == item)
+	{
+		LOG_ERROR("can't resolve the method %s(%s)", method, dalvik_type_list_to_string(typelist, NULL, 0));
+		return -1;
+	}
+	return item->method_id;
+}
+static inline int _new_array_handler(bci_method_env_t* env, const dalvik_type_t* elem_type)
+{
 	return 0;
 }
 int java_lang_reflect_Array_invoke(int method_id, bci_method_env_t* env)
 {
-	return 0;
+	if(method_id >= _method_count)
+	{
+		LOG_ERROR("no such method");
+		return -1;
+	}
+	const _method_t* method = _method_list[method_id];
+	switch(method->type)
+	{
+		case NEW_ARRAY:
+			return _new_array_handler(env, method->signature[1]);
+		default:
+			LOG_ERROR("unsupported method");
+			return -1;
+	}
+	return -1;
 }
 bci_class_t java_lang_reflect_Array_metadata = {
 	.size = sizeof(array_data_t),
