@@ -201,11 +201,14 @@ int java_lang_reflect_Array_merge(void* this_ptr, const void* that_ptr)
 }
 static inline int _java_lang_reflect_Array_check_type(const dalvik_type_t* element_type, const dalvik_type_t* operand_type)
 {
-	if(operand_type->typecode != element_type->typecode) return BCI_BOOLEAN_FALSE;
-	if(operand_type->typecode != DALVIK_TYPECODE_OBJECT) return BCI_BOOLEAN_FALSE;
-	if(operand_type->typecode == DALVIK_TYPECODE_ARRAY) return _java_lang_reflect_Array_check_type(element_type->data.array.elem_type, operand_type->data.array.elem_type);
+	if(operand_type->typecode != element_type->typecode) 
+		return BCI_BOOLEAN_FALSE;
+	if(operand_type->typecode != DALVIK_TYPECODE_OBJECT) 
+		return BCI_BOOLEAN_FALSE;
+	if(operand_type->typecode == DALVIK_TYPECODE_ARRAY) 
+		return _java_lang_reflect_Array_check_type(element_type->data.array.elem_type, operand_type->data.array.elem_type);
 	/* otherwise we should check if element_type can be converted to the operand_type */
-	const dalvik_class_t* class;
+	const dalvik_class_t* class = NULL;  /* why we need to intialize? because GCC is soooooo stupid, clang is much better */
 	const char* element_classpath = element_type->data.object.path;
 	const char* operand_classpath = operand_type->data.object.path;
 	for(;element_classpath != operand_classpath && NULL != (class = dalvik_memberdict_get_class(element_classpath));)

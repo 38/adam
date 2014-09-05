@@ -69,7 +69,7 @@ add_library(adam_dbg ${adam_FILES})
 
 set_target_properties(adam_dbg PROPERTIES COMPILE_DEFINITIONS "DEBUGGER")
 
-
+set(package_status "" )
 file(GLOB tools RELATIVE ${CMAKE_CURRENT_BINARY_DIR}/${tools_DIR} "${tools_DIR}/*")
 foreach(tool ${tools})
 	if(NOT "${build_${tool}}" STREQUAL "no")
@@ -80,6 +80,7 @@ foreach(tool ${tools})
 			set(TYPE "binary")
 			include(${tools_DIR}/${tool}/build.cmake)
 			message("I'm gonna to build package ${tool} (TYPE = ${TYPE})")
+			set(package_status "${package_status} -Dbuild_${tool}=yes")
 			if("${TYPE}" STREQUAL "binary")
 				aux_source_directory(${tools_DIR}/${tool} tool_FILES)
 				set_source_files_properties(${tool_FILES} PROPERTIES COMPILE_FLAGS "${CFLAGS} ${LOCAL_CFLAGS}")
@@ -88,6 +89,7 @@ foreach(tool ${tools})
 			endif("${TYPE}" STREQUAL "binary")
 		endif(IS_DIRECTORY ${tools_DIR}/${tool})
 	else(NOT "${build_${tool}}" STREQUAL "no")
+		set(package_status "${package_status} -Dbuild_${tool}=no")
 		message("Skipped package ${tool}")
 	endif(NOT "${build_${tool}}" STREQUAL "no")
 endforeach(tool ${tools})
@@ -135,4 +137,5 @@ add_custom_target(show-flags
 	        echo "Log Level = ${LOG}" &&
 			echo "Optimaization = ${OPTLEVEL}" &&
 			echo "Compiler Flags = ${CFLAGS}" &&
-			echo "Static Library = ${STATIC}")
+			echo "Static Library = ${STATIC}" &&
+			echo "L=${LOG} O=${OPTLEVEL} CC=${CMAKE_C_COMPILER} cmake ${package_status} . ")
