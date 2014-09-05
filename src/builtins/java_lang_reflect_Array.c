@@ -46,7 +46,7 @@ static _method_t* _method_hash[HASH_SIZE];
 /**
  * @brief pooled strings for the function name
  **/
-static const char *_new_array, *_new_array_filled, *_fill_array, *_array_get, *_array_put;
+static const char *_new_array, *_new_array_filled, *_fill_array, *_array_get, *_array_put, *_classpath;
 /**
  * @brief the hashcode of a method 
  * @param typecode the type of this method
@@ -86,7 +86,10 @@ static inline const _method_t* _method_query(uint32_t typecode, const dalvik_typ
 	_method_list[ptr->method_id] = ptr;
 	return ptr;
 }
-
+/**
+ * @brief this function will be invoked when the built-in system get intialized 
+ * @return < 0 for intialization failure
+ **/
 int java_lang_reflect_Array_onload()
 {
 	_new_array = stringpool_query("<new_array>");
@@ -94,8 +97,13 @@ int java_lang_reflect_Array_onload()
 	_fill_array = stringpool_query("<fill_array>");
 	_array_get = stringpool_query("<array_get>");
 	_array_put = stringpool_query("<array_put>");
+	_classpath = stringpool_query("java/lang/reflect/Array");
 	return 0;
 }
+/**
+ * @brief this function will be invoked before the built-in system get finalized
+ * @return < 0 for finalization failure
+ **/
 int java_lang_reflect_Array_ondelete()
 {
 	int i;
@@ -111,6 +119,13 @@ int java_lang_reflect_Array_ondelete()
 	}
 	return 0;
 }
+/**
+ * @brief this function will be called after the new instance initialized (with the first byte in this_ptr initialized to 0) 
+ *        or the existing instance is reused (first byte won't be initialized)
+ * @param this_ptr the pointer to the internal data of this intance
+ * @param init_param the initialize parameter
+ * @param 	
+ **/
 int java_lang_reflect_Array_init(void* this_ptr, const void* init_param, tag_set_t** p_tags)
 {
 	array_data_t* this = (array_data_t*)this_ptr;
@@ -267,9 +282,8 @@ int java_lang_reflect_Array_get_method(const void* this_ptr, const char* method,
 }
 static inline int _new_array_handler(bci_method_env_t* env, const dalvik_type_t* elem_type)
 {
-	LOG_ERROR("%s", dalvik_type_to_string(elem_type, NULL, 0));
-	//TODO create a new array
-	return 0;
+	uint32_t addr = bci_interface_new_object(env, _classpath, elem_type);
+	return bci_interface_return_single_address(env, addr);
 }
 int java_lang_reflect_Array_invoke(int method_id, bci_method_env_t* env)
 {

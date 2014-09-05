@@ -1586,6 +1586,7 @@ static inline int _cesk_block_handler_invoke(
 		/* otherwise we should invoke a BCI method */
 		else
 		{
+			cesk_alloctab_t* callee_atab = NULL;
 			cesk_diff_buffer_t* buf = cesk_diff_buffer_new(0, 1);
 			if(NULL == buf)
 			{
@@ -1601,6 +1602,7 @@ static inline int _cesk_block_handler_invoke(
 			bci_method_env_t env = {
 				.frame = callee_frame,
 				.rtable = cesk_reloc_table_new(),
+				.instruction = ins,
 				.D = buf
 			};
 			if(NULL == env.rtable)
@@ -1608,6 +1610,20 @@ static inline int _cesk_block_handler_invoke(
 				LOG_ERROR("can not create relocation table for the callee function");
 				goto BCI_INVOKE_ERR;
 			}
+			/* before we actually invoke the function, we should intialize the alloctation table for the callee frame, 
+			 * because this is done by the target function if it's an program defined function, before we start*/
+			callee_atab = cesk_alloctab_new(frame->store->alloc_tab);  /* of course we try to use the caller table */
+			if(NULL == callee_atab)
+			{
+				LOG_ERROR("failed to allocate a allocation table for the callee frame, aborting");
+				goto BCI_INVOKE_ERR;
+			}
+			if(cesk_frame_set_alloctab(callee_frame, callee_atab) < 0)
+			{
+				LOG_ERROR("can not intialize the allocation table for the callee frame, aborting");
+				goto BCI_INVOKE_ERR;
+			}
+			/* after we did this, we can make allocation in the target frame */
 			if(bci_class_invoke(method_id[k], &env, class[k]) < 0)
 			{
 				LOG_ERROR("function invocation returns an error");
@@ -1622,8 +1638,9 @@ static inline int _cesk_block_handler_invoke(
 			}
 			continue;
 BCI_INVOKE_ERR:
-			if(NULL == callee_frame) cesk_frame_free(callee_frame);
-			if(NULL == env.rtable) cesk_reloc_table_free(env.rtable);
+			if(NULL != callee_frame) cesk_frame_free(callee_frame);
+			if(NULL != callee_atab) cesk_alloctab_free(callee_atab);
+			if(NULL != env.rtable) cesk_reloc_table_free(env.rtable);
 			if(NULL != buf) cesk_diff_buffer_free(buf);
 			goto ERR;
 		}

@@ -5,6 +5,7 @@
 #include <log.h>
 #include <stringpool.h>
 
+#include <cesk/cesk_alloc_param.h>
 #include <cesk/cesk_reloc.h>
 #include <cesk/cesk_frame.h>
 #include <cesk/cesk_diff.h>

@@ -54,7 +54,7 @@ void builtin_library_finalize()\
 const cesk_set_t* bci_interface_read_register(const bci_method_env_t* env, uint32_t regid);
 
 /**
- * @brief read a object field from the frame store
+ * @brief read an object field from the frame store
  * @param env the environ
  * @param set the reference set 
  * @param classpath the class path
@@ -63,4 +63,20 @@ const cesk_set_t* bci_interface_read_register(const bci_method_env_t* env, uint3
  **/
 const cesk_set_t* bci_interface_read_object(const bci_method_env_t* env, cesk_set_t* set, const char* classpath, const char* field);
 
+/**
+ * @brief create an object in the invocation environ
+ * @param env the environ
+ * @param path the class path
+ * @param init_param the initialization parameter
+ * @return the address of the newly create isntance
+ **/
+uint32_t bci_interface_new_object(bci_method_env_t* env, const char* path, const void* init_param);
+
+/**
+ * @brief return a single value from the bulit-in function
+ * @param env the envrion
+ * @param addr the return address 
+ * @return < 0 if there's an error
+ **/
+int bci_interface_return_single_address(bci_method_env_t* env, uint32_t addr);
 #endif

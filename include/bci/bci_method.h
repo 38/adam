@@ -9,6 +9,7 @@
 #include <log.h>
 
 #include <cesk/cesk.h>
+#include <dalvik/dalvik_instruction.h>
 
 #include <bci/bci_interface.h>
 
@@ -21,6 +22,7 @@
 struct _bci_method_env_t {
 	cesk_reloc_table_t*       rtable;   /*!< relocation table */
 	cesk_frame_t*             frame;    /*!< envrion store */
+	const dalvik_instruction_t* instruction; /*!< the instruction that calls this  function */
 	cesk_diff_buffer_t*       D;        /*!< the diff buffer */
 } __attribute__((__packed__));
 #endif
