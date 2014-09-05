@@ -2,21 +2,104 @@
 #include <dalvik/dalvik.h>
 #include <cesk/cesk_set.h>
 #include <dalvik/dalvik.h>
+#define HASH_SIZE 1023
+/**
+ * @brief the internal data of an array type
+ **/
 typedef struct {
-	uint8_t init_cnt;
-	cesk_set_t* set;
-	cesk_set_iter_t iter;
-	cesk_set_iter_t prev_iter;
-	int32_t next_offset;
-	int32_t prev_offset;
-	const dalvik_type_t* element_type;
+	uint8_t init_cnt;     /*!< this is actually a built-in function creation convention, in which only the first byte of the interal space will be
+							initialized to zero, based on this, we can distinguish a newly created instance and a reused instance */
+	cesk_set_t* set;      /*!< the possible value of the set, in the future, we could replace this with more precise approximation */
+	cesk_set_iter_t iter;  /*!< the current iterator for the stream interface (actually we can assume that each stream read and stream write are paired and the address for read has to be continous*/
+	cesk_set_iter_t prev_iter; /*!< the previous status of the current iterator, this field is used to check wether or not the read and write are paired */
+	int32_t next_offset;   /*!< the next offset in the stream */
+	int32_t prev_offset;  /*!< the previous offset in the stream */
+	const dalvik_type_t* element_type;  /*!< the type of the element. The built-in class system is designed to handle the reflection, this class is a example for `runtime generic class' */
 } array_data_t;
+/**
+ * @brief the method list
+ */
+typedef struct _method_t {
+	enum {
+		NEW_ARRAY,
+		NEW_ARRAY_FILLED,
+		FILL_ARRAY,
+		ARRAY_GET,
+		ARRAY_SET
+	} type;   /*!< type of this method call */
+	const dalvik_type_t *const* signature; /*!< the function signature */
+	uint32_t method_id;   /*!< the method id assigned to this method */
+	struct _method_t* next;  /*!< the next pointer in the hash table */
+} _method_t;
+/**
+ * @brief how many method in the method table
+ **/
+static uint32_t _method_count;
+/**
+ * @brief the method list, _method_list[method_id] ==> pointer to method structure
+ **/
+static _method_t* _method_list[HASH_SIZE];
+/**
+ * @brief the method hash table, used to check wether or not this function are previously defined 
+ **/
+static _method_t* _method_hash[HASH_SIZE];
+/**
+ * @brief the hashcode of a method 
+ * @param typecode the type of this method
+ * @param signature the method signature of this function
+ * @return the result hashcode
+ **/
+static inline hashval_t _method_hashcode(uint32_t typecode, const dalvik_type_t* const * signature)
+{
+	hashval_t sighash = dalvik_type_list_hashcode(signature);
+	return sighash ^ (typecode * typecode * MH_MULTIPLY + typecode);
+}
+/**
+ * @brief query a method by typecode(which can be NEW_ARRAY, NEW_ARRAY_FILLED, ...) and the function signature
+ * @param typecode the type code of this function
+ * @param signature the function signature
+ * @return the pointer to the method found in the table, if the method not found, create a method structure for this method and intert to the hash table
+ *         NULL when can not create a new node
+ **/
+static inline const _method_t* _method_query(uint32_t typecode, const dalvik_type_t *const* signature)
+{
+	uint32_t slot_id =  _method_hashcode(typecode, signature) % HASH_SIZE;
+	_method_t* ptr;
+	/* find it in the hash table first */
+	for(ptr = _method_hash[slot_id]; NULL != ptr; ptr = ptr->next)
+	{
+		if(ptr->type == typecode && dalvik_type_list_equal(ptr->signature, signature))
+			return ptr;
+	}
+	/* otherwise inster a new one */
+	ptr = (_method_t*)malloc(sizeof(_method_t));
+	if(NULL == ptr) return NULL;
+	ptr->type = typecode;
+	ptr->signature = signature;
+	ptr->method_id = _method_count ++;
+	ptr->next = _method_hash[slot_id];
+	_method_hash[slot_id] = ptr;
+	_method_list[ptr->method_id] = ptr;
+	return ptr;
+}
+
 int java_lang_reflect_Array_onload()
 {
 	return 0;
 }
 int java_lang_reflect_Array_ondelete()
 {
+	int i;
+	for(i = 0; i < HASH_SIZE; i ++)
+	{
+		_method_t* ptr;
+		for(ptr = _method_hash[i]; NULL != ptr;)
+		{
+			_method_t* cur = ptr;
+			ptr = ptr->next;
+			free(cur);
+		}
+	}
 	return 0;
 }
 int java_lang_reflect_Array_init(void* this_ptr, const void* init_param, tag_set_t** p_tags)
@@ -143,10 +226,8 @@ int java_lang_reflect_Array_instance_of(const void* this_ptr, const dalvik_type_
 	if(type->typecode != DALVIK_TYPECODE_ARRAY) return BCI_BOOLEAN_FALSE;
 	return _java_lang_reflect_Array_check_type(this->element_type, type->data.array.elem_type); 
 }
-//static const dalvik_type_t* _signature[1024];
 int java_lang_reflect_Array_get_method(const void* this_ptr, const char* method, const dalvik_type_t* const * typelist, const dalvik_type_t* rtype)
 {
-	//TODO resolve method signatures
 	/* we have to handle the functions to emulate the array instructions: <new_array>, <new_array_filled>, <fill_array>, <array_get>, <array_set> */
 
 	return 0;
