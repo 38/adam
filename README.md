@@ -30,7 +30,7 @@ This package is enabled by default, if you want to enable it explicitly, run `cm
 
 You can use ADB to test the analyzer if you compile adam with ADB package.
 
-Dalvik Disassembly Tool
+Dalvik Disassemble Tool
 ---
 ADAM takes the output of [dex2sex](https://github.com/38/dex2sex) which produces S-Expression represented dalvik disassmebly code.
 
