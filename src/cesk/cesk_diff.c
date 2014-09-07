@@ -107,7 +107,7 @@ static inline const char* _cesk_diff_record_to_string(int type, int addr, const 
 }
 const char* cesk_diff_to_string(const cesk_diff_t* diff, char* buf, int sz)
 {
-	static char _buf[1024];
+	static char _buf[4096];
 	if(NULL == buf)
 	{
 		buf = _buf;

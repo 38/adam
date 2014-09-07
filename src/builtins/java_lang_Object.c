@@ -1,8 +1,8 @@
 #include <bci/bci_interface.h>
 #include <stringpool.h>
-static const char* _hashcode = NULL;
-static dalvik_type_t* _hashcode_rtype = NULL;
-static dalvik_type_t* _hashcdoe_args[1] = {NULL};
+//static const char* _hashcode = NULL;
+//static dalvik_type_t* _hashcode_rtype = NULL;
+//static dalvik_type_t* _hashcdoe_args[1] = {NULL};
 hashval_t java_lang_Object_hash(const void* data)
 {
 	return 0x38745c6;
@@ -38,15 +38,16 @@ int java_lang_Object_instance_of(const void* this, const dalvik_type_t* type)
 }
 int java_lang_Object_onload()
 {
-	_hashcode = stringpool_query("hashCode");
-	_hashcode_rtype = DALVIK_TYPE_INT;
+	//_hashcode = stringpool_query("hashCode");
+	//_hashcode_rtype = DALVIK_TYPE_INT;
 	return 0;
 }
 int java_lang_Object_get_method(const void* this, const char* methodname, const dalvik_type_t* const* args, const dalvik_type_t* rtype)
 {
-	if(methodname == _hashcode && dalvik_type_list_equal(args, (const dalvik_type_t* const*) _hashcdoe_args) && dalvik_type_equal(rtype, _hashcode_rtype))
+	/*if(methodname == _hashcode && dalvik_type_list_equal(args, (const dalvik_type_t* const*) _hashcdoe_args) && dalvik_type_equal(rtype, _hashcode_rtype))
 		return 0;
-	return -1;
+	return -1;*/
+	return 0;
 }
 int java_lang_Object_invoke(int method_id, bci_method_env_t* env)
 {

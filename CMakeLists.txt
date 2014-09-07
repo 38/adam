@@ -105,6 +105,38 @@ foreach(test ${UnitTests})
 	add_test(${TEST_BIN} bin/test/${TEST_BIN})
 endforeach(test)
 
+add_custom_target(get-d2s
+	COMMAND test ! -e test/dex2sex &&
+	        wget 'http://www.cs.utah.edu/~haohou/adam/dex2sex.tar.gz' --output-document=adam_dex2sex_dasm.tar.gz &&
+	        tar -xzf adam_dex2sex_dasm.tar.gz -C test/ &&
+	        rm -f adam_dex2sex_dasm.tar.gz ||
+			echo > /dev/null
+	WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+)
+#build the test class from java source code
+file(GLOB JavaCases "test/cases/java/*")
+
+foreach(case ${JavaCases})
+	get_filename_component(PACKAGE_NAME ${case} NAME_WE)
+	set(TARGET_NAME _java_case_${PACKAGE_NAME})
+	add_custom_target(${TARGET_NAME} 
+		DEPENDS get-d2s
+		COMMAND test/dex2sex/script/java2s ${JavaCases} test/data
+	)
+	list(APPEND DATADEP ${TARGET_NAME})
+endforeach(case ${JavaCases})
+
+add_custom_target(data
+	DEPENDS ${DATADEP}
+	COMMAND test ! -e test/data &&  
+	        wget 'http://www.cs.utah.edu/~haohou/adam/data.tar.gz' --output-document=adam_testing_data.tar.gz &&
+	        tar -xzf adam_testing_data.tar.gz &&
+	        rm -f adam_testing_data.tar.gz ||
+			echo > /dev/null
+	WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+)
+
+
 find_package(Doxygen)
 add_custom_target(docs
 	${DOXYGEN_EXECUTABLE} ${CMAKE_CURRENT_BINARY_DIR}/Doxyfile
@@ -114,16 +146,10 @@ add_custom_target(docs
 
 add_custom_target(distclean
 	COMMAND make clean
-	COMMAND rm -rvf doc/doxygen
-	COMMAND rm -rvf test/data
-	COMMAND rm -rvf tags
-	WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-)
-
-add_custom_target(data
-	COMMAND wget http://www.cs.utah.edu/~haohou/adam/data.tar.gz --output-document=adam_testing_data.tar.gz
-	COMMAND tar -xzf adam_testing_data.tar.gz
-	COMMAND rm -f adam_testing_data.tar.gz
+	COMMAND rm -rf doc/doxygen
+	COMMAND rm -rf test/data
+	COMMAND rm -rf tags
+	COMMAND rm -rf test/dex2sex
 	WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
 )
 

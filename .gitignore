@@ -55,3 +55,6 @@ Testing/*
 
 #pyc
 *.pyc
+
+#dex2sex
+test/dex2sex/*

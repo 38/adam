@@ -566,6 +566,9 @@ static inline int _cesk_block_handler_binop(const dalvik_instruction_t* ins, ces
 		case DVM_FLAG_BINOP_XOR:
 			result = cesk_arithmetic_xor(left, right);
 			break;
+		case DVM_FLAG_BINOP_REM:
+			result = cesk_arithmetic_div(left, cesk_arithmetic_mul(cesk_arithmetic_div(left, right), right));
+			break;
 		/* TODO other operations */
 		default:
 			LOG_ERROR("unknown instruction flag %x", ins->flags);
