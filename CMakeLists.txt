@@ -121,14 +121,14 @@ foreach(case ${JavaCases})
 	set(TARGET_NAME _java_case_${PACKAGE_NAME})
 	add_custom_target(${TARGET_NAME} 
 		DEPENDS get-d2s
-		COMMAND test/dex2sex/script/java2s ${JavaCases} test/data
+		COMMAND test/dex2sex/script/java2s ${case} test/data/${PACKAGE_NAME}
 	)
 	list(APPEND DATADEP ${TARGET_NAME})
 endforeach(case ${JavaCases})
 
 add_custom_target(data
 	DEPENDS ${DATADEP}
-	COMMAND test ! -e test/data &&  
+	COMMAND test ! -e test/data/AndroidAntlr &&  
 	        wget 'http://www.cs.utah.edu/~haohou/adam/data.tar.gz' --output-document=adam_testing_data.tar.gz &&
 	        tar -xzf adam_testing_data.tar.gz &&
 	        rm -f adam_testing_data.tar.gz ||
