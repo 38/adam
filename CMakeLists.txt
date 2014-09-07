@@ -114,14 +114,14 @@ add_custom_target(get-d2s
 	WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
 )
 #build the test class from java source code
-file(GLOB JavaCases "test/cases/java/*")
+file(GLOB JavaCases "test/java/*")
 
 foreach(case ${JavaCases})
 	get_filename_component(PACKAGE_NAME ${case} NAME_WE)
 	set(TARGET_NAME _java_case_${PACKAGE_NAME})
 	add_custom_target(${TARGET_NAME} 
 		DEPENDS get-d2s
-		COMMAND test/dex2sex/script/java2s ${case} test/data/${PACKAGE_NAME}
+		COMMAND test/dex2sex/script/java2s ${case} test/generated/${PACKAGE_NAME}
 	)
 	list(APPEND DATADEP ${TARGET_NAME})
 endforeach(case ${JavaCases})
@@ -150,6 +150,7 @@ add_custom_target(distclean
 	COMMAND rm -rf test/data
 	COMMAND rm -rf tags
 	COMMAND rm -rf test/dex2sex
+	COMMAND rm -rf test/generated
 	WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
 )
 

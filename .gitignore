@@ -58,3 +58,6 @@ Testing/*
 
 #dex2sex
 test/dex2sex/*
+
+#generated sxddx
+test/generated/*
