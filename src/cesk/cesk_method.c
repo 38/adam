@@ -20,7 +20,8 @@ typedef struct _cesk_method_block_context_t _cesk_method_block_context_t;
  *        branch constraints. So that we need this struct to store the branch information
  **/
 typedef struct {
-	uint32_t index;                  /*!< the index of the branch in the code block */
+	uint32_t index:31;                  /*!< the index of the branch in the code block */
+	uint8_t  visited:1;                 /*!< Visited before? */
 	_cesk_method_block_context_t* block;  /*!< the code block struct that produces this input, if NULL this is a return branch */
 	cesk_frame_t* frame;             /*!< the result stack frame of this block in this branch*/
 	cesk_diff_t* prv_inversion;      /*!< the previous (second youngest result) inversive diff (from branch output to block input) */
@@ -736,13 +737,15 @@ cesk_diff_t* cesk_method_analyze(const dalvik_block_t* code, cesk_frame_t* frame
 
 			/* then we should compute the actual input frame for this branch before we strat run the code in this block 
 			 * if nothing has been changed, it's a fix point*/
-			if(0 == _cesk_method_compute_branch_frame(context, input_ctx, b_diff) && context->front  != 1)
+			if(0 == _cesk_method_compute_branch_frame(context, input_ctx, b_diff) && input_ctx->visited)
 			{
 				LOG_DEBUG("there's no modification in this branch, so we skip");
 				cesk_diff_free(b_diff);
 				cesk_diff_free(b_inv);
 				continue;
 			}
+
+			input_ctx->visited = 1;
 
 			LOG_DEBUG("=============Input frame=================");
 			cesk_frame_print_debug(input_ctx->frame);
