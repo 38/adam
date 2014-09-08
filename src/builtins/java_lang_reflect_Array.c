@@ -95,7 +95,7 @@ int java_lang_reflect_Array_onload()
 {
 	_new_array = stringpool_query("<new_array>");
 	_new_array_filled = stringpool_query("<new_array_filled>");
-	_fill_array = stringpool_query("<fill_array>");
+	_fill_array = stringpool_query("<fill_array_data>");
 	_array_get = stringpool_query("<array_get>");
 	_array_put = stringpool_query("<array_put>");
 	_classpath = stringpool_query("java/lang/reflect/Array");

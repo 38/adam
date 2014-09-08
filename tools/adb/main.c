@@ -168,6 +168,13 @@ static inline int cli_read_func_signature(const sexpression_t** sexp, const char
 	*rtype = dalvik_type_from_sexp(sexp_rtype);
 	return 0;
 }
+static inline void cli_free_func_signature(const dalvik_type_t* const * signature, const dalvik_type_t* return_type)
+{
+	int i;
+	for(i = 0; signature[i] != NULL; i ++)
+		dalvik_type_free((dalvik_type_t*)signature[i]);
+	dalvik_type_free((dalvik_type_t*)return_type);
+}
 static inline void cli_do_list(sexpression_t* sexp)
 {
 	const char* name;
@@ -184,6 +191,7 @@ static inline void cli_do_list(sexpression_t* sexp)
 			return;
 		}
 		const dalvik_block_t* graph = dalvik_block_from_method(class, name, T, R);
+		cli_free_func_signature(T, R);
 		if(NULL == graph)
 		{
 			cli_error("Can not find the function");
@@ -251,6 +259,7 @@ static inline void cli_do_break(sexpression_t* sexp)
 		sexp_match(sexp, "(L?", &blockid);
 
 		const dalvik_block_t* graph = dalvik_block_from_method(class, name, T, R);
+		cli_free_func_signature(T, R);
 		if(NULL == graph)
 		{
 			cli_error("Can not find the function");
@@ -289,7 +298,6 @@ static inline void cli_do_frame(sexpression_t* sexp)
 	const char* reg;
 	const char* name;
 	const char* class;
-	sexpression_t* tl;
 	if(sexp_match(sexp, "(L=A", kw_info, &sexp))
 	{
 		const cesk_frame_t* frame;
@@ -329,17 +337,17 @@ static inline void cli_do_frame(sexpression_t* sexp)
 			}
 		}
 	}
-	else if(sexp_match(sexp, "(L=L?L?C?_?", kw_new, &class, &name, &tl, &sexp))
+	else if(sexp_match(sexp, "(L=A", kw_new,  &sexp))
 	{
-		sexpression_t* this;
 		const dalvik_type_t *T[128];
-		int i;
-		for(i = 0;SEXP_NIL != tl && sexp_match(tl, "(_?A", &this, &tl);i ++)
-			T[i] = dalvik_type_from_sexp(this);
-		T[i] = NULL;
-		dalvik_type_t *R = dalvik_type_from_sexp(sexp);
+		const dalvik_type_t *R;
+		if(cli_read_func_signature((const sexpression_t**)&sexp, &class, &name, T, &R) < 0)
+		{
+			cli_error("can not parse the function signature");
+			return;
+		}
 		const dalvik_block_t* graph = dalvik_block_from_method(class, name, T, R);
-		dalvik_type_free(R);
+		cli_free_func_signature(T, R);
 		if(NULL == graph)
 		{
 			cli_error("can not find method %s.%s", class, name);
@@ -389,6 +397,7 @@ static inline void cli_do_run(sexpression_t* sexp)
 		if(NULL == graph) return;
 		cesk_reloc_table_t* rtab;
 		cesk_diff_t* ret = cesk_method_analyze(graph, input_frame, NULL, &rtab);
+		cli_free_func_signature(T, R);
 		if(NULL == ret) cli_error("function returns with an error");
 		else cli_error("function returns with diff \n%s", cesk_diff_to_string(ret, NULL, 0));
 		cesk_diff_free(ret);

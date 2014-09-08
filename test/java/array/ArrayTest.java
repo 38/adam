@@ -19,4 +19,16 @@ class ArrayTest{
 		int[] ar = testPut();
 		return ar[x];
 	}
+	public static int[] fillArray1() {
+		int[] ret = {1,2,3,4};
+		return ret;
+	}
+	public static int[] fillArray2() {
+		int[] ret = {0,1,2,3,4};
+		return ret;
+	}
+	public static int[] fillArray3() {
+		int[] ret = {-1,0,1,2,3,4};
+		return ret;
+	}
 }
