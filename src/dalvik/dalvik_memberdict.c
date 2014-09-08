@@ -218,4 +218,3 @@ const dalvik_class_t* dalvik_memberdict_get_class(const char* class_path)
 {
 	return (const dalvik_class_t*)_dalvik_memberdict_find_object(class_path, NULL, NULL, NULL, _TYPE_CLASS);
 }
-

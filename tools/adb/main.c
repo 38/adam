@@ -2,6 +2,7 @@
 #include <readline/history.h>
 #include <stdarg.h>
 #include <adam.h>
+#include <sexp.h>
 
 const char* kw_load;
 const char* kw_quit;
@@ -137,22 +138,51 @@ static inline void dfs_block_list(const dalvik_block_t* entry, const dalvik_bloc
 			dfs_block_list(entry->branches[i].block, bl);
 		}
 }
+static inline int cli_read_func_signature(const sexpression_t** sexp, const char** class, const char** method, const dalvik_type_t** signature, const dalvik_type_t** rtype)
+{
+	if(sexp_get_method_address(*sexp, sexp, class, method) < 0)
+	{
+		cli_error("can not parse method name");
+		return -1;
+	}
+	sexpression_t* sexp_signature, *this_type;
+	if(!sexp_match(*sexp, "(C?A", &sexp_signature, sexp))
+	{
+		cli_error("can not peek the function signature");
+		return -1;
+	}
+	int i;
+	for(i = 0; SEXP_NIL != sexp_signature && sexp_match(sexp_signature, "(_?A", &this_type, &sexp_signature); i ++)
+		if(NULL == (signature[i] = dalvik_type_from_sexp(this_type)))
+		{
+			LOG_ERROR("can not parse type %s", sexp_to_string(this_type, NULL, 0));
+			return -1;
+		}
+	signature[i] = NULL;
+	sexpression_t* sexp_rtype;
+	if(!sexp_match(*sexp, "(_?A", &sexp_rtype, sexp))
+	{
+		LOG_ERROR("invalid return type");
+		return -1;
+	}
+	*rtype = dalvik_type_from_sexp(sexp_rtype);
+	return 0;
+}
 static inline void cli_do_list(sexpression_t* sexp)
 {
 	const char* name;
 	const char* class;
 	const char* type;
-	sexpression_t* tl;
 	const dalvik_block_t* block_list[DALVIK_BLOCK_MAX_KEYS] = {};
-	if(sexp_match(sexp, "(L?L?L?C?A", &type, &class, &name, &tl, &sexp))
+	const dalvik_type_t *T[128];
+	const dalvik_type_t *R;
+	if(sexp_match(sexp, "(L?A", &type, &sexp))
 	{
-		sexpression_t* this;
-		const dalvik_type_t *T[128];
-		int i;
-		for(i = 0;SEXP_NIL != tl && sexp_match(tl, "(_?A", &this, &tl);i ++)
-			T[i] = dalvik_type_from_sexp(this);
-		T[i] = NULL;
-		const dalvik_type_t *R = dalvik_type_from_sexp(sexp);
+		if(cli_read_func_signature((const sexpression_t**)&sexp, &class, &name, T, &R) < 0)
+		{
+			LOG_ERROR("invalid function signature");
+			return;
+		}
 		const dalvik_block_t* graph = dalvik_block_from_method(class, name, T, R);
 		if(NULL == graph)
 		{
@@ -160,6 +190,11 @@ static inline void cli_do_list(sexpression_t* sexp)
 			return;
 		}
 		dfs_block_list(graph, block_list);
+	}
+	else
+	{
+		LOG_ERROR("invalid command");
+		return;
 	}
 	if(kw_blocks == type)
 	{
@@ -201,20 +236,20 @@ static inline void cli_do_break(sexpression_t* sexp)
 {
 	const char* name;
 	const char* class;
-	sexpression_t* tl;
 	const char* blockid = "0";
 	const char* iid;
 	const dalvik_block_t* block_list[DALVIK_BLOCK_MAX_KEYS] = {};
-	if(sexp_match(sexp, "(L=L?L?C?_?", kw_func, &class, &name, &tl, &sexp) || 
-	   sexp_match(sexp, "(L=L?L?C?L?_?", kw_block, &class, &name, &tl, &sexp, &blockid))
+	const dalvik_type_t *T[128];
+	const dalvik_type_t *R;
+	if(sexp_match(sexp, "(L=A", kw_func, &sexp) || sexp_match(sexp, "(L=A", kw_block, &sexp))
 	{
-		sexpression_t* this;
-		const dalvik_type_t *T[128];
-		int i;
-		for(i = 0;SEXP_NIL != tl && sexp_match(tl, "(_?A", &this, &tl);i ++)
-			T[i] = dalvik_type_from_sexp(this);
-		T[i] = NULL;
-		const dalvik_type_t *R = dalvik_type_from_sexp(sexp);
+		if(cli_read_func_signature((const sexpression_t**)&sexp, &class, &name, T, &R) < 0)
+		{
+			LOG_ERROR("can not peek the function signature");
+			return;
+		}
+		sexp_match(sexp, "(L?", &blockid);
+
 		const dalvik_block_t* graph = dalvik_block_from_method(class, name, T, R);
 		if(NULL == graph)
 		{
@@ -346,16 +381,10 @@ static inline void cli_do_run(sexpression_t* sexp)
 {
 	const char* name;
 	const char* class;
-	sexpression_t* tl;
-	if(sexp_match(sexp, "(L?L?C?A", &class, &name, &tl, &sexp) && NULL != input_frame) 
+	const dalvik_type_t *T[128];
+	const dalvik_type_t *R;
+	if(cli_read_func_signature((const sexpression_t**)&sexp, &class, &name, T, &R) >= 0 && NULL != input_frame) 
 	{
-		sexpression_t* this;
-		const dalvik_type_t *T[128];
-		int i;
-		for(i = 0;SEXP_NIL != tl && sexp_match(tl, "(_?A", &this, &tl);i ++)
-			T[i] = dalvik_type_from_sexp(this);
-		T[i] = NULL;
-		const dalvik_type_t *R = dalvik_type_from_sexp(sexp);
 		const dalvik_block_t* graph = dalvik_block_from_method(class, name, T, R);
 		if(NULL == graph) return;
 		cesk_reloc_table_t* rtab;
