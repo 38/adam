@@ -52,6 +52,14 @@ void builtin_library_finalize()\
  * @return the result set, NULL if error occurs
  **/
 const cesk_set_t* bci_interface_read_register(const bci_method_env_t* env, uint32_t regid);
+/**
+ * @brief get the k-th argument
+ * @param env the environ
+ * @param k the k-th argument
+ * @param N the total number of arguments
+ * @return result set, NULL for error
+ **/
+const cesk_set_t* bci_interface_read_arg(const bci_method_env_t* env, uint32_t k, uint32_t N);
 
 /**
  * @brief read an object field from the frame store
@@ -79,4 +87,5 @@ uint32_t bci_interface_new_object(bci_method_env_t* env, const char* path, const
  * @return < 0 if there's an error
  **/
 int bci_interface_return_single_address(bci_method_env_t* env, uint32_t addr);
+
 #endif

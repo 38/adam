@@ -124,7 +124,8 @@ int java_lang_reflect_Array_ondelete()
  *        or the existing instance is reused (first byte won't be initialized)
  * @param this_ptr the pointer to the internal data of this intance
  * @param init_param the initialize parameter
- * @param 	
+ * @param p_tags the pointer to the reference to the intial tag
+ * @return < 0 if there's an error
  **/
 int java_lang_reflect_Array_init(void* this_ptr, const void* init_param, tag_set_t** p_tags)
 {
@@ -145,18 +146,27 @@ int java_lang_reflect_Array_init(void* this_ptr, const void* init_param, tag_set
 	this->element_type = (dalvik_type_t*) init_param;
 	return 0;
 }
+/**
+ * @brief this function will be called before the deletion of the instance in the host memory 
+ * @param this_ptr the this pointer to be deleted
+ * @return < 0 if there's an error
+ **/
 int java_lang_reflect_Array_finalize(void* this_ptr)
 {
 	array_data_t* this = (array_data_t*)this_ptr;
 	cesk_set_free(this->set);
 	return 0;
 }
-int java_lang_reflect_Array_finialize(void* this_ptr)
-{
-	array_data_t* this = (array_data_t*)this_ptr;
-	cesk_set_free(this->set);
-	return 0;
-}
+/**
+ * @brief this function will be called when the analyzer wants to read all address using a file-like interface
+ * @note but in this case we can always assume that the analyzer would first read a bounch of address
+ *       and them try to write the same address. In fact this is a very useful property to make the offset stable
+ * @param this_ptr the this pointer
+ * @param offset like a file offset
+ * @param buf the buffer that use to return the value
+ * @param sz the size of the buffer
+ * @return the number of address that has been read, < 0 indicates an error
+ **/
 int java_lang_reflect_Array_get_addr_list(const void* this_ptr, uint32_t offset, uint32_t* buf, size_t sz)
 {
 	array_data_t* this = (array_data_t*)this_ptr;
@@ -179,6 +189,15 @@ int java_lang_reflect_Array_get_addr_list(const void* this_ptr, uint32_t offset,
 		buf[ret ++] = addr;
 	return ret;
 }
+/**
+ * @brief this function will be called when the analyzer wants to write address using a file-like interface
+ * @note see the note of java_lang_reflect_Array_get_addr_list 
+ * @param this_ptr the this pointer
+ * @param offset file offset
+ * @param new the array that carries the new value
+ * @param N how many value are there in the new vlaue array
+ * @return < 0 indicates an error 
+ **/
 int java_lang_reflect_Array_modify(void* this_ptr, uint32_t offset, uint32_t* new, size_t N)
 {
 	array_data_t* this = (array_data_t*) this_ptr;
@@ -204,17 +223,38 @@ int java_lang_reflect_Array_modify(void* this_ptr, uint32_t offset, uint32_t* ne
 	}
 	return 0;
 }
+/**
+ * @brief this function will be called when the analyzer needs the hash code of this object
+ * @note this hashcode is different from the hash code in java. This hash code is the hash code
+ *       of the analyzer object, rather than a java object. To use hash code in java code,
+ *       the analyzer will invoke a function call to the hashCode method
+ * @param data the this pointer
+ * @return the hash code of this instance object
+ **/
 hashval_t java_lang_reflect_Array_hashcode(const void* data)
 {
 	const array_data_t* this = (const array_data_t*)data;
 	return cesk_set_hashcode(this->set);
 }
+/**
+ * @brief this function is used to check wether or not two analyzer object are the same
+ * @param this_ptr the this pointer
+ * @param that_ptr the other object
+ * @return 1 for equal, 0 for not equal, < 0 means errore
+ **/
 int java_lang_reflect_Array_equal(const void* this_ptr, const void* that_ptr)
 {
 	const array_data_t* this = (const array_data_t*)this_ptr;
 	const array_data_t* that = (const array_data_t*)that_ptr;
 	return cesk_set_equal(this->set, that->set);
 }
+/**
+ * @biref this function is used to convert this built-class to a human-readable string
+ * @param this_ptr the this pointer
+ * @param buf the string buffer
+ * @param size the size of string
+ * @return the result string, NULL when error occurs
+ **/
 const char* java_lang_reflect_Array_to_string(const void* this_ptr, char* buf, size_t size)
 {
 	const array_data_t* this = (const array_data_t*)this_ptr;
@@ -223,11 +263,22 @@ const char* java_lang_reflect_Array_to_string(const void* this_ptr, char* buf, s
 	dalvik_type_to_string(this->element_type, buf, size - strlen(ret));
 	return ret;
 }
+/**
+ * @brief this function is used to check wether or not this class contains a relocated address
+ * @param this_ptr the this pointer
+ * @return 1 if it contains, 0 if it do not contains
+ **/
 int java_lang_reflect_Array_get_reloc_flag(const void* this_ptr)
 {
 	const array_data_t* this = (const array_data_t*) this_ptr;
-	return this->init_cnt == 2;
+	return cesk_set_get_reloc(this->set);
 }
+/**
+ * @brief this function is used to merge two instance
+ * @param this_ptr the pointer to the destination object
+ * @param that_ptr the pointer to the source object
+ * @return result of merge, < 0 if failed to merge
+ **/
 int java_lang_reflect_Array_merge(void* this_ptr, const void* that_ptr)
 {
 	const array_data_t* that = (const array_data_t*) that_ptr;
@@ -237,6 +288,12 @@ int java_lang_reflect_Array_merge(void* this_ptr, const void* that_ptr)
 	this->next_offset = -1;
 	return 0;
 }
+/**
+ * @brief check wether or not the type of the array is a sub-type of the operand_type 
+ * @param element_type the type of each element
+ * @param operand_type the type of the type you want to check
+ * @return BCI_BOOLEAN_FALSE if not a sub-type/ BCI_BOOLEAN_TRUE if it is
+ **/
 static inline int _java_lang_reflect_Array_check_type(const dalvik_type_t* element_type, const dalvik_type_t* operand_type)
 {
 	if(operand_type->typecode != element_type->typecode) 
@@ -261,12 +318,26 @@ static inline int _java_lang_reflect_Array_check_type(const dalvik_type_t* eleme
 	if(NULL == class) return BCI_BOOLEAN_FALSE;
 	return BCI_BOOLEAN_TRUE;
 }
+/**
+ * @brief called when analyzer wants to know wether or not this object is a instance of given type
+ * @param this_ptr the this pointer
+ * @param type the type descriptor
+ * @return result, use BCI_BOOLEAN
+ **/
 int java_lang_reflect_Array_instance_of(const void* this_ptr, const dalvik_type_t* type)
 {
 	const array_data_t* this = (const array_data_t*) this_ptr;
 	if(type->typecode != DALVIK_TYPECODE_ARRAY) return BCI_BOOLEAN_FALSE;
 	return _java_lang_reflect_Array_check_type(this->element_type, type->data.array.elem_type); 
 }
+/**
+ * @brief called when analyzer is preparing for a function invocation, return a method id if this object supports this function call
+ * @param this_ptr the this pointer
+ * @param method the method name
+ * @param typelist the function signature
+ * @param rtype the return type
+ * @return the method id, < 0 indicates error/method not found
+ **/
 int java_lang_reflect_Array_get_method(const void* this_ptr, const char* method, const dalvik_type_t* const * typelist, const dalvik_type_t* rtype)
 {
 	/* we have to handle the functions to emulate the array instructions: <new_array>, <new_array_filled>, <fill_array>, <array_get>, <array_set> */
@@ -294,11 +365,51 @@ int java_lang_reflect_Array_get_method(const void* this_ptr, const char* method,
 	}
 	return item->method_id;
 }
+/**
+ * @brief handler for the ufction call <new_array> which creates a new array object
+ * @param env the invocation environ
+ * @param elem_type the type of each element
+ * @return < 0 indicates errors
+ **/
 static inline int _new_array_handler(bci_method_env_t* env, const dalvik_type_t* elem_type)
 {
 	uint32_t addr = bci_interface_new_object(env, _classpath, elem_type);
 	return bci_interface_return_single_address(env, addr);
 }
+/**
+ * @brief handler for the function call <new_array_filled> which creates a new array object with data filled in the array
+ * @param env the invocation environ
+ * @param elem_type the type of each element
+ * @param nargs the number of arguments
+ * @return < 0 indicates errors
+ **/
+static inline int _new_array_filled_handler(bci_method_env_t* env, const dalvik_type_t* elem_type, uint32_t nargs)
+{
+	uint32_t addr = bci_interface_new_object(env, _classpath, elem_type);
+	uint32_t i;
+	for(i = 0; i < nargs; i ++)
+	{
+		//const cesk_set_t* arg = bci_interface_read_arg(evn, i, narg);
+	}
+	return bci_interface_return_single_address(env, addr);
+}
+/**
+ * @biref handler for <array_put>
+ * @param env the environ
+ * @return the result of invocation
+ **/
+static inline int _array_put_handler(bci_method_env_t* env)
+{
+	const cesk_set_t* value = bci_interface_read_arg(env, 0, 3);
+	//const cesk_set_t* this  = bci_
+	//TODO finish this
+}
+/**
+ * @brief this function will be called if the analyzer needs to invoke a member function in this class
+ * @param method_id the method id
+ * @param env the environ
+ * @return the result
+ **/
 int java_lang_reflect_Array_invoke(int method_id, bci_method_env_t* env)
 {
 	if(method_id >= _method_count)
@@ -307,10 +418,16 @@ int java_lang_reflect_Array_invoke(int method_id, bci_method_env_t* env)
 		return -1;
 	}
 	const _method_t* method = _method_list[method_id];
+	uint32_t nargs = 0;
 	switch(method->type)
 	{
 		case NEW_ARRAY:
 			return _new_array_handler(env, method->signature[1]);
+		case NEW_ARRAY_FILLED:
+			for(;method->signature[nargs ++];);
+			return _new_array_filled_handler(env, method->signature[0], nargs);
+		case ARRAY_SET:
+			return _array_put_handler(env);
 		default:
 			LOG_ERROR("unsupported method");
 			return -1;
