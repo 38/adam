@@ -19,4 +19,15 @@ class ArrayTest{
 		int[] ar = testPut();
 		return ar[x];
 	}
+	public static void factRecur(int current, int N, ArrayTest[] result){
+		if(current == N) return;
+		result[current] = new ArrayTest(result[current - 1].value + result[current - 2].value);
+	}
+	public static ArrayTest[] factArray(int N){
+		ArrayTest[] ret = new ArrayTest[N];
+		ret[0] = new ArrayTest(1);
+		ret[1] = new ArrayTest(1);
+		factRecur(2, N, ret);
+		return ret;
+	}
 }
