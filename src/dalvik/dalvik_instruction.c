@@ -1802,10 +1802,10 @@ __DI_CONSTRUCTOR(DATA)
 	buf->num_operands = 1;
 	
 	vector_t* data = vector_new(sizeof(uint32_t));
-	for(;SEXP_NIL == next;)
+	for(;SEXP_NIL != next;)
 	{
 		sexpression_t* item;
-		if(!sexp_match(next, "(C?A", &item, &next))
+		if(!sexp_match(next, "(_?A", &item, &next))
 		{
 			LOG_ERROR("invalid data list");
 			vector_free(data);
@@ -1813,30 +1813,38 @@ __DI_CONSTRUCTOR(DATA)
 		}
 		uint32_t this_val = 0;
 		uint32_t this_byte = 1;
-		for(;SEXP_NIL != item;)
+		const char* byte;
+		if(sexp_match(item, "C?", &item))
 		{
-			const char* byte;
-			if(!sexp_match(item, "(L?A", &byte, &next))
+			for(;SEXP_NIL != item;)
 			{
-				LOG_ERROR("invalid value item");
-				return -1;
+				if(!sexp_match(item, "(L?A", &byte, &item))
+				{
+					LOG_ERROR("invalid value item");
+					return -1;
+				}
+				if(strlen(byte) != 4 || byte[0] != '0' || byte[1] != 'x')
+				{
+					LOG_ERROR("invalid byte %s", byte);
+					return -1;
+				}
+				uint32_t current = strtoul(byte + 2, NULL, 16);
+				this_val |= this_byte * current;
+				this_byte <<= 8;
 			}
-			if(strlen(byte) != 4 || byte[0] != '0' || byte[1] != 'x')
+			uint32_t sign_bit = 0;
+			/* only for the number that is not 32 bit, we should convert it to 32 bit width */
+			if(this_byte) 
 			{
-				LOG_ERROR("invalid byte %s", byte);
-				return -1;
+				sign_bit = this_byte >> 1;
+				if(sign_bit & this_val)
+					this_val |= ~(this_byte - 1);
 			}
-			uint32_t current = strtoul(byte + 2, NULL, 16);
-			this_val |= this_byte * current;
-			this_byte <<= 8;
 		}
-		uint32_t sign_bit = 0;
-		/* only for the number that is not 32 bit, we should convert it to 32 bit width */
-		if(this_byte) 
+		else if(sexp_match(item, "L?", &byte)) 
 		{
-			sign_bit = this_byte >> 1;
-			if(sign_bit & this_val)
-				this_val |= ~(this_byte - 1);
+			uint32_t this_val = strtoul(byte + 2, NULL, 16);
+			if(this_val > 0x7f) this_val = this_val - 0x100;
 		}
 		vector_pushback(data, &this_val);
 	}
