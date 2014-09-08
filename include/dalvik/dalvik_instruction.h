@@ -209,7 +209,7 @@ enum {
 	DVM_FLAG_ARRAY_FILLED_NEW_RANGE, /*!<new-filled-array-range*/
 	DVM_FLAG_ARRAY_GET, /*!<array-get*/
 	DVM_FLAG_ARRAY_PUT, /*!<array-put*/
-	DVM_FALG_ARRAY_DATA /*!<array-data */
+	DVM_FLAG_ARRAY_DATA /*!<array-data */
 };
 
 /** @brief flags for invoke instruction */

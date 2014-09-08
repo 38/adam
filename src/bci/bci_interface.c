@@ -76,6 +76,10 @@ void* bci_interface_get_rw(bci_method_env_t* env, uint32_t addr, const char* cla
 	}
 	return NULL;
 }
+void bci_interface_release_rw(bci_method_env_t* env, uint32_t addr)
+{
+	cesk_store_release_rw(env->frame->store, addr);
+}
 const void* bci_interface_get_ro(bci_method_env_t* env, uint32_t addr, const char* classpath)
 {
 	if(NULL == env || NULL == classpath || CESK_STORE_ADDR_NULL == addr)

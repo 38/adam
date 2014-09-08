@@ -121,4 +121,11 @@ const void* bci_interface_get_ro(bci_method_env_t* env, uint32_t addr, const cha
  * @return < 0 indicates an error
  **/
 int bci_interface_return_object(bci_method_env_t* env, uint32_t addr);
+/**
+ * @brief release the writable pointer in the frame store
+ * @param param env the envrion
+ * @param addr the address
+ * @return nothing
+ **/
+void bci_interface_release_rw(bci_method_env_t* env, uint32_t addr);
 #endif

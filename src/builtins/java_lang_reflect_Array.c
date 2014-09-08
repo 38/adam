@@ -407,10 +407,18 @@ static inline int _new_array_filled_handler(bci_method_env_t* env, const dalvik_
 {
 	uint32_t addr = bci_interface_new_object(env, _classpath, elem_type);
 	uint32_t i;
+	array_data_t* this = (array_data_t*)bci_interface_get_rw(env, addr, java_lang_reflect_Array_metadata.provides[0]);
+	if(NULL == this)
+	{
+		LOG_ERROR("can not write new array instance at "PRSAddr, addr);
+	}
 	for(i = 0; i < nargs; i ++)
 	{
-		//const cesk_set_t* arg = bci_interface_read_arg(evn, i, narg);
+		const cesk_set_t* arg = bci_interface_read_arg(env, i, nargs);
+		cesk_set_merge(this->set, arg);
 	}
+	bci_interface_release_rw(env, addr);
+	bci_interface_return_object(env, addr);
 	return bci_interface_return_single_address(env, addr);
 }
 /**
@@ -438,6 +446,7 @@ static inline int _array_put_handler(bci_method_env_t* env)
 			return -1;
 		}
 		cesk_set_merge(this->set, value);
+		bci_interface_release_rw(env, addr);
 		/* no need to fix the refcnt ? */
 		bci_interface_return_object(env, addr);
 	}
@@ -478,6 +487,67 @@ static inline int _array_get_handler(bci_method_env_t* env)
 	return rc;
 }
 /**
+ * @brief handler for <fill_array_data>
+ * @brief env the envrion
+ * @param label_type the type that carries a label
+ * @return the result of invocation
+ **/
+static inline int _array_fill_handler(bci_method_env_t* env, const dalvik_type_t* label_type)
+{
+	const cesk_set_t* self = bci_interface_read_arg(env, 0, 1);
+	const char* label_name = stringpool_query(label_type->data.object.path + 13);
+	uint32_t lid = dalvik_label_get_label_id(label_name);
+	uint32_t idx = dalvik_label_jump_table[lid];
+	const dalvik_instruction_t* data = dalvik_instruction_get(idx);
+	if(NULL == data)
+	{
+		LOG_ERROR("can not fetch the data instrution");
+		return -1;
+	}
+	if(DVM_ARRAY != data->opcode || DVM_FLAG_ARRAY_DATA != data->flags)
+	{
+		LOG_ERROR("invalid data instruction at %x", idx);
+		return -1;
+	}
+	const vector_t* data_vec = data->operands[0].payload.data;
+	uint32_t value_addr = CESK_STORE_ADDR_EMPTY;
+	size_t size = vector_size(data_vec);
+	int i;
+	for(i = 0; i < size; i ++)
+	{
+		int32_t *val;
+		if(NULL == (val = vector_get(data_vec, i)))
+		{
+			LOG_ERROR("can not read the data vector");
+			return -1;
+		}
+		if(*val < 0) value_addr |= CESK_STORE_ADDR_NEG;
+		else if(*val == 0) value_addr |= CESK_STORE_ADDR_ZERO;
+		else if(*val > 0) value_addr |= CESK_STORE_ADDR_POS;
+	}
+	
+	cesk_set_iter_t iter;
+	if(NULL == cesk_set_iter(self, &iter))
+	{
+		LOG_ERROR("can not acquire a iterator to enumerate the target array objects");
+		return -1;
+	}
+	uint32_t this_addr;
+	while(CESK_STORE_ADDR_NULL != (this_addr = cesk_set_iter_next(&iter)))
+	{
+		array_data_t* this = (array_data_t*)bci_interface_get_rw(env, this_addr, java_lang_reflect_Array_metadata.provides[0]);
+		if(NULL == this)
+		{
+			LOG_WARNING("can not get this pointer at address "PRSAddr, this_addr);
+			continue;
+		}
+		cesk_set_push(this->set, value_addr);
+		bci_interface_release_rw(env, this_addr);
+		bci_interface_return_object(env, this_addr);
+	}
+	return 0;
+}
+/**
  * @brief this function will be called if the analyzer needs to invoke a member function in this class
  * @param method_id the method id
  * @param env the environ
@@ -503,6 +573,9 @@ int java_lang_reflect_Array_invoke(int method_id, bci_method_env_t* env)
 			return _array_put_handler(env);
 		case ARRAY_GET:
 			return _array_get_handler(env);
+		case FILL_ARRAY:
+			return _array_fill_handler(env, method->signature[0]);
+		//TODO: newInstance, because it depends on java.lang.Class and refelction
 		default:
 			LOG_ERROR("unsupported method");
 			return -1;

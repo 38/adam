@@ -1798,6 +1798,7 @@ __DI_CONSTRUCTOR(DATA)
 		return -1;
 	}
 	buf->opcode = DVM_ARRAY;
+	buf->flags = DVM_FLAG_ARRAY_DATA;
 	buf->num_operands = 1;
 	
 	vector_t* data = vector_new(sizeof(uint32_t));
@@ -1827,7 +1828,15 @@ __DI_CONSTRUCTOR(DATA)
 			}
 			uint32_t current = strtoul(byte + 2, NULL, 16);
 			this_val |= this_byte * current;
-			this_byte <<= 4;
+			this_byte <<= 8;
+		}
+		uint32_t sign_bit = 0;
+		/* only for the number that is not 32 bit, we should convert it to 32 bit width */
+		if(this_byte) 
+		{
+			sign_bit = this_byte >> 1;
+			if(sign_bit & this_val)
+				this_val |= ~(this_byte - 1);
 		}
 		vector_pushback(data, &this_val);
 	}
