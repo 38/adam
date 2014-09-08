@@ -3,6 +3,7 @@
 #include <cesk/cesk_set.h>
 #include <dalvik/dalvik.h>
 #define HASH_SIZE 1023
+extern bci_class_t java_lang_reflect_Array_metadata; 
 /**
  * @brief the internal data of an array type
  **/
@@ -400,9 +401,27 @@ static inline int _new_array_filled_handler(bci_method_env_t* env, const dalvik_
  **/
 static inline int _array_put_handler(bci_method_env_t* env)
 {
-	//const cesk_set_t* value = bci_interface_read_arg(env, 0, 3);
-	//const cesk_set_t* this  = bci_
-	//TODO finish this
+	const cesk_set_t* value = bci_interface_read_arg(env, 0, 3);
+	const cesk_set_t* self = bci_interface_read_arg(env, 1, 3);
+	cesk_set_iter_t iter;
+	if(NULL == cesk_set_iter(self, &iter))
+	{
+		LOG_ERROR("can not acquire a iterator to enumerate this pointer");
+		return -1;
+	}
+	uint32_t addr;
+	while(CESK_STORE_ADDR_NULL == (addr = cesk_set_iter_next(&iter)))
+	{
+		array_data_t* this = (array_data_t*)bci_interface_get_rw(env, addr, java_lang_reflect_Array_metadata.provides[0]);
+		if(NULL == this)
+		{
+			LOG_ERROR("can not write the object at "PRSAddr, addr);
+			return -1;
+		}
+		cesk_set_merge(this->set, value);
+		/* no need to fix the refcnt ? */
+		bci_interface_return_object(env, addr);
+	}
 	return 0;
 }
 /**

@@ -88,4 +88,20 @@ uint32_t bci_interface_new_object(bci_method_env_t* env, const char* path, const
  **/
 int bci_interface_return_single_address(bci_method_env_t* env, uint32_t addr);
 
+/**
+ * @brief get a writable pointer to BCI data in the address
+ * @param env the envrion
+ * @param addr the address 
+ * @param classpath the class path of the BCI class
+ * @return the pointer to BCI data section, NULL indicates errors
+ **/
+void* bci_interface_get_rw(bci_method_env_t* env, uint32_t addr, const char* classpath);
+
+/**
+ * @brief make the object in the address as a part of return value 
+ * @param env the envrion
+ * @param addr the address
+ * @return < 0 indicates an error
+ **/
+int bci_interface_return_object(bci_method_env_t* env, uint32_t addr);
 #endif
