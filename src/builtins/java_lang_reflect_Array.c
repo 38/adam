@@ -400,9 +400,10 @@ static inline int _new_array_filled_handler(bci_method_env_t* env, const dalvik_
  **/
 static inline int _array_put_handler(bci_method_env_t* env)
 {
-	const cesk_set_t* value = bci_interface_read_arg(env, 0, 3);
+	//const cesk_set_t* value = bci_interface_read_arg(env, 0, 3);
 	//const cesk_set_t* this  = bci_
 	//TODO finish this
+	return 0;
 }
 /**
  * @brief this function will be called if the analyzer needs to invoke a member function in this class
