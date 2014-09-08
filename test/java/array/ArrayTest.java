@@ -28,6 +28,8 @@ class ArrayTest{
 		ret[0] = new ArrayTest(1);
 		ret[1] = new ArrayTest(1);
 		factRecur(2, N, ret);
+		return ret;
+	}
 	public static int[] fillArray1() {
 		int[] ret = {1,2,3,4};
 		return ret;
