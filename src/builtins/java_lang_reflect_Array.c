@@ -444,6 +444,40 @@ static inline int _array_put_handler(bci_method_env_t* env)
 	return 0;
 }
 /**
+ * @brief handler for <array_get>
+ * @param env the envrion
+ * @return the result of invocation
+ **/
+static inline int _array_get_handler(bci_method_env_t* env)
+{
+	const cesk_set_t* array = bci_interface_read_arg(env, 0, 2);
+	cesk_set_iter_t iter;
+	if(NULL == cesk_set_iter(array, &iter))
+	{
+		LOG_ERROR("can not acquire an iterator to enumerate the possible array object");
+		return -1;
+	}
+	uint32_t addr;
+	cesk_set_t* ret = cesk_set_empty_set();
+	if(NULL == ret)
+	{
+		LOG_ERROR("can not create the result set");
+		return -1;
+	}
+	while(CESK_STORE_ADDR_NULL != (addr = cesk_set_iter_next(&iter)))
+	{
+		const array_data_t* this = (const array_data_t*)bci_interface_get_ro(env, addr, java_lang_reflect_Array_metadata.provides[0]);
+		if(cesk_set_merge(ret, this->set) < 0)
+		{
+			LOG_ERROR("can not merge value");
+			return -1;
+		}
+	}
+	int rc = bci_interface_return_set(env, ret);
+	cesk_set_free(ret);
+	return rc;
+}
+/**
  * @brief this function will be called if the analyzer needs to invoke a member function in this class
  * @param method_id the method id
  * @param env the environ
@@ -467,6 +501,8 @@ int java_lang_reflect_Array_invoke(int method_id, bci_method_env_t* env)
 			return _new_array_filled_handler(env, method->signature[0], nargs);
 		case ARRAY_SET:
 			return _array_put_handler(env);
+		case ARRAY_GET:
+			return _array_get_handler(env);
 		default:
 			LOG_ERROR("unsupported method");
 			return -1;

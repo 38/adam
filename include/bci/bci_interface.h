@@ -89,6 +89,14 @@ uint32_t bci_interface_new_object(bci_method_env_t* env, const char* path, const
 int bci_interface_return_single_address(bci_method_env_t* env, uint32_t addr);
 
 /**
+ * @brief return a value set from the bulit-in function
+ * @param env the envrion
+ * @param addr the return address 
+ * @return < 0 if there's an error
+ **/
+int bci_interface_return_set(bci_method_env_t* env, const cesk_set_t* set);
+
+/**
  * @brief get a writable pointer to BCI data in the address
  * @param env the envrion
  * @param addr the address 
@@ -96,6 +104,15 @@ int bci_interface_return_single_address(bci_method_env_t* env, uint32_t addr);
  * @return the pointer to BCI data section, NULL indicates errors
  **/
 void* bci_interface_get_rw(bci_method_env_t* env, uint32_t addr, const char* classpath);
+
+/**
+ * @brief get a readonly pointer to BCI data in the address
+ * @param env the envrion
+ * @param addr the address 
+ * @param classpath the class path of the BCI class
+ * @return the pointer to BCI data section, NULL indicates errors
+ **/
+const void* bci_interface_get_ro(bci_method_env_t* env, uint32_t addr, const char* classpath);
 
 /**
  * @brief make the object in the address as a part of return value 

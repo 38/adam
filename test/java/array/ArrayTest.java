@@ -15,4 +15,8 @@ class ArrayTest{
 			array[i] = i;
 		return array;
 	}
+	public static int getOne(int x) {
+		int[] ar = testPut();
+		return ar[x];
+	}
 }

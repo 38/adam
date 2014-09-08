@@ -20,6 +20,15 @@ uint32_t bci_interface_new_object(bci_method_env_t* env, const char* path, const
 	cesk_alloc_param_t param = CESK_ALLOC_PARAM(CESK_ALLOC_NA, CESK_ALLOC_NA);
 	return cesk_frame_store_new_object(env->frame, env->rtable, env->instruction, &param, path, init_param, env->D, NULL);
 }
+int bci_interface_return_set(bci_method_env_t* env, const cesk_set_t* set)
+{
+	if(NULL == env || NULL == set)
+	{
+		LOG_ERROR("invalid argument");
+		return -1;
+	}
+	return cesk_diff_buffer_append(env->D, CESK_DIFF_REG, CESK_FRAME_RESULT_REG, set); 
+}
 int bci_interface_return_single_address(bci_method_env_t* env, uint32_t addr)
 {
 	if(NULL == env || CESK_STORE_ADDR_NULL == addr)
@@ -58,6 +67,35 @@ void* bci_interface_get_rw(bci_method_env_t* env, uint32_t addr, const char* cla
 	}
 	cesk_object_t* object = value->pointer.object;
 	cesk_object_struct_t* this = object->members;
+	int i;
+	for(i = 0; i < object->depth; i ++)
+	{
+		if(this->built_in && this->class.path->value == classpath)
+			return this->bcidata;
+		CESK_OBJECT_STRUCT_ADVANCE(this);
+	}
+	return NULL;
+}
+const void* bci_interface_get_ro(bci_method_env_t* env, uint32_t addr, const char* classpath)
+{
+	if(NULL == env || NULL == classpath || CESK_STORE_ADDR_NULL == addr)
+	{
+		LOG_ERROR("invalid argument");
+		return NULL;
+	}
+	cesk_value_const_t* value = cesk_store_get_ro(env->frame->store, addr);
+	if(NULL == value)
+	{
+		LOG_ERROR("can not get a writable pointer to address "PRSAddr" at store %p", addr, env->frame->store);
+		return NULL;
+	}
+	if(CESK_TYPE_SET == value->type)
+	{
+		LOG_ERROR("a value set rather than an object instance has been allocated to address"PRSAddr". Something went wrong", addr);
+		return NULL;
+	}
+	const cesk_object_t* object = value->pointer.object;
+	const cesk_object_struct_t* this = object->members;
 	int i;
 	for(i = 0; i < object->depth; i ++)
 	{
