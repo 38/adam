@@ -1178,16 +1178,36 @@ cesk_diff_t* cesk_diff_factorize(int N, cesk_diff_t** diffs, const cesk_frame_t*
 											 cur_addr,
 											 current_frame[i]->store);
 							}
-							else if(NULL == val->pointer.object->builtin || 
-							   val->pointer.object->builtin->class.bci->class != result_value->pointer.object->builtin->class.bci->class)
+							else if(NULL == val->pointer.object->builtin) 
 							{
 								LOG_WARNING("ignore two objects that are not in the same type");
 							}
-							else if(bci_class_merge(result_value->pointer.object->builtin->bcidata, 
-											   val->pointer.object->builtin,
-											   result_value->pointer.object->builtin->class.bci->class) < 0)
+							else
 							{
-								LOG_WARNING("can not merge the built-in object value");
+								int ib;
+								cesk_object_struct_t* this = result_value->pointer.object->builtin;
+								const cesk_object_struct_t* that = val->pointer.object->builtin;
+								if(val->pointer.object->nbuiltin != result_value->pointer.object->nbuiltin)
+								{
+									LOG_WARNING("two objects are not homogeneric, so just skip that");
+								}
+								else
+								{
+									for(ib = 0; ib < val->pointer.object->nbuiltin; ib ++)
+									{
+										if(this->class.bci->class != that->class.bci->class)
+										{
+											LOG_WARNING("two objects are not homogeneric, so can not merge them");
+											break;
+										}
+										if(bci_class_merge(this->bcidata, that->bcidata, this->class.bci->class) < 0)
+										{
+											LOG_WARNING("can not merge the built-in object value");
+										}
+										CESK_OBJECT_STRUCT_ADVANCE(this);
+										CESK_OBJECT_STRUCT_ADVANCE(that);
+									}
+								}
 							}
 						}
 					}

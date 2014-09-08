@@ -1073,15 +1073,28 @@ static inline int _cesk_block_invoke_result_store_section_translation(
 					LOG_ERROR("can not merge two object instance that is non-built-in one");
 					return -1;
 				}
-				if(sour->builtin->class.bci->class != dest->builtin->class.bci->class)
+				if(sour->builtin->class.bci->class != dest->builtin->class.bci->class || sour->nbuiltin != dest->nbuiltin)
 				{
 					LOG_ERROR("can not merge two object instance that is not the same type");
 					return -1;
 				}
-				if(bci_class_merge(dest->builtin->bcidata, sour->builtin->bcidata, dest->builtin->class.bci->class) < 0)
+				int i;
+				cesk_object_struct_t* this = dest->builtin;
+				const cesk_object_struct_t* that = sour->builtin;
+				for(i = 0; i < sour->nbuiltin; i ++)
 				{
-					LOG_ERROR("can not merge the built-in instance %s", dest->builtin->class.path->value);
-					return -1;
+					if(this->class.bci->class != that->class.bci->class)
+					{
+						LOG_ERROR("can not merge two object instance that is not the same type");
+						return -1;
+					}
+					if(bci_class_merge(this->bcidata, that->bcidata, this->class.bci->class) < 0)
+					{
+						LOG_ERROR("can not merge the built-in instance %s", dest->builtin->class.path->value);
+						return -1;
+					}
+					CESK_OBJECT_STRUCT_ADVANCE(this);
+					CESK_OBJECT_STRUCT_ADVANCE(that);
 				}
 			}
 			if(bci_class_get_relocation_flag(dest->builtin->bcidata, dest->builtin->class.bci->class) > 0) result->data[i].arg.value->reloc = 1;

@@ -159,6 +159,23 @@ int java_lang_reflect_Array_finalize(void* this_ptr)
 	return 0;
 }
 /**
+ * @brief duplicate an array object
+ * @param this_ptr data of old object
+ * @param that_ptr data of new object
+ * @return < 0 indicates an error
+ **/
+int java_lang_reflect_Array_dup(const void* this_ptr, void* that_ptr)
+{
+	const array_data_t* this = (const array_data_t*)this_ptr;
+	array_data_t* that = (array_data_t*) that_ptr;
+	that->init_cnt = this->init_cnt;
+	that->set = cesk_set_fork(this->set);
+	that->next_offset = -1;
+	that->element_type = this->element_type;
+	return 0;
+}
+
+/**
  * @brief this function will be called when the analyzer wants to read all address using a file-like interface
  * @note but in this case we can always assume that the analyzer would first read a bounch of address
  *       and them try to write the same address. In fact this is a very useful property to make the offset stable
@@ -171,7 +188,7 @@ int java_lang_reflect_Array_finalize(void* this_ptr)
 int java_lang_reflect_Array_get_addr_list(const void* this_ptr, uint32_t offset, uint32_t* buf, size_t sz)
 {
 	array_data_t* this = (array_data_t*)this_ptr;
-	if(-1 == this->next_offset)
+	if(offset != this->next_offset)
 	{
 		if(NULL == cesk_set_iter(this->set, &this->iter))
 		{
@@ -181,6 +198,7 @@ int java_lang_reflect_Array_get_addr_list(const void* this_ptr, uint32_t offset,
 		int i;
 		for(i = 0; i < offset; i ++)
 			cesk_set_iter_next(&this->iter);
+		this->next_offset = 0;
 	}
 	this->prev_iter = this->iter;
 	this->prev_offset = this->next_offset;
@@ -188,6 +206,7 @@ int java_lang_reflect_Array_get_addr_list(const void* this_ptr, uint32_t offset,
 	int ret = 0;
 	for(;sz > 0 && CESK_STORE_ADDR_NULL != (addr = cesk_set_iter_next(&this->iter)); sz--)
 		buf[ret ++] = addr;
+	this->next_offset += ret;
 	return ret;
 }
 /**
@@ -410,7 +429,7 @@ static inline int _array_put_handler(bci_method_env_t* env)
 		return -1;
 	}
 	uint32_t addr;
-	while(CESK_STORE_ADDR_NULL == (addr = cesk_set_iter_next(&iter)))
+	while(CESK_STORE_ADDR_NULL != (addr = cesk_set_iter_next(&iter)))
 	{
 		array_data_t* this = (array_data_t*)bci_interface_get_rw(env, addr, java_lang_reflect_Array_metadata.provides[0]);
 		if(NULL == this)
@@ -459,6 +478,7 @@ bci_class_t java_lang_reflect_Array_metadata = {
 	.onload = java_lang_reflect_Array_onload,
 	.ondelete = java_lang_reflect_Array_ondelete,
 	.initialization = java_lang_reflect_Array_init,
+	.duplicate = java_lang_reflect_Array_dup,
 	.finalization = java_lang_reflect_Array_finalize,
 	.get_addr_list = java_lang_reflect_Array_get_addr_list,
 	.hash = java_lang_reflect_Array_hashcode,
