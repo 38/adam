@@ -27,6 +27,8 @@ const char* kw_continue;
 const char* kw_step;
 const char* kw_next;
 const char* kw_backtrace;
+const char* kw_class;
+const char* kw_method;
 
 cesk_frame_t* input_frame = NULL;
 cesk_frame_t* current_frame = NULL;
@@ -80,7 +82,7 @@ static inline void cli_do_help(sexpression_t* sexp)
 {
 	if(SEXP_NIL == sexp)
 	{
-		cli_error("Possible commands: help, quit, load, list, break, frame");
+		cli_error("Possible commands: help, quit, load, list, break, frame, continue, step, next, backtrace");
 		cli_error("Use `(help command-name)' for the detials of each command");
 	}
 	else if(sexp_match(sexp, "(L=A", kw_quit, &sexp))
@@ -99,16 +101,18 @@ static inline void cli_do_help(sexpression_t* sexp)
 	}
 	else if(sexp_match(sexp, "(L=A", kw_list, &sexp))
 	{
-		cli_error("List the code of some function");
-		cli_error("(list/blocks class name typelist)\tPrint the block graph");
-		cli_error("(list/code class name typelist)\tPrint all code in this function");
-		cli_error("(list/code class name typelist blockid)\tPrint this block");
+		cli_error("List the code of a method or ");
+		cli_error("(list/blocks class name typelist return_type)\tPrint the block graph");
+		cli_error("(list/code class name typelist return_type)\tPrint all code in this function");
+		cli_error("(list/code class name typelist return_type blockid)\tPrint this block");
+		cli_error("(list/class prefix)\tPrint all program defined classes registered in the system");
+		cli_error("(list/method class)\tPrint all program defined method registered in the system");
 	}
 	else if(sexp_match(sexp, "(L=A", kw_break, &sexp))
 	{
 		cli_error("Add a breakpoint");
-		cli_error("(break/func class name typelist)\tAdd a breakpoint at a given function");
-		cli_error("(break/block class name typelist block_id)\tAdd a breakpoint at a given block");
+		cli_error("(break/func class name typelist return_type)\tAdd a breakpoint at a given function");
+		cli_error("(break/block class name typelist return_type block_id)\tAdd a breakpoint at a given block");
 		cli_error("(break/inst inst_id)\t\t\tAdd a breakpoint at address");
 		cli_error("(break/list)\t\t\t\tList all breakpoints");
 	}
@@ -123,6 +127,22 @@ static inline void cli_do_help(sexpression_t* sexp)
 	{
 		cli_error("Run a function with the Input frame");
 		cli_error("(run class name typelist)");
+	}
+	else if(sexp_match(sexp, "(L=A", kw_backtrace, &sexp))
+	{
+		cli_error("Print stack backtrace");
+	}
+	else if(sexp_match(sexp, "(L=A", kw_step, &sexp))
+	{
+		cli_error("Step into");
+	}
+	else if(sexp_match(sexp, "(L=A", kw_next, &sexp))
+	{
+		cli_error("Step over");
+	}
+	else if(sexp_match(sexp, "(L=A", kw_continue, &sexp))
+	{
+		cli_error("Continue");
 	}
 }
 static inline void dfs_block_list(const dalvik_block_t* entry, const dalvik_block_t** bl)
@@ -185,19 +205,67 @@ static inline void cli_do_list(sexpression_t* sexp)
 	const dalvik_type_t *R;
 	if(sexp_match(sexp, "(L?A", &type, &sexp))
 	{
-		if(cli_read_func_signature((const sexpression_t**)&sexp, &class, &name, T, &R) < 0)
+		if(type == kw_blocks || type == kw_code)
 		{
-			LOG_ERROR("invalid function signature");
+			if(cli_read_func_signature((const sexpression_t**)&sexp, &class, &name, T, &R) < 0)
+			{
+				LOG_ERROR("invalid function signature");
+				return;
+			}
+			const dalvik_block_t* graph = dalvik_block_from_method(class, name, T, R);
+			cli_free_func_signature(T, R);
+			if(NULL == graph)
+			{
+				cli_error("Can not find the function");
+				return;
+			}
+			dfs_block_list(graph, block_list);
+		}
+		else if(type == kw_class)
+		{
+			const char* prefix = "";
+			const char* classpath[128];
+			if(SEXP_NIL != sexp)
+			{
+				prefix = sexp_get_object_path(sexp, (const sexpression_t**)&sexp);
+			}
+			int rc;
+			if((rc = dalvik_memberdict_find_class_by_prefix(prefix, classpath, sizeof(classpath)/sizeof(classpath[0]))) < 0)
+			{
+				cli_error("error when getting class list");
+				return;
+			}
+			int i;
+			for(i = 0; i < rc; i ++)
+				cli_error("%s", classpath[i]);
 			return;
 		}
-		const dalvik_block_t* graph = dalvik_block_from_method(class, name, T, R);
-		cli_free_func_signature(T, R);
-		if(NULL == graph)
+		else if(type == kw_method)
 		{
-			cli_error("Can not find the function");
+			const char* object_path = sexp_get_object_path(sexp, (const sexpression_t**)&sexp);
+			const char* classpath[128];
+			const char* methodname[128];
+			const dalvik_type_t* const* signature[128];
+			const dalvik_type_t* return_type[128];
+			int rc;
+			if(NULL == object_path) object_path = "";
+			if((rc = dalvik_memberdict_find_member_by_prefix(
+							object_path, "", 
+							classpath, methodname, 
+							signature, return_type, 
+							sizeof(classpath)/sizeof(classpath[0]))) < 0)
+			{
+				cli_error("error when get member list");
+				return;
+			}
+			int i;
+			for(i = 0; i < rc; i ++)
+			{
+				if(signature[i] == NULL) continue;
+				cli_error("%s %s.%s%s", dalvik_type_to_string(return_type[i], NULL, 0), classpath[i], methodname[i], dalvik_type_list_to_string(signature[i], NULL, 0));
+			}
 			return;
 		}
-		dfs_block_list(graph, block_list);
 	}
 	else
 	{
@@ -517,6 +585,9 @@ int main(int argc, char** argv)
 	kw_step = stringpool_query("step");
 	kw_next = stringpool_query("next");
 	kw_backtrace = stringpool_query("backtrace");
+	kw_class = stringpool_query("class");
+	kw_method = stringpool_query("method");
+	
 
 	int i;
 	for(i = 1; i <argc; i ++)

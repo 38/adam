@@ -1524,7 +1524,7 @@ static inline int _cesk_block_handler_invoke(
 {
 	int i;
 	uint32_t nregs;
-	uint32_t nargs;
+	uint32_t nargs = 0;
 	static cesk_set_t* args[65536] = {};
 	uint32_t flag_args_ref = 1;   /* wether or not the args holds the reference */
 	

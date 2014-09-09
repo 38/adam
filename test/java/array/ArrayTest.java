@@ -22,6 +22,7 @@ class ArrayTest{
 	public static void factRecur(int current, int N, ArrayTest[] result){
 		if(current == N) return;
 		result[current] = new ArrayTest(result[current - 1].value + result[current - 2].value);
+		factRecur(current + 1, N, result);
 	}
 	public static ArrayTest[] result;
 	public static ArrayTest[] factArray(int N){

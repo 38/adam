@@ -68,5 +68,32 @@ const dalvik_field_t* dalvik_memberdict_get_field(const char* class_path, const 
  */
 const dalvik_class_t* dalvik_memberdict_get_class(const char* class_path);
 
+/**
+ * @brief find class by the path prefix
+ * @param prefix the prefix of the class path
+ * @param p_class_path the buffer to return class path
+ * @param bufsize the size of the buffer
+ * @return the number of objects < 0 for error
+ **/
+int dalvik_memberdict_find_class_by_prefix(const char* prefix, const char** p_class_path, size_t bufsize);
+/**
+ * @brief find all members of a class
+ * @param class_prefix the classpath
+ * @param method_prefix the method prefix
+ * @param p_class_path the buffer for class path
+ * @param p_method_name the buffer for method name
+ * @param p_signature the buffer for function signature
+ * @param p_rettype the buffer for return type
+ * @param bufsize the size of the buffer
+ * @return the number of objects returned < 0 for error
+ **/
+int dalvik_memberdict_find_member_by_prefix(
+		const char* class_prefix,
+		const char* method_prefix,
+		const char** p_class_path,
+		const char** p_method_name,
+		const dalvik_type_t * const ** p_signature,
+		const dalvik_type_t ** p_rettype,
+		size_t bufsize);
 
 #endif /* __DALVIK_MEMBERDICT_H__ */

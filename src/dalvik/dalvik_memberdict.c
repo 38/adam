@@ -62,6 +62,60 @@ void dalvik_memberdict_finalize()
 	}
 }
 /**
+ * @brief check wether or not p is a prefix of s
+ * @param p
+ * @param s
+ * @return 1 for yes, 0 for no
+ **/
+static inline int _dalvik_memberdict_check_prefix(const char* p, const char* s)
+{
+	int ret = 1;
+	if(NULL == p) return NULL == s;
+	for(;*p && s && *s && ret; ret = (*(p++) == *(s++)));
+	return ret;
+}
+/**
+ * @brief get the list of members
+ * @param class_path_prefix the prefix of the class path
+ * @param member_name_prefix the prefix of the member name
+ * @param p_class_path the buffer to return the class path
+ * @param p_member_name the buffer to return the member name
+ * @param p_signature the buffer to return the signature
+ * @param p_return_type the buffer to return the return type
+ * @param bufsize the size of the buffer
+ * @return the number of objects returned , < 0 indicates error
+ **/
+static inline int _dalvik_memberdict_member_match(
+		const char* class_path_prefix, 
+		const char* member_name_prefix,
+		const char** p_class_path,
+		const char** p_member_name,
+		const dalvik_type_t * const ** p_signature,
+		const dalvik_type_t ** p_return_type,
+		size_t bufsize)
+{
+	int ret = 0;
+	int i;
+	for(i = 0; i < DALVIK_MEMBERDICT_SIZE && ret < bufsize; i ++)
+	{
+		dalvik_memberdict_node_t* ptr;
+		for(ptr = _dalvik_memberdict_hash_table[i]; NULL != ptr; ptr = ptr->next)
+		{
+			if(_dalvik_memberdict_check_prefix(class_path_prefix, ptr->class_path) &&
+			   _dalvik_memberdict_check_prefix(member_name_prefix, ptr->member_name))
+			{
+				if(NULL != p_class_path) p_class_path[ret] = ptr->class_path;
+				if(NULL != p_member_name) p_member_name[ret] = ptr->member_name;
+				if(NULL != p_signature) p_signature[ret] = ptr->args;
+				if(NULL != p_return_type) p_return_type[ret] = ptr->rtype;
+				ret ++;
+			}
+		}
+	}
+	return ret;
+}
+
+/**
  * @brief the hashcode for the members 
  * @param class_path the class path for this object
  * @param member_name the name of this member, if this object is a class defination this field is NULL
@@ -217,4 +271,19 @@ const dalvik_field_t* dalvik_memberdict_get_field(const char* class_path, const 
 const dalvik_class_t* dalvik_memberdict_get_class(const char* class_path)
 {
 	return (const dalvik_class_t*)_dalvik_memberdict_find_object(class_path, NULL, NULL, NULL, _TYPE_CLASS);
+}
+int dalvik_memberdict_find_class_by_prefix(const char* prefix, const char** p_class_path, size_t bufsize)
+{
+	return _dalvik_memberdict_member_match(prefix, NULL, p_class_path, NULL, NULL, NULL, bufsize);
+}
+int dalvik_memberdict_find_member_by_prefix(
+		const char* class_prefix,
+		const char* method_prefix,
+		const char** p_class_path,
+		const char** p_method_name,
+		const dalvik_type_t * const ** p_signature,
+		const dalvik_type_t ** p_rettype,
+		size_t bufsize)
+{
+	return _dalvik_memberdict_member_match(class_prefix, method_prefix, p_class_path, p_method_name, p_signature, p_rettype, bufsize);
 }
