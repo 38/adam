@@ -23,12 +23,17 @@ class ArrayTest{
 		if(current == N) return;
 		result[current] = new ArrayTest(result[current - 1].value + result[current - 2].value);
 	}
+	public static ArrayTest[] result;
 	public static ArrayTest[] factArray(int N){
 		ArrayTest[] ret = new ArrayTest[N];
 		ret[0] = new ArrayTest(1);
 		ret[1] = new ArrayTest(1);
 		factRecur(2, N, ret);
 		return ret;
+	}
+	public static int queryFact(int N){
+		if(null == ArrayTest.result) result = factArray(100);
+		return result[N].value;
 	}
 	public static int[] fillArray1() {
 		int[] ret = {1,2,3,4};

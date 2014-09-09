@@ -475,6 +475,11 @@ static inline int _array_get_handler(bci_method_env_t* env)
 	}
 	while(CESK_STORE_ADDR_NULL != (addr = cesk_set_iter_next(&iter)))
 	{
+		if(CESK_STORE_ADDR_ZERO == addr)
+		{
+			/* TODO: throw a java null pointer exception */
+			continue;
+		}
 		const array_data_t* this = (const array_data_t*)bci_interface_get_ro(env, addr, java_lang_reflect_Array_metadata.provides[0]);
 		if(cesk_set_merge(ret, this->set) < 0)
 		{

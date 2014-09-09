@@ -249,12 +249,12 @@ static inline int _cesk_diff_gc_check_store_rec_inuse(const cesk_diff_rec_t* dat
 				/* if this is an instance of a built-in class */
 				if(this->built_in)
 				{
-					static uint32_t buf[1024];
+					static uint32_t buf_addr[1024];
 					uint32_t offset = 0;
 					int rc;
 					for(;;)
 					{
-						rc = bci_class_get_addr_list(this->bcidata, offset, buf, sizeof(buf)/sizeof(buf[0]), this->class.bci->class);
+						rc = bci_class_get_addr_list(this->bcidata, offset, buf_addr, sizeof(buf_addr)/sizeof(buf_addr[0]), this->class.bci->class);
 						if(rc < 0)
 						{
 							LOG_WARNING("failed to get the address list");
@@ -265,7 +265,7 @@ static inline int _cesk_diff_gc_check_store_rec_inuse(const cesk_diff_rec_t* dat
 						int j;
 						for(j = 0; j < rc; j ++)
 						{
-							uint32_t addr = buf[j];
+							uint32_t addr = buf_addr[j];
 							if(CESK_STORE_ADDR_IS_RELOC(addr))
 							{
 								uint32_t idx = CESK_STORE_ADDR_RELOC_IDX(addr);

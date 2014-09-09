@@ -1526,6 +1526,7 @@ static inline int _cesk_block_handler_invoke(
 	uint32_t nregs;
 	uint32_t nargs;
 	static cesk_set_t* args[65536] = {};
+	uint32_t flag_args_ref = 1;   /* wether or not the args holds the reference */
 	
 	const dalvik_block_t* code[CESK_BLOCK_MAX_NUM_OF_FUNC];
 	cesk_set_t  * this[CESK_BLOCK_MAX_NUM_OF_FUNC];
@@ -1591,10 +1592,13 @@ static inline int _cesk_block_handler_invoke(
 				goto ERR;
 			}
 
+			flag_args_ref = 0;
+
 			invoke_result[k] = cesk_method_analyze(code[k], callee_frame, context, callee_rtable + k);
 			if(NULL == invoke_result[k])
 			{
 				LOG_ERROR("can not analyze the function invocation");
+				cesk_frame_free(callee_frame);
 				goto ERR;
 			}
 			cesk_frame_free(callee_frame);
@@ -1615,6 +1619,9 @@ static inline int _cesk_block_handler_invoke(
 				LOG_ERROR("can't initialize stack frame for callee function");
 				goto BCI_INVOKE_ERR;
 			}
+
+			flag_args_ref = 0;
+
 			bci_method_env_t env = {
 				.frame = callee_frame,
 				.rtable = cesk_reloc_table_new(),
@@ -1660,6 +1667,7 @@ BCI_INVOKE_ERR:
 			if(NULL != callee_frame) cesk_frame_free(callee_frame);
 			if(NULL != callee_atab) cesk_alloctab_free(callee_atab);
 			if(NULL != env.rtable) cesk_reloc_table_free(env.rtable);
+			callee_rtable[k] = NULL;
 			if(NULL != buf) cesk_diff_buffer_free(buf);
 			goto ERR;
 		}
@@ -1679,14 +1687,14 @@ BCI_INVOKE_ERR:
 	cesk_diff_t* result = _cesk_block_invoke_result_translate(ins, frame, rtab, callee_rtable, invoke_result, nfunc, result_reg);
 	if(NULL == result)
 	{
-		LOG_ERROR("can not traslate the result diff to interal diff");
-		return -1;
+		LOG_ERROR("can not traslate the result diff to internal diff");
+		goto ERR;
 	}
 
 	if(cesk_frame_apply_diff(frame, result, rtab, D, I) < 0)
 	{
 		LOG_ERROR("can not apply the result diff to the frame");
-		return -1;
+		goto ERR;
 	}
 	for(i = 0; i < nfunc; i ++)
 	{
@@ -1703,10 +1711,14 @@ PARAMERR_RANGE:
 ERR:
 	if(bci_D) cesk_diff_buffer_free(bci_D);
 	if(bci_I) cesk_diff_buffer_free(bci_I);
-	for(i = 0; i < nargs; i ++)
-		if(NULL != args[i]) cesk_set_free(args[i]);
+	if(flag_args_ref) 
+		for(i = 0; i < nargs; i ++)
+			if(NULL != args[i]) cesk_set_free(args[i]);
 	for(i = 0; i < nfunc; i ++)
-		if(NULL != this[k]) cesk_set_free(this[k]);
+		if(NULL != this[i]) cesk_set_free(this[i]);
+	for(i = 0; i < nfunc; i ++)
+		if(NULL == code[i] && NULL != callee_rtable)
+			cesk_reloc_table_free(callee_rtable[i]);
 	return -1;
 }
 int cesk_block_analyze(
