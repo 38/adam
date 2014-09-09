@@ -8,6 +8,7 @@
 #define FILENAME ((const char*)0x5)
 #define NUMBER ((const char*)0x6)
 #define VALUELIST ((const char*)0x7)
+#define REGNAME ((const char*) 0x8)
 
 /**
  * @brief defination of a command
@@ -44,5 +45,6 @@ typedef struct cli_command_t{
 #define Method(name) ,.action = name
 int cli_command_init();
 int cli_command_match(sexpression_t* sexp);
-int cli_command_get_help_text(sexpression_t* what, void* buf, uint32_t nlines, uint32_t nchar); 
+int cli_command_get_help_text(sexpression_t* what, void* buf, uint32_t nlines, uint32_t nchar);
+char* cli_command_completion_function(char* text, int state);
 #endif

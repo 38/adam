@@ -93,6 +93,15 @@ int cli_command_match(sexpression_t* sexp)
 								cli_commands[i].args[j].function.signature,
 								&cli_commands[i].args[j].function.return_type) >= 0);
 					break;
+				case (uintptr_t)REGNAME:
+					match = sexp_match(current, "(L?A", &lit, &current);
+					if(match)
+					{
+						if(strcmp(lit, "vE")) cli_commands[i].args[j].numeral = 0;
+						else if(strcmp(lit, "vR")) cli_commands[i].args[j].numeral = 1;
+						else cli_commands[i].args[j].numeral = atoi(lit + 1) + 2;
+					}
+					break;
 				default:
 					match = sexp_match(current, "(L=A", cli_commands[i].pattern[j] ,&current);
 					if(match) cli_commands[i].args[j].literal = cli_commands[i].pattern[j];
@@ -100,7 +109,7 @@ int cli_command_match(sexpression_t* sexp)
 			if(match == 0) break;
 		}
 		int k;
-		if(cli_commands[i].pattern[j] == NULL) 
+		if(cli_commands[i].pattern[j] == NULL && SEXP_NIL == current) 
 		{
 			rc = cli_commands[i].action(cli_commands + i);
 			for(k = 0; k < j; k ++)
@@ -108,7 +117,9 @@ int cli_command_match(sexpression_t* sexp)
 				if(cli_commands[i].pattern[k] == FUNCTION)
 				{
 					dalvik_type_free((dalvik_type_t*)cli_commands[i].args[k].function.return_type);
-					dalvik_type_list_free((dalvik_type_t**)cli_commands[i].args[k].function.signature);
+					int i;
+					for(i = 0; NULL != cli_commands[i].args[k].function.signature[i]; i ++)
+						dalvik_type_free((dalvik_type_t*)cli_commands[i].args[k].function.signature[i]);
 				}
 			}
 			break;
@@ -118,7 +129,9 @@ int cli_command_match(sexpression_t* sexp)
 			if(cli_commands[i].pattern[k] == FUNCTION)
 			{
 				dalvik_type_free((dalvik_type_t*)cli_commands[i].args[k].function.return_type);
-				dalvik_type_list_free((dalvik_type_t**)cli_commands[i].args[k].function.signature);
+				int i;
+				for(i = 0; NULL != cli_commands[i].args[k].function.signature[i]; i ++)
+					dalvik_type_free((dalvik_type_t*)cli_commands[i].args[k].function.signature[i]);
 			}
 		}
 	}
@@ -166,6 +179,9 @@ int cli_command_get_help_text(sexpression_t* what, void* buf, uint32_t nlines, u
 						break;
 					case (uintptr_t)VALUELIST:
 						snprintf(ptr, free, "<value list>");
+						break;
+					case (uintptr_t)REGNAME:
+						snprintf(ptr, free, "<register name>");
 						break;
 					default:
 						if((uintptr_t)cli_commands[i].pattern[j] < 0x10) 
