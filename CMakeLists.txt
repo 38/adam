@@ -155,7 +155,7 @@ add_custom_target(distclean
 )
 
 add_custom_target(tags
-	COMMAND ctags -R include/ src/
+	COMMAND ctags -R include/ src/ tools/
 	WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
 )
 

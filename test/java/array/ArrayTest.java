@@ -19,19 +19,6 @@ class ArrayTest{
 		int[] ar = testPut();
 		return ar[x];
 	}
-	public static void factRecur(int current, int N, ArrayTest[] result){
-		if(current == N) return;
-		result[current] = new ArrayTest(result[current - 1].value + result[current - 2].value);
-		factRecur(current + 1, N, result);
-	}
-	public static ArrayTest[] result;
-	public static ArrayTest[] factArray(int N){
-		ArrayTest[] ret = new ArrayTest[N];
-		ret[0] = new ArrayTest(1);
-		ret[1] = new ArrayTest(1);
-		factRecur(2, N, ret);
-		return ret;
-	}
 	public static int queryFact(int N){
 		if(null == ArrayTest.result) result = factArray(100);
 		return result[N].value;
@@ -46,6 +33,27 @@ class ArrayTest{
 	}
 	public static int[] fillArray3() {
 		int[] ret = {-1,0,1,2,3,4};
+		return ret;
+	}
+	public static void factRecur(int current, int N, ArrayTest[] result){
+		if(current == N) return;
+		result[current] = new ArrayTest(result[current - 1].value + result[current - 2].value);
+		factRecur(current + 1, N, result);
+	}
+	public static ArrayTest[] result;
+	public static ArrayTest[] factArray(int N){
+		ArrayTest[] ret = new ArrayTest[N];
+		ret[0] = new ArrayTest(1);
+		ret[1] = new ArrayTest(1);
+		factRecur(2, N, ret);
+		return ret;
+	}
+	public static ArrayTest[] factIter(int N) {
+		ArrayTest[] ret = new ArrayTest[N];
+		ret[0] = new ArrayTest(1);
+		ret[1] = new ArrayTest(1);
+		for(int i = 2; i < N; i ++)
+			ret[i] = new ArrayTest(ret[i - 1].value + ret[i - 2].value);
 		return ret;
 	}
 }

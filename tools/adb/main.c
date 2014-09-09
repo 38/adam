@@ -4,32 +4,6 @@
 #include <adam.h>
 #include <sexp.h>
 
-const char* kw_load;
-const char* kw_quit;
-const char* kw_help;
-const char* kw_dir;
-const char* kw_list;
-const char* kw_blocks;
-const char* kw_code;
-const char* kw_break;
-const char* kw_func;
-const char* kw_block;
-const char* kw_inst;
-const char* kw_clear;
-const char* kw_frame;
-const char* kw_get;
-const char* kw_set;
-const char* kw_register;
-const char* kw_run;
-const char* kw_info;
-const char* kw_new;
-const char* kw_continue;
-const char* kw_step;
-const char* kw_next;
-const char* kw_backtrace;
-const char* kw_class;
-const char* kw_method;
-
 cesk_frame_t* input_frame = NULL;
 cesk_frame_t* current_frame = NULL;
 const void* break_context = NULL;
@@ -63,6 +37,33 @@ static inline int cli_char_in(char c, const char* chars)
 		if(c == *chars) return 1;
 	return 0;
 }
+#if 0
+const char* kw_load;
+const char* kw_quit;
+const char* kw_help;
+const char* kw_dir;
+const char* kw_list;
+const char* kw_blocks;
+const char* kw_code;
+const char* kw_break;
+const char* kw_func;
+const char* kw_block;
+const char* kw_inst;
+const char* kw_clear;
+const char* kw_frame;
+const char* kw_get;
+const char* kw_set;
+const char* kw_register;
+const char* kw_run;
+const char* kw_info;
+const char* kw_new;
+const char* kw_continue;
+const char* kw_step;
+const char* kw_next;
+const char* kw_backtrace;
+const char* kw_class;
+const char* kw_method;
+
 static inline void cli_do_load(sexpression_t* sexp)
 {
 	const char* path;
@@ -613,6 +614,84 @@ int main(int argc, char** argv)
 	adam_finalize();
 	return 0;
 }
+#endif
+#include "cli_command.h"
+enum{
+	CLI_COMMAND_ERROR = -1,
+	CLI_COMMAND_EXIT = 0,
+	CLI_COMMAND_DONE = 1,
+	CLI_COMMAND_CONT = 2
+};
+static int do_command(const char* cmdline)
+{
+	if(NULL == cmdline) return 0;
+	sexpression_t* sexp;
+	int ret = CLI_COMMAND_DONE;
+	for(;;)
+	{
+		if((cmdline = sexp_parse(cmdline, &sexp)) != NULL)
+		{
+			int rc = cli_command_match(sexp);
+			sexp_free(sexp);
+			switch(rc)
+			{
+				case CLI_COMMAND_ERROR: 
+					cli_error("can not execute the command");
+					return CLI_COMMAND_ERROR;
+				case CLI_COMMAND_EXIT:  return CLI_COMMAND_EXIT;
+				case CLI_COMMAND_CONT:  ret = CLI_COMMAND_CONT; break;
+			}
+		}
+		else
+		{
+			if(SEXP_EOF != sexp) 
+			{
+				cli_error("can not parse the input");
+				if(NULL != sexp) sexp_free(sexp);
+			}
+			else break;
+		}
+	}
+	return ret;
+}
+static int cli()
+{
+	const char* cmdline = cli_readline(PROMPT);
+	static char last_command[1024] = {};
+	if(cmdline && strcmp(cmdline , "") == 0) cmdline = last_command;
+	else if(cmdline) strcpy(last_command, cmdline);
+	return do_command(cmdline); 
+}
+int main(int argc, char** argv)
+{
+	int i;
+	adam_init();
+	cli_command_init();
+	
+	for(i = 1; i <argc; i ++)
+	{
+		FILE* fp = fopen(argv[i], "r");
+		if(NULL == fp) continue;
+		char buf[1024];
+		int cli_ret = 1;
+		for(;NULL != fgets(buf, sizeof(buf), fp) && cli_ret;)
+			cli_ret = do_command(buf);
+		fclose(fp);
+		if(cli_ret == 0) 
+		{
+			if(NULL != input_frame) cesk_frame_free(input_frame);
+			adam_finalize();
+			return 0;
+		}
+	}
+
+	cli_error("ADB - the ADAM Debugger");
+	cli_error("type `(help)' for more infomation");
+	while(cli());
+	if(NULL != input_frame) cesk_frame_free(input_frame);
+	adam_finalize();
+	return 0;
+}
 int debugger_callback(const dalvik_instruction_t* inst, cesk_frame_t* frame, const void* context)
 {
 	uint32_t inst_addr = dalvik_instruction_get_index(inst);
@@ -658,3 +737,36 @@ int debugger_callback(const dalvik_instruction_t* inst, cesk_frame_t* frame, con
 
 	return 0;
 }
+
+
+int do_help(cli_command_t* cmd)
+{
+	sexpression_t* what = cmd->args[1].sexp;
+	char help_text[64][128];
+	int lines = cli_command_get_help_text(what, help_text, 64, 128);
+	int i;
+	for(i = 0; i < lines; i ++)
+		cli_error(help_text[i]);
+	return CLI_COMMAND_DONE;
+}
+int do_load(cli_command_t* cmd)
+{
+	const char* path = cmd->args[1].string;
+	if(dalvik_loader_from_directory(path) < 0)
+		cli_error("can not load path %s", path);
+	return CLI_COMMAND_DONE;
+}
+
+Commands
+	Command(0)
+		{"help", SEXPRESSION, NULL}
+		Desc("print help message")
+		Method(do_help)
+	EndCommand
+	Command(1)
+		{"load", FILENAME, NULL}
+		Desc("load dalvik bytecode from a director")
+		Method(do_load)
+	EndCommand
+EndCommands
+
