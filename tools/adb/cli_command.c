@@ -34,18 +34,47 @@ static inline int _match_func(const sexpression_t** sexp, const char** class, co
 }
 int cli_command_match(sexpression_t* sexp)
 {
-	int i, j;
+	int i, j, rc = -1;
 	for(i = 0; i < ncommands; i ++)
 	{
 		sexpression_t* current = sexp;
 		for(j = 0; cli_commands[i].pattern[j]; j ++)
 		{
 			int match = 0;
+			const char* lit;
+			uint32_t n = 0;
 			switch((uintptr_t)cli_commands[i].pattern[j])
 			{
 				case (uintptr_t)STRING:
 				case (uintptr_t)FILENAME:
 					match = sexp_match(current, "(S?A", &cli_commands[i].args[j].string, &current);
+					break;
+				case (uintptr_t)NUMBER:
+					match = sexp_match(current, "(L?A", &lit, &current);
+					if(match)
+					{
+						if(lit[0] == '0' && lit[1] == 'x') cli_commands[i].args[j].numeral = strtoul(lit + 2, NULL, 16);
+						else if(lit[0] == '-') cli_commands[i].args[j].numeral = 0xffffff01;
+						else if(lit[0] == 'Z') cli_commands[i].args[j].numeral = 0xffffff02;
+						else if(lit[0] == '+') cli_commands[i].args[j].numeral = 0xffffff04;
+						else cli_commands[i].args[j].numeral = strtoul(lit, NULL, 10);
+					}
+					break;
+				case (uintptr_t)VALUELIST:
+					while(match && SEXP_NIL != current)
+					{
+						match = sexp_match(current, "(L?A", &lit, &current);
+						if(match)
+						{
+							if(lit[0] == '0' && lit[1] == 'x') cli_commands[i].args[j].list.values[n] = strtoul(lit + 2, NULL, 16);
+							else if(lit[0] == '-') cli_commands[i].args[j].list.values[n] = 0xffffff01;
+							else if(lit[0] == 'Z') cli_commands[i].args[j].list.values[n] = 0xffffff02;
+							else if(lit[0] == '+') cli_commands[i].args[j].list.values[n] = 0xffffff04;
+							else cli_commands[i].args[j].list.values[n] = strtoul(lit, NULL, 10);
+						}
+						n ++;
+					}
+					cli_commands[i].args[j].list.size = n;
 					break;
 				case (uintptr_t)CLASSPATH:
 					cli_commands[i].args[j].class = sexp_get_object_path(current, (const sexpression_t**)&current);
@@ -57,12 +86,12 @@ int cli_command_match(sexpression_t* sexp)
 					match = 1;
 					break;
 				case (uintptr_t)FUNCTION:
-					match = _match_func(
-							(const sexpression_t**)&current, 
-							&cli_commands[i].args[j].function.class,
-							&cli_commands[i].args[j].function.method,
-							cli_commands[i].args[j].function.signature,
-							&cli_commands[i].args[j].function.return_type);
+					match = (_match_func(
+								(const sexpression_t**)&current, 
+								&cli_commands[i].args[j].function.class,
+								&cli_commands[i].args[j].function.method,
+								cli_commands[i].args[j].function.signature,
+								&cli_commands[i].args[j].function.return_type) >= 0);
 					break;
 				default:
 					match = sexp_match(current, "(L=A", cli_commands[i].pattern[j] ,&current);
@@ -70,9 +99,30 @@ int cli_command_match(sexpression_t* sexp)
 			}
 			if(match == 0) break;
 		}
-		if(cli_commands[i].pattern[j] == NULL) return cli_commands[i].action(cli_commands + i);
+		int k;
+		if(cli_commands[i].pattern[j] == NULL) 
+		{
+			rc = cli_commands[i].action(cli_commands + i);
+			for(k = 0; k < j; k ++)
+			{
+				if(cli_commands[i].pattern[k] == FUNCTION)
+				{
+					dalvik_type_free((dalvik_type_t*)cli_commands[i].args[k].function.return_type);
+					dalvik_type_list_free((dalvik_type_t**)cli_commands[i].args[k].function.signature);
+				}
+			}
+			break;
+		}
+		for(k = 0; k < j; k ++)
+		{
+			if(cli_commands[i].pattern[k] == FUNCTION)
+			{
+				dalvik_type_free((dalvik_type_t*)cli_commands[i].args[k].function.return_type);
+				dalvik_type_list_free((dalvik_type_t**)cli_commands[i].args[k].function.signature);
+			}
+		}
 	}
-	return -1;
+	return rc;
 }
 int cli_command_get_help_text(sexpression_t* what, void* buf, uint32_t nlines, uint32_t nchar)
 {
@@ -105,14 +155,23 @@ int cli_command_get_help_text(sexpression_t* what, void* buf, uint32_t nlines, u
 					case (uintptr_t)CLASSPATH:
 						snprintf(ptr, free, "<class path> ");
 						break;
-					case (uintptr_t) FUNCTION:
+					case (uintptr_t)FUNCTION:
 						snprintf(ptr, free, "<class path>/<method name> (<type1> <type2> ... <typeN>) <type> ");
 						break;
 					case (uintptr_t)SEXPRESSION:
 						snprintf(ptr, free, "<what you want> ");
 						break;
+					case (uintptr_t)NUMBER:
+						snprintf(ptr, free, "<numeral value> ");
+						break;
+					case (uintptr_t)VALUELIST:
+						snprintf(ptr, free, "<value list>");
+						break;
 					default:
-						snprintf(ptr, free, "%s ", cli_commands[i].pattern[j]);
+						if((uintptr_t)cli_commands[i].pattern[j] < 0x10) 
+							snprintf(ptr, free, "%s", "<!@#$%^&*()>");
+						else 
+							snprintf(ptr, free, "%s ", cli_commands[i].pattern[j]);
 				}
 				size_t used = strlen(ptr);
 				free -= used;

@@ -739,6 +739,20 @@ int debugger_callback(const dalvik_instruction_t* inst, cesk_frame_t* frame, con
 }
 
 
+static inline void dfs_block_list(const dalvik_block_t* entry, const dalvik_block_t** bl)
+{
+	if(NULL == entry) return;
+	if(bl[entry->index] != NULL) return;
+	bl[entry->index] = entry;
+	int i;
+	for(i = 0; i < entry->nbranches; i ++)
+		if(!entry->branches[i].disabled)
+		{
+			if(DALVIK_BLOCK_BRANCH_UNCOND_TYPE_IS_RETURN(entry->branches[i])) continue;
+			dfs_block_list(entry->branches[i].block, bl);
+		}
+}
+
 int do_help(cli_command_t* cmd)
 {
 	sexpression_t* what = cmd->args[1].sexp;
@@ -756,7 +770,37 @@ int do_load(cli_command_t* cmd)
 		cli_error("can not load path %s", path);
 	return CLI_COMMAND_DONE;
 }
-
+int do_list_blocks(cli_command_t* cmd)
+{
+	const char* name = cmd->args[2].function.method;
+	const char* class = cmd->args[2].function.class;
+	const dalvik_block_t* block_list[DALVIK_BLOCK_MAX_KEYS] = {};
+	const dalvik_type_t * const * T = (const dalvik_type_t * const *) cmd->args[2].function.signature;
+	const dalvik_type_t* R = (const dalvik_type_t*) cmd->args[2].function.return_type;
+	const dalvik_block_t* graph = dalvik_block_from_method(class, name, T, R);
+	if(NULL == graph)
+	{
+		cli_error("can not find function %s %s.%s%s", dalvik_type_to_string(R, NULL, 0), class, name, dalvik_type_list_to_string(T, NULL, 0));
+		return CLI_COMMAND_ERROR;
+	}
+	dfs_block_list(graph, block_list);
+	int i,j;
+	for(i = 0; i < DALVIK_BLOCK_MAX_KEYS; i ++)
+	{
+		if(NULL == block_list[i]) continue;
+		printf("Block #%d --> ", i);
+		for(j = 0; j < block_list[i]->nbranches; j ++)
+			if(!block_list[i]->branches[j].disabled)
+			{
+				if(DALVIK_BLOCK_BRANCH_UNCOND_TYPE_IS_RETURN(block_list[i]->branches[j])) 
+					printf("return ");
+				else
+					printf("#%d ", block_list[i]->branches[j].block->index);
+			}
+		puts("");
+	}
+	return CLI_COMMAND_DONE;
+}
 Commands
 	Command(0)
 		{"help", SEXPRESSION, NULL}
@@ -767,6 +811,11 @@ Commands
 		{"load", FILENAME, NULL}
 		Desc("load dalvik bytecode from a director")
 		Method(do_load)
+	EndCommand
+	Command(2)
+		{"list", "blocks", FUNCTION, NULL}
+		Desc("List all blocks of a function")
+		Method(do_list_blocks)	
 	EndCommand
 EndCommands
 

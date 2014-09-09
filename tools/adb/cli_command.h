@@ -6,6 +6,8 @@
 #define STRING    ((const char*)0x3)
 #define SEXPRESSION ((const char*)0x4)
 #define FILENAME ((const char*)0x5)
+#define NUMBER ((const char*)0x6)
+#define VALUELIST ((const char*)0x7)
 
 /**
  * @brief defination of a command
@@ -25,6 +27,11 @@ typedef struct cli_command_t{
 		const char* string; /*!< string argument */
 		const char* literal; /*!< literal */
 		sexpression_t* sexp; /*!< sexpression */
+		uint32_t numeral; /*!< the numeral value */
+		struct {
+			uint32_t values[128];
+			uint32_t size;
+		} list;
 	} args[64];
 	int (*action)(struct cli_command_t* arg);
 } cli_command_t;
