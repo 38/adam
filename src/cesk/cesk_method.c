@@ -98,7 +98,7 @@ int cesk_method_init()
 	_cesk_method_empty_diff = cesk_diff_empty();
 	return 0;
 }
-void cesk_method_finalize()
+void cesk_method_clean_cache()
 {
 	int i;
 	for(i = 0; i < CESK_METHOD_CAHCE_SIZE; i ++)
@@ -113,7 +113,12 @@ void cesk_method_finalize()
 			if(current->rtable) cesk_reloc_table_free(current->rtable);
 			free(current);
 		}
+		_cesk_method_cache[i] = NULL;
 	}
+}
+void cesk_method_finalize()
+{
+	cesk_method_clean_cache();
 	if(NULL != _cesk_method_empty_diff) cesk_diff_free(_cesk_method_empty_diff);
 }
 /**

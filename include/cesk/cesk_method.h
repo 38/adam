@@ -57,4 +57,9 @@ const dalvik_block_t* cesk_method_context_get_current_block(const void* context)
  * @return the caller context, NULL means error or the bottom of the stack
  **/
 const void* cesk_method_context_get_caller_context(const void* context);
+/**
+ * @brief clean the analyzer cache
+ * @return nothing
+ **/
+void cesk_method_clean_cache();
 #endif

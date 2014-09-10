@@ -46,5 +46,5 @@ typedef struct cli_command_t{
 int cli_command_init();
 int cli_command_match(sexpression_t* sexp);
 int cli_command_get_help_text(sexpression_t* what, void* buf, uint32_t nlines, uint32_t nchar);
-char* cli_command_completion_function(char* text, int state);
+char* cli_command_completion_function(const char* text, int state);
 #endif

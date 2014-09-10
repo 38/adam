@@ -70,6 +70,7 @@ static int do_command(const char* cmdline)
 			{
 				cli_error("can not parse the input");
 				if(NULL != sexp) sexp_free(sexp);
+				return CLI_COMMAND_ERROR;
 			}
 			else break;
 		}
@@ -84,14 +85,17 @@ static int cli()
 	else if(cmdline) strcpy(last_command, cmdline);
 	return do_command(cmdline); 
 }
+
 extern char* filename_completion_function(char*, int);
 int main(int argc, char** argv)
 {
 	int i;
 	adam_init();
 	cli_command_init();
-	//rl_complete_entry_function = cli_command_completion_function;
-
+#if 0
+	rl_basic_word_break_characters = "";
+	rl_completion_entry_function = cli_command_completion_function;
+#endif
 	for(i = 1; i <argc; i ++)
 	{
 		FILE* fp = fopen(argv[i], "r");
@@ -469,6 +473,11 @@ int do_continue(cli_command_t* cmd)
 {
 	return CLI_COMMAND_CONT;
 }
+int do_clean_cache(cli_command_t* cmd)
+{
+	cesk_method_clean_cache();
+	return CLI_COMMAND_DONE;
+}
 Commands
 	Command(0)
 		{"help", SEXPRESSION, NULL}
@@ -595,5 +604,12 @@ Commands
 		Desc("continue")
 		Method(do_continue)
 	EndCommand
+
+	Command(21)
+		{"cache", "clean", NULL}
+		Desc("Clean analyzer cache")
+		Method(do_clean_cache)
+	EndCommand
+
 EndCommands
 

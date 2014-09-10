@@ -218,6 +218,7 @@ const char* sexp_parse(const char* str, sexpression_t** buf)
 		(*buf) = SEXP_EOF;
 		return NULL;
 	}
+	else if(*str == ')' || *str == ']' || *str == '}') return NULL;
 	else if(*str == '(' || *str == '[' || *str == '{') return _sexp_parse_list(str + 1, buf);
 	else if(*str == '"') return _sexp_parse_string(str + 1, buf);
 	else if(*str == '#') return _sexp_parse_char(str + 1, buf);
