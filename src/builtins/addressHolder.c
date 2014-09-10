@@ -4,7 +4,7 @@
  **/
 #include <bci/bci_interface.h>
 typedef struct {
-	uint8_t init_cnt;
+	uint8_t init_state;
 	size_t N;
 	cesk_set_t* args;
 } data_t;
