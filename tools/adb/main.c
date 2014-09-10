@@ -86,7 +86,6 @@ static int cli()
 	return do_command(cmdline); 
 }
 
-extern char* filename_completion_function(char*, int);
 int main(int argc, char** argv)
 {
 	int i;
@@ -393,7 +392,7 @@ int do_frame_info(cli_command_t* cmd)
 	}
 	printf("Static Fields\n");
 	cesk_static_table_iter_t sit;
-	if(NULL == cesk_static_table_iter(frame->statics, &sit));
+	if(NULL == cesk_static_table_iter(frame->statics, &sit)) return CLI_COMMAND_ERROR;
 	uint32_t addr;
 	const cesk_set_t* pset;
 	while(NULL != (pset = cesk_static_table_iter_next(&sit, &addr)))
