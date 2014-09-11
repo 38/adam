@@ -41,7 +41,7 @@ int cli_command_match(sexpression_t* sexp)
 		sexpression_t* current = sexp;
 		for(j = 0; cli_commands[i].pattern[j]; j ++)
 		{
-			int match = 0;
+			int match = 1;
 			const char* lit;
 			uint32_t n = 0;
 			switch((uintptr_t)cli_commands[i].pattern[j])
@@ -98,8 +98,8 @@ int cli_command_match(sexpression_t* sexp)
 					match = sexp_match(current, "(L?A", &lit, &current);
 					if(match)
 					{
-						if(strcmp(lit, "vE")) cli_commands[i].args[j].numeral = 0;
-						else if(strcmp(lit, "vR")) cli_commands[i].args[j].numeral = 1;
+						if(0 == strcmp(lit, "vE")) cli_commands[i].args[j].numeral = 0;
+						else if(0 == strcmp(lit, "vR")) cli_commands[i].args[j].numeral = 1;
 						else cli_commands[i].args[j].numeral = atoi(lit + 1) + 2;
 					}
 					break;
@@ -206,7 +206,6 @@ int cli_command_get_help_text(sexpression_t* what, void* buf, uint32_t nlines, u
 	qsort(buf, rc, nchar, (int (*)(const void*, const void*))strcmp); 
 	return rc;
 }
-#if 0
 static inline char* _strcat(const char* str1,const char* str2)
 {
 	if(NULL == str1 || NULL == str2) return NULL;
@@ -220,26 +219,104 @@ static inline char* _strcat(const char* str1,const char* str2)
 static inline const char* _cli_command_completor(const char* text, const char* type, int state)
 {
 	static char buf[1024];
+	char input[1024];
+	char* res;
+	int len;
 	extern char* filename_completion_function(const char*, int);
+	static int idx;
+	static int rc;
+	extern cesk_frame_t* input_frame;
+	
+	static const char* classpath[1024];
+	static const char* methodname[1024];
+	static const dalvik_type_t* const* signature[1024];
+	static const dalvik_type_t* return_type[1024];
+	static char mbuf[1024][1024];
+
+	int i;
 	while(*text == ' ' || *text == '\t') text ++;
 	if((uintptr_t)type < 0x10)
 	{
 		switch((uintptr_t)type)
 		{
 			case (uintptr_t)STRING:
-				if(*text == 0) return "\"";
+				if(*text == 0 && !state) return "\"";
 				return NULL;
 			case (uintptr_t)FILENAME:
-				if(*text == 0) return "\"";
-
-				snprintf(buf, sizeof(buf), "%s", 
+				snprintf(input, sizeof(input), "%s", text==NULL?"":text + 1);
+				len = strlen(input);
+				if(len > 1 && input[len-1] == '\"')
+				{
+					if(input[len-2] == '/') 
+						input[len - 1] = 0;
+					else
+						input[len - 2] = '"';
+				}
+				res = filename_completion_function(input, state);
+				if(res)
+				{
+					snprintf(buf, sizeof(buf), "\"%s\"", res);
+					free(res);
+					return buf + (text?strlen(text):0);
+				}
+				return NULL;
+			case (uintptr_t)CLASSPATH:
+				if(!state) 
+				{
+					idx = 0;
+					if((rc = dalvik_memberdict_find_class_by_prefix(text, classpath, sizeof(classpath)/sizeof(classpath[0]))) < 0) return NULL;
+				}
+				if(idx < rc) return classpath[idx ++] + (text?strlen(text):0);
+				return NULL;
+			case (uintptr_t)REGNAME:
+				if(NULL == input_frame) return NULL;
+				if(!state) idx = 0;
+				if(idx < input_frame->size)
+				{
+					if(idx == 0) snprintf(buf, sizeof(buf), "vE");
+					else if(idx == 1) snprintf(buf, sizeof(buf), "vR");
+					else snprintf(buf, sizeof(buf), "v%d", idx - 2);
+					idx ++;
+					return buf + (text?strlen(text):0);
+				}
+				return NULL;
+			case (uintptr_t) FUNCTION:
+				if(!state)
+				{
+					int cnt;
+					rc = 0;
+					if((cnt = dalvik_memberdict_find_member_by_prefix(
+									"", "", 
+									classpath, methodname, 
+									signature, return_type, 
+									sizeof(classpath)/sizeof(classpath[0]))) < 0)
+						return NULL;
+					for(i = 0; i < cnt; i ++)
+						if(signature[i])
+								snprintf(mbuf[rc++], 1024, "%s/%s%s%s", 
+									classpath[i], methodname[i], 
+									dalvik_type_list_to_string(signature[i], NULL, 0), 
+									dalvik_type_to_string(return_type[i], NULL, 0));
+					idx = 0;
+				}
+				for(i = 0; i < rc; i ++) puts(mbuf[i]);
+				if(idx < rc)
+				{
+					type = mbuf[idx++];
+					for(;*text && *type && *type == *text; type ++, text ++);
+					return (*text == 0)?type:NULL;
+				}
 		}
 		return NULL;
 	}
 	else 
 	{
-		for(;*text && *type && *type == *text; type ++, text ++);
-		return (*text == 0)?type:NULL;
+		if(!state)
+		{
+			for(;*text && *type && *type == *text; type ++, text ++);
+			return (*text == 0)?type:NULL;
+		}
+		else return NULL;
 	}
 }
 static inline int _cli_command_match(const cli_command_t* cmd, const char* begin, const char* end, int k)
@@ -257,7 +334,7 @@ static inline int _cli_command_match(const cli_command_t* cmd, const char* begin
 	int i;
 	for(j = 0; cmd->pattern[j] && j < k; j ++)
 	{
-		int match = 0;
+		int match = 1;
 		const char* lit;
 		const char* class, *method;
 		dalvik_type_t* type[128];
@@ -266,6 +343,8 @@ static inline int _cli_command_match(const cli_command_t* cmd, const char* begin
 		{
 			case (uintptr_t)STRING:
 			case (uintptr_t)FILENAME:
+				match = sexp_match(current, "(S?A", &lit, &current);
+				break;
 			case (uintptr_t)NUMBER:
 				match = sexp_match(current, "(L?A", &lit, &current);
 				break;
@@ -274,7 +353,7 @@ static inline int _cli_command_match(const cli_command_t* cmd, const char* begin
 					match = sexp_match(current, "(L?A", &lit, &current);
 				break;
 			case (uintptr_t)CLASSPATH:
-				match = (NULL == sexp_get_object_path(current, (const sexpression_t**)&current));
+				match = (NULL != sexp_get_object_path(current, (const sexpression_t**)&current));
 				break;
 			case (uintptr_t)SEXPRESSION:
 				current = SEXP_NIL;
@@ -311,7 +390,7 @@ char* cli_command_completion_function(const char* text, int state)
 		int next_index = last_index + 1;
 		if(next_index < ncommands)
 		{
-			const char* word = _cli_command_completor("", cli_commands[next_index].pattern[0]);
+			const char* word = _cli_command_completor("", cli_commands[next_index].pattern[0], 0);
 			last_index = next_index;
 			return _strcat("(", word);
 		}
@@ -319,6 +398,7 @@ char* cli_command_completion_function(const char* text, int state)
 	}
 	else if(*text == '(') 
 	{
+		static int last_state = 0;
 		sexpression_t* sexp;
 		if(NULL != sexp_parse(text, &sexp))
 		{
@@ -344,25 +424,27 @@ char* cli_command_completion_function(const char* text, int state)
 		}
 		if(*ptr == 0 && k > 0) k --;
 		else last = ptr;
-		if(!state) next_index = 0;
-		static int last_state = 0;
-		for(;next_index < ncommands; next_index ++)
+		if(!state) next_index = 0, last_state = 0;
+		for(;next_index < ncommands;)
 		{
-			if(!_cli_command_match(cli_commands + next_index, text + 1, last, k)) continue;
-			if(cli_commands[next_index].pattern[k] == NULL) 
+			if(!_cli_command_match(cli_commands + next_index, text + 1, last, k)) 
 			{
+				last_state = 0;
+				next_index ++;
+				continue;
+			}
+			if(cli_commands[next_index].pattern[k] == NULL)
+			{
+				last_state = 0;
 				next_index ++;
 				return _strcat(text, ")");
 			}
 			const char* rc = _cli_command_completor(last, cli_commands[next_index].pattern[k], last_state);
-			if(NULL != rc) 
-			{
-				next_index ++;
-				return _strcat(text,rc);
-			}
+			if(last_state == 0 && NULL != rc) last_state = 1;
+			if(NULL == rc) last_state = 0, next_index ++;
+			else return _strcat(text,rc);
 		}
 		return NULL;
 	}
 	return NULL;
 }
-#endif
