@@ -448,6 +448,42 @@ int do_run(cli_command_t* cmd)
 	current_frame = NULL;
 	return CLI_COMMAND_DONE;
 }
+int do_run_dot(cli_command_t* cmd)
+{
+	const char* name = cmd->args[1].function.method;
+	const char* class = cmd->args[1].function.class;
+	const dalvik_type_t * const * T = (const dalvik_type_t * const *) cmd->args[1].function.signature;
+	const dalvik_type_t* R = (const dalvik_type_t*) cmd->args[1].function.return_type;
+	const dalvik_block_t* graph = dalvik_block_from_method(class, name, T, R);
+	if(NULL == graph)
+	{
+		cli_error("can not find function %s %s.%s%s", dalvik_type_to_string(R, NULL, 0), class, name, dalvik_type_list_to_string(T, NULL, 0));
+		return CLI_COMMAND_ERROR;
+	}
+	cesk_reloc_table_t* rtab;
+	cesk_diff_t* ret = cesk_method_analyze(graph, input_frame, NULL, &rtab);
+	if(NULL == ret) cli_error("function returns with an error");
+	cesk_frame_t* output = cesk_frame_fork(input_frame);
+	if(NULL == output || cesk_frame_apply_diff(output, ret, rtab, NULL, NULL) < 0)
+		cli_error("can not apply the return value of the function to stack frame");
+	FILE* fout = stdout;
+	fprintf(fout, "digraph {\n"
+		"	P[shape = circle];\n"
+		"	N[shape = circle];\n"
+		"	Z[shape = circle];\n"
+		"	Nan[shape = circle];\n"
+	);
+	/* node for registers */
+	int i;
+	fprintf(fout, "	v0[shape = box, label=\"vR\"];\n");
+	fprintf(fout, "	v1[shape = box], label = \"vE\";\n");
+	for(i = 2; i < output->size; i ++)
+		fprintf(fout, "	v%d[shape = box, label = \"v%d\"];\n", i, i - 2);
+
+	fprintf(fout, "}\n");
+	return 0;
+
+}
 int do_backtrace(cli_command_t* cmd)
 {
 	const void* p;
@@ -611,5 +647,10 @@ Commands
 		Method(do_clean_cache)
 	EndCommand
 
+	Command(22)
+		{"rundot", FUNCTION, NULL}
+		Desc("Run the function and visualize the output frame")
+		Method(do_run_dot)
+	EndCommand
 EndCommands
 
