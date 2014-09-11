@@ -15,6 +15,155 @@ uint32_t n_breakpoints = 0;
 int step = 0;  // 0 means do not break, 1 means step, 2 means next
 
 #define PROMPT "(adb) "
+void cli_frame_to_dot(const cesk_frame_t* output, FILE* fout)
+{
+	fprintf(fout, "digraph {\n"
+		"	offffff01[label = \"-\", shape = circle];\n"
+		"	offffff04[label = \"+\", shape = circle];\n"
+		"	offffff02[label = \"0\", shape = circle];\n"
+		"	offffff00[label = \"\", shape = circle];\n"
+	);
+	/* node for registers */
+	int i;
+	fprintf(fout, "	v0[shape = box, label=\"vR\"];\n");
+	fprintf(fout, "	v1[shape = box, label = \"vE\"];\n");
+	for(i = 2; i < output->size; i ++)
+		fprintf(fout, "	v%d[shape = box, label = \"v%d\"];\n", i, i - 2);
+	for(i = 0; i < output->size; i ++)
+	{
+		uint32_t addr;
+		cesk_set_iter_t it;
+		cesk_set_iter(output->regs[i], &it);
+		uint32_t caddr = 0;
+		while(CESK_STORE_ADDR_NULL != (addr = cesk_set_iter_next(&it)))
+		{
+			if(CESK_STORE_ADDR_IS_CONST(addr))
+				caddr |= addr;
+			else
+				fprintf(fout, "	v%d->o%x;\n", i, addr);
+		}
+		if(CESK_STORE_ADDR_CONST_CONTAIN(caddr, NEG)) fprintf(fout, "	v%d->offffff01;\n", i);
+		if(CESK_STORE_ADDR_CONST_CONTAIN(caddr, ZERO)) fprintf(fout, "	v%d->offffff02;\n", i);
+		if(CESK_STORE_ADDR_CONST_CONTAIN(caddr, POS)) fprintf(fout, "	v%d->offffff04;\n", i);
+		if(caddr == CESK_STORE_ADDR_EMPTY) fprintf(fout, "	v%d->offffff00;\n", i);
+	}
+
+	/* node for Static Fileds */
+	cesk_static_table_iter_t iter;
+	cesk_static_table_iter(output->statics, &iter);
+	uint32_t addr;
+	const cesk_set_t* set;
+	while(NULL != (set = cesk_static_table_iter_next(&iter, &addr)))
+	{
+		uint32_t idx = CESK_FRAME_REG_STATIC_IDX(addr);
+		uint32_t addr;
+		uint32_t caddr = 0;
+		cesk_set_iter_t it;
+		cesk_set_iter(set, &it);
+		fprintf(fout, "	F%d[shape = parallelogram];\n", idx);
+		while(CESK_STORE_ADDR_NULL != (addr = cesk_set_iter_next(&it)))
+		{
+			if(CESK_STORE_ADDR_IS_CONST(addr))
+				caddr |= addr;
+			else 
+				fprintf(fout, "	F%d->o%x;\n", idx, addr);
+		}
+		if(CESK_STORE_ADDR_CONST_CONTAIN(caddr, NEG)) fprintf(fout, "	F%d->offffff01;\n", idx);
+		if(CESK_STORE_ADDR_CONST_CONTAIN(caddr, ZERO)) fprintf(fout, "	F%d->offffff02;\n", idx);
+		if(CESK_STORE_ADDR_CONST_CONTAIN(caddr, POS)) fprintf(fout, "	F%d->offffff04;\n", idx);
+		if(caddr == CESK_STORE_ADDR_EMPTY) fprintf(fout, "	F%d->offffff00;\n", idx);
+	}
+
+	/* render all objects */
+	uint32_t blkidx;
+	for(blkidx = 0; blkidx < output->store->nblocks; blkidx ++)
+	{
+		const cesk_store_block_t* blk = output->store->blocks[blkidx];
+		uint32_t ofs;
+		for(ofs = 0; ofs < CESK_STORE_BLOCK_NSLOTS; ofs ++)
+		{
+			if(blk->slots[ofs].value == NULL || blk->slots[ofs].value->type != CESK_TYPE_OBJECT) continue;
+			uint32_t addr = blkidx * CESK_STORE_BLOCK_NSLOTS + ofs;
+			uint32_t reloc_addr = cesk_alloctab_query(output->store->alloc_tab, output->store, addr);
+			if(reloc_addr != CESK_STORE_ADDR_NULL) addr = reloc_addr;
+			fprintf(fout, "	o%x[shape = record, label=\"{%x", addr, addr);
+			cesk_value_const_t* value = cesk_store_get_ro(output->store, addr);
+			const cesk_object_t* obj = value->pointer.object;
+			const cesk_object_struct_t* this = obj->members;
+			uint32_t i;
+			for(i = 0; i < obj->depth; i ++)
+			{
+				uint32_t j;
+				fprintf(fout, "|%s|", this->class.path->value);
+				if(this->built_in)
+					fprintf(fout, "<B%x>builtin class", i);
+				else
+				{
+					fprintf(fout, "{");
+					for(j = 0; j < this->num_members; j ++)
+					{
+						fprintf(fout, "<O%xF%x>%s", i, j , this->class.udef->members[j]);
+						fprintf(fout, (j == this->num_members - 1)?"}":"|");
+					}
+				}
+				CESK_OBJECT_STRUCT_ADVANCE(this);
+			}
+			fprintf(fout, "}\"];\n");
+			obj = value->pointer.object;
+			this = obj->members;
+			for(i = 0; i < obj->depth; i ++)
+			{
+				uint32_t j;
+				if(this->built_in)
+				{
+					uint32_t buf[128];
+					uint32_t offset = 0;
+					for(;;)
+					{
+						int rc = bci_class_get_addr_list(this->bcidata, offset, buf, sizeof(buf)/sizeof(buf[0]), this->class.bci->class);
+						if(rc <= 0) break;
+						offset += rc;
+						int k;
+						for(k = 0; k < rc; k ++) //TODO this also can be a set....
+							fprintf(fout, "\to%x:B%x->o%x;\n", addr, i, buf[k]);
+					}
+				}
+				else
+				{
+					for(j = 0; j < this->num_members; j ++)
+					{
+						uint32_t taddr;
+						uint32_t caddr = 0;
+						cesk_set_iter_t it;
+						cesk_value_const_t* value = cesk_store_get_ro(output->store, this->addrtab[j]);
+						if(NULL == value) continue;
+						const cesk_set_t* set = value->pointer.set;
+						cesk_set_iter(set, &it);
+						while(CESK_STORE_ADDR_NULL != (taddr = cesk_set_iter_next(&it)))
+						{
+							if(CESK_STORE_ADDR_IS_CONST(taddr))
+								caddr |= taddr;
+							else 
+								fprintf(fout, "\to%x:O%xF%x->o%x;\n", addr, i, j, taddr);
+						}
+						if(CESK_STORE_ADDR_CONST_CONTAIN(caddr, NEG)) 
+							fprintf(fout, "\to%x:O%xF%x->offffff01;\n", addr, i, j);
+						if(CESK_STORE_ADDR_CONST_CONTAIN(caddr, ZERO)) 
+							fprintf(fout, "\to%x:O%xF%x->offffff02;\n", addr, i, j);
+						if(CESK_STORE_ADDR_CONST_CONTAIN(caddr, POS)) 
+							fprintf(fout, "\to%x:O%xF%x->offffff04;\n", addr, i, j);
+						if(caddr == CESK_STORE_ADDR_EMPTY) 
+							fprintf(fout, "\to%x:O%xF%x->offffff00;\n", addr, i, j);
+					}
+				}
+
+				CESK_OBJECT_STRUCT_ADVANCE(this);
+			}
+		}
+	}
+
+	fprintf(fout, "}\n");
+}
 void cli_error(const char* fmt, ...)
 {
 	va_list vp;
@@ -354,6 +503,18 @@ int do_break_list(cli_command_t* cmd)
 	}
 	return CLI_COMMAND_DONE;
 }
+int do_frame_dot(cli_command_t* cmd)
+{
+	const cesk_frame_t* frame;
+	if(NULL != current_frame) frame = current_frame;
+	else frame = input_frame;
+	if(NULL == frame)
+	{
+		return CLI_COMMAND_ERROR;
+	}
+	cli_frame_to_dot(frame, stdout);
+	return CLI_COMMAND_DONE;
+}
 int do_frame_info(cli_command_t* cmd)
 {
 	const cesk_frame_t* frame;
@@ -463,25 +624,18 @@ int do_run_dot(cli_command_t* cmd)
 	cesk_reloc_table_t* rtab;
 	cesk_diff_t* ret = cesk_method_analyze(graph, input_frame, NULL, &rtab);
 	if(NULL == ret) cli_error("function returns with an error");
+	else cli_error("%s", cesk_diff_to_string(ret, NULL, 0));
 	cesk_frame_t* output = cesk_frame_fork(input_frame);
-	if(NULL == output || cesk_frame_apply_diff(output, ret, rtab, NULL, NULL) < 0)
+	cesk_alloctab_t* atab = cesk_alloctab_new(NULL);
+	
+	if(NULL == output || cesk_frame_set_alloctab(output, atab) < 0 ||cesk_frame_apply_diff(output, ret, rtab, NULL, NULL) < 0)
 		cli_error("can not apply the return value of the function to stack frame");
-	FILE* fout = stdout;
-	fprintf(fout, "digraph {\n"
-		"	P[shape = circle];\n"
-		"	N[shape = circle];\n"
-		"	Z[shape = circle];\n"
-		"	Nan[shape = circle];\n"
-	);
-	/* node for registers */
-	int i;
-	fprintf(fout, "	v0[shape = box, label=\"vR\"];\n");
-	fprintf(fout, "	v1[shape = box], label = \"vE\";\n");
-	for(i = 2; i < output->size; i ++)
-		fprintf(fout, "	v%d[shape = box, label = \"v%d\"];\n", i, i - 2);
 
-	fprintf(fout, "}\n");
-	return 0;
+	cli_frame_to_dot(output, stdout);
+
+	cesk_frame_free(output);
+
+	return CLI_COMMAND_DONE;
 
 }
 int do_backtrace(cli_command_t* cmd)
@@ -651,6 +805,12 @@ Commands
 		{"rundot", FUNCTION, NULL}
 		Desc("Run the function and visualize the output frame")
 		Method(do_run_dot)
+	EndCommand
+
+	Command(23)
+		{"frame", "dot", NULL}
+		Desc("Vistualize current frame")
+		Method(do_frame_dot)
 	EndCommand
 EndCommands
 
