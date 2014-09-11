@@ -14,13 +14,13 @@ int cli_command_init()
 	}
 	return 0;
 }
-static inline int _match_func(const sexpression_t** sexp, const char** class, const char** method, const dalvik_type_t** signature, const dalvik_type_t** rtype)
+static inline int _match_func(const sexpression_t* sexp, const char** class, const char** method, const dalvik_type_t** signature, const dalvik_type_t** rtype)
 {
 	signature[0] = NULL;
-	if(sexp_get_method_address(*sexp, sexp, class, method) < 0)
+	if(sexp_get_method_address(sexp, &sexp, class, method) < 0)
 		return 0;
 	sexpression_t* sexp_signature, *this_type;
-	if(!sexp_match(*sexp, "(C?A", &sexp_signature, sexp))
+	if(!sexp_match(sexp, "(C?A", &sexp_signature, &sexp))
 		return 0;
 	int i;
 	for(i = 0; SEXP_NIL != sexp_signature && sexp_match(sexp_signature, "(_?A", &this_type, &sexp_signature); i ++)
@@ -28,7 +28,7 @@ static inline int _match_func(const sexpression_t** sexp, const char** class, co
 			return 0;
 	signature[i] = NULL;
 	sexpression_t* sexp_rtype;
-	if(!sexp_match(*sexp, "(_?A", &sexp_rtype, sexp))
+	if(!sexp_match(sexp, "(_?A", &sexp_rtype, &sexp))
 		return 0;
 	*rtype = dalvik_type_from_sexp(sexp_rtype);
 	return 1;
@@ -39,6 +39,7 @@ int cli_command_match(sexpression_t* sexp)
 	for(i = 0; i < ncommands; i ++)
 	{
 		sexpression_t* current = sexp;
+		sexpression_t* this;
 		for(j = 0; cli_commands[i].pattern[j]; j ++)
 		{
 			int match = 1;
@@ -87,12 +88,16 @@ int cli_command_match(sexpression_t* sexp)
 					match = 1;
 					break;
 				case (uintptr_t)FUNCTION:
-					match = (_match_func(
-								(const sexpression_t**)&current, 
-								&cli_commands[i].args[j].function.class,
-								&cli_commands[i].args[j].function.method,
-								cli_commands[i].args[j].function.signature,
-								&cli_commands[i].args[j].function.return_type) >= 0);
+					match = sexp_match(current, "(C?A", &this, &current);
+					if(match)
+					{
+						match = _match_func(
+									this,
+									&cli_commands[i].args[j].function.class,
+									&cli_commands[i].args[j].function.method,
+									cli_commands[i].args[j].function.signature,
+									&cli_commands[i].args[j].function.return_type);
+					}
 					break;
 				case (uintptr_t)REGNAME:
 					match = sexp_match(current, "(L?A", &lit, &current);
@@ -170,7 +175,7 @@ int cli_command_get_help_text(sexpression_t* what, void* buf, uint32_t nlines, u
 						snprintf(ptr, free, "<class path> ");
 						break;
 					case (uintptr_t)FUNCTION:
-						snprintf(ptr, free, "<class path>/<method name> (<type1> <type2> ... <typeN>) <type> ");
+						snprintf(ptr, free, "[<class path>/<method name> (<type1> <type2> ... <typeN>) <type>] ");
 						break;
 					case (uintptr_t)SEXPRESSION:
 						snprintf(ptr, free, "<what you want> ");
@@ -252,13 +257,29 @@ static inline const char* _cli_command_completor(const char* text, const char* t
 					else
 						input[len - 2] = '"';
 				}
-				res = filename_completion_function(input, state);
+				static int flag = 0;
+				if(state == 0) flag = 0;
+				if(flag == 0)
+					res = filename_completion_function(input, state);
 				if(res)
 				{
-					snprintf(buf, sizeof(buf), "\"%s\"", res);
-					free(res);
+					if(flag == 0)
+					{
+						snprintf(buf, sizeof(buf), "\"%s\"", res);
+						free(res);
+						flag = 1;
+					}
+					else
+					{
+						int l = strlen(buf);
+						buf[l - 1] = '/';
+						//buf[l] = '\"';
+						//buf[l + 1] = 0;
+						flag = 0;
+					}
 					return buf + (text?strlen(text):0);
 				}
+				flag = 0;
 				return NULL;
 			case (uintptr_t)CLASSPATH:
 				if(!state) 
@@ -293,19 +314,21 @@ static inline const char* _cli_command_completor(const char* text, const char* t
 						return NULL;
 					for(i = 0; i < cnt; i ++)
 						if(signature[i])
-								snprintf(mbuf[rc++], 1024, "%s/%s%s%s", 
+								snprintf(mbuf[rc++], 1024, "[%s/%s%s%s]", 
 									classpath[i], methodname[i], 
 									dalvik_type_list_to_string(signature[i], NULL, 0), 
 									dalvik_type_to_string(return_type[i], NULL, 0));
 					idx = 0;
 				}
-				for(i = 0; i < rc; i ++) puts(mbuf[i]);
-				if(idx < rc)
+				while(idx < rc)
 				{
 					type = mbuf[idx++];
-					for(;*text && *type && *type == *text; type ++, text ++);
-					return (*text == 0)?type:NULL;
+					const char* ptr = text;
+					for(;*ptr && *type && *type == *ptr; type ++, ptr ++);
+					//return (*text == 0)?type:NULL;
+					if(*ptr == 0) return type;
 				}
+				return NULL;
 		}
 		return NULL;
 	}
@@ -330,7 +353,7 @@ static inline int _cli_command_match(const cli_command_t* cmd, const char* begin
 	buf[j + 1] = ')';
 	sexpression_t* sexp;
 	if(NULL == sexp_parse(buf, &sexp)) return 0;
-	sexpression_t* current = sexp;
+	sexpression_t* current = sexp, *this;
 	int i;
 	for(j = 0; cmd->pattern[j] && j < k; j ++)
 	{
@@ -360,9 +383,16 @@ static inline int _cli_command_match(const cli_command_t* cmd, const char* begin
 				match = 1;
 				break;
 			case (uintptr_t)FUNCTION:
-				match = (_match_func((const sexpression_t**)&current, &class, &method, (const dalvik_type_t**)type, (const dalvik_type_t**) &return_type) >= 0);
-				if(NULL != return_type) dalvik_type_free(return_type);
-				for(i = 0; type[i]; i ++) dalvik_type_free(type[i]);
+				match = sexp_match(current, "(C?A", &this, &current);
+				if(match)
+				{
+					match = _match_func(this, 
+							             &class, &method, 
+										 (const dalvik_type_t**)type, 
+										 (const dalvik_type_t**) &return_type);
+					if(NULL != return_type) dalvik_type_free(return_type);
+					for(i = 0; type[i]; i ++) dalvik_type_free(type[i]);
+				}
 				break;
 			case (uintptr_t)REGNAME:
 				match = sexp_match(current, "(L?A", &lit, &current);
