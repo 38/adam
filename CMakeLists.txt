@@ -13,6 +13,14 @@ elseif(SIZE_OF_PTR EQUAL 4)
     set(WIDTH 32)
 endif(SIZE_OF_PTR EQUAL 8)
 
+if(APPLE)
+	set(SYSNAME "OS_X")
+elseif(WIN32)
+	set(SYSNAME WIN32)
+elseif(UINX)
+	set(SYSNAME UINX)
+endif(APPLE)
+
 set(CMAKE_USE_RELATIVE_PATHS ON)
 
 file(MAKE_DIRECTORY bin/lib)

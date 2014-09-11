@@ -91,9 +91,11 @@ int main(int argc, char** argv)
 	int i;
 	adam_init();
 	cli_command_init();
+#ifndef __OS_X__
 	rl_basic_word_break_characters = "";
 	rl_completion_entry_function = cli_command_completion_function;
-	
+#endif
+
 	for(i = 1; i <argc; i ++)
 	{
 		FILE* fp = fopen(argv[i], "r");

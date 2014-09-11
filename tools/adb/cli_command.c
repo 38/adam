@@ -261,7 +261,9 @@ static inline const char* _cli_command_completor(const char* text, const char* t
 				if(state == 0) flag = 0;
 				if(flag == 0)
 					res = filename_completion_function(input, state);
-				if(res)
+				else 
+					res = NULL;
+				if(res || flag)
 				{
 					if(flag == 0)
 					{
