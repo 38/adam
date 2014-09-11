@@ -388,6 +388,7 @@ static inline int _cli_command_match(const cli_command_t* cmd, const char* begin
 				match = sexp_match(current, "(C?A", &this, &current);
 				if(match)
 				{
+					return_type = NULL;   /* FOR THE STUPID GCC!!!! */
 					match = _match_func(this, 
 							             &class, &method, 
 										 (const dalvik_type_t**)type, 
