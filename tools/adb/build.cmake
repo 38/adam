@@ -1,3 +1,5 @@
+list(APPEND CMAKE_MODULE_PATH "./tools/adb")
+find_package(Graphviz REQUIRED)
 set(TYPE binary)
-set(LOCAL_CFLAGS -DDEBUGGER)
-set(LOCAL_LIBS adam_dbg readline)
+set(LOCAL_CFLAGS "-DDEBUGGER ${GRAPHVIZ_COMPILE_FLAGS}")
+set(LOCAL_LIBS adam_dbg readline ${GRAPHVIZ_LIBRARIES})
