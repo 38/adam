@@ -198,7 +198,7 @@ int java_lang_reflect_Array_get_addr_list(const void* this_ptr, uint32_t offset,
 		int i;
 		for(i = 0; i < offset; i ++)
 			cesk_set_iter_next(&this->iter);
-		this->next_offset = 0;
+		this->next_offset = offset;
 	}
 	this->prev_iter = this->iter;
 	this->prev_offset = this->next_offset;
@@ -241,6 +241,7 @@ int java_lang_reflect_Array_modify(void* this_ptr, uint32_t offset, uint32_t* ne
 			return -1;
 		}
 	}
+	this->prev_offset += N;
 	return 0;
 }
 /**
