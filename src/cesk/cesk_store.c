@@ -288,6 +288,7 @@ static inline int _cesk_store_apply_alloc_tab(cesk_store_t* store, uint32_t base
 								LOG_WARNING("can not read the address list");
 								break;
 							}
+							if(0 == rc) break;
 							/* then try to translate it */
 							int i;
 							for(i = 0; i < rc; i ++)
@@ -310,7 +311,6 @@ static inline int _cesk_store_apply_alloc_tab(cesk_store_t* store, uint32_t base
 								continue;
 							}
 							offset += rc;
-							if(rc < sizeof(addr_list) / sizeof(addr_list[0])) break;
 						}
 					}
 					else
