@@ -14,10 +14,10 @@ typedef struct _cesk_method_cache_node_t{
 
 typedef struct _cesk_method_block_context_t _cesk_method_block_context_t;
 /**
- * @brief the branch information, because we consider the value that is able to 
- *        flow into conditional branch. So although the input and the code
+ * @brief the branch information, because we consider the value that might
+ *        flow into conditional branch. Although the input and the code
  *        are the same, different branch might lead different input because of the 
- *        branch constraints. So that we need this struct to store the branch information
+ *        branch constrains. So that we need this struct to store the branch information
  **/
 typedef struct {
 	uint32_t index:31;                  /*!< the index of the branch in the code block */
@@ -25,7 +25,7 @@ typedef struct {
 	_cesk_method_block_context_t* block;  /*!< the code block struct that produces this input, if NULL this is a return branch */
 	cesk_frame_t* frame;             /*!< the result stack frame of this block in this branch*/
 	cesk_diff_t* prv_inversion;      /*!< the previous (second youngest result) inversive diff (from branch output to block input) */
-	cesk_diff_t* cur_diff;           /*!< the current (the youngest result) compute diff (from block input to branch output) */
+	cesk_diff_t* cur_diff;           /*!< the current (the youngest result) execution diff (from block input to branch output) */
 	cesk_diff_t* cur_inversion;      /*!< the current (the youngest result) inversive diff (from branch output to block input) */
 } _cesk_method_block_input_t;
 /**
@@ -366,7 +366,7 @@ static inline _cesk_method_context_t* _cesk_method_context_new(
 			/* it's disabled or do not outputing anything? there's no need to initialize for this branch */
 			if(branch->disabled || DALVIK_BLOCK_BRANCH_UNCOND_TYPE_IS_RETURN(*branch))
 				continue;
-			ret->blocks[i].input_index[j] = 0;
+			//ret->blocks[i].input_index[j] = 0;
 			/* the target index */
 			uint32_t t = branch->block->index;
 			/* if the input context array is not initialized, allocate it */
@@ -543,6 +543,7 @@ static inline int _cesk_method_compute_branch_frame(_cesk_method_context_t* cont
 	 * (current_input * input_diff) * branch_diff ==>
 	 * next_input * branch_diff ==>
 	 * branch_input */
+
 	cesk_diff_t* diffbuf[] = {input_ctx->cur_inversion, input_ctx->block->input_diff, b_diff};
 	cesk_diff_t* branch_diff = cesk_diff_apply(3, diffbuf);
 	if(NULL == branch_diff)
@@ -554,6 +555,15 @@ static inline int _cesk_method_compute_branch_frame(_cesk_method_context_t* cont
 	if((rc = cesk_frame_apply_diff(input_ctx->frame, branch_diff, context->rtable, NULL, NULL)) < 0)
 	{
 		LOG_ERROR("can not apply branch input diff to the branch frame");
+		cesk_diff_free(branch_diff);
+		return -1;
+	}
+	/* at this point we have to compute the modified object number against current_input, rather than current_output. although the output frame is lost after
+	 * we applied the delta to it, but fortunately the cur_diff has saved a snapshot of current_output frame that contains all value that is intersted to us */
+	rc = cesk_diff_correct_modified_object_number(input_ctx->cur_inversion, input_ctx->cur_diff, input_ctx->frame, rc);
+	if(rc < 0)
+	{
+		LOG_ERROR("can not compute the number of modified object agains current_input (aka cururent_output * cur_inservion )");
 		cesk_diff_free(branch_diff);
 		return -1;
 	}

@@ -4,12 +4,10 @@
 class TreeNode{
 	int val;
 	TreeNode left, right;
-	static int A;
 	public TreeNode(int val){
 		this.val = val;
 	}
 	public void insert(int val){
-		A = 0;
 		if(this.val < val) {
 			if(this.left != null) this.left.insert(val);
 			else this.left = new TreeNode(val);

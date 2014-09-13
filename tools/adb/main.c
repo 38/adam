@@ -3,6 +3,9 @@
 #include <stdarg.h>
 #include <adam.h>
 #include <sexp.h>
+#ifdef WITH_GRAPHVIZ
+#include <graphviz/gvc.h>
+#endif
 #include "cli_command.h"
 
 cesk_frame_t* input_frame = NULL;
@@ -13,11 +16,64 @@ const void* current_context = NULL;
 uint32_t breakpoints[1024];
 uint32_t n_breakpoints = 0;
 int step = 0;  // 0 means do not break, 1 means step, 2 means next
+#ifdef WITH_GRAPHVIZ
+GVC_t* gvc = NULL;
+#endif
 
 #define PROMPT "(adb) "
+static inline void dfs_block_list(const dalvik_block_t* entry, const dalvik_block_t** bl)
+{
+	if(NULL == entry) return;
+	if(bl[entry->index] != NULL) return;
+	bl[entry->index] = entry;
+	int i;
+	for(i = 0; i < entry->nbranches; i ++)
+		if(!entry->branches[i].disabled)
+		{
+			if(DALVIK_BLOCK_BRANCH_UNCOND_TYPE_IS_RETURN(entry->branches[i])) continue;
+			dfs_block_list(entry->branches[i].block, bl);
+		}
+}
+void cli_code_to_dot(const dalvik_block_t* block, uint32_t iid, FILE* fout)
+{
+	const dalvik_block_t* graph = dalvik_block_from_method(block->info->class, block->info->method, block->info->signature, block->info->return_type);
+	const dalvik_block_t* block_list[DALVIK_BLOCK_MAX_KEYS] = {};
+	dfs_block_list(graph, block_list);
+	int i,j;
+	for(i = 0; i < DALVIK_BLOCK_MAX_KEYS; i ++)
+	{
+		if(NULL == block_list[i]) continue;
+		fprintf(fout, "	CB%d[shape=record,", i);
+		if(block_list[i] == block) fprintf(fout, "style=filled,");
+		fprintf(fout, "label=\"{Code Block %d",i);
+		for(j = block_list[i]->begin; j < block_list[i]->end; j ++)
+		{
+			static char buf[1024];
+			dalvik_instruction_to_string(dalvik_instruction_get(j), buf, sizeof(buf));
+			int k;
+			for(k = 0; buf[k]; k ++)
+				if(buf[k] == '<') buf[k] = '[';
+				else if(buf[k] == '>') buf[k] = ']';
+			if(j == iid)
+				fprintf(fout, "|*%x:%s", j, buf);
+			else
+				fprintf(fout, "|%x:%s", j, buf);
+		}
+		fprintf(fout, "}\"];\n");
+		for(j = 0; j < block_list[i]->nbranches; j ++)
+			if(!block_list[i]->branches[j].disabled)
+			{
+				if(DALVIK_BLOCK_BRANCH_UNCOND_TYPE_IS_RETURN(block_list[i]->branches[j]))
+					fprintf(fout, "CB%d->R;\n", i);
+				else
+					fprintf(fout, "CB%d->CB%d;\n", i, block_list[i]->branches[j].block->index);
+
+			}
+	}
+}
 void cli_frame_to_dot(const cesk_frame_t* output, FILE* fout)
 {
-	fprintf(fout, "digraph {\n"
+	fprintf(fout,
 		"	offffff01[label = \"-\", shape = circle];\n"
 		"	offffff04[label = \"+\", shape = circle];\n"
 		"	offffff02[label = \"0\", shape = circle];\n"
@@ -162,7 +218,6 @@ void cli_frame_to_dot(const cesk_frame_t* output, FILE* fout)
 		}
 	}
 
-	fprintf(fout, "}\n");
 }
 void cli_error(const char* fmt, ...)
 {
@@ -240,6 +295,10 @@ int main(int argc, char** argv)
 	int i;
 	adam_init();
 	cli_command_init();
+#ifdef WITH_GRAPHVIZ
+	gvc = gvContext();
+#endif
+
 #ifndef __OS_X__
 	rl_basic_word_break_characters = "";
 	rl_completion_entry_function = cli_command_completion_function;
@@ -266,9 +325,56 @@ int main(int argc, char** argv)
 	cli_error("type `(help)' for more infomation");
 	while(cli());
 	if(NULL != input_frame) cesk_frame_free(input_frame);
+#ifdef WITH_GRAPHVIZ
+	gvFreeContext(gvc);
+#endif
 	adam_finalize();
 	return 0;
 }
+static inline void _cli_render_frame(const cesk_frame_t* frame, uint32_t inst, const void* context)
+#ifdef WITH_GRAPHVIZ
+{
+	graph_t* g;
+	FILE* fdot = fopen("/tmp/frameinfo.dot", "w");
+	if(NULL != fdot)
+	{
+		fprintf(fdot, "digraph FrameInfo{\n");
+		cli_frame_to_dot(frame, fdot);
+		fprintf(fdot, "}\n");
+		fclose(fdot);
+		fdot = fopen("/tmp/frameinfo.dot", "r");
+		if(NULL != fdot)
+		{
+			FILE* fps  = fopen("/tmp/frameinfo.ps", "w");
+			g = agread(fdot);
+			gvLayout(gvc, g, "dot");
+			gvRender(gvc, g, "ps", fps);
+			agclose(g);
+			fclose(fps);
+		}
+	}
+	fdot = fopen("/tmp/code.dot", "w");
+	if(NULL != fdot)
+	{
+		fprintf(fdot, "digraph CodeInfo{\n");
+		cli_code_to_dot(cesk_method_context_get_current_block(context), inst, fdot);
+		fprintf(fdot, "}\n");
+		fclose(fdot);
+		fdot = fopen("/tmp/code.dot", "r");
+		if(NULL != fdot)
+		{
+			FILE *fps = fopen("/tmp/code.ps", "w");
+			g = agread(fdot);
+			gvLayout(gvc, g, "dot");
+			gvRender(gvc, g, "ps", fps);
+			agclose(g);
+			fclose(fps);
+		}
+	}
+}
+#else
+{}
+#endif
 int debugger_callback(const dalvik_instruction_t* inst, cesk_frame_t* frame, const void* context)
 {
 	uint32_t inst_addr = dalvik_instruction_get_index(inst);
@@ -286,6 +392,7 @@ int debugger_callback(const dalvik_instruction_t* inst, cesk_frame_t* frame, con
 		{
 			cli_error("Breakpoint %d, function %s.%s, Block #%d", i, block->info->class, block->info->method, block->index);
 			cli_error("0x%x\t%s", inst_addr, dalvik_instruction_to_string(inst, NULL, 0));
+			_cli_render_frame(frame, inst_addr, context);
 			while(cli() == 1);
 		}
 	}
@@ -293,6 +400,7 @@ int debugger_callback(const dalvik_instruction_t* inst, cesk_frame_t* frame, con
 	{
 		step = 0;
 		cli_error("0x%x\t%s", inst_addr, dalvik_instruction_to_string(inst, NULL, 0));
+		_cli_render_frame(frame, inst_addr, context);
 		while(cli() == 1);
 	}
 	else if(step == 2)
@@ -308,6 +416,7 @@ int debugger_callback(const dalvik_instruction_t* inst, cesk_frame_t* frame, con
 		{
 			step = 0;
 			cli_error("0x%x\t%s", inst_addr, dalvik_instruction_to_string(inst, NULL, 0));
+			_cli_render_frame(frame, inst_addr, context);
 			while(cli() == 1);
 		}
 	}
@@ -316,19 +425,6 @@ int debugger_callback(const dalvik_instruction_t* inst, cesk_frame_t* frame, con
 }
 
 
-static inline void dfs_block_list(const dalvik_block_t* entry, const dalvik_block_t** bl)
-{
-	if(NULL == entry) return;
-	if(bl[entry->index] != NULL) return;
-	bl[entry->index] = entry;
-	int i;
-	for(i = 0; i < entry->nbranches; i ++)
-		if(!entry->branches[i].disabled)
-		{
-			if(DALVIK_BLOCK_BRANCH_UNCOND_TYPE_IS_RETURN(entry->branches[i])) continue;
-			dfs_block_list(entry->branches[i].block, bl);
-		}
-}
 
 int do_help(cli_command_t* cmd)
 {
@@ -512,7 +608,9 @@ int do_frame_dot(cli_command_t* cmd)
 	{
 		return CLI_COMMAND_ERROR;
 	}
+	printf("digraph FrameInfo{");
 	cli_frame_to_dot(frame, stdout);
+	printf("}");
 	return CLI_COMMAND_DONE;
 }
 int do_frame_info(cli_command_t* cmd)
@@ -596,6 +694,11 @@ int do_run(cli_command_t* cmd)
 	const dalvik_type_t * const * T = (const dalvik_type_t * const *) cmd->args[1].function.signature;
 	const dalvik_type_t* R = (const dalvik_type_t*) cmd->args[1].function.return_type;
 	const dalvik_block_t* graph = dalvik_block_from_method(class, name, T, R);
+	if(NULL == input_frame)
+	{
+		cli_error("can not invoke a function without an input frame");
+		return CLI_COMMAND_ERROR;
+	}
 	if(NULL == graph)
 	{
 		cli_error("can not find function %s %s.%s%s", dalvik_type_to_string(R, NULL, 0), class, name, dalvik_type_list_to_string(T, NULL, 0));
@@ -631,7 +734,9 @@ int do_run_dot(cli_command_t* cmd)
 	if(NULL == output || cesk_frame_set_alloctab(output, atab) < 0 ||cesk_frame_apply_diff(output, ret, rtab, NULL, NULL) < 0)
 		cli_error("can not apply the return value of the function to stack frame");
 
+	printf("digraph ResultFrame{\n");
 	cli_frame_to_dot(output, stdout);
+	printf("}");
 
 	cesk_frame_free(output);
 

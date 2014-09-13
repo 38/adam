@@ -112,6 +112,8 @@ struct _dalvik_block_t{
 	struct {
 		const char* method;   /*!<the method name */
 		const char* class;    /*!<the class path */
+		const dalvik_type_t * const * signature; /*!< the function signature */
+		const dalvik_type_t* return_type; /*!< the function return type */
 	} *info;                  /*!<info*/
 	dalvik_block_branch_t branches[0]; /*!<all possible executing path */
 };

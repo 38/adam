@@ -1437,3 +1437,111 @@ int cesk_diff_sub(cesk_diff_t* dest, const cesk_diff_t* sour)
 	}
 	return 0;
 }
+/**
+ * @note assume diff * inv = {}, and we assume that all deallocation records are in diff rather than inv 
+ *       (because this function is used for correct the modification number for branch inputs, in that formula
+ *        b always a inversion diff)
+ **/
+int cesk_diff_correct_modified_object_number(const cesk_diff_t* diff, const cesk_diff_t* inv, const cesk_frame_t* frame, int num_modified)
+{
+	/* for each allocation/deallocation pair */
+	num_modified += inv->offset[CESK_DIFF_ALLOC + 1] - inv->offset[CESK_DIFF_ALLOC];
+	/* check each register */
+	uint32_t i, j;
+	for(i = diff->offset[CESK_DIFF_REG], j = inv->offset[CESK_DIFF_REG]; i < diff->offset[CESK_DIFF_REG + 1] && j < inv->offset[CESK_DIFF_REG + 1]; i ++, j ++)
+	{
+		uint32_t addr = diff->data[i].addr;
+		if(addr != inv->data[j].addr) 
+		{
+			LOG_ERROR("unexpected diff/inverse pair");
+			return -1;
+		}
+		const cesk_set_t* set_a = inv->data[j].arg.set;
+		const cesk_set_t* set_b = diff->data[i].arg.set;
+		const cesk_set_t* set_c;
+		if(CESK_FRAME_REG_IS_STATIC(addr))
+		{
+			set_c = cesk_static_table_get_ro(frame->statics, addr, 0);
+			if(NULL == set_c) 
+			{
+				LOG_ERROR("static field uninitialized");
+				return -1;
+			}
+		}
+		else set_c = frame->regs[addr];
+		int flag_A = cesk_set_equal(set_a, set_c);
+		int flag_B = cesk_set_equal(set_b, set_c);
+		if(flag_A < 0 || flag_B < 0)
+		{
+			LOG_ERROR("can not compare value sets");
+			return -1;
+		}
+		if(flag_A == 0 && flag_B != 0) num_modified ++;
+		if(flag_A != 0 && flag_B == 0) num_modified --;
+	}
+	if(j != inv->offset[CESK_DIFF_REG + 1] || i != inv->offset[CESK_DIFF_REG + 1]) 
+	{
+		LOG_ERROR("unexpected diff/inverse pair");
+		return -1;
+	}
+	/* check the store */
+	for(i = diff->offset[CESK_DIFF_STORE], j = inv->offset[CESK_DIFF_STORE]; i < diff->offset[CESK_DIFF_STORE + 1] && j < inv->offset[CESK_DIFF_STORE + 1]; i ++, j ++)
+	{
+		uint32_t addr = diff->data[i].addr;
+		if(addr != inv->data[j].addr)
+		{
+			LOG_ERROR("unexpected diff/inverse pair");
+			return -1;
+		}
+		cesk_value_const_t* value_a = (cesk_value_const_t*) inv->data[j].arg.value;
+		cesk_value_const_t* value_b = (cesk_value_const_t*) diff->data[i].arg.value;
+		cesk_value_const_t* value_c = cesk_store_get_ro(frame->store, addr);
+		if(NULL == value_a || NULL == value_b || NULL == value_c)
+		{
+			LOG_ERROR("can not read value");
+			return -1;
+		}
+		int flag_A = cesk_value_equal((const cesk_value_t*)value_a, (const cesk_value_t*)value_c);
+		int flag_B = cesk_value_equal((const cesk_value_t*)value_b, (const cesk_value_t*)value_c);
+		if(flag_A < 0 || flag_B < 0)
+		{
+			LOG_ERROR("can not compare value sets");
+			return -1;
+		}
+		if(flag_A == 0 && flag_B != 0) num_modified ++;
+		if(flag_A != 0 && flag_B == 0) num_modified --;
+	}
+	if(j != inv->offset[CESK_DIFF_STORE + 1] || i != inv->offset[CESK_DIFF_STORE + 1]) 
+	{
+		LOG_ERROR("unexpected diff/inverse pair");
+		return -1;
+	}
+	/* check reuse */
+	for(i = diff->offset[CESK_DIFF_REUSE], j = inv->offset[CESK_DIFF_REUSE]; i < diff->offset[CESK_DIFF_REUSE + 1] && j < inv->offset[CESK_DIFF_REUSE + 1]; i ++, j ++)
+	{
+		uint32_t addr = diff->data[i].addr;
+		if(addr != inv->data[j].addr)
+		{
+			LOG_ERROR("unexpected diff/inverse pair");
+			return -1;
+		}
+		int32_t reuse_a = inv->data[j].arg.boolean;
+		int32_t reuse_b = diff->data[i].arg.boolean;
+		int32_t reuse_c = cesk_store_get_reuse(frame->store, addr);
+		if(reuse_c < 0)
+		{
+			LOG_ERROR("can not read reuse flag");
+			return -1;
+		}
+		int flag_A = (reuse_a == reuse_c);
+		int flag_B = (reuse_b == reuse_c);
+		if(flag_A == 0 && flag_B != 0) num_modified ++;
+		if(flag_A != 0 && flag_B == 0) num_modified --;
+	}
+	if(j != inv->offset[CESK_DIFF_STORE + 1] || i != inv->offset[CESK_DIFF_STORE + 1]) 
+	{
+		LOG_ERROR("unexpected diff/inverse pair");
+		return -1;
+	}
+	return num_modified;
+}

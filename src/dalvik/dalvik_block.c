@@ -26,11 +26,14 @@ typedef struct _dalvik_block_cache_node_t{
 	const char*     methodname;		/*!<the method name */
 	const char*     classpath;		/*!<the class path contains this method */
 	const dalvik_type_t * const * typelist; /*!<excepted type of arguments */
+	const dalvik_type_t* returntype; /*!< the return type of the function */
 	dalvik_block_t* block;	/*!<the analysis result. */
 	struct _dalvik_block_cache_node_t * next; /*!<the next pointer used in hash table */
 } dalvik_block_cache_node_t;
 CONST_ASSERTION_FIRST(dalvik_block_cache_node_t, methodname);
 CONST_ASSERTION_FOLLOWS(dalvik_block_cache_node_t, methodname, classpath);
+CONST_ASSERTION_FOLLOWS(dalvik_block_cache_node_t, classpath, typelist);
+CONST_ASSERTION_FOLLOWS(dalvik_block_cache_node_t, typelist, returntype);
 
 static dalvik_block_cache_node_t* _dalvik_block_cache[DALVIK_BLOCK_CACHE_SIZE];
 
@@ -46,6 +49,7 @@ static inline dalvik_block_cache_node_t* _dalvik_block_cache_node_alloc(
 		const char* class, 
 		const char* method, 
 		const dalvik_type_t * const * typelist,
+		const dalvik_type_t* type,
 		dalvik_block_t* block)
 {
 	dalvik_block_cache_node_t* ret = (dalvik_block_cache_node_t*) malloc(sizeof(dalvik_block_cache_node_t));
@@ -56,6 +60,7 @@ static inline dalvik_block_cache_node_t* _dalvik_block_cache_node_alloc(
 	}
 	ret->block = block;
 	ret->typelist = dalvik_type_list_clone(typelist);
+	ret->returntype = dalvik_type_clone(type);
 	ret->methodname = method;
 	ret->classpath = class;
 	ret->next = NULL;
@@ -70,6 +75,7 @@ static inline void _dalvik_block_cache_node_free(dalvik_block_cache_node_t* bloc
 {
 	if(NULL == block) return;
 	if(block->typelist != NULL) dalvik_type_list_free((dalvik_type_t**)block->typelist); 
+	if(block->returntype != NULL) dalvik_type_free((dalvik_type_t*)block->returntype);
 	free(block);
 }
 /**
@@ -120,14 +126,15 @@ static inline void _dalvik_block_graph_free(dalvik_block_t* entry)
  * @param typelist the type list (to distinguish different functions between overloads)
  * @return the hash value
  **/
-static inline hashval_t _dalvik_block_hash(const char* class, const char* method, const dalvik_type_t * const * typelist)
+static inline hashval_t _dalvik_block_hash(const char* class, const char* method, const dalvik_type_t * const * typelist, const dalvik_type_t* rtype)
 {
 	return 
 			(((uintptr_t)class & 0xffffffffull) * MH_MULTIPLY) ^ 
 			(((uintptr_t)method & 0xffff) * MH_MULTIPLY) ^ 
 			((uintptr_t)method >> 16) ^ 
 			~((uintptr_t)class>>((sizeof(uintptr_t)/2))) ^
-			dalvik_type_list_hashcode(typelist);
+			dalvik_type_list_hashcode(typelist) ^
+			(MH_MULTIPLY * dalvik_type_hashcode(rtype));
 }
 /**
  * @brief init the block analyzer module
@@ -674,7 +681,7 @@ dalvik_block_t* dalvik_block_from_method(const char* classpath, const char* meth
 		return NULL;
 	}
 	LOG_DEBUG("get block graph of method %s/%s", classpath, methodname);
-	hashval_t h = _dalvik_block_hash(classpath, methodname, typelist) % DALVIK_BLOCK_CACHE_SIZE;
+	hashval_t h = _dalvik_block_hash(classpath, methodname, typelist, rtype) % DALVIK_BLOCK_CACHE_SIZE;
 	/* try to find the block graph in the cache */
 	dalvik_block_cache_node_t* p;
 	for(p = _dalvik_block_cache[h]; NULL != p; p = p->next)
@@ -741,7 +748,7 @@ dalvik_block_t* dalvik_block_from_method(const char* classpath, const char* meth
 	_dalvik_block_graph_dfs(blocks[0], visit_flags);
 	
 	/* insert the block graph to the cache */
-	dalvik_block_cache_node_t* node = _dalvik_block_cache_node_alloc(classpath, methodname, typelist ,blocks[0]);
+	dalvik_block_cache_node_t* node = _dalvik_block_cache_node_alloc(classpath, methodname, typelist , rtype, blocks[0]);
 	if(NULL == node) 
 	{
 		LOG_ERROR("can not allocte memory for cache node, the block is to be freed");
