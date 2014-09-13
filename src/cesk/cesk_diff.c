@@ -1479,7 +1479,7 @@ int cesk_diff_correct_modified_object_number(const cesk_diff_t* diff, const cesk
 		if(flag_A == 0 && flag_B != 0) num_modified ++;
 		if(flag_A != 0 && flag_B == 0) num_modified --;
 	}
-	if(j != inv->offset[CESK_DIFF_REG + 1] || i != inv->offset[CESK_DIFF_REG + 1]) 
+	if(j != inv->offset[CESK_DIFF_REG + 1] || i != diff->offset[CESK_DIFF_REG + 1]) 
 	{
 		LOG_ERROR("unexpected diff/inverse pair");
 		return -1;
@@ -1511,7 +1511,7 @@ int cesk_diff_correct_modified_object_number(const cesk_diff_t* diff, const cesk
 		if(flag_A == 0 && flag_B != 0) num_modified ++;
 		if(flag_A != 0 && flag_B == 0) num_modified --;
 	}
-	if(j != inv->offset[CESK_DIFF_STORE + 1] || i != inv->offset[CESK_DIFF_STORE + 1]) 
+	if(j != inv->offset[CESK_DIFF_STORE + 1] || i != diff->offset[CESK_DIFF_STORE + 1]) 
 	{
 		LOG_ERROR("unexpected diff/inverse pair");
 		return -1;
@@ -1538,7 +1538,7 @@ int cesk_diff_correct_modified_object_number(const cesk_diff_t* diff, const cesk
 		if(flag_A == 0 && flag_B != 0) num_modified ++;
 		if(flag_A != 0 && flag_B == 0) num_modified --;
 	}
-	if(j != inv->offset[CESK_DIFF_STORE + 1] || i != inv->offset[CESK_DIFF_STORE + 1]) 
+	if(j != inv->offset[CESK_DIFF_REUSE + 1] || i != diff->offset[CESK_DIFF_REUSE + 1]) 
 	{
 		LOG_ERROR("unexpected diff/inverse pair");
 		return -1;
