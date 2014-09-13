@@ -283,11 +283,15 @@ static int do_command(const char* cmdline)
 }
 static int cli()
 {
+	static int last_rc = CLI_COMMAND_DONE;
+	if(CLI_COMMAND_EXIT == last_rc) return CLI_COMMAND_EXIT;
 	const char* cmdline = cli_readline(PROMPT);
 	static char last_command[1024] = {};
 	if(cmdline && strcmp(cmdline , "") == 0) cmdline = last_command;
 	else if(cmdline) strcpy(last_command, cmdline);
-	return do_command(cmdline); 
+	int rc = do_command(cmdline);
+	if(last_rc == CLI_COMMAND_EXIT) return CLI_COMMAND_EXIT;
+	return last_rc = rc;
 }
 
 int main(int argc, char** argv)
@@ -378,7 +382,7 @@ static inline void _cli_render_frame(const cesk_frame_t* frame, uint32_t inst, c
 int debugger_callback(const dalvik_instruction_t* inst, cesk_frame_t* frame, const void* context)
 {
 	uint32_t inst_addr = dalvik_instruction_get_index(inst);
-	int i;
+	int i, rc;
 	current_context = context;
 	current_frame = frame;
 	for(i = 0; i < n_breakpoints; i ++)
@@ -393,7 +397,8 @@ int debugger_callback(const dalvik_instruction_t* inst, cesk_frame_t* frame, con
 			cli_error("Breakpoint %d, function %s.%s, Block #%d", i, block->info->class, block->info->method, block->index);
 			cli_error("0x%x\t%s", inst_addr, dalvik_instruction_to_string(inst, NULL, 0));
 			_cli_render_frame(frame, inst_addr, context);
-			while(cli() == 1);
+			//while(cli() == 1);
+			for(rc = CLI_COMMAND_DONE; rc == CLI_COMMAND_DONE || rc == CLI_COMMAND_ERROR; rc = cli());
 		}
 	}
 	else if(step == 1)
@@ -401,7 +406,7 @@ int debugger_callback(const dalvik_instruction_t* inst, cesk_frame_t* frame, con
 		step = 0;
 		cli_error("0x%x\t%s", inst_addr, dalvik_instruction_to_string(inst, NULL, 0));
 		_cli_render_frame(frame, inst_addr, context);
-		while(cli() == 1);
+		for(rc = CLI_COMMAND_DONE; rc == CLI_COMMAND_DONE || rc == CLI_COMMAND_ERROR; rc = cli());
 	}
 	else if(step == 2)
 	{
@@ -412,15 +417,15 @@ int debugger_callback(const dalvik_instruction_t* inst, cesk_frame_t* frame, con
 		int current_depth = 0;
 		for(ptr = current_context; NULL != ptr; ptr = cesk_method_context_get_caller_context(ptr))
 			current_depth ++;
+		printf("%d %d\n", break_depth, current_depth);
 		if(current_depth <= break_depth)
 		{
 			step = 0;
 			cli_error("0x%x\t%s", inst_addr, dalvik_instruction_to_string(inst, NULL, 0));
 			_cli_render_frame(frame, inst_addr, context);
-			while(cli() == 1);
+			for(rc = CLI_COMMAND_DONE; rc == CLI_COMMAND_DONE || rc == CLI_COMMAND_ERROR; rc = cli());
 		}
 	}
-
 	return 0;
 }
 
