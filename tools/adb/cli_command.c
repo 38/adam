@@ -211,6 +211,7 @@ int cli_command_get_help_text(sexpression_t* what, void* buf, uint32_t nlines, u
 	qsort(buf, rc, nchar, (int (*)(const void*, const void*))strcmp); 
 	return rc;
 }
+#ifdef WITH_READLINE
 static inline char* _strcat(const char* str1,const char* str2)
 {
 	if(NULL == str1 || NULL == str2) return NULL;
@@ -481,3 +482,4 @@ char* cli_command_completion_function(const char* text, int state)
 	}
 	return NULL;
 }
+#endif
