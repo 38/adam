@@ -1,4 +1,5 @@
 #ifdef WITH_READLINE
+#include <config.h>
 #include <readline/readline.h>
 #include <readline/history.h>
 #endif
@@ -361,7 +362,11 @@ static inline void _cli_render_frame(const cesk_frame_t* frame, uint32_t inst, c
 		if(NULL != fdot)
 		{
 			FILE* fps  = fopen("/tmp/frameinfo.ps", "w");
+#ifndef __OS_X__
 			g = agread(fdot);
+#else
+			g = agread(fdot, 0);
+#endif
 			gvLayout(gvc, g, "dot");
 			gvRender(gvc, g, "ps", fps);
 			agclose(g);
@@ -379,7 +384,11 @@ static inline void _cli_render_frame(const cesk_frame_t* frame, uint32_t inst, c
 		if(NULL != fdot)
 		{
 			FILE *fps = fopen("/tmp/code.ps", "w");
+#ifndef __OS_X__
 			g = agread(fdot);
+#else
+			g = agread(fdot, 0);
+#endif
 			gvLayout(gvc, g, "dot");
 			gvRender(gvc, g, "ps", fps);
 			agclose(g);
