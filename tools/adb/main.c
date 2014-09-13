@@ -1,5 +1,7 @@
+#ifdef WITH_READLINE
 #include <readline/readline.h>
 #include <readline/history.h>
+#endif
 #include <stdarg.h>
 #include <adam.h>
 #include <sexp.h>
@@ -230,11 +232,18 @@ void cli_error(const char* fmt, ...)
 }
 char* cli_readline(const char* prompt)
 {
+#ifdef WITH_READLINE
 	static char * buffer = NULL;
 	if(buffer) free(buffer);
 	buffer = readline(prompt);
 	if(buffer) add_history(buffer);
 	return buffer;
+#else
+	fprintf(stderr, "%s", prompt);
+	fflush(stderr);
+	static char buffer[1024];
+	return fgets(buffer, sizeof(buffer), stdin);
+#endif
 }
 static inline int cli_char_in(char c, const char* chars)
 {
@@ -300,8 +309,10 @@ int main(int argc, char** argv)
 #endif
 
 #ifndef __OS_X__
+#ifdef WITH_READLINE
 	rl_basic_word_break_characters = "";
 	rl_completion_entry_function = cli_command_completion_function;
+#endif
 #endif
 
 	for(i = 1; i <argc; i ++)
@@ -734,11 +745,14 @@ int do_run_dot(cli_command_t* cmd)
 	if(NULL == output || cesk_frame_set_alloctab(output, atab) < 0 ||cesk_frame_apply_diff(output, ret, rtab, NULL, NULL) < 0)
 		cli_error("can not apply the return value of the function to stack frame");
 
+
 	printf("digraph ResultFrame{\n");
 	cli_frame_to_dot(output, stdout);
-	printf("}");
+	printf("}\n");
 
+	cesk_alloctab_free(atab);
 	cesk_frame_free(output);
+	cesk_diff_free(ret);
 
 	return CLI_COMMAND_DONE;
 
