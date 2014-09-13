@@ -16,7 +16,7 @@
 #endif /* VECTOR_INIT_CAP */
 
 #ifndef DALVIK_CLASS_MAX_NUM_IMPLEMENTS
-/** @biref the max number a class can implement interfaces **/
+/** @brief the max number a class can implement interfaces **/
 #	define DALVIK_CLASS_MAX_NUM_IMPLEMENTS 128
 #endif
 

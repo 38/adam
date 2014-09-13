@@ -1,14 +1,14 @@
+/** 
+ * @file dalvik_tokens.h
+ * @brief lexer tokens 
+ */
 #ifndef __DALVIK_TOKENS_H__
 #define __DALVIK_TOKENS_H__
-/** @file dalvik_tokens.h
- *  @brief lexer tokens 
- */
 
 /** @brief the maximum keyword */
 #define DALVIK_MAX_NUM_KEYWORDS 256
 /** @brief keyword array */
 extern const char* dalvik_keywords[DALVIK_MAX_NUM_KEYWORDS];
-
 /** @brief return a token table entity */
 #define DALVIK_TOKEN_TABLE_ENTITY(id) ((const char* const)dalvik_keywords[(id)])
 

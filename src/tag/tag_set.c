@@ -37,7 +37,7 @@ static inline hashval_t _tag_set_item_hashcode(const _tag_set_item_t item)
 /**
  * @brief allocate a new set with N slots
  * @param N the number of slots
- * @param the newly allocated memory for the set, NULL indicates error
+ * @return the newly allocated memory for the set, NULL indicates error
  **/
 static inline tag_set_t* _tag_set_new(size_t N)
 {
@@ -76,7 +76,7 @@ static inline void _tag_set_decref(tag_set_t* set)
 }
 /**
  * @brief duplicate the tag set
- * @param the input tag set
+ * @param set the input tag set
  * @return the result tag set
  **/
 static inline tag_set_t* _tag_set_duplicate(tag_set_t* set)

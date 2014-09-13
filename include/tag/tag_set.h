@@ -8,7 +8,7 @@
 #include <dalvik/dalvik.h>
 
 /**
- * @breif the data structure for a tag set
+ * @brief the data structure for a tag set
  **/
 typedef struct _tag_set_t tag_set_t;
 
@@ -98,7 +98,8 @@ tag_set_t* tag_set_change_resolution(tag_set_t* set, uint32_t tagid, uint32_t va
 /**
  * @brief register a checker for specify tag
  * @param tagid the tagid
- * @param callback the callback fuction
+ * @param strreason the callback fuction
+ * @return nothing
  **/
 void tag_set_register_handler(uint32_t tagid, tag_set_strreason_callback_t strreason);
 

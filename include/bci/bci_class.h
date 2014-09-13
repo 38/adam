@@ -102,6 +102,7 @@ int bci_class_initialize(void* mem, const void* init_param, tag_set_t** p_tags, 
 /**
  * @brief do cleanup before this instance finally get deleted
  * @param mem the memory for this instance
+ * @param class the bci class
  * @return < 0 if there's any error
  **/
 int bci_class_finalize(void* mem, const bci_class_t* class);
@@ -227,8 +228,6 @@ int bci_class_get_method(const void* this, const char* methodname,
 
 /**
  * @brief invoke a built-in method
- * @param this the this pointer
- * @param const_this the this pointer but with const attribute
  * @param method_id the id of the method to invoke
  * @param env the invoke environ
  * @param class the class def

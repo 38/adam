@@ -5,7 +5,7 @@
 #ifndef __TAG_FS_H__
 #define __TAG_FS_H__
 /**
- * @breif initialization
+ * @brief initialization
  **/
 void tag_fs_init();
 #endif

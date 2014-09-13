@@ -78,7 +78,7 @@ static inline const tag_set_t* _cesk_block_register_get_tags(const cesk_frame_t*
  * @brief set the tag set of a register to a new value(borrow the reference from the caller)
  * @param frame the target frame
  * @param reg the register index
- * @param value the register value
+ * @param tags the register tags
  * @return < 0 if there's an error
  **/
 static inline int _cesk_block_register_assign_tags(cesk_frame_t* frame, uint32_t reg, tag_set_t* tags)
@@ -1137,7 +1137,7 @@ static inline int _cesk_block_invoke_result_store_section_translation(
  * @param callee_rtabs the list of relocation tables for callee
  * @param results the list of result diffs
  * @param nfunc the number of functions might be called here
- * @param result_reg the register id of the target register, because we have _invoke-<target> instruction
+ * @param result_reg the register id of the target register, because we have _invoke-&lt;target&gt; instruction
  * @return the translated diff
  **/
 static inline cesk_diff_t* _cesk_block_invoke_result_translate(
