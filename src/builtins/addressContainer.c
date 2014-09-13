@@ -150,7 +150,7 @@ hashval_t addressContainer_hashcode(const void* data)
 	int i;
 	hashval_t ret = 0;
 	for(i = 0; i < this->N; i ++)
-		ret = (ret << 16) ^ (ret * ret) + cesk_set_hashcode(this->args[i]);
+		ret = ((ret << 16) ^ (ret * ret)) + cesk_set_hashcode(this->args[i]);
 	return ret;
 }
 int addressContainer_equal(const void* this_ptr, const void* that_ptr)
