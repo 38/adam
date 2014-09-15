@@ -7,39 +7,30 @@
  *
  *  <h1>How to compile</h1>
  *  Basicly 
- *  @code
- *  	cmake . && make
- *  @endcode
+ *  @code cmake . && make @endcode
  *
  *  To enable/disable building a tool package 
- *  @code 
- *  	cmake -Dbuild_<package_name>=yes|no . && make 
- *  @endcode
+ *  @code cmake -Dbuild_<package_name>=yes|no . && make @endcode
  *
  *  To change the log level and the optimization level
- *  @code
- *  	L=<log-level> O=<opt-level> cmake . && make
- *  @endcode
+ *  @code L=<log-level> O=<opt-level> cmake . && make @endcode
  *
  *  To show the compile flags 
- *  @code 
- *  	make show-flags
- *  @endcode
+ *  @code make show-flags @endcode
  *
  *  <h1> How to use </h1>
  *
  *	Currently only Adam Debugger is avaliable.<br/>
  *
  *	This package is enabled by default, if you want to enable it explicitly, run 
- *	@code
- *		cmake - Dbuild_adb=yes . 
- *	@endcode
- *	before compilation. <br/>
+ *	@code cmake - Dbuild_adb=yes . @endcode before compilation. <br/>
  *
- *	You can use ADB to test the analyzer if you compile adam with ADB package.
+ *	You can use ADB to test the analyzer if you compile adam with ADB package. <br>
  *
  *	If the visualization feature is enabled, you can find two PostScript graphs (code.ps and  frameinfo.ps)
- *	which is actually the current machine status.
+ *	which is actually the current machine status. <br/>
+ *
+ *	For more infomation about how to use ADB shell, use the command @code (help) @endcode in ADB shell to print help message 
  *
  *	<h1>Test</h1>
  *	Prepare the test data, use make data to download a sample input of ADAM from 
@@ -65,12 +56,14 @@
 #include <cesk/cesk.h>
 #include <bci/bci.h>
 #include <tag/tag.h>
-/** @brief Intialize libadam
- *  @return nothing
- */
+/** 
+ * @brief Intialize libadam
+ * @return nothing
+ **/
 int adam_init(void);
-/** @brief Finalize libadam
- *  @return nothing
- */
+/** 
+ * @brief Finalize libadam
+ * @return nothing
+ **/
 void adam_finalize(void);
 #endif
