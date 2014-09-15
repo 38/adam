@@ -1638,6 +1638,9 @@ int cesk_frame_register_load_from_object(
 
 	return 0;
 }
+/**
+ * @todo allocation also might carry background tags 
+ **/
 uint32_t cesk_frame_store_new_object(
 		cesk_frame_t* frame,
 		cesk_reloc_table_t* reloctab,

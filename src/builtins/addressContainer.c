@@ -165,8 +165,57 @@ int addressContainer_equal(const void* this_ptr, const void* that_ptr)
 }
 const char* addressContainer_to_string(const void* this_ptr, char* buf, size_t size)
 {
-	//TODO	
-	return "";
+	const this_t* this = (const this_t*)this_ptr;
+	int i;
+	const char* ret = buf;
+	for(i = 0; i < this->N; i ++)
+	{
+		if(buf != cesk_set_to_string(this->args[i], buf, size))
+			return NULL;
+		uint32_t len = strlen(buf);
+		buf += len;
+		size -= len;
+	}
+	return ret;
+}
+int addressContainer_merge(void* this_ptr, const void* that_ptr)
+{
+	this_t* this = (this_t*)this_ptr;
+	const this_t* that = (const this_t*)that_ptr;
+	if(this->N != that->N)
+	{
+		LOG_ERROR("can not merge address containers in different size");
+		return -1;
+	}
+	int ret = 0;
+	int i;
+	for(i = 0; i < this->N && ret >= 0; i ++)
+		ret = cesk_set_merge(this->args[i], that->args[i]);
+	return ret;
+}
+int addressContainer_get_reloc_flag(const void* this_ptr)
+{
+	const this_t* this = (const this_t*)this_ptr;
+	int ret = 0;
+	int i;
+	for(i = 0; i < this->N && !ret; i ++)
+		ret = cesk_set_get_reloc(this->args[i]);
+	return ret;
+}
+int addressContainer_instance_of(const void* this_ptr, const dalvik_type_t* type)
+{
+	/* we just simplify this part */
+	return BCI_BOOLEAN_TRUE;
+}
+int addressContainer_get_method(const void* this_ptr, const char* method, const dalvik_type_t* const * signature, const dalvik_type_t* rettype)
+{
+	/* we just simplify this */
+	return -1;
+}
+int addressContainer_invoke(int method_id, bci_method_env_t* env)
+{
+	/* simplify this */
+	return -1;
 }
 bci_class_t addressContainer_metadata = {
 	.size = sizeof(this_t),
@@ -177,6 +226,11 @@ bci_class_t addressContainer_metadata = {
 	.modify = addressContainer_modify,
 	.hash = addressContainer_hashcode,
 	.to_string = addressContainer_to_string,
+	.merge = addressContainer_merge,
+	.get_relocation_flag = addressContainer_get_reloc_flag,
+	.instance_of = addressContainer_instance_of,
+	.get_method = addressContainer_get_method,
+	.invoke = addressContainer_invoke,
 	.provides = {
 		"java/io/InputStream",
 		"java/io/OutputStream",
