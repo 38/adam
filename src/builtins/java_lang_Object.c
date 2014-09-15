@@ -42,7 +42,7 @@ int java_lang_Object_onload()
 	//_hashcode_rtype = DALVIK_TYPE_INT;
 	return 0;
 }
-int java_lang_Object_get_method(const void* this, const char* methodname, const dalvik_type_t* const* args, const dalvik_type_t* rtype)
+int java_lang_Object_get_method(const void* this, const char* classpath, const char* methodname, const dalvik_type_t* const* args, const dalvik_type_t* rtype)
 {
 	/*if(methodname == _hashcode && dalvik_type_list_equal(args, (const dalvik_type_t* const*) _hashcdoe_args) && dalvik_type_equal(rtype, _hashcode_rtype))
 		return 0;

@@ -1,6 +1,6 @@
 #include <bci/bci_class.h>
 #include <bci/bci_interface.h>
-int bci_class_initialize(void* mem, const void* init_param, tag_set_t** p_tags, const bci_class_t* class)
+int bci_class_initialize(void* mem, const char* classpath, const void* init_param, tag_set_t** p_tags, const bci_class_t* class)
 {
 	if(NULL == mem || NULL == class)
 	{
@@ -9,7 +9,7 @@ int bci_class_initialize(void* mem, const void* init_param, tag_set_t** p_tags, 
 	}
 	if(NULL != class->initialization)
 	{
-		if(class->initialization(mem, init_param, p_tags) < 0)
+		if(class->initialization(mem, classpath, init_param, p_tags) < 0)
 		{
 			LOG_ERROR("failed initlaize the new built-in class");
 			return -1;
@@ -86,12 +86,12 @@ int bci_class_instance_of(const void* this, const dalvik_type_t* type, const bci
 	if(NULL == this || NULL == class) return -1;
 	return (NULL == class->modify)?0:class->instance_of(this, type);
 }
-int bci_class_get_method(const void* this, const char* methodname, 
+int bci_class_get_method(const void* this, const char* classpath, const char* methodname, 
                          const dalvik_type_t * const * typelist, 
 						 const dalvik_type_t* rtype, const bci_class_t* class)
 {
 	if(NULL == methodname || NULL == class) return -1;
-	return (NULL == class->get_method)?-1:class->get_method(this, methodname, typelist, rtype);
+	return (NULL == class->get_method)?-1:class->get_method(this, classpath, methodname, typelist, rtype);
 }
 int bci_class_invoke(int method_id, bci_method_env_t* env, const bci_class_t* class)
 {

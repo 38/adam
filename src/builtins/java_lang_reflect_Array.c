@@ -128,7 +128,7 @@ int java_lang_reflect_Array_ondelete()
  * @param p_tags the pointer to the reference to the intial tag
  * @return < 0 if there's an error
  **/
-int java_lang_reflect_Array_init(void* this_ptr, const void* init_param, tag_set_t** p_tags)
+int java_lang_reflect_Array_init(void* this_ptr, const char* classpath, const void* init_param, tag_set_t** p_tags)
 {
 	array_data_t* this = (array_data_t*)this_ptr;
 	if(this->init_cnt == 0) this->init_cnt = 1;
@@ -359,7 +359,7 @@ int java_lang_reflect_Array_instance_of(const void* this_ptr, const dalvik_type_
  * @param rtype the return type
  * @return the method id, < 0 indicates error/method not found
  **/
-int java_lang_reflect_Array_get_method(const void* this_ptr, const char* method, const dalvik_type_t* const * typelist, const dalvik_type_t* rtype)
+int java_lang_reflect_Array_get_method(const void* this_ptr, const char* classpath, const char* method, const dalvik_type_t* const * typelist, const dalvik_type_t* rtype)
 {
 	/* we have to handle the functions to emulate the array instructions: <new_array>, <new_array_filled>, <fill_array>, <array_get>, <array_set> */
 	uint32_t typecode = 0;

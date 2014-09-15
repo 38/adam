@@ -923,8 +923,14 @@ static inline int _cesk_frame_apply_incref_store_sec(
 			return -1;
 		}
 		/* TODO: elimiate this dirty hack */
-		if(NULL != oldval && cesk_value_equal(rec->arg.value, (const cesk_value_t*)oldval))
+		int rc;
+		if(NULL != oldval && (rc = cesk_value_equal(rec->arg.value, (const cesk_value_t*)oldval)))
 		{
+			if(rc < 0)
+			{
+				LOG_ERROR("can not compare values");
+				return -1;
+			}
 			LOG_DEBUG("the target value is already there, no nothing to patch");
 			continue;
 		}
@@ -1760,7 +1766,7 @@ uint32_t cesk_frame_store_new_object(
 			else
 			{
 				/* instead of putting default 0, we call initializer on the reused object twice, this means we are going to reuse it */
-				if(bci_class_initialize(this->bcidata, bci_init_param, &object->tags, this->class.bci->class) < 0)
+				if(bci_class_initialize(this->bcidata, clspath, bci_init_param, &object->tags, this->class.bci->class) < 0)
 				{
 					LOG_WARNING("failed to initlaize the built-in class");
 				}
@@ -1838,7 +1844,7 @@ uint32_t cesk_frame_store_new_object(
 			}
 			else
 			{
-				if(bci_class_initialize(this->bcidata, bci_init_param, &object->tags, this->class.bci->class) < 0)
+				if(bci_class_initialize(this->bcidata, clspath, bci_init_param, &object->tags, this->class.bci->class) < 0)
 				{
 					LOG_WARNING("failed to initlaize the built-in class");
 				}

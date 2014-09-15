@@ -57,6 +57,7 @@ void cli_code_to_dot(const dalvik_block_t* block, uint32_t iid, FILE* fout)
 			for(k = 0; buf[k]; k ++)
 				if(buf[k] == '<') buf[k] = '[';
 				else if(buf[k] == '>') buf[k] = ']';
+				else if(buf[k] == '"') buf[k] = '`';
 			if(j == iid)
 				fprintf(fout, "|*%x:%s", j, buf);
 			else

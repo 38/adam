@@ -3,6 +3,10 @@
 #include <bci/bci_interface.h>
 
 #define _UNDETERM ((const char*)1)
+typedef struct {
+	uint8_t init_status;
+	const char* str;
+} string_data_t;
 extern bci_class_t java_lang_String_metadata;
 
 static const char* java_lang_String_empty = NULL;
@@ -26,29 +30,28 @@ int java_lang_String_onload()
 	}
 	return 0;
 }
-int java_lang_String_init(void* this, const void* param, tag_set_t** tags)
+int java_lang_String_init(void* this, const char* classpath, const void* param, tag_set_t** tags)
 {
-	if(*(const char**)this == NULL)
+	string_data_t* self = (string_data_t*) this;
+	if(0 == self->init_status)
 	{
-		if(NULL != param)
-			*(const char**)this = (const char*)param;
-		else 
-			*(const char**)this = java_lang_String_empty;
+		self->str = (const char*)param;
+		self->init_status = 1;
 	}
-	else if(*(const char**)this != _UNDETERM)
+	else if(self->str != _UNDETERM)
 	{
-		if(param != *(const char**)this) 
-			*(const char**)this = _UNDETERM;
+		if(param != self->str) self->str = _UNDETERM;
 	}
 	return 0;
 }
 int java_lang_String_duplicate(const void* this, void* that)
 {
-	*(const char**) that = *(const char**) this;
+	*(string_data_t*) that = *(string_data_t*) this;
 	return 0;
 }
 cesk_set_t* java_lang_String_get_field(const void* this, const char* fieldname)
 {
+	const string_data_t* self = (const string_data_t*) this;
 	cesk_set_t* ret = cesk_set_empty_set();
 	if(NULL == ret)
 	{
@@ -57,16 +60,16 @@ cesk_set_t* java_lang_String_get_field(const void* this, const char* fieldname)
 	}
 	if(java_lang_String_length == fieldname)
 	{
-		if(java_lang_String_empty == *(const char**)this)
+		if(java_lang_String_empty == self->str)
 		{
 			cesk_set_push(ret,CESK_STORE_ADDR_ZERO);
 		}
-		else if(_UNDETERM == *(const char**)this)
+		else if(_UNDETERM == self->str)
 		{
 			cesk_set_push(ret,CESK_STORE_ADDR_ZERO);
 			cesk_set_push(ret,CESK_STORE_ADDR_POS);
 		}
-		else if(NULL != *(const char**)this)
+		else if(NULL != self->str)
 		{
 			cesk_set_push(ret, CESK_STORE_ADDR_POS);
 		}
@@ -87,23 +90,29 @@ ERR:
 }
 const char* java_lang_String_to_string(const void* this, char* buf, size_t size)
 {
-	if(NULL == *(const char**)this) return "(uninitialized)";
-	else if(_UNDETERM == *(const char**)this) return "(undetermistic)";
-	else return *(const char**) this;
+	const string_data_t* self = (const string_data_t*) this;
+	if(NULL == self->str) return "(uninitialized)";
+	else if(_UNDETERM == self->str) return "(undetermistic)";
+	else return self->str;
 }
 int java_lang_String_merge(void* this, const void* that)
 {
-	if(*(const char**)this == *(const char**)that)
-		*(const char**) this = _UNDETERM;
+	string_data_t* left = (string_data_t*) this;
+	const string_data_t* right = (const string_data_t*) that;
+	if(left->str != right->str)
+		left->str = _UNDETERM;
 	return 1;
 }
 hashval_t java_lang_String_hash(const void* this)
 {
-	return (*(uintptr_t*) this) * MH_MULTIPLY;
+	const string_data_t* self = (const string_data_t*) this;
+	return ((uintptr_t)self->str) * MH_MULTIPLY;
 }
 int java_lang_String_equal(const void* this, const void* that)
 {
-	return *(const char**)this == *(const char**) that;
+	const string_data_t* left = (const string_data_t*) this;
+	const string_data_t* right = (const string_data_t*) that;
+	return left->str == right->str;
 }
 int java_lang_String_instance_of(const void* this, const dalvik_type_t* type)
 {
@@ -112,7 +121,7 @@ int java_lang_String_instance_of(const void* this, const dalvik_type_t* type)
 	return type->data.object.path ==  java_lang_Object_metadata.provides[0];
 }
 bci_class_t java_lang_String_metadata = {
-	.size = sizeof(const char*),
+	.size = sizeof(string_data_t),
 	.onload = java_lang_String_onload,
 	.initialization = java_lang_String_init,
 	.duplicate = java_lang_String_duplicate,

@@ -3,10 +3,12 @@
  * @file addressContainer.c
  **/
 #include <bci/bci_interface.h>
+#include <stringpool.h>
 typedef struct {
 	uint8_t init_state;
 	size_t N;
 	cesk_set_t** args;
+	const char* classpath;
 	uint32_t current_set;
 	uint32_t previous_set;
 	uint32_t previous_offset;
@@ -14,17 +16,26 @@ typedef struct {
 	cesk_set_iter_t   current_iter;
 	cesk_set_iter_t   previous_iter;
 } this_t;
-int addressContainer_init(void* this_ptr, const void* init_param, tag_set_t** p_tags)
+static const char* kw_init;
+int addressContainer_onload()
+{
+	kw_init = stringpool_query("<init>"); 
+	return 0;
+}
+int addressContainer_init(void* this_ptr, const char* classpath, const void* init_param, tag_set_t** p_tags)
 {
 	this_t* this = (this_t*)this_ptr;
 	if(this->init_state == 0) this->init_state = 1;
 	else if(this->init_state == 1)
 	{
+		this->current_offset = 0xffffffffu;
 		this->init_state = 2;
 		return 0;
 	}
+	this->current_offset = 0xffffffffu;
 	this->N = 0;
 	this->args = NULL;
+	this->classpath = classpath;
 	return 0;
 }
 int addressContainer_delete(void* this_ptr)
@@ -76,7 +87,7 @@ int addressContainer_get_addr_list(const void* this_ptr, uint32_t offset, uint32
 	this_t* this = (this_t*) this_ptr;
 	if(offset != this->current_offset)
 	{
-		uint32_t count = 0, i, current_size;
+		uint32_t count = 0, i, current_size = 0;
 		for(i = 0; count <= offset && i < this->N; count += (current_size = cesk_set_size(this->args[i++])));
 		if(offset >= count) return 0;
 		if(NULL == cesk_set_iter(this->args[i - 1], &this->current_iter))
@@ -101,7 +112,7 @@ int addressContainer_get_addr_list(const void* this_ptr, uint32_t offset, uint32
 		if(CESK_STORE_ADDR_NULL == addr && size > 0)
 		{
 			this->current_set ++;
-			if(NULL == cesk_set_iter(this->args[this->current_set], &this->current_iter))
+			if(this->current_set < this->N && NULL == cesk_set_iter(this->args[this->current_set], &this->current_iter))
 			{
 				LOG_ERROR("can not get a iterator to read set %d", this->current_set);
 				return -1;
@@ -109,7 +120,7 @@ int addressContainer_get_addr_list(const void* this_ptr, uint32_t offset, uint32
 		}
 	}
 	this->current_offset += ret;
-	return 0;
+	return ret;
 }
 int addressContainer_modify(void* this_ptr, uint32_t offset, uint32_t* buf, size_t N)
 {
@@ -207,30 +218,95 @@ int addressContainer_instance_of(const void* this_ptr, const dalvik_type_t* type
 	/* we just simplify this part */
 	return BCI_BOOLEAN_TRUE;
 }
-int addressContainer_get_method(const void* this_ptr, const char* method, const dalvik_type_t* const * signature, const dalvik_type_t* rettype)
+static const char* _last_class_path = NULL;
+int addressContainer_get_method(const void* this_ptr, const char* classpath, const char* method, const dalvik_type_t* const * signature, const dalvik_type_t* rettype)
 {
-	/* we just simplify this */
+	/* we just simplify this, only supported function call is <init>, and the method id is actually the number of args */
+	if(method == kw_init)
+	{
+		int N = 0;
+		for(;signature[N] != NULL; N ++);
+		_last_class_path = classpath;
+		return N;
+	}
 	return -1;
 }
 int addressContainer_invoke(int method_id, bci_method_env_t* env)
 {
-	/* simplify this */
-	return -1;
+	const cesk_set_t* this_set = bci_interface_read_arg(env, 0, method_id + 1);
+	cesk_set_iter_t this_iter;
+	if(NULL == cesk_set_iter(this_set, &this_iter))
+	{
+		LOG_ERROR("can not get iterator to traverse the this pointer");
+		return -1;
+	}
+	uint32_t this_addr;
+	while(CESK_STORE_ADDR_NULL != (this_addr = cesk_set_iter_next(&this_iter)))
+	{
+		this_t* this = (this_t*)bci_interface_get_rw(env, this_addr, _last_class_path);
+		if(NULL == this)
+		{
+			LOG_ERROR("can not read store at address "PRSAddr, this_addr);
+			return -1;
+		}
+		if(this->init_state == 2 && this->N != method_id)
+		{
+			LOG_ERROR("invalid number of attributes");
+			return -1;
+		}
+		else
+		{
+			this->N = method_id;
+			this->args = (cesk_set_t**)malloc(sizeof(cesk_set_t*) * this->N);
+			if(NULL == this->args)
+			{
+				LOG_ERROR("can not allocate array for the address holder");
+				return -1;
+			}
+			int i;
+			for(i = 0; i < this->N; i ++)
+			{
+				this->args[i] = cesk_set_empty_set();
+				if(NULL == this->args[i])
+				{
+					LOG_ERROR("can not create new empty set for value %d", i);
+					return -1;
+				}
+			}
+		}
+		int i;
+		for(i = 0; i < this->N; i ++)
+		{
+			const cesk_set_t* arg = bci_interface_read_arg(env, i + 1, method_id + 1);
+			if(NULL == arg) 
+			{
+				LOG_ERROR("can not read argument %d", i);
+				return -1;
+			}
+			cesk_set_merge(this->args[i], arg);
+		}
+		bci_interface_release_rw(env, this_addr);
+		bci_interface_return_object(env, this_addr);
+	}
+	return 0;
 }
 bci_class_t addressContainer_metadata = {
 	.size = sizeof(this_t),
+	.onload = addressContainer_onload,
 	.initialization = addressContainer_init,
 	.finalization = addressContainer_delete,
 	.duplicate = addressContainer_dup,
 	.get_addr_list = addressContainer_get_addr_list,
 	.modify = addressContainer_modify,
 	.hash = addressContainer_hashcode,
+	.equal = addressContainer_equal,
 	.to_string = addressContainer_to_string,
 	.merge = addressContainer_merge,
 	.get_relocation_flag = addressContainer_get_reloc_flag,
 	.instance_of = addressContainer_instance_of,
 	.get_method = addressContainer_get_method,
 	.invoke = addressContainer_invoke,
+	.super = "java/lang/Object",
 	.provides = {
 		"java/io/InputStream",
 		"java/io/OutputStream",

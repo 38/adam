@@ -46,7 +46,8 @@ struct _bci_class_t {
 	
 	int (*ondelete)();/*!< actions before this class remove from the name table return value < 0 means error */
 	
-	int (*initialization)(void* this, const void* init_param, tag_set_t** p_tags);/*!< how to initialize the data used by this instance, 
+	int (*initialization)(void* this, const char * classpath, const void* init_param, tag_set_t** p_tags);
+																				/*!< how to initialize the data used by this instance, 
 																				  this is NOT CONSTRUCTOR return value < 0 means error, 
 																				  tags is the pointer to the reference to the tag set of 
 																				  this value, this function is resposible for the tag set 
@@ -76,7 +77,8 @@ struct _bci_class_t {
 
 	int (*instance_of)(const void* this, const dalvik_type_t* classpath);     /*!< check wether or not this object is a instance of the class path */
 
-	int (*get_method)(const void* this, 
+	int (*get_method)(const void* this,
+					  const char* classpath,
 	                  const char* method,
 	                  const dalvik_type_t * const * typelist,
 					  const dalvik_type_t*  rtype);    /*!< return the method id if the highest bit is 1 indicates that this method won't modify 
@@ -93,12 +95,13 @@ struct _bci_class_t {
  * @brief initialize a built-in instance
  * @param mem the memory for this instance
  * @param class the class def
+ * @param classpath the class path 
  * @param init_param the initialzation parameter
  * @param p_tags the pointer to the reference to the tag set of this value, used to modify the tag
  * @param class the class path
  * @return result of initialization, < 0 indicates an error
  **/
-int bci_class_initialize(void* mem, const void* init_param, tag_set_t** p_tags, const bci_class_t* class);
+int bci_class_initialize(void* mem, const char* classpath, const void* init_param, tag_set_t** p_tags, const bci_class_t* class);
 /**
  * @brief do cleanup before this instance finally get deleted
  * @param mem the memory for this instance
@@ -216,13 +219,14 @@ int bci_class_instance_of(const void* this, const dalvik_type_t* type, const bci
 /**
  * @brief get method id by method name, for static function, the this pointer should be NULL
  * @param this the this pointer
+ * @param classpath the classpath of the class
  * @param methodname the methodname to get
  * @param class the class def
  * @param rtype the return value type
  * @param typelist the argument list or function signature
  * @return the method id, < 0 indicates an error / method not found
  **/
-int bci_class_get_method(const void* this, const char* methodname, 
+int bci_class_get_method(const void* this, const char* classpath, const char* methodname, 
                          const dalvik_type_t * const * typelist, 
 						 const dalvik_type_t* rtype, const bci_class_t* class);
 

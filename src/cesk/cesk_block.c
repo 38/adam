@@ -1,6 +1,7 @@
 /**
  * @file cesk_block.c
  * @brief implementation of the block analyzer
+ * @todo finalize function
  **/
 #include <dalvik/dalvik_instruction.h>
 
@@ -1410,9 +1411,14 @@ static inline int _cesk_block_find_invoke_method(const dalvik_instruction_t* ins
 			}
 			/* compiler always produces check-cast instruction during the type cast, so we can assume all invoke-direct instruction are legal 
 			 * so we do not need partition here, because for each object the method should be exactly described by the instruction */
-			if(DVM_FLAG_INVOKE_DIRECT == (ins->flags & DVM_FLAG_INVOKE_TYPE_MSK)) goto STATIC_INVOKE;
-			/* only invoke-virtual and invoke-interface can be here */
 			const cesk_set_t* this = frame->regs[CESK_FRAME_GENERAL_REG(ins->operands[4].payload.uint16)];
+			
+			if(DVM_FLAG_INVOKE_DIRECT == (ins->flags & DVM_FLAG_INVOKE_TYPE_MSK)) 
+			{
+				self[0] = cesk_set_fork(this);
+				goto DIRECT_INVOKE;
+			}
+			/* only invoke-virtual and invoke-interface can be here */
 			cesk_set_iter_t iter;
 			if(NULL == cesk_set_iter(this, &iter))
 			{
@@ -1451,7 +1457,7 @@ static inline int _cesk_block_find_invoke_method(const dalvik_instruction_t* ins
 					else
 					{
 						/* TODO: test this branch */
-						int method_id = bci_class_get_method(current->bcidata, methodname, typelist, rtype, current->class.bci->class);
+						int method_id = bci_class_get_method(current->bcidata, current->class.path->value, methodname, typelist, rtype, current->class.bci->class);
 						_cesk_block_method_heap_code[_cesk_block_method_heap_size] = NULL;
 						/* if this method is supported by this method */ 
 						if(method_id >= 0)
@@ -1473,8 +1479,8 @@ static inline int _cesk_block_find_invoke_method(const dalvik_instruction_t* ins
 			for(;NULL != (self[ret] = _cesk_block_method_heap_get_partition(code + ret, class + ret, method_id + ret)); ret ++);
 			break;
 		case DVM_FLAG_INVOKE_STATIC:
-STATIC_INVOKE:
 			self[0] = NULL;
+DIRECT_INVOKE:
 			code[0] = dalvik_block_from_method(classpath, methodname, typelist, rtype);
 			/* might be either an error or a built-in method */
 			if(NULL == code[0])
@@ -1485,7 +1491,7 @@ STATIC_INVOKE:
 					LOG_ERROR("can not find the method!");
 					return -1;
 				}
-				int method = bci_class_get_method(NULL, methodname, typelist, rtype, bclass->class);
+				int method = bci_class_get_method(NULL, bclass->path, methodname, typelist, rtype, bclass->class);
 				if(method < 0)
 				{
 					LOG_ERROR("the target class %s do not support %s", classpath, methodname);
@@ -1797,6 +1803,7 @@ int cesk_block_analyze(
 			default:
 				LOG_WARNING("ignore unknown opcode");
 		}
+		/* TODO: based on the dbuf and ibuf, invoke the fianlize functions */
 	}
 	/* we almost done, fill up the result buffer */
 	buf->frame = frame;
