@@ -134,7 +134,7 @@ static inline cesk_set_node_t* _cesk_set_node_alloc(int type)
 }
 /**
  * @brief the hash function used in the global hash table for set
- * @prama hashidx the index of the set
+ * @param hashidx the index of the set
  * @param addr the actual data
  * @return result
  **/
@@ -194,7 +194,7 @@ static inline void* _cesk_set_hash_find(uint32_t setidx, uint32_t addr)
 }
 /** 
  * @brief allocate a fresh set index, and append the info entry to hash table 
- * @param p_enbtry pointer to a buffer used to return a reference to the newly created entry node
+ * @param p_entry pointer to a buffer used to return a reference to the newly created entry node
  * @return the fresh index for the new set, CESK_SET_INVALID if failed
  **/
 static inline uint32_t _cesk_set_idx_alloc(cesk_set_info_entry_t** p_entry)

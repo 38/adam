@@ -11,32 +11,32 @@
 #endif
 
 #ifndef VECTOR_INIT_CAP
-/** @brief initial size of a vector */
+/** @brief initial capacity of a vector */
 #   define VECTOR_INIT_CAP 32
 #endif /* VECTOR_INIT_CAP */
 
 #ifndef DALVIK_CLASS_MAX_NUM_IMPLEMENTS
-/** @biref the max number a class can implement interfaces **/
+/** @brief the max number of interfaces that a class can implement **/
 #	define DALVIK_CLASS_MAX_NUM_IMPLEMENTS 128
 #endif
 
 #ifndef DAVLIK_LABEL_POOL_SIZE
-/** @brief the size of label pool */
+/** @brief the number of slot of label pool **/
 #   define DAVLIK_LABEL_POOL_SIZE 655217
 #endif
 
 #ifndef STRING_POOL_SIZE
-/** @brief the number of slots in hash table for string pool */ 
+/** @brief the number of slots in string pool */ 
 #   define STRING_POOL_SIZE 100003
 #endif
 
 #ifndef DALVIK_POOL_INIT_SIZE
-/** @brief the dalvik instruction pool init size */
+/** @brief the initial size of the instruction pool */
 #   define DALVIK_POOL_INIT_SIZE 1024
 #endif
 
 #ifndef DALVIK_MAX_CATCH_BLOCK
-/** @brief how many catch blocks does a method can have */
+/** @brief the maximum number of catch blocks a method can have */
 #   define DALVIK_MAX_CATCH_BLOCK 1024
 #endif
 
@@ -46,14 +46,15 @@
 #endif
 
 #ifndef DALVIK_BLOCK_CACHE_SIZE
-/** brief the size of dalvik block cache */
+/** @brief the size of dalvik block graph cache */
 #   define DALVIK_BLOCK_CACHE_SIZE 100007
 #endif
 
 #ifndef DALVIK_BLOCK_MAX_KEYS
-/** brief the maximum size of a key instruction list */
+/** @brief the maximum size of a key instruction list */
 #   define DALVIK_BLOCK_MAX_KEYS 1024
-#	define CESK_METHOD_MAX_NBLOCKS DALVIK_BLOCK_MAX_KEYS  /* this is actually a renamed constant */
+/** @brief the maximum number of blocks in a method */
+#	define CESK_METHOD_MAX_NBLOCKS DALVIK_BLOCK_MAX_KEYS  
 #endif
 
 #ifndef CESK_STORE_BLOCK_SIZE
@@ -132,11 +133,6 @@
 #ifndef CESK_ALLOC_TABLE_MAX_CHAIN_SIZE
 /** @brief the maximum length of chain in an allocation table */
 #	define CESK_ALLOC_TABLE_MAX_CHAIN_SIZE 5
-#endif
-
-#ifndef CESK_DIFF_REDUCE_HASH_SIZE
-/** @brief the size of the hash table used for diff reduction */
-#	define CESK_DIFF_HASH_SIZE 1023
 #endif
 
 #ifndef CESK_METHOD_CAHCE_SIZE

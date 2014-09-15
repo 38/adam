@@ -270,7 +270,7 @@ int java_lang_reflect_Array_equal(const void* this_ptr, const void* that_ptr)
 	return cesk_set_equal(this->set, that->set);
 }
 /**
- * @biref this function is used to convert this built-class to a human-readable string
+ * @brief this function is used to convert this built-class to a human-readable string
  * @param this_ptr the this pointer
  * @param buf the string buffer
  * @param size the size of string
@@ -387,7 +387,7 @@ int java_lang_reflect_Array_get_method(const void* this_ptr, const char* method,
 	return item->method_id;
 }
 /**
- * @brief handler for the ufction call <new_array> which creates a new array object
+ * @brief handler for the ufction call &lt;new_array&gt; which creates a new array object
  * @param env the invocation environ
  * @param elem_type the type of each element
  * @return < 0 indicates errors
@@ -398,7 +398,7 @@ static inline int _new_array_handler(bci_method_env_t* env, const dalvik_type_t*
 	return bci_interface_return_single_address(env, addr);
 }
 /**
- * @brief handler for the function call <new_array_filled> which creates a new array object with data filled in the array
+ * @brief handler for the function call &lt;new_array_filled&gt; which creates a new array object with data filled in the array
  * @param env the invocation environ
  * @param elem_type the type of each element
  * @param nargs the number of arguments
@@ -423,7 +423,7 @@ static inline int _new_array_filled_handler(bci_method_env_t* env, const dalvik_
 	return bci_interface_return_single_address(env, addr);
 }
 /**
- * @biref handler for <array_put>
+ * @brief handler for &lt;array_put&gt;
  * @param env the environ
  * @return the result of invocation
  **/
@@ -454,7 +454,7 @@ static inline int _array_put_handler(bci_method_env_t* env)
 	return 0;
 }
 /**
- * @brief handler for <array_get>
+ * @brief handler for &lt;array_get&gt;
  * @param env the envrion
  * @return the result of invocation
  **/
@@ -493,8 +493,9 @@ static inline int _array_get_handler(bci_method_env_t* env)
 	return rc;
 }
 /**
- * @brief handler for <fill_array_data>
+ * @brief handler for &lt;fill_array_data&gt;
  * @brief env the envrion
+ * @param env the invoke environ
  * @param label_type the type that carries a label
  * @return the result of invocation
  **/

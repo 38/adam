@@ -1,5 +1,5 @@
 /**
- * @files dalvik_tokens.c
+ * @file dalvik_tokens.c
  * @brief define lexical tokens 
  **/
 #include <sexp.h>

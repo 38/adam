@@ -91,7 +91,7 @@ int bci_interface_return_single_address(bci_method_env_t* env, uint32_t addr);
 /**
  * @brief return a value set from the bulit-in function
  * @param env the envrion
- * @param addr the return address 
+ * @param set the set to return 
  * @return < 0 if there's an error
  **/
 int bci_interface_return_set(bci_method_env_t* env, const cesk_set_t* set);
@@ -123,7 +123,7 @@ const void* bci_interface_get_ro(bci_method_env_t* env, uint32_t addr, const cha
 int bci_interface_return_object(bci_method_env_t* env, uint32_t addr);
 /**
  * @brief release the writable pointer in the frame store
- * @param param env the envrion
+ * @param env the envrion
  * @param addr the address
  * @return nothing
  **/

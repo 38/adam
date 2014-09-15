@@ -12,7 +12,7 @@
  **/
 vector_t *_dalvik_exception_handler_vector     = NULL;
 /**
- * @biref the vector that contains all expcetion handler set
+ * @brief the vector that contains all expcetion handler set
  **/
 vector_t *_dalvik_exception_handler_set_vector = NULL;
 int dalvik_exception_init()
@@ -60,7 +60,7 @@ void dalvik_exception_finalize()
 }
 /** 
  * @brief allocate an exception handler 
- * @param expection the class path of this exception
+ * @param exception the class path of this exception
  * @param handler the handler label ID
  * @return the newly created exception handler set
  **/

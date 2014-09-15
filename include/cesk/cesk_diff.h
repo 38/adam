@@ -190,7 +190,7 @@ cesk_diff_t* cesk_diff_prepare_to_write(cesk_diff_t* diff);
 
 /**
  * @brief this function is used to correct the modified object number of a frame-diff application
- * @detials For some frame-diff application like  G = F * (b * c). We typically compute the d = b * c
+ * @details For some frame-diff application like  G = F * (b * c). We typically compute the d = b * c
  *          first, then apply it to frame F to get frame G. And the apply function returns the number
  *          of object that has been modified. But sometimes we need to know the number of objects modified
  *          when we apply diff c to frame (F * b) to get the same output frame. In this case, this function 

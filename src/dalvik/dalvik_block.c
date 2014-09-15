@@ -42,6 +42,7 @@ static dalvik_block_cache_node_t* _dalvik_block_cache[DALVIK_BLOCK_CACHE_SIZE];
  * @param class the class path of the method 
  * @param method the method name of the method
  * @param typelist the type list of this method (because there's might be an overload)
+ * @param type the return type 
  * @param block the block we want to reference
  * @return a pointer to the newly created node, NULL indicates error
  **/
@@ -120,10 +121,11 @@ static inline void _dalvik_block_graph_free(dalvik_block_t* entry)
 	vector_free(vec);
 }
 /**
- * @brief hash function for the cache, the key is <classpath, methodname, typelist>
+ * @brief hash function for the cache, the key is &lt;classpath, methodname, typelist&gt;
  * @param class the class path
  * @param method the method name
  * @param typelist the type list (to distinguish different functions between overloads)
+ * @param rtype the return type
  * @return the hash value
  **/
 static inline hashval_t _dalvik_block_hash(const char* class, const char* method, const dalvik_type_t * const * typelist, const dalvik_type_t* rtype)
@@ -182,7 +184,7 @@ static int _dalvik_block_key_comp(const void* this, const void* that)
  * @brief Tranverse all instructions in this method, figure out which is key instruction that we really take care
  * and return the offset of the address in the array.
  * @details 
- * 	   <hl> What is key instruction? </hl> <br/>
+ * 	   What is key instruction?  <br/>
  * 	   Key instruction is the instruction that involves non-linear control flows, including 
  * 	   jump instruction, invoke instruction, branch instruction and the jump target(although 
  * 	   the target can be any instruction) <br/>
