@@ -1113,7 +1113,7 @@ __DI_CONSTRUCTOR(INVOKE)
 				LOG_ERROR("invalid return type");
 				return -1;
 			}
-			__DI_SETUP_OPERAND(3, DVM_OPERAND_FLAG_CONST | DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_TYPEDESC), rtype);
+			__DI_SETUP_OPERANDPTR(3, DVM_OPERAND_FLAG_CONST | DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_TYPEDESC), rtype);
 
 			/* We use a constant indicates the range */
 			__DI_SETUP_OPERAND(4, DVM_OPERAND_FLAG_CONST | DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_INT), reg_from);
@@ -1209,7 +1209,7 @@ __DI_CONSTRUCTOR(INVOKE)
 				LOG_ERROR("invalid return type");
 				return -1;
 			}
-			__DI_SETUP_OPERAND(3, DVM_OPERAND_FLAG_CONST | DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_TYPEDESC), rtype);
+			__DI_SETUP_OPERANDPTR(3, DVM_OPERAND_FLAG_CONST | DVM_OPERAND_FLAG_TYPE(DVM_OPERAND_TYPE_TYPEDESC), rtype);
 			
 			/* here we parse the type */
 			size_t nparam = sexp_length(next) + 1; /* because we need a NULL pointer in the end */
