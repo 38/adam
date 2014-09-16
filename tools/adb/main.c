@@ -165,6 +165,7 @@ void cli_frame_to_dot(const cesk_frame_t* output, FILE* fout)
 						fprintf(fout, "<O%xF%x>%s", i, j , this->class.udef->members[j]);
 						fprintf(fout, (j == this->num_members - 1)?"}":"|");
 					}
+					if(j == 0) fprintf(fout, "}");
 				}
 				CESK_OBJECT_STRUCT_ADVANCE(this);
 			}
@@ -545,7 +546,7 @@ int do_quit(cli_command_t* cmd)
 }
 int do_list_class(cli_command_t* cmd)
 {
-	const char* classpath[128];
+	static const char* classpath[16384];
 	const char* prefix = "";
 	if(cmd->index == 6) prefix = cmd->args[2].class;
 	int rc;
@@ -561,10 +562,10 @@ int do_list_class(cli_command_t* cmd)
 int do_list_method(cli_command_t* cmd)
 {
 	const char* object_path = cmd->args[2].class;
-	const char* classpath[128];
-	const char* methodname[128];
-	const dalvik_type_t* const* signature[128];
-	const dalvik_type_t* return_type[128];
+	const char* classpath[16384];
+	const char* methodname[16384];
+	const dalvik_type_t* const* signature[16384];
+	const dalvik_type_t* return_type[16384];
 	int rc;
 	if(NULL == object_path) object_path = "";
 	if((rc = dalvik_memberdict_find_member_by_prefix(

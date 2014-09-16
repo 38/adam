@@ -14,6 +14,7 @@
 #define DALVIK_ATTRS_SYNCRONIZED 0x80
 #define DALVIK_ATTRS_TRASIENT    0x100
 #define DALVIK_ATTRS_VOLATILE    0x200
+#define DALVIK_ATTRS_NATIVE      0x400
 
 /* DO NOT define any attribute lager than 0xffff */
 

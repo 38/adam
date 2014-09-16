@@ -316,6 +316,7 @@ bci_class_t addressContainer_metadata = {
 		"java/io/InputStreamReader",
 		"java/io/Writer",
 		"java/io/OutputStreamWriter",
+		"java/io/File",
 		NULL
 	}
 };

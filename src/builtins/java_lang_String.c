@@ -13,11 +13,6 @@ static const char* java_lang_String_empty = NULL;
 static const char* java_lang_String_length = NULL;
 int java_lang_String_onload()
 {
-	if(java_lang_String_metadata.size != sizeof(const char*))
-	{
-		LOG_ERROR("bad class def: java.lang.String");
-		return -1;
-	}
 	if((java_lang_String_empty = stringpool_query("")) == NULL)
 	{
 		LOG_ERROR("Failed to initialize java.lang.String");

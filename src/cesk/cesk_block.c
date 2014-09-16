@@ -1717,11 +1717,13 @@ PARAMERR_RANGE:
 ERR:
 	if(bci_D) cesk_diff_buffer_free(bci_D);
 	if(bci_I) cesk_diff_buffer_free(bci_I);
-	if(flag_args_ref) 
+	if(flag_args_ref)
+	{
 		for(i = 0; i < nargs; i ++)
 			if(NULL != args[i]) cesk_set_free(args[i]);
-	for(i = 0; i < nfunc; i ++)
-		if(NULL != this[i]) cesk_set_free(this[i]);
+		for(i = 0; i < nfunc; i ++)
+			if(NULL != this[i]) cesk_set_free(this[i]);
+	}
 	for(i = 0; i < nfunc; i ++)
 		if(NULL == code[i] && NULL != callee_rtable)
 			cesk_reloc_table_free(callee_rtable[i]);

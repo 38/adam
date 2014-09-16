@@ -233,11 +233,11 @@ static inline const char* _cli_command_completor(const char* text, const char* t
 	static int rc;
 	extern cesk_frame_t* input_frame;
 	
-	static const char* classpath[1024];
-	static const char* methodname[1024];
-	static const dalvik_type_t* const* signature[1024];
-	static const dalvik_type_t* return_type[1024];
-	static char mbuf[1024][1024];
+	static const char* classpath[16384];
+	static const char* methodname[16384];
+	static const dalvik_type_t* const* signature[16384];
+	static const dalvik_type_t* return_type[16384];
+	static char mbuf[16384][16384];
 
 	int i;
 	while(*text == ' ' || *text == '\t') text ++;
