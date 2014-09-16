@@ -290,6 +290,61 @@ int addressContainer_invoke(int method_id, bci_method_env_t* env)
 	}
 	return 0;
 }
+static inline int _addressContainer_dereference(uint32_t addr, const uint32_t* index, bci_method_env_t* env, cesk_set_t* ret)
+{
+	if(index[0] == 0xfffffffful) 
+	{
+		cesk_set_push(ret, addr);
+		return 0;
+	}
+	extern bci_class_t addressContainer_metadata;
+	const this_t* this = (const this_t*)bci_interface_get_ro_by_classdef(env, addr, &addressContainer_metadata);
+	if(NULL == this) 
+	{
+		LOG_ERROR("can not read store");
+		return -1;
+	}
+	if(this->N < index[0])
+	{
+		LOG_ERROR("invalid index array");
+		return -1;
+	}
+	const cesk_set_t* set = this->args[index[0]];
+	cesk_set_iter_t iter;
+	if(NULL == (cesk_set_iter(set, &iter)))
+	{
+		LOG_ERROR("can not read the value set");
+		return -1;
+	}
+	uint32_t next_addr;
+	while(CESK_STORE_ADDR_NULL != (next_addr = cesk_set_iter_next(&iter)))
+	{
+		if(_addressContainer_dereference(next_addr, index + 1, env, ret) < 0)
+		{
+			LOG_ERROR("can not dereference at address "PRSAddr, next_addr);
+			return -1;
+		}
+	}
+	return 0;
+}
+cesk_set_t* addressContainer_dereference(uint32_t addr, const uint32_t* index, bci_method_env_t* env)
+{
+	cesk_set_t* ret = cesk_set_empty_set();
+	if(NULL == ret)
+	{
+		LOG_ERROR("can not allocate new set");
+		goto ERR;
+	}
+	if(_addressContainer_dereference(addr, index, env, ret) < 0)
+	{
+		LOG_ERROR("can not dereference the address container");
+		goto ERR;
+	}
+	return ret;
+ERR:
+	if(NULL != ret) cesk_set_free(ret);
+	return NULL;
+}
 bci_class_t addressContainer_metadata = {
 	.size = sizeof(this_t),
 	.onload = addressContainer_onload,
@@ -317,6 +372,7 @@ bci_class_t addressContainer_metadata = {
 		"java/io/Writer",
 		"java/io/OutputStreamWriter",
 		"java/io/File",
+		"org/apache/http/client/methods/HttpGet",
 		NULL
 	}
 };

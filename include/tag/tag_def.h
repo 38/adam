@@ -5,15 +5,6 @@
 #ifndef __TAG_DEF_H__
 #define __TAG_DEF_H__
 /**
- * @brief indexes of tags supported
- **/
-enum {
-	TAG_FILENAME,     /*!< set if this value can be a filename */
-	TAG_FILECONTENT,  /*!< set if this value can be a filecontent */
-	/* Add new tags here */
-	TAG_NUM_OF_TAGS   /*!< how many tags supported */
-};
-/**
  * @brief resolution level of a tag
  **/
 enum {

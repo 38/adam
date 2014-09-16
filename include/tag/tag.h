@@ -5,6 +5,8 @@
 #ifndef __TAG_H__
 #include <tag/tag_def.h>
 #include <tag/tag_set.h>
+
+#include <tag/tag_fs.h>
 /**
  * @brief initialization
  * @return < 0 if failed to initialize

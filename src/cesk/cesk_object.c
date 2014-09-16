@@ -388,6 +388,7 @@ const char* cesk_object_to_string(const cesk_object_t* object, char* buf, size_t
 		}
 		CESK_OBJECT_STRUCT_ADVANCE(this);
 	}
+	__PR("(tags %s)", tag_set_to_string(object->tags, NULL, 0));
 #undef __PR
 	return buf;
 }

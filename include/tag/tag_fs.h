@@ -8,4 +8,10 @@
  * @brief initialization
  **/
 void tag_fs_init();
+
+/**
+ * @brief the tag id 
+ **/
+extern uint32_t TAG_FILENAME;
+extern uint32_t TAG_FILECONTENT;
 #endif

@@ -820,7 +820,7 @@ const char* cesk_set_to_string(const cesk_set_t* set, char* buf, int sz)
 		first = 0;
 	}
 	if(first) __PR("{");
-	__PR("}");
+	__PR("}%s", tag_set_to_string(cesk_set_get_tags(set), NULL, 0));
 #undef __PR
 	return buf;
 }

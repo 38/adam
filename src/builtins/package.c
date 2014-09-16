@@ -5,5 +5,6 @@ PackageInit_Begin
 	Provides_Class(java_lang_String);
 	Provides_Class(java_lang_reflect_Array);
 	Provides_Class(addressContainer);
+	Provides_Class(java_io_BufferedReader);
 PackageInit_End
 

@@ -128,4 +128,20 @@ int bci_interface_return_object(bci_method_env_t* env, uint32_t addr);
  * @return nothing
  **/
 void bci_interface_release_rw(bci_method_env_t* env, uint32_t addr);
+/**
+ * @biref return a writable pointer to BCI data section by class definition rather than the class path
+ * @param env the envirion
+ * @param addr the store address 
+ * @param class the class definition
+ * @return the pointer to BCI data section, NULL indicates error
+ **/
+void* bci_interface_get_rw_by_classdef(bci_method_env_t* env, uint32_t addr, const bci_class_t* class);
+/**
+ * @biref return a readonly pointer to BCI data section by class definition rather than the class path
+ * @param env the envirion
+ * @param addr the store address 
+ * @param class the class definition
+ * @return the pointer to BCI data section, NULL indicates error
+ **/
+const void* bci_interface_get_ro_by_classdef(bci_method_env_t* env, uint32_t addr, const bci_class_t* class);
 #endif

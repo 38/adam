@@ -24,7 +24,14 @@ static tag_set_t _tag_set_empty = {
 	.refcnt = 0,
 	.size = 0,
 	.hashcode = HASH_INIT,
-}; 
+};
+
+/**
+ * @brief the convertor function
+ **/
+static tag_set_strreason_callback_t _tag_strreason[TAG_SET_MAX_TAGS];
+static tag_set_to_string_callback_t _tag_tostring[TAG_SET_MAX_TAGS];
+static uint32_t next_id = 0;
 /**
  * @brief compute the hashcode for a signle set item
  * @param item the set item
@@ -162,6 +169,33 @@ int tag_set_equal(const tag_set_t* first, const tag_set_t* second)
 	}
 	return 1;
 }
+static inline const char* _tag_id_to_string(uint32_t id)
+{
+	if(id >= next_id || NULL == _tag_tostring[id]) return "unknown-tag";
+	return _tag_tostring[id](id);
+}
+const char* tag_set_to_string(const tag_set_t* ts, char* buf, size_t sz)
+{
+	static char _buf[1024];
+	if(NULL == buf)
+	{
+		buf = _buf;
+		sz = sizeof(_buf);
+	}
+	char* p = buf;
+#define __PR(fmt, args...) do{\
+	int pret = snprintf(p, buf + sz - p, fmt, ##args);\
+	if(pret > buf + sz - p) pret = buf + sz - p;\
+	p += pret;\
+}while(0)
+	__PR("[");
+	int i;
+	for(i = 0; i < ts->size; i ++)
+		__PR("%s ", _tag_id_to_string(ts->data[i].tid));
+	__PR("]");
+#undef __PR
+	return buf;
+}
 /**
  * @note notice that the newly created tag set will always has a refcnt of 1 
  **/
@@ -244,14 +278,12 @@ ERR:
 	}
 	return NULL;
 }
-/**
- * @brief the convertor function
- **/
-static tag_set_strreason_callback_t _tag_strreason[TAG_NUM_OF_TAGS];
 
-void tag_set_register_handler(uint32_t tagid, tag_set_strreason_callback_t strreason)
+void tag_set_register_handler(uint32_t* tagid, tag_set_to_string_callback_t to_string, tag_set_strreason_callback_t strreason)
 {
-	_tag_strreason[tagid] = strreason;
+	*tagid = next_id ++;
+	_tag_strreason[*tagid] = strreason;
+	_tag_tostring[*tagid] = to_string;
 }
 int tag_set_report_malicious(
 		const uint32_t why,
@@ -268,7 +300,7 @@ const char* tag_set_reason_code_to_string(uint32_t why)
 {
 	uint32_t tid = why >> 16;
 	uint32_t code = why & 0xffff;
-	if(tid >= TAG_NUM_OF_TAGS) return "(invalid tag)";
+	if(tid >= next_id) return "(invalid tag)";
 	if(NULL == _tag_strreason[tid]) return "(strreason function is not supported for this tag)";
 	return _tag_strreason[tid](tid,code);
 }

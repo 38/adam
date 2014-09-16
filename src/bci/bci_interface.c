@@ -47,6 +47,35 @@ const cesk_set_t* bci_interface_read_register(const bci_method_env_t* env, uint3
 	}
 	return env->frame->regs[regid];
 }
+void* bci_interface_get_rw_by_classdef(bci_method_env_t* env, uint32_t addr, const bci_class_t* class)
+{
+	if(NULL == env || NULL == class || CESK_STORE_ADDR_NULL == addr)
+	{
+		LOG_ERROR("invalid argument");
+		return NULL;
+	}
+	cesk_value_t* value = cesk_store_get_rw(env->frame->store, addr, 0);
+	if(NULL == value)
+	{
+		LOG_ERROR("can not get a writable pointer to address "PRSAddr" at store %p", addr, env->frame->store);
+		return NULL;
+	}
+	if(CESK_TYPE_SET == value->type)
+	{
+		LOG_ERROR("a value set rather than an object instance has been allocated to address"PRSAddr". Something went wrong", addr);
+		return NULL;
+	}
+	cesk_object_t* object = value->pointer.object;
+	cesk_object_struct_t* this = object->members;
+	int i;
+	for(i = 0; i < object->depth; i ++)
+	{
+		if(this->built_in && this->class.bci->class == class)
+			return this->bcidata;
+		CESK_OBJECT_STRUCT_ADVANCE(this);
+	}
+	return NULL;
+}
 void* bci_interface_get_rw(bci_method_env_t* env, uint32_t addr, const char* classpath)
 {
 	if(NULL == env || NULL == classpath || CESK_STORE_ADDR_NULL == addr)
@@ -104,6 +133,35 @@ const void* bci_interface_get_ro(bci_method_env_t* env, uint32_t addr, const cha
 	for(i = 0; i < object->depth; i ++)
 	{
 		if(this->built_in && this->class.path->value == classpath)
+			return this->bcidata;
+		CESK_OBJECT_STRUCT_ADVANCE(this);
+	}
+	return NULL;
+}
+const void* bci_interface_get_ro_by_classdef(bci_method_env_t* env, uint32_t addr, const bci_class_t* class)
+{
+	if(NULL == env || NULL == class || CESK_STORE_ADDR_NULL == addr)
+	{
+		LOG_ERROR("invalid argument");
+		return NULL;
+	}
+	cesk_value_const_t* value = cesk_store_get_ro(env->frame->store, addr);
+	if(NULL == value)
+	{
+		LOG_ERROR("can not get a writable pointer to address "PRSAddr" at store %p", addr, env->frame->store);
+		return NULL;
+	}
+	if(CESK_TYPE_SET == value->type)
+	{
+		LOG_ERROR("a value set rather than an object instance has been allocated to address"PRSAddr". Something went wrong", addr);
+		return NULL;
+	}
+	const cesk_object_t* object = value->pointer.object;
+	const cesk_object_struct_t* this = object->members;
+	int i;
+	for(i = 0; i < object->depth; i ++)
+	{
+		if(this->built_in && this->class.bci->class == class)
 			return this->bcidata;
 		CESK_OBJECT_STRUCT_ADVANCE(this);
 	}

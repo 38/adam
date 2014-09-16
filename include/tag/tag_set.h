@@ -20,6 +20,13 @@ typedef struct _tag_set_t tag_set_t;
  **/
 typedef const char* (*tag_set_strreason_callback_t)(uint32_t tagid, int why);
 
+/**
+ * @brief the call backfunction that converts a tag to human readable string
+ * @param tagid the tag id
+ * @return the description string
+ **/
+typedef const char* (*tag_set_to_string_callback_t)(uint32_t tagid);
+
 
 /**
  * @brief initialize this file
@@ -98,10 +105,11 @@ tag_set_t* tag_set_change_resolution(tag_set_t* set, uint32_t tagid, uint32_t va
 /**
  * @brief register a checker for specify tag
  * @param tagid the tagid
+ * @param to_string the to_string callback
  * @param strreason the callback fuction
  * @return nothing
  **/
-void tag_set_register_handler(uint32_t tagid, tag_set_strreason_callback_t strreason);
+void tag_set_register_handler(uint32_t* tagid, tag_set_to_string_callback_t to_string, tag_set_strreason_callback_t strreason);
 
 /**
  * @brief report this function invokation is malicious
@@ -155,4 +163,12 @@ uint32_t tag_set_get_resol(const tag_set_t* set, uint32_t k);
  * @return the result hashcode
  **/
 hashval_t tag_set_compute_hashcode(const tag_set_t* set);
+/**
+ * @param convert the tag set to a human readable string
+ * @pparam ts the tag set
+ * @param buf the output buffer
+ * @param sz the size
+ * @return the result string
+ **/
+const char* tag_set_to_string(const tag_set_t* ts, char* buf, size_t sz);
 #endif

@@ -166,6 +166,11 @@
 #	define BCI_CLASS_MAX_PROVIDES 128
 #endif
 
+#ifndef TAG_SET_MAX_TAGS
+/** @brief the number of tags supported */
+#	define TAG_SET_MAX_TAGS 1024
+#endif
+
 /** @brief the magic number used for Knuth Multiplicative Hash */
 #define MH_MULTIPLY (2654435761ul)
 
