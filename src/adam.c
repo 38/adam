@@ -15,11 +15,6 @@ int adam_init(void)
 		LOG_FATAL("failed to initialize dalvik loader");
 		return -1;
 	}
-	if(bci_init() < 0)
-	{
-		LOG_FATAL("failed to initialize built-in class interface");
-		return -1;
-	}
 	if(cesk_init() < 0)
 	{
 		LOG_FATAL("failed to initialize analyzer");
@@ -30,13 +25,18 @@ int adam_init(void)
 		LOG_FATAL("failed to intialize the tag system");
 		return -1;
 	}
+	if(bci_init() < 0)
+	{
+		LOG_FATAL("failed to initialize built-in class interface");
+		return -1;
+	}
 	return 0;
 }
 void adam_finalize(void)
 {
+	bci_finalize();
 	tag_finalize();
 	cesk_finalize();
-	bci_finalize();
 	dalvik_finalize();
 	stringpool_fianlize();
 	log_finalize();

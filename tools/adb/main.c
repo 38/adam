@@ -185,8 +185,17 @@ void cli_frame_to_dot(const cesk_frame_t* output, FILE* fout)
 						if(rc <= 0) break;
 						offset += rc;
 						int k;
-						for(k = 0; k < rc; k ++) //TODO this also can be a set....
-							fprintf(fout, "\to%x:B%x->o%x;\n", addr, i, buf[k]);
+						for(k = 0; k < rc; k ++) 
+						{
+							if(CESK_STORE_ADDR_IS_CONST(buf[k]))
+							{
+								if(CESK_STORE_ADDR_CONST_CONTAIN(buf[k], NEG)) fprintf(fout, "	o%x:B%x->offffff01;\n", addr, i);
+								if(CESK_STORE_ADDR_CONST_CONTAIN(buf[k], ZERO)) fprintf(fout, "	o%x:B%x->offffff02;\n", addr, i);
+								if(CESK_STORE_ADDR_CONST_CONTAIN(buf[k], POS)) fprintf(fout, "	o%x:B%x->offffff04;\n", addr, i);
+								if(buf[k] == CESK_STORE_ADDR_EMPTY) fprintf(fout, "	o%x:B%x->offffff00;\n", addr, i);
+							}
+							else fprintf(fout, "\to%x:B%x->o%x;\n", addr, i, buf[k]);
+						}
 					}
 				}
 				else

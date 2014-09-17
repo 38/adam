@@ -233,6 +233,8 @@ int addressContainer_get_method(const void* this_ptr, const char* classpath, con
 }
 int addressContainer_invoke(int method_id, bci_method_env_t* env)
 {
+	/* because the get_method function will return without an errorcode only when the method is <init>, so that
+	 * we can assume that all invocation at this point is for <init> */
 	const cesk_set_t* this_set = bci_interface_read_arg(env, 0, method_id + 1);
 	cesk_set_iter_t this_iter;
 	if(NULL == cesk_set_iter(this_set, &this_iter))
@@ -373,6 +375,7 @@ bci_class_t addressContainer_metadata = {
 		"java/io/OutputStreamWriter",
 		"java/io/File",
 		"org/apache/http/client/methods/HttpGet",
+		"java/io/FileReader",
 		NULL
 	}
 };
