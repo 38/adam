@@ -171,6 +171,11 @@
 #	define TAG_SET_MAX_TAGS 1024
 #endif
 
+#ifndef TAG_TRACKER_HASH_SIZE
+/** @brief the size of tag tacker hash **/
+#	define TAG_TRACKER_HASH_SIZE 999991
+#endif
+
 /** @brief the magic number used for Knuth Multiplicative Hash */
 #define MH_MULTIPLY (2654435761ul)
 
