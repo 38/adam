@@ -55,13 +55,13 @@ int java_lang_Object_invoke(int method_id, bci_method_env_t* env)
 }
 bci_class_t java_lang_Object_metadata = {
 	.size = 0,
-	.onload = java_lang_Object_onload,
-	.get_addr_list = java_lang_Object_get_addr_list,
+	.load = java_lang_Object_onload,
+	.read = java_lang_Object_get_addr_list,
 	.hash = java_lang_Object_hash,
 	.equal = java_lang_Object_equal,
 	.duplicate = java_lang_Object_duplicate,
 	.to_string = java_lang_Object_to_string,
-	.instance_of = java_lang_Object_instance_of,
+	.is_instance = java_lang_Object_instance_of,
 	.merge = java_lang_Object_merge,
 	.get_method = java_lang_Object_get_method,
 	.invoke = java_lang_Object_invoke,

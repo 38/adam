@@ -412,7 +412,7 @@ uint32_t cesk_object_instance_of(const cesk_object_t* object, const dalvik_type_
 		if(this->class.path->value == classpath) return 1;
 		if(this->built_in)
 		{
-			int rc = bci_class_instance_of(this->bcidata, type, this->class.bci->class);
+			int rc = bci_class_is_instance(this->bcidata, type, this->class.bci->class);
 			if(rc > 0) 
 			{
 				switch(rc)

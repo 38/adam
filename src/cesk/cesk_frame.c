@@ -410,7 +410,7 @@ static inline void _cesk_frame_store_dfs(uint32_t addr, cesk_store_t* store, uin
 					uint32_t offset = 0;
 					for(;;)
 					{
-						int rc = bci_class_get_addr_list(this->bcidata, offset, buf, sizeof(buf)/sizeof(buf[0]), this->class.bci->class);
+						int rc = bci_class_read(this->bcidata, offset, buf, sizeof(buf)/sizeof(buf[0]), this->class.bci->class);
 						if(rc < 0)
 						{
 							LOG_WARNING("can not get the address list");
@@ -961,7 +961,7 @@ static inline int _cesk_frame_apply_incref_store_sec(
 					uint32_t buf[128];
 					for(;;)
 					{
-						int rc = bci_class_get_addr_list(this->bcidata, offset, buf, sizeof(buf)/sizeof(buf[0]), this->class.bci->class);
+						int rc = bci_class_read(this->bcidata, offset, buf, sizeof(buf)/sizeof(buf[0]), this->class.bci->class);
 						if(rc < 0)
 						{
 							LOG_ERROR("can not get the address list for this object");
@@ -1073,7 +1073,7 @@ static inline int _cesk_frame_apply_diff_update_refcnt(cesk_frame_t* frame, cons
 						uint32_t buf[128];
 						for(;;)
 						{
-							int rc = bci_class_get_addr_list(this->bcidata, offset, buf, sizeof(buf)/sizeof(buf[0]), this->class.bci->class);
+							int rc = bci_class_read(this->bcidata, offset, buf, sizeof(buf)/sizeof(buf[0]), this->class.bci->class);
 							if(rc < 0)
 							{
 								LOG_ERROR("can not get the address list for this object");
@@ -1601,7 +1601,7 @@ int cesk_frame_register_load_from_object(
 		if(cesk_object_get_addr(object, clspath, fldname, &builtin_class, &builtin_data, &fld_addr) < 0)
 		{
 			cesk_set_t* set;
-			if(NULL != builtin_class && NULL != builtin_data && NULL != (set = bci_class_get_field(builtin_data, fldname, builtin_class)))
+			if(NULL != builtin_class && NULL != builtin_data && NULL != (set = bci_class_get(builtin_data, fldname, builtin_class)))
 			{
 				/* in this case the built-in class is responsible to set the tag set of a set */
 				frame->regs[dst_reg] = set;
@@ -1900,13 +1900,13 @@ int cesk_frame_store_put_field(
 	if(NULL == paddr)
 	{
 		_SNAPSHOT(inv_buf, CESK_DIFF_STORE, dst_addr, value);
-		if(bci_class_put_field(builtin_data, fldname, frame->regs[src_reg], frame->store, keep_old_vlaue, builtin_class) < 0)
+		if(bci_class_put(builtin_data, fldname, frame->regs[src_reg], frame->store, keep_old_vlaue, builtin_class) < 0)
 		{
 			LOG_ERROR("can not get field %s/%s", clspath, fldname);
 			return -1;
 		}
 		int rc;
-		if((rc = bci_class_get_relocation_flag(builtin_data, builtin_class)) < 0)
+		if((rc = bci_class_has_reloc_ref(builtin_data, builtin_class)) < 0)
 		{
 			LOG_ERROR("can not get the relocation flag");
 			return -1;

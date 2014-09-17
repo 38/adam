@@ -254,7 +254,7 @@ static inline int _cesk_diff_gc_check_store_rec_inuse(const cesk_diff_rec_t* dat
 					int rc;
 					for(;;)
 					{
-						rc = bci_class_get_addr_list(this->bcidata, offset, buf_addr, sizeof(buf_addr)/sizeof(buf_addr[0]), this->class.bci->class);
+						rc = bci_class_read(this->bcidata, offset, buf_addr, sizeof(buf_addr)/sizeof(buf_addr[0]), this->class.bci->class);
 						if(rc < 0)
 						{
 							LOG_WARNING("failed to get the address list");
@@ -376,7 +376,7 @@ static inline int _cesk_diff_gc_check_allocation_rec_inuse(const cesk_diff_rec_t
 								int rc;
 								for(;;)
 								{
-									rc = bci_class_get_addr_list(this->bcidata, offset, buf, sizeof(buf)/sizeof(buf[0]), this->class.bci->class);
+									rc = bci_class_read(this->bcidata, offset, buf, sizeof(buf)/sizeof(buf[0]), this->class.bci->class);
 									if(rc < 0)
 									{
 										LOG_WARNING("failed to tranverse the address list for built-in class %s", this->class.path->value);

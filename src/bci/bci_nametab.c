@@ -30,7 +30,7 @@ void bci_nametab_finialize()
 			_bci_nametab_node_t* this = ptr;
 			ptr = ptr->next;
 			bci_class_wrap_t* class_wrap = (bci_class_wrap_t*)this->def;
-			if(class_wrap->class->ondelete) class_wrap->class->ondelete(this->clspath);
+			if(class_wrap->class->unload) class_wrap->class->unload(this->clspath);
 			free(class_wrap);	
 			free(this);
 		}

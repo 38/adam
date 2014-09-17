@@ -38,8 +38,8 @@ void builtin_library_finalize()\
 		else\
 		{\
 			LOG_DEBUG("Registered built-in class %s", module_name##_metadata.provides[i]);\
-			if(NULL != module_name##_metadata.onload)\
-				module_name##_metadata.onload(module_name##_metadata.provides[i]);\
+			if(NULL != module_name##_metadata.load)\
+				module_name##_metadata.load(module_name##_metadata.provides[i]);\
 		}\
 	}\
 }while(0)

@@ -42,40 +42,36 @@ struct _bci_class_wrap_t {
 struct _bci_class_t {
 	uint32_t size;/*!< the size of data section */
 	
-	int (*onload)();/*!< actions after this class is loaded from the package return value < 0 means error */
+	int (*load)();/*!< actions after this class is loaded from the package return value < 0 means error */
 	
-	int (*ondelete)();/*!< actions before this class remove from the name table return value < 0 means error */
+	int (*unload)();/*!< actions before this class remove from the name table return value < 0 means error */
 	
-	int (*initialization)(void* this, const char * classpath, const void* init_param, tag_set_t** p_tags);
-																				/*!< how to initialize the data used by this instance, 
-																				  this is NOT CONSTRUCTOR return value < 0 means error, 
-																				  tags is the pointer to the reference to the tag set of 
-																				  this value, this function is resposible for the tag set 
-																				  changes caused by object creation */
+	int (*initialize)(void* this, const char * classpath, const void* init_param, tag_set_t** p_tags); /*!< how to initialize the data used by this instance, this is NOT CONSTRUCTOR return value < 0 means error, tags is the pointer to the reference to the tag set of this value, this function is resposible for the tag set changes caused by object creation */
 	
-	int (*finalization)(void* this);/*!< how to clean up this instance, NOT DESTRUCTOR return value < 0 means error*/
+	int (*finalize)(void* this);/*!< how to clean up this instance, NOT DESTRUCTOR return value < 0 means error*/
 
 	int (*duplicate)(const void* this, void* that);/*!< how to make a duplicate return value < 0 means error*/
 
-	cesk_set_t* (*get_field)(const void* this, const char* fieldname);/*!< callback that get a pointer to a field return an *NEW* set contains the field*/
+	cesk_set_t* (*get)(const void* this, const char* fieldname);/*!< callback that get a pointer to a field return an *NEW* set contains the field*/
 	
-	int (*put_field)(void* this, const char* fieldname, const cesk_set_t* set, cesk_store_t* store, int keep); /*!< set the field value */
+	int (*put)(void* this, const char* fieldname, const cesk_set_t* set, cesk_store_t* store, int keep); /*!< set the field value */
 
-	int (*get_addr_list)(const void* this, uint32_t offset, uint32_t* buf,size_t sz);/*!< get the reference list address, return the number of address copied to buffer, < 0 when error */
+	int (*read)(const void* this, uint32_t offset, uint32_t* buf,size_t sz);/*!< get the reference list address, return the number of address copied to buffer, < 0 when error */
 
+	int (*write)(void* this, uint32_t offset, uint32_t* new, size_t N);  /*!< how to modify the address list */
+	
 	hashval_t (*hash)(const void* this);/*!< return the hashcode of this object */
 
 	int (*equal)(const void* this, const void* that);/*!< if two instance are the same */
 
 	const char* (*to_string)(const void* this, char* buf, size_t size);/*!< convert this object instance to string */
 	
-	int (*get_relocation_flag)(const void* this);/*!< how to get the relocation flag for this object */
+	int (*has_reloc_ref)(const void* this);/*!< how to get the relocation flag for this object */
 
 	int (*merge)(void* this, const void* that);  /*!< merge the two built-in instances, if return value > 0, caller should merge the super class */
 
-	int (*modify)(void* this, uint32_t offset, uint32_t* new, size_t N);  /*!< how to modify the address list */
 
-	int (*instance_of)(const void* this, const dalvik_type_t* classpath);     /*!< check wether or not this object is a instance of the class path */
+	int (*is_instance)(const void* this, const dalvik_type_t* classpath);     /*!< check wether or not this object is a instance of the class path */
 
 	int (*get_method)(const void* this,
 					  const char* classpath,
@@ -116,7 +112,7 @@ int bci_class_finalize(void* mem, const bci_class_t* class);
  * @param class the class def
  * @return the result address set of this operation(newly created object, so need to free by caller)
  **/
-cesk_set_t* bci_class_get_field(const void* this, const char* fieldname, const bci_class_t* class);
+cesk_set_t* bci_class_get(const void* this, const char* fieldname, const bci_class_t* class);
 /**
  * @brief set the value of the field
  * @param this the object memory
@@ -127,7 +123,7 @@ cesk_set_t* bci_class_get_field(const void* this, const char* fieldname, const b
  * @param class the class def
  * @return the result of this operation
  **/
-int bci_class_put_field(void* this, const char* fieldname, const cesk_set_t* set, cesk_store_t* store, int keep, const bci_class_t* class);
+int bci_class_put(void* this, const char* fieldname, const cesk_set_t* set, cesk_store_t* store, int keep, const bci_class_t* class);
 
 /**
  * @brief get an address list that used by this object 
@@ -138,7 +134,7 @@ int bci_class_put_field(void* this, const char* fieldname, const cesk_set_t* set
  * @param class the class def
  * @return the value copied to the buffer < 0 means error
  **/
-int bci_class_get_addr_list(const void* this, uint32_t offset, uint32_t* buf, size_t sz, const bci_class_t* class);
+int bci_class_read(const void* this, uint32_t offset, uint32_t* buf, size_t sz, const bci_class_t* class);
 
 /**
  * @brief return the hashcode of an given built-in instance
@@ -180,12 +176,12 @@ int bci_class_equal(const void* this, const void* that, const bci_class_t* class
 const char* bci_class_to_string(const void* this, char* buf, size_t size, const bci_class_t* class);
 
 /**
- * @brief get the relocation flag for this object
+ * @brief return wether or not this object contains a relocated address
  * @param this the object instance
  * @param class the built-in class
  * @return the relocation flag bit, < 0 indicates an error
  **/
-int bci_class_get_relocation_flag(const void* this, const bci_class_t* class);
+int bci_class_has_reloc_ref(const void* this, const bci_class_t* class);
 
 /**
  * @brief merge two built-in instances
@@ -205,7 +201,7 @@ int bci_class_merge(void* this, const void* that, const bci_class_t* class);
  * @param class the class def
  * @return < 0 indicates errors
  **/
-int bci_class_modify(void* this, uint32_t offset, uint32_t* new, size_t N, const bci_class_t* class);
+int bci_class_write(void* this, uint32_t offset, uint32_t* new, size_t N, const bci_class_t* class);
 
 /**
  * @brief check if this object is a instance of the given classpath
@@ -214,7 +210,7 @@ int bci_class_modify(void* this, uint32_t offset, uint32_t* new, size_t N, const
  * @param class the class def
  * @return 0 = negative 1 = positive < 0 means error
  **/
-int bci_class_instance_of(const void* this, const dalvik_type_t* type, const bci_class_t* class);
+int bci_class_is_instance(const void* this, const dalvik_type_t* type, const bci_class_t* class);
 
 /**
  * @brief get method id by method name, for static function, the this pointer should be NULL

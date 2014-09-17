@@ -117,15 +117,15 @@ int java_lang_String_instance_of(const void* this, const dalvik_type_t* type)
 }
 bci_class_t java_lang_String_metadata = {
 	.size = sizeof(string_data_t),
-	.onload = java_lang_String_onload,
-	.initialization = java_lang_String_init,
+	.load = java_lang_String_onload,
+	.initialize = java_lang_String_init,
 	.duplicate = java_lang_String_duplicate,
 	.to_string = java_lang_String_to_string,
 	.merge = java_lang_String_merge,
 	.hash = java_lang_String_hash,
 	.equal = java_lang_String_equal,
-	.get_field = java_lang_String_get_field,
-	.instance_of = java_lang_String_instance_of,
+	.get = java_lang_String_get_field,
+	.is_instance = java_lang_String_instance_of,
 	.super = "java/lang/Object",
 	.provides = {
 		"java/lang/String", 

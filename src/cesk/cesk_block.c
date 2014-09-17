@@ -744,7 +744,7 @@ static inline cesk_value_t* _cesk_block_invoke_result_value_translate(
 			for(;;)
 			{
 				/* read the address from this build-in structure. */
-				int rc = bci_class_get_addr_list(this->bcidata, offset, buf, sizeof(buf)/sizeof(buf[0]), this->class.bci->class);
+				int rc = bci_class_read(this->bcidata, offset, buf, sizeof(buf)/sizeof(buf[0]), this->class.bci->class);
 				if(rc < 0)
 				{
 					LOG_ERROR("can not get the address list of built-in class instance %s", this->class.path->value);
@@ -757,7 +757,7 @@ static inline cesk_value_t* _cesk_block_invoke_result_value_translate(
 				for(j = 0; j < rc; j ++)
 					buf[j] = _cesk_block_invoke_result_addr_translate(buf[j], frame, diff, addrmap);
 				/* ok, write the addresses back */
-				if(bci_class_modify(this->bcidata, offset, buf, rc, this->class.bci->class) < 0)
+				if(bci_class_write(this->bcidata, offset, buf, rc, this->class.bci->class) < 0)
 				{
 					LOG_ERROR("can not modify the address list of built-in class instance %s", this->class.path->value);
 					return NULL;
@@ -1098,7 +1098,7 @@ static inline int _cesk_block_invoke_result_store_section_translation(
 					CESK_OBJECT_STRUCT_ADVANCE(that);
 				}
 			}
-			if(bci_class_get_relocation_flag(dest->builtin->bcidata, dest->builtin->class.bci->class) > 0) result->data[i].arg.value->reloc = 1;
+			if(bci_class_has_reloc_ref(dest->builtin->bcidata, dest->builtin->class.bci->class) > 0) result->data[i].arg.value->reloc = 1;
 		}
 		/* otherwise, we should merge the values in the set */
 		else

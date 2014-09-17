@@ -85,7 +85,7 @@ static inline int _cesk_store_free_object(cesk_store_t* store, cesk_object_t* ob
 			uint32_t buf[128];
 			for(;;)
 			{
-				int rc = bci_class_get_addr_list(this->bcidata, offset, buf, sizeof(buf)/sizeof(buf[0]), this->class.bci->class);
+				int rc = bci_class_read(this->bcidata, offset, buf, sizeof(buf)/sizeof(buf[0]), this->class.bci->class);
 				if(rc < 0)
 				{
 					LOG_WARNING("can not get the address list, ignoring");
@@ -282,7 +282,7 @@ static inline int _cesk_store_apply_alloc_tab(cesk_store_t* store, uint32_t base
 						for(;;)
 						{
 							/* first of all, read data from built-in class */
-							int rc = bci_class_get_addr_list(object_base->bcidata, offset, addr_list, sizeof(addr_list) / sizeof(addr_list[0]), object_base->class.bci->class);
+							int rc = bci_class_read(object_base->bcidata, offset, addr_list, sizeof(addr_list) / sizeof(addr_list[0]), object_base->class.bci->class);
 							if(rc < 0)
 							{
 								LOG_WARNING("can not read the address list");
@@ -305,7 +305,7 @@ static inline int _cesk_store_apply_alloc_tab(cesk_store_t* store, uint32_t base
 								}
 							}
 							/* fianlly write back to the object */
-							if(bci_class_modify(object_base->bcidata, offset, addr_list, rc, object_base->class.bci->class) < 0)
+							if(bci_class_write(object_base->bcidata, offset, addr_list, rc, object_base->class.bci->class) < 0)
 							{
 								LOG_WARNING("failed to write the modified data to object");
 								continue;

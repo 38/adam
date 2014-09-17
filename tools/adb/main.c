@@ -181,7 +181,7 @@ void cli_frame_to_dot(const cesk_frame_t* output, FILE* fout)
 					uint32_t offset = 0;
 					for(;;)
 					{
-						int rc = bci_class_get_addr_list(this->bcidata, offset, buf, sizeof(buf)/sizeof(buf[0]), this->class.bci->class);
+						int rc = bci_class_read(this->bcidata, offset, buf, sizeof(buf)/sizeof(buf[0]), this->class.bci->class);
 						if(rc <= 0) break;
 						offset += rc;
 						int k;
