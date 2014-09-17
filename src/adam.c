@@ -34,9 +34,9 @@ int adam_init(void)
 }
 void adam_finalize(void)
 {
-	bci_finalize();
 	tag_finalize();
 	cesk_finalize();
+	bci_finalize();
 	dalvik_finalize();
 	stringpool_fianlize();
 	log_finalize();

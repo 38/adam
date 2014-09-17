@@ -42,7 +42,9 @@ int java_io_BufferedReader_onload()
 }
 int java_io_BufferedReader_unload()
 {
-	if(NULL != read_result_set) cesk_set_free(read_result_set);
+	//if(NULL != read_result_set) cesk_set_free(read_result_set);
+	/* the reason why we do not perform set free is the this function is called in finalize function */
+	if(NULL != read_result_set) free(read_result_set); 
 	return 0;
 }
 int java_io_BufferedReader_init(void* this_ptr, const char* class, const void* param, tag_set_t** p_tags)
