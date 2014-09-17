@@ -5,6 +5,7 @@
 #ifndef __TAG_H__
 #include <tag/tag_def.h>
 #include <tag/tag_set.h>
+#include <tag/tag_tracker.h>
 
 #include <tag/tag_fs.h>
 /**

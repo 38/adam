@@ -46,6 +46,7 @@ struct _cesk_method_block_context_t{
  * @brief an analyzer context 
  **/
 typedef struct _cesk_method_context_t{
+	uint32_t closure_id;   /*!< a unique number for each closure */
 	uint32_t tick;
 	const cesk_frame_t* input_frame;     /*!< the input frame for this context */
 	uint32_t Q[CESK_METHOD_MAX_NBLOCKS]; /*!< the analyzer queue */ 
@@ -424,6 +425,9 @@ static inline _cesk_method_context_t* _cesk_method_context_new(
 		if(NULL == _cesk_method_block_list[i]) continue;
 		ret->blocks[i].inputs -= ret->blocks[i].ninputs;
 	}
+	/* assign a id to current closure */
+	static uint32_t next_closure_id = 0;
+	ret->closure_id = next_closure_id ++;
 	return ret;
 DIFFERR:
 	LOG_ERROR("failed to initialize diffs");
@@ -911,4 +915,10 @@ const void* cesk_method_context_get_caller_context(const void* context)
 	if(NULL == context) return NULL;
 	const _cesk_method_context_t *frame_context = (const _cesk_method_context_t*)context;
 	return frame_context->caller;
+}
+uint32_t cesk_method_context_get_closure_id(const void* context)
+{
+	if(NULL == context) return 0xfffffffful;
+	const _cesk_method_context_t *frame_context = (const _cesk_method_context_t*)context;
+	return frame_context->closure_id;
 }

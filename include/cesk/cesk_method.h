@@ -62,4 +62,10 @@ const void* cesk_method_context_get_caller_context(const void* context);
  * @return nothing
  **/
 void cesk_method_clean_cache();
+/**
+ * @brief get the closure id of the input context
+ * @param context the input context
+ * @return the closure id
+ **/
+uint32_t cesk_method_context_get_closure_id(const void* context);
 #endif
