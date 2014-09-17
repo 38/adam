@@ -36,11 +36,10 @@ int tag_tracker_invocation(const tag_set_t* tag_set, uint32_t caller_closure, ui
  * @brief add an instruction execution edge to tag tracker
  * @param tag_set
  * @param closure the closure where the instruction execution happends
- * @param from the instruction id from which this tag_set comes
  * @param to the instruction id to which this tag_set goes
  * @return < 0 if error
  **/
-int tag_tracker_execution(const tag_set_t* tag_set, uint32_t closure, uint32_t from, uint32_t to);
+int tag_tracker_execution(const tag_set_t* tag_set, uint32_t closure, uint32_t to);
 /**
  * @brief add a block transition edge to tag tracker
  * @param tag_set
