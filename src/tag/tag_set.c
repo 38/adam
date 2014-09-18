@@ -12,6 +12,7 @@ typedef struct {
  * @brief the implementation of the tag set
  **/
 struct _tag_set_t {
+	uint32_t id;   /*!< a unique ID of this tag */
 	uint32_t refcnt;    /*!< the reference counter */
 	uint32_t size;      /*!< how many items in the set */
 	hashval_t hashcode; /*!< current hashcode */
@@ -23,6 +24,7 @@ CONST_ASSERTION_SIZE(tag_set_t, data, 0);
 static tag_set_t _tag_set_empty = {
 	.refcnt = 0,
 	.size = 0,
+	.id = 0,
 	.hashcode = HASH_INIT,
 };
 
@@ -32,6 +34,7 @@ static tag_set_t _tag_set_empty = {
 static tag_set_strreason_callback_t _tag_strreason[TAG_SET_MAX_TAGS];
 static tag_set_to_string_callback_t _tag_tostring[TAG_SET_MAX_TAGS];
 static uint32_t next_id = 0;
+static uint32_t next_set_idx = 1;
 /**
  * @brief compute the hashcode for a signle set item
  * @param item the set item
@@ -57,6 +60,7 @@ static inline tag_set_t* _tag_set_new(size_t N)
 	ret->size = 0;
 	ret->refcnt = 0;
 	ret->hashcode = HASH_INIT; /* just a magic number */
+	ret->id = (next_set_idx ++);
 	return ret;
 }
 /**
@@ -140,12 +144,14 @@ tag_set_t* tag_set_from_array(const uint32_t* tags, const uint32_t* resols, size
 	}
 	ret->size = N;
 	_tag_set_incref(ret);
+	LOG_DEBUG("TAG_TRACKER: Tag Set Creation #%u", ret->id);
 	return ret;
 }
 tag_set_t* tag_set_fork(const tag_set_t* set)
 {
 	if(NULL == set) return NULL;
 	tag_set_t* set_rw = (tag_set_t*)set;  /* really dirty */
+	LOG_DEBUG("TAG_TRACKER: Duplicate tag_set #%u", set->id);
 	_tag_set_incref(set_rw);
 	return set_rw;
 }
@@ -235,6 +241,7 @@ tag_set_t* tag_set_merge(const tag_set_t* first, const tag_set_t* second)
 		ret->size ++;
 		LOG_DEBUG("append item <%d, %d>", current_id, resol);
 	}
+	LOG_DEBUG("TAG_TRACKER: Tag set Creation tag_set #%u from #%u and #%u", ret->id, first->id, second->id);
 
 	_tag_set_incref(ret);
 	return ret;

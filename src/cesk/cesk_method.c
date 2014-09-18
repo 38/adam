@@ -715,11 +715,13 @@ cesk_diff_t* cesk_method_analyze(const dalvik_block_t* code, cesk_frame_t* frame
 			LOG_DEBUG("\t0x%x\t%s", insidx, dalvik_instruction_to_string(dalvik_instruction_get(insidx), NULL, 0));
 		LOG_DEBUG("========end info============");
 #endif
+		LOG_DEBUG("TAG_TRACKER: BeginBlockInput(Closure=%u, Block=%u)", context->tick, blkctx->code->index);
 		if(_cesk_method_compute_next_input(context, blkctx) < 0) 
 		{
 			LOG_ERROR("can not compute the next input");
 			goto ERR;
 		}
+		LOG_DEBUG("TAG_TRACKER: EndBlockInput(Closure=%u, Block=%u)", context->tick, blkctx->code->index);
 		LOG_DEBUG("Block input diff: %s", cesk_diff_to_string(blkctx->input_diff, NULL, 0));
 		/* then we compute the new output for each branch */
 		int i;
