@@ -785,6 +785,15 @@ cesk_diff_t* cesk_diff_from_buffer(cesk_diff_buffer_t* buffer)
 												CESK_OBJECT_STRUCT_ADVANCE(sour_struct);
 											}
 										}
+										/* TODO: we can make it faster */
+										tag_set_t* new_tags = tag_set_merge(dest->tags, sour->tags);
+										if(NULL == new_tags)
+										{
+											LOG_WARNING("can not merge the tag set");
+											break;	
+										}
+										tag_set_free(dest->tags);
+										dest->tags = new_tags;
 									}
 									else if(type == CESK_TYPE_SET)
 									{
@@ -1208,6 +1217,15 @@ cesk_diff_t* cesk_diff_factorize(int N, cesk_diff_t** diffs, const cesk_frame_t*
 										CESK_OBJECT_STRUCT_ADVANCE(that);
 									}
 								}
+								/* TODO: we can make it faster */
+								tag_set_t* tags = tag_set_merge(result_value->pointer.object->tags, val->pointer.object->tags);
+								if(NULL == tags)
+								{
+									LOG_WARNING("can not merge value tags");
+									break;
+								}
+								tag_set_free(result_value->pointer.object->tags);
+								result_value->pointer.object->tags = tags;
 							}
 						}
 					}

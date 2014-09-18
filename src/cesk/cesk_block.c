@@ -1094,11 +1094,21 @@ static inline int _cesk_block_invoke_result_store_section_translation(
 						LOG_ERROR("can not merge the built-in instance %s", dest->builtin->class.path->value);
 						return -1;
 					}
+					if(bci_class_has_reloc_ref(this->bcidata, this->class.bci->class) > 0) value->reloc = 1;
 					CESK_OBJECT_STRUCT_ADVANCE(this);
 					CESK_OBJECT_STRUCT_ADVANCE(that);
 				}
+				/* then take care of the tags */
+				/* TODO: we can make it faster */
+				tag_set_t* tags = tag_set_merge(dest->tags, store_value->pointer.object->tags);
+				if(NULL == tags)
+				{
+					LOG_ERROR("can not merge the tag set");
+					return -1;
+				}
+				tag_set_free(dest->tags);
+				dest->tags = tags;
 			}
-			if(bci_class_has_reloc_ref(dest->builtin->bcidata, dest->builtin->class.bci->class) > 0) result->data[i].arg.value->reloc = 1;
 		}
 		/* otherwise, we should merge the values in the set */
 		else
