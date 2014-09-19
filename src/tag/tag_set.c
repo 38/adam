@@ -282,6 +282,18 @@ tag_set_t* tag_set_merge(const tag_set_t* first, const tag_set_t* second)
 	_tag_set_incref(ret);
 	return ret;
 }
+int tag_set_contains(tag_set_t* set, uint32_t what)
+{
+	if(0 == set->size || what < set->data[0].tid || set->data[set->size-1].tid < what) return 0;
+	int l = 0, r = set->size;
+	while(r - l > 1)
+	{
+		int m = (l + r) / 2;
+		if(set->data[m].tid <= what) l = m;
+		else r = m;
+	}
+	return set->data[l].tid == what;
+}
 tag_set_t* tag_set_change_resolution(tag_set_t* set, uint32_t tagid, uint32_t value)
 {
 	tag_set_t* prev_set = NULL;
@@ -301,7 +313,7 @@ tag_set_t* tag_set_change_resolution(tag_set_t* set, uint32_t tagid, uint32_t va
 	/* perform a binary search on the input set to find the target tagid */
 	if(0 == set->size || tagid < set->data[0].tid || tagid > set->data[set->size - 1].tid) goto ERR; 
 	int l = 0, r = set->size;
-	while(r - l < 1)
+	while(r - l > 1)
 	{
 		int m = (l + r) / 2;
 		if(set->data[m].tid <= tagid) l = m;

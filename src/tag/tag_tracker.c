@@ -82,6 +82,18 @@ static inline const _tag_tracker_hash_node_t* _tag_tracker_hash_insert(uint32_t 
 	_tag_tracker_hash[slot_id] = node;
 	return node;
 }
+/**
+ * @brief find a node by the tag-set id
+ * @param tsid the tag-set id
+ * @return the node found, NULL when not found
+ **/
+static inline const _tag_tracker_hash_node_t* _tag_tracker_hash_find(uint32_t tsid)
+{
+	uint32_t slot_id = _tag_tracker_tagset_hashcode(tsid) % TAG_TRACKER_HASH_SIZE;
+	const _tag_tracker_hash_node_t* ptr;
+	for(ptr = _tag_tracker_hash[slot_id]; NULL != ptr && ptr->what != tsid; ptr = ptr->next);
+	return ptr;
+}
 int tag_tracker_init()
 {
 	return 0;
@@ -148,5 +160,10 @@ int tag_tracker_register_tagset(uint32_t tsid, const tag_set_t* tagset, const ui
 	if(!_tag_tracker_sp) return 0;
 	if(NULL == _tag_tracker_hash_insert(tsid, tagset, _tag_tracker_current_stack[_tag_tracker_sp-1])) 
 		return -1;
+	return 0;
+}
+int tag_tacker_get_path(uint32_t tag_id, uint32_t sink_closure, tag_tracker_path_t** buf, size_t N)
+{
+	//TODO
 	return 0;
 }
