@@ -171,4 +171,5 @@ hashval_t tag_set_compute_hashcode(const tag_set_t* set);
  * @return the result string
  **/
 const char* tag_set_to_string(const tag_set_t* ts, char* buf, size_t sz);
+int tag_set_contains(tag_set_t* set, uint32_t what);
 #endif
