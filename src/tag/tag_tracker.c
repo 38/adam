@@ -1,208 +1,152 @@
 #include <tag/tag_tracker.h>
 /**
- * @brief a dummy index
- **/
-#define _TAG_TRACKER_IDX_DUMMY 0xfffffffful;
-/**
- * @brief the abstract machine state
+ * @brief the abstract virtual machine state
  **/
 typedef struct {
 	uint32_t closure; /*!< the closure index */
-	uint32_t block; /*!< the block index */
+	uint32_t block;   /*!< the block index */
+	uint32_t target;  /*!< the target block index */
 	uint32_t instruction; /*!< the instruction index */
-	uint32_t reg;  /*!< the register invovles */
-} _tag_tracker_avm_stat;
-/**
- * @brief the node of the tag tracker
+} _tag_tracker_avm_stat_t;
+/** 
+ * @brief the hash node
  **/
-typedef struct _tag_tracker_node_t _tag_tracker_node_t;
-/**
- * @brief the source of edge
- **/
-typedef struct _tag_tracker_source_t _tag_tracker_source_t;
-
-struct _tag_tracker_node_t{
-	uint32_t tag; /*!< the tag index */
-	_tag_tracker_avm_stat dest;  /*!< the destination vm stat (aka the key) */
-	_tag_tracker_source_t* sour;  /*!< the source list */
-	_tag_tracker_node_t* next;  /*!< the 'next' pointer in the hash table */
-};
-
-struct _tag_tracker_source_t{
-	_tag_tracker_avm_stat stat;    /*!< the source vm state */
-	_tag_tracker_source_t* next;   /*!< linked list */
+typedef struct _tag_tracker_hash_node_t _tag_tracker_hash_node_t;
+struct _tag_tracker_hash_node_t{
+	uint32_t what;   /*!< the index of the tag set */
+	_tag_tracker_avm_stat_t when; /*!< when this tag set created */
+	tag_set_t* set;   /*!< the tag set itself */
+	_tag_tracker_hash_node_t* next; /*!< the next node */
 };
 /**
- * @breif internal hash table 
+ * @breif the hashtable
  **/
-static _tag_tracker_node_t* _tag_tracker_hashtab[TAG_TRACKER_HASH_SIZE];
+_tag_tracker_hash_node_t* _tag_tracker_hash[TAG_TRACKER_HASH_SIZE];
+/**
+ * @brief check if there's a currently opening transaction
+ **/
+static uint32_t _tag_tracker_sp = 0;
+/**
+ * @brief the transaction detials
+ **/
+static _tag_tracker_avm_stat_t _tag_tracker_current_stack[TAG_TRACKER_STACK_SIZE];
 
+/**
+ * @brief the hash code for tag-set index
+ * @param tags_idx the tag-set index
+ * @return the result hashcode
+ **/
+hashval_t _tag_tracker_tagset_hashcode(uint32_t tags_idx)
+{
+	return tags_idx * MH_MULTIPLY;
+}
+
+/**
+ * @brief create a new hash node
+ * @param tsid the tag-set index
+ * @param avmst the abstract virtual machine status
+ * @param set the tag-set
+ * @return a newly created node, NULL if error
+ **/
+_tag_tracker_hash_node_t* _tag_tracker_hash_new(uint32_t tsid, const _tag_tracker_avm_stat_t avmst, const tag_set_t* set)
+{
+	_tag_tracker_hash_node_t* ret = (_tag_tracker_hash_node_t*)malloc(sizeof(_tag_tracker_hash_node_t));
+	if(NULL == ret)
+	{
+		LOG_ERROR("can not allocate a new tracker hash node");
+		return 0;
+	}
+	ret->what = tsid;
+	ret->when = avmst;
+	ret->set = tag_set_fork(set);
+	ret->next = NULL;
+	return ret;
+}
+/**
+ * @brief insert a new node to the hash, assume that there's no duplications
+ * @param what the tag-set index
+ * @param set the tag-set
+ * @param avmst the avm status
+ * @return the newly inserted node in the hash table, NULL if error
+ **/
+static inline const _tag_tracker_hash_node_t* _tag_tracker_hash_insert(uint32_t what, const tag_set_t* set, const _tag_tracker_avm_stat_t avmst)
+{
+	uint32_t slot_id = _tag_tracker_tagset_hashcode(what) % TAG_TRACKER_HASH_SIZE;
+	_tag_tracker_hash_node_t* node = _tag_tracker_hash_new(what, avmst, set);
+	if(NULL == node)
+	{
+		LOG_ERROR("can not create the node");
+		return NULL;
+	}
+	node->next = _tag_tracker_hash[slot_id];
+	_tag_tracker_hash[slot_id] = node;
+	return node;
+}
 int tag_tracker_init()
 {
 	return 0;
 }
 void tag_tracker_finalize()
 {
-	uint32_t i;
+	int i;
 	for(i = 0; i < TAG_TRACKER_HASH_SIZE; i ++)
 	{
-		_tag_tracker_node_t *ptr;
-		for(ptr = _tag_tracker_hashtab[i]; NULL != ptr;)
+		_tag_tracker_hash_node_t* ptr;
+		for(ptr = _tag_tracker_hash[i]; NULL != ptr; )
 		{
-			_tag_tracker_node_t* cur = ptr;
+			_tag_tracker_hash_node_t* cur = ptr;
 			ptr = ptr->next;
-			_tag_tracker_source_t* sour;
-			for(sour = cur->sour; NULL != sour;)
-			{
-				_tag_tracker_source_t* this_source = sour;
-				sour = sour->next;
-				free(this_source);
-			}
+			if(NULL != ptr->set) tag_set_free(cur->set);
 			free(cur);
 		}
 	}
 }
 /**
- * @brief the hash code for tracker node 
- * @param tag the tag index
- * @param closure the closure index
- * @param block the block index
- * @param inst the insturction index
- * @param reg the register index
- * @return the hash code of the input node 
+ * @brief open a transaction
+ * @param closure the closture id
+ * @param instruction the instruction id
+ * @param block the block id
+ * @param target the target block id
+ * @return < 0 for error
  **/
-static inline hashval_t _tag_tracker_node_hash(uint32_t tag, uint32_t closure, uint32_t block, uint32_t inst, uint32_t reg)
+int _tag_tracker_transaction_open(uint32_t closure, uint32_t instruction, uint32_t block, uint32_t target)
 {
-	return (tag * MH_MULTIPLY + (closure * closure + 1007 * closure + 23) * MH_MULTIPLY) ^
-		   ((block * block + block * MH_MULTIPLY) * MH_MULTIPLY * MH_MULTIPLY - inst * (~MH_MULTIPLY)) ^
-		   ~(reg * MH_MULTIPLY);
-}
-/**
- * @brief create a new tracker node
- * @param tag the tag index
- * @param dest the destination state
- * @return the newly created node, returns NULL on error
- **/
-static inline _tag_tracker_node_t* _tag_tracker_node_new(uint32_t tag, const _tag_tracker_avm_stat dest)
-{
-	_tag_tracker_node_t* ret = (_tag_tracker_node_t*)malloc(sizeof(_tag_tracker_node_t));
-	if(NULL == ret) 
+	if(_tag_tracker_sp >= TAG_TRACKER_STACK_SIZE)
 	{
-		LOG_ERROR("can not allocate memory for new tag tracker node");
-		return NULL;
-	}
-	ret->tag = tag;
-	ret->dest = dest;
-	ret->sour = NULL;
-	ret->next = NULL;
-	return ret;
-}
-/**
- * @brief create a new source 
- * @param stat the source vm state
- * @return the newly create source, return NULL on error
- **/
-static inline _tag_tracker_source_t* _tag_tracker_source_new(const _tag_tracker_avm_stat stat)
-{
-	_tag_tracker_source_t* ret = (_tag_tracker_source_t*)malloc(sizeof(_tag_tracker_source_t));
-	if(NULL == ret)
-	{
-		LOG_ERROR("can't allocate memory for new tracker source object");
-		return NULL;
-	}
-	ret->stat = stat;
-	ret->next = NULL;
-	return ret;
-}
-/**
- * @brief insert a new node to the source list
- * @param node the node to perform insertion
- * @param sour new source
- * @return return < 0 on error
- **/
-static inline int _tag_tracker_source_insert(_tag_tracker_node_t* node, const _tag_tracker_avm_stat sour)
-{
-	_tag_tracker_source_t* source = _tag_tracker_source_new(sour);
-	if(NULL == source)
-	{
-		LOG_ERROR("failed to allocate new source");
+		LOG_ERROR("stack overflow");
 		return -1;
 	}
-	source->next = node->sour;
-	node->sour = source;
+	_tag_tracker_avm_stat_t stat = {
+		.closure = closure,
+		.instruction = instruction,
+		.block = -1,
+		.target = -1
+	};
+	_tag_tracker_current_stack[_tag_tracker_sp ++] = stat;
 	return 0;
 }
-/**
- * @brief return wether or not two vm state are equal
- * @param this the first vm state
- * @param that the second vm state
- * @return > 0 if two inputs are equal, == 0 if tow inputs are not equal, < 0 on error
- **/
-static inline int _tag_traceker_avm_stat_equal(const _tag_tracker_avm_stat this, const _tag_tracker_avm_stat that)
+int tag_tracker_instruction_transaction_begin(uint32_t closure, uint32_t instruction)
 {
-	return this.closure == that.closure && this.block == that.block && this.instruction == that.instruction && this.reg == that.reg;
+	return _tag_tracker_transaction_open(closure, instruction, -1, -1);
 }
-/**
- * @brief find a tracker node by tag id and desttination
- * @param tag the tag id
- * @param dest the destination vm state
- * @return the tracker ndoe wanted, NULL if there's no such node
- **/
-static inline _tag_tracker_node_t* _tag_tracker_find(uint32_t tag, const _tag_tracker_avm_stat dest)
+
+int tag_tracker_block_transaction_begin(uint32_t closure, uint32_t blockidx)
 {
-	hashval_t hash = _tag_tracker_node_hash(tag, dest.closure, dest.block, dest.instruction, dest.reg) % TAG_TRACKER_HASH_SIZE;
-	_tag_tracker_node_t* ptr;
-	for(ptr = _tag_tracker_hashtab[hash]; NULL != ptr && !_tag_traceker_avm_stat_equal(ptr->dest, dest); ptr = ptr->next);
-	return ptr;
+	return _tag_tracker_transaction_open(closure, -1, blockidx, -1);
 }
-/**
- * @biref insert an edge to the tracker node 
- * @param tag the tag id 
- * @param dest the destination vm state
- * @param sour the source vm state
- * @return the affected tracker node, NULL on error
- **/
-static inline _tag_tracker_node_t* _tag_tracker_insert(uint32_t tag, const _tag_tracker_avm_stat dest, const _tag_tracker_avm_stat sour)
+int tag_tracker_branch_transaction_begin(uint32_t closure, uint32_t from, uint32_t to)
 {
-	_tag_tracker_node_t* ret = _tag_tracker_find(tag, dest);
-	if(NULL == ret)
-	{
-		ret = _tag_tracker_node_new(tag, dest);
-		if(NULL == ret)
-		{
-			LOG_ERROR("can't allocate new tracker node");
-			return NULL;
-		}
-		hashval_t hash = _tag_tracker_node_hash(tag, dest.closure, dest.block, dest.instruction, dest.reg);
-		ret->next = _tag_tracker_hashtab[hash];
-		_tag_tracker_hashtab[hash] = ret;
-	}
-	_tag_tracker_source_t* ptr;
-	for(ptr = ret->sour; NULL != ptr && !_tag_traceker_avm_stat_equal(ptr->stat, sour); ptr = ptr->next);
-	if(NULL == ptr && _tag_tracker_source_insert(ret, sour) < 0)
-	{
-		LOG_ERROR("can not add an edge to the tag tracker");
-		return NULL;
-	}
-	return ret;
+	return _tag_tracker_transaction_open(closure, -1, from, to);
 }
-#if 0
-int tag_tracker_invocation(const tag_set_t* tag_set, uint32_t caller_closure, uint32_t invoke_inst, uint32_t callee_closure, uint32_t regidx)
+int tag_tracker_transaction_close()
 {
-	if(NULL == tag_set) return 0;
-	uint32_t ntags = tag_set_size(tag_set);
-	uint32_t i;
-	for(i = 0; i < ntags; i ++)
-	{
-		uint32_t tid = tag_set_get_tagid(tag_set, i);
-		_tag_tracker_avm_stat dest = {
-			.closure = callee_closure,
-			.block = _TAG_TRACKER_IDX_DUMMY,
-			.instruction = _TAG_TRACKER_IDX_DUMMY,
-			.reg = regidx
-		};
-		
-	}
+	if(_tag_tracker_sp) _tag_tracker_sp --;
+	return 0;
 }
-//TODO
-#endif
+int tag_tracker_register_tagset(uint32_t tsid, const tag_set_t* tagset, const uint32_t* inputs, uint32_t ninputs)
+{
+	if(!_tag_tracker_sp) return 0;
+	if(NULL == _tag_tracker_hash_insert(tsid, tagset, _tag_tracker_current_stack[_tag_tracker_sp-1])) 
+		return -1;
+	return 0;
+}

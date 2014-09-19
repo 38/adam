@@ -716,11 +716,17 @@ cesk_diff_t* cesk_method_analyze(const dalvik_block_t* code, cesk_frame_t* frame
 		LOG_DEBUG("========end info============");
 #endif
 		LOG_DEBUG("TAG_TRACKER: BeginBlockInput(Closure=%u, Block=%u)", context->tick, blkctx->code->index);
+		if(tag_tracker_block_transaction_begin(context->tick, blkctx->code->index) < 0)
+		{
+			LOG_ERROR("can not open transaction");
+			goto ERR;
+		}
 		if(_cesk_method_compute_next_input(context, blkctx) < 0) 
 		{
 			LOG_ERROR("can not compute the next input");
 			goto ERR;
 		}
+		tag_tracker_transaction_close();
 		LOG_DEBUG("TAG_TRACKER: EndBlockInput(Closure=%u, Block=%u)", context->tick, blkctx->code->index);
 		LOG_DEBUG("Block input diff: %s", cesk_diff_to_string(blkctx->input_diff, NULL, 0));
 		/* then we compute the new output for each branch */
@@ -758,13 +764,22 @@ cesk_diff_t* cesk_method_analyze(const dalvik_block_t* code, cesk_frame_t* frame
 
 			/* then we should compute the actual input frame for this branch before we strat run the code in this block 
 			 * if nothing has been changed, it's a fix point*/
+			LOG_DEBUG("TAG_TRACKER: BeginBranchInput(Closure=%u, Block=%u, Destination=%u)", context->tick, blkctx->code->index, target_ctx->code->index);
+			if(tag_tracker_branch_transaction_begin(context->tick, blkctx->code->index, target_ctx->code->index) < 0)
+			{
+				LOG_ERROR("can not open transaction");
+				goto ERR;
+			}
 			if(0 == _cesk_method_compute_branch_frame(context, input_ctx, b_diff) && input_ctx->visited)
 			{
+				tag_tracker_transaction_close();
 				LOG_DEBUG("there's no modification in this branch, so we skip");
 				cesk_diff_free(b_diff);
 				cesk_diff_free(b_inv);
 				continue;
 			}
+			tag_tracker_transaction_close();
+			LOG_DEBUG("TAG_TRACKER: EndBlockInput(Closure=%u, Block=%u, Destination=%u)", context->tick, blkctx->code->index, target_ctx->code->index);
 
 			input_ctx->visited = 1;
 

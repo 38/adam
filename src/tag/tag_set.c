@@ -1,5 +1,6 @@
 #include <tag/tag_set.h>
 #include <tag/tag_fs.h>
+#include <tag/tag_tracker.h>
 #define HASH_INIT 0x376514fbu
 /**
  * @brief the structure of an item in a tag set
@@ -90,7 +91,7 @@ static inline void _tag_set_decref(tag_set_t* set)
  * @param set the input tag set
  * @return the result tag set
  **/
-static inline tag_set_t* _tag_set_duplicate(tag_set_t* set)
+static inline tag_set_t* _tag_set_duplicate(tag_set_t* set, int fresh_idx)
 {
 	if(NULL == set) return NULL;
 	tag_set_t* ret = _tag_set_new(set->size);
@@ -98,6 +99,17 @@ static inline tag_set_t* _tag_set_duplicate(tag_set_t* set)
 	memcpy(ret->data, set->data, sizeof(_tag_set_item_t) * set->size);
 	ret->hashcode = set->hashcode;
 	ret->size = set->size;
+	if(fresh_idx)
+	{
+		ret->id = next_set_idx ++;
+		LOG_DEBUG("TAG_TRACKER: Create tag_set #%u from #%u", ret->id, set->id);
+		if(tag_tracker_register_tagset(ret->id, ret, &set->id, 1) < 0)
+		{
+			LOG_WARNING("failed to track the set");
+		}
+	}
+	else
+		ret->id = set->id;
 	_tag_set_decref(set);
 	_tag_set_incref(ret);
 	return ret;
@@ -145,13 +157,16 @@ tag_set_t* tag_set_from_array(const uint32_t* tags, const uint32_t* resols, size
 	ret->size = N;
 	_tag_set_incref(ret);
 	LOG_DEBUG("TAG_TRACKER: Tag Set Creation #%u", ret->id);
+	if(tag_tracker_register_tagset(ret->id, ret, NULL, 0) < 0)
+	{
+		LOG_WARNING("can not track the set");
+	}
 	return ret;
 }
 tag_set_t* tag_set_fork(const tag_set_t* set)
 {
 	if(NULL == set) return NULL;
 	tag_set_t* set_rw = (tag_set_t*)set;  /* really dirty */
-	LOG_DEBUG("TAG_TRACKER: Duplicate tag_set #%u", set->id);
 	_tag_set_incref(set_rw);
 	return set_rw;
 }
@@ -207,10 +222,27 @@ const char* tag_set_to_string(const tag_set_t* ts, char* buf, size_t sz)
  **/
 tag_set_t* tag_set_merge(const tag_set_t* first, const tag_set_t* second)
 {
+	if(NULL == first || NULL == second) return NULL;
+	if(0 == first->size && 0 == second->size) return tag_set_empty();
 	/* try light weight copy if possible */
-	if(first == NULL || first->size == 0) return tag_set_fork(second);
-	if(second == NULL || second->size == 0) return tag_set_fork(first);
-	if(second == first) return tag_set_fork(first);
+	if(first == NULL || first->size == 0) 
+	{
+		tag_set_t* ret = (tag_set_t*)second;
+		_tag_set_incref(ret);
+		return _tag_set_duplicate(ret, 1);
+	}
+	if(second == NULL || second->size == 0) 
+	{
+		tag_set_t* ret = (tag_set_t*)first;
+		_tag_set_incref(ret);
+		return _tag_set_duplicate(ret, 1);
+	}
+	if(second == first) 
+	{
+		tag_set_t* ret = (tag_set_t*)first;
+		_tag_set_incref(ret);
+		return _tag_set_duplicate(ret, 1);
+	}
 	size_t N = first->size + second->size;
 	tag_set_t* ret = _tag_set_new(N);
 	if(NULL == ret) return NULL;
@@ -242,7 +274,11 @@ tag_set_t* tag_set_merge(const tag_set_t* first, const tag_set_t* second)
 		LOG_DEBUG("append item <%d, %d>", current_id, resol);
 	}
 	LOG_DEBUG("TAG_TRACKER: Tag set Creation tag_set #%u from #%u and #%u", ret->id, first->id, second->id);
-
+	uint32_t input[] = {first->id, second->id};
+	if(tag_tracker_register_tagset(ret->id, ret, input, 2) < 0)
+	{
+		LOG_WARNING("can not track the set");
+	}
 	_tag_set_incref(ret);
 	return ret;
 }
@@ -254,7 +290,7 @@ tag_set_t* tag_set_change_resolution(tag_set_t* set, uint32_t tagid, uint32_t va
 	{
 		prev_set = set;
 		LOG_DEBUG("modifying a tag set using by multiple values, copy it first");
-		set = _tag_set_duplicate(set);
+		set = _tag_set_duplicate(set, 0);
 		if(NULL == set)
 		{
 			LOG_ERROR("can not duplicate the tag set");

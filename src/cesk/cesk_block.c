@@ -1784,6 +1784,11 @@ int cesk_block_analyze(
 		if(debugger_callback(ins, frame, caller_ctx) < 0) goto ERR;
 #endif
 		LOG_DEBUG("TAG_TRACKER: BeginInstruction(Closure=%u, Instruction=%u)", ctx_id, i);
+		if(tag_tracker_instruction_transaction_begin(ctx_id, i) < 0)
+		{
+			LOG_ERROR("can not open transaction");
+			return -1;
+		}
 		switch(ins->opcode)
 		{
 			case DVM_NOP:
@@ -1816,6 +1821,7 @@ int cesk_block_analyze(
 			default:
 				LOG_WARNING("ignore unknown opcode");
 		}
+		tag_tracker_transaction_close();
 		LOG_DEBUG("TAG_TRACKER: EndInstruction(Closure=%u, Instruction=%u)", ctx_id, i);
 		/* TODO: based on the dbuf and ibuf, invoke the fianlize functions */
 	}

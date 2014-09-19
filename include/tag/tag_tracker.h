@@ -23,32 +23,42 @@ int tag_tracker_init();
  **/
 void tag_tracker_finalize();
 /**
- * @brief add an invocation edge to tag tracker
- * @param tag_set 
- * @param caller_closure the caller closure_id
- * @param invoke_inst the id of invocation instruction 
- * @param callee_closure the callee closure_id
- * @param regidx the register involved
- * @return < 0  if error
+ * @brief open a instruction executing transaction
+ * @param closure current closure
+ * @param instruction current instruction index
+ * @return < 0 on error
  **/
-int tag_tracker_invocation(const tag_set_t* tag_set, uint32_t caller_closure, uint32_t invoke_inst, uint32_t callee_closure, uint32_t regidx);
+int tag_tracker_instruction_transaction_begin(uint32_t closure, uint32_t instruction);
 /**
- * @brief add an instruction execution edge to tag tracker
- * @param tag_set
- * @param closure the closure where the instruction execution happends
- * @param to the instruction id to which this tag_set goes
- * @return < 0 if error
+ * @brief open a block merging transaction
+ * @param closure the current closure index
+ * @param blockidx the current block index
+ * @return < 0 on error
  **/
-int tag_tracker_execution(const tag_set_t* tag_set, uint32_t closure, uint32_t to);
+int tag_tracker_block_transaction_begin(uint32_t closure, uint32_t blockidx);
 /**
- * @brief add a block transition edge to tag tracker
- * @param tag_set
- * @param closure the closure where block transition happends
- * @param from the block id from which this tag_set comes
- * @param to the block id to which this tag_set goes
- * @return < 0 if error
+ * @brief open a branch initlaization transaction
+ * @param closure the current closure index
+ * @param from the source block
+ * @param to the destination block
+ * @return < 0 on error
  **/
-int tag_tacker_transition(const tag_set_t* tag_set, uint32_t closure, uint32_t from, uint32_t to);
+int tag_tracker_branch_transaction_begin(uint32_t closure, uint32_t from, uint32_t to);
+/**
+ * @brief close a transaction
+ * @return < 0 on error
+ **/
+int tag_tracker_transaction_close();
+/**
+ * @brief register a new tagset in tracker
+ * @param tsid the tagset id
+ * @param tagset the newly created tagset
+ * @param inputs array of input tagset index
+ * @param ninputs how many inputs
+ * @return < 0 on error
+ **/
+int tag_tracker_register_tagset(uint32_t tsid, const tag_set_t* tagset, const uint32_t* inputs, uint32_t ninputs);
+
 /**
  * @brief get data-flow path
  * @param tag_id the tag id to focus on

@@ -176,6 +176,11 @@
 #	define TAG_TRACKER_HASH_SIZE 999991
 #endif
 
+#ifndef TAG_TRACKER_STACK_SIZE
+/** @brief the max step depth */
+#	define TAG_TRACKER_STACK_SIZE 65536
+#endif
+
 /** @brief the magic number used for Knuth Multiplicative Hash */
 #define MH_MULTIPLY (2654435761ul)
 
