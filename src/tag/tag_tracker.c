@@ -113,7 +113,7 @@ void tag_tracker_finalize()
 		{
 			_tag_tracker_hash_node_t* cur = ptr;
 			ptr = ptr->next;
-			if(NULL != ptr->set) tag_set_free(cur->set);
+			if(NULL != cur->set) tag_set_free(cur->set);
 			free(cur);
 		}
 	}

@@ -12,12 +12,15 @@ typedef struct{
 static const char* kw_init;
 static const char* kw_readLine;
 static const char* kw_read;
+static const char* kw_string;
 static cesk_set_t* read_result_set;
+static const tag_set_t* default_set;
 int java_io_BufferedReader_onload()
 {
 	kw_init = stringpool_query("<init>");
 	kw_readLine = stringpool_query("readLine");
 	kw_read = stringpool_query("read");
+	kw_string = stringpool_query("java/lang/String");
 	read_result_set = cesk_set_empty_set();
 	if(NULL == read_result_set)
 	{
@@ -28,6 +31,7 @@ int java_io_BufferedReader_onload()
 	uint32_t tid[] = {TAG_FILECONTENT};
 	uint32_t res[] = {TAG_RES_EXACT};
 	tag_set_t* tags = tag_set_from_array(tid, res, 1);
+	default_set = tags;
 	if(NULL == tags)
 	{
 		LOG_ERROR("can not allocate tag set");
@@ -241,6 +245,38 @@ static inline int _java_io_BufferedReader_read(bci_method_env_t* env)
 	bci_interface_return_set(env, read_result_set);
 	return 0;
 }
+static inline int _java_io_BufferedReader_readLine(bci_method_env_t* env)
+{
+	extern bci_class_t java_io_BufferedReader_metadata;
+	uint32_t addr = bci_interface_new_object(env, kw_string, (const char*)1);
+	if(CESK_STORE_ADDR_NULL == addr)
+	{
+		LOG_ERROR("can not create string object");
+		return -1;
+	}
+	if(bci_interface_append_tag_set(env, addr, default_set) < 0)
+	{
+		LOG_ERROR("can not change the tag set of the vlaue");
+		return -1;
+	}
+	if(bci_interface_return_object(env, addr) < 0)
+	{
+		LOG_ERROR("can not return the object");
+		return -1;
+	}
+	cesk_set_t* result = cesk_set_empty_set();
+	if(NULL == result)
+	{
+		LOG_ERROR("can not allocate the result set");
+		return -1;
+	}
+	if(bci_interface_return_single_address(env, addr) < 0)
+	{
+		LOG_ERROR("can not return address");
+		return -1;
+	}
+	return 0;
+}
 int java_io_BufferedReader_invoke(int id, bci_method_env_t* env)
 {
 	switch(id)
@@ -250,6 +286,8 @@ int java_io_BufferedReader_invoke(int id, bci_method_env_t* env)
 			return _java_io_BufferedReader_init(id, env);
 		case 0xfffe:
 			return _java_io_BufferedReader_read(env);
+		case 0xffff:
+			return _java_io_BufferedReader_readLine(env);
 		default:
 			LOG_ERROR("unsupported method");
 			return -1;

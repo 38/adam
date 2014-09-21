@@ -144,4 +144,12 @@ void* bci_interface_get_rw_by_classdef(bci_method_env_t* env, uint32_t addr, con
  * @return the pointer to BCI data section, NULL indicates error
  **/
 const void* bci_interface_get_ro_by_classdef(bci_method_env_t* env, uint32_t addr, const bci_class_t* class);
+/**
+ * @brief append a tag set to the value
+ * @param env the envirion
+ * @param addr the address
+ * @param tags the tag set
+ * @return the result of merge < 0 indicates error
+ **/
+int bci_interface_append_tag_set(bci_method_env_t* env, uint32_t addr, const tag_set_t* tags);
 #endif

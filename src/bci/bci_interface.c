@@ -105,6 +105,34 @@ void* bci_interface_get_rw(bci_method_env_t* env, uint32_t addr, const char* cla
 	}
 	return NULL;
 }
+int bci_interface_append_tag_set(bci_method_env_t* env, uint32_t addr, const tag_set_t* tags)
+{
+	if(NULL == env || CESK_STORE_ADDR_NULL == addr)
+	{
+		LOG_ERROR("invalid argument");
+		return -1;
+	}
+	cesk_value_t* value = cesk_store_get_rw(env->frame->store, addr, 0);
+	if(NULL == value)
+	{
+		LOG_ERROR("can not get a writable pointer to address "PRSAddr" at store %p", addr, env->frame->store);
+		return -1;
+	}
+	if(CESK_TYPE_SET == value->type)
+	{
+		const tag_set_t* old_tags = cesk_set_get_tags(value->pointer.set);
+		tag_set_t* new_tags = tag_set_merge(old_tags, tags);
+		cesk_set_assign_tags(value->pointer.set, new_tags);
+	}
+	else
+	{
+		tag_set_t* old_tags = value->pointer.object->tags;
+		tag_set_t* new_tags = tag_set_merge(old_tags, tags);
+		if(NULL != old_tags) tag_set_free(old_tags);
+		value->pointer.object->tags = new_tags;
+	}
+	return 0;
+}
 void bci_interface_release_rw(bci_method_env_t* env, uint32_t addr)
 {
 	cesk_store_release_rw(env->frame->store, addr);
