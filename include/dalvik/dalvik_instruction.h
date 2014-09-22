@@ -14,7 +14,8 @@ typedef struct _dalvik_instruction_t dalvik_instruction_t;
 #include <vector.h>
 #include <dalvik/dalvik_label.h>
 #include <dalvik/dalvik_type.h>
-#include <dalvik/dalvik_exception.h> 
+#include <dalvik/dalvik_exception.h>
+#include <dalvik/dalvik_method.h>
 
 #include <constants.h>
 
@@ -164,6 +165,7 @@ struct _dalvik_instruction_t{
 	uint8_t            opcode:4;        /*!<Opcode of the instruction */
 	uint8_t            num_operands:4;  /*!<How many operand ? */
 	uint16_t           flags:8;         /*!<Additional flags for instruction, DVM_FLAG_OPTYPE_NAME */
+	const dalvik_method_t* method;      /*!<A backward pointer to the method that owns this instruction */
 	int                line;            /*!<Line number of this instruction */
 	uint32_t next;                      /*!<The next instruction offset in the pool */
 	dalvik_exception_handler_set_t* handler_set;   /*!<The handler set for exception */

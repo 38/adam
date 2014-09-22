@@ -122,8 +122,8 @@ typedef struct {
 /** @brief the store block of virtual store */
 typedef struct {
 	uint32_t       refcnt;     /*!<for Copy-on-Write */
-	uint32_t       num_ent:31;    /*!<number of entities */
-	uint8_t		   reloc:1;    /*!<wether or not this block contains a reference to relocated address*/
+	uint32_t       num_ent;    /*!<number of entities */
+	uint32_t	   num_reloc;    /*!<wether or not this block contains a reference to relocated address*/
 	cesk_store_slot_t  slots[0];
 } cesk_store_block_t;
 CONST_ASSERTION_LAST(cesk_store_block_t, slots);

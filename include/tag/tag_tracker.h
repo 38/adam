@@ -60,5 +60,5 @@ int tag_tracker_register_tagset(uint32_t tsid, const tag_set_t* tagset, const ui
  * @param N the size of buffer
  * @return the number of pathes found < 0 on error
  **/
-int tag_tacker_get_path(uint32_t tag_id, uint32_t tagset_id, uint32_t** instruction, size_t N);
+int tag_tracker_get_path(uint32_t tag_id, uint32_t tagset_id, uint32_t** instruction, size_t N);
 #endif

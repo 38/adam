@@ -722,6 +722,7 @@ static inline cesk_value_t* _cesk_block_invoke_result_value_translate(
 			LOG_ERROR("can not translate value of set");
 			return NULL;
 		}
+		value->reloc = (cesk_set_get_reloc(value->pointer.set) > 0);
 		return value;
 	}
 	/* we are expecting the type of this value is object */
@@ -733,6 +734,7 @@ static inline cesk_value_t* _cesk_block_invoke_result_value_translate(
 	/* translate an object */
 	cesk_object_t* object = value->pointer.object;
 	cesk_object_struct_t* this = object->members;
+	value->reloc = 0;
 	int i;
 	for(i = 0; i < object->depth; i ++)
 	{
@@ -765,6 +767,7 @@ static inline cesk_value_t* _cesk_block_invoke_result_value_translate(
 				/* update the offset */
 				offset += rc;
 			}
+			if(bci_class_has_reloc_ref(this->bcidata, this->class.bci->class)) value->reloc = 1;
 		}
 		/* a source-code-defined section */
 		else
@@ -781,6 +784,7 @@ static inline cesk_value_t* _cesk_block_invoke_result_value_translate(
 					return NULL;
 				}
 				this->addrtab[j] = r_addr;
+				if(CESK_STORE_ADDR_IS_RELOC(r_addr)) value->reloc = 1;
 			}
 		}
 		CESK_OBJECT_STRUCT_ADVANCE(this);

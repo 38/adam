@@ -152,4 +152,11 @@ const void* bci_interface_get_ro_by_classdef(bci_method_env_t* env, uint32_t add
  * @return the result of merge < 0 indicates error
  **/
 int bci_interface_append_tag_set(bci_method_env_t* env, uint32_t addr, const tag_set_t* tags);
+/**
+ * @brief read the tag set from the env
+ * @param env the environ
+ * @param addr the address
+ * @return the tag set
+ **/
+const tag_set_t* bci_interface_read_tag(bci_method_env_t* env, uint32_t addr);
 #endif

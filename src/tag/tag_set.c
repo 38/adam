@@ -102,7 +102,7 @@ static inline tag_set_t* _tag_set_duplicate(tag_set_t* set, int fresh_idx)
 	if(fresh_idx)
 	{
 		ret->id = next_set_idx ++;
-		LOG_DEBUG("TAG_TRACKER: Create tag_set #%u from #%u", ret->id, set->id);
+		LOG_DEBUG("TAG_TRACKER: Create tag_set #%u%s from #%u%s", ret->id, tag_set_to_string(ret, NULL, 0), set->id, tag_set_to_string(ret, NULL, 0));
 		if(tag_tracker_register_tagset(ret->id, ret, &set->id, 1) < 0)
 		{
 			LOG_WARNING("failed to track the set");
@@ -282,7 +282,7 @@ tag_set_t* tag_set_merge(const tag_set_t* first, const tag_set_t* second)
 	_tag_set_incref(ret);
 	return ret;
 }
-int tag_set_contains(tag_set_t* set, uint32_t what)
+int tag_set_contains(const tag_set_t* set, uint32_t what)
 {
 	if(0 == set->size || what < set->data[0].tid || set->data[set->size-1].tid < what) return 0;
 	int l = 0, r = set->size;
@@ -371,4 +371,8 @@ hashval_t tag_set_compute_hashcode(const tag_set_t* set)
 	for(i = 0; i < set->size; i ++)
 		ret ^= _tag_set_item_hashcode(set->data[i]);
 	return ret;
+}
+uint32_t tag_set_id(const tag_set_t* set)
+{
+	return set->id;
 }

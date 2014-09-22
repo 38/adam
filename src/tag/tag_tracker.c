@@ -64,6 +64,7 @@ _tag_tracker_hash_node_t* _tag_tracker_hash_new(uint32_t tsid, const _tag_tracke
 	ret->set = tag_set_fork(set);
 	ret->next = NULL;
 	ret->ninputs = ninputs;
+	ret->visit_flag = 0;
 	memcpy(ret->inputs, inputs, sizeof(uint32_t) * ninputs);
 	return ret;
 }
@@ -175,25 +176,26 @@ static int _tag_tracker_dfs(uint32_t tag_id, uint32_t tagset_id, int depth, uint
 	_tag_tracker_hash_node_t* node = _tag_tracker_hash_find(tagset_id);
 	if(NULL == node || node->ninputs == 0)
 	{
-		inst_buf[0] = (uint32_t*)malloc(sizeof(uint32_t) * depth);
-		memcpy(inst_buf[0], path, sizeof(uint32_t) * depth);
+		path[depth] = 0xfffffffful;
+		inst_buf[0] = (uint32_t*)malloc(sizeof(uint32_t) * (depth + 1));
+		memcpy(inst_buf[0], path, sizeof(uint32_t) * (depth + 1));
 		_N--;
 		inst_buf ++;
 		return 1;
 	}
 	if(tick == node->visit_flag || !tag_set_contains(node->set, tag_id))
 		return 0;
-	node->visit_flag = 1;
+	node->visit_flag = tick;
 	if(node->when.instruction != -1) path[depth ++] = node->when.instruction;
 	int i , rc = 0;
 	for(i = 0; i < node->ninputs; i ++)
 		rc += _tag_tracker_dfs(tag_id, node->inputs[i], depth, tick);
 	return rc;
 }
-int tag_tacker_get_path(uint32_t tag_id, uint32_t tagset_id, uint32_t** instruction, size_t N)
+int tag_tracker_get_path(uint32_t tag_id, uint32_t tagset_id, uint32_t** instruction, size_t N)
 {
 	inst_buf = instruction;
 	_N = N;
 	static int tick = 0;
-	return _tag_tracker_dfs(tag_id, tagset_id, 0, tick ++);
+	return _tag_tracker_dfs(tag_id, tagset_id, 0, ++ tick);
 }

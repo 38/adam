@@ -11,6 +11,8 @@ extern bci_class_t java_lang_String_metadata;
 
 static const char* java_lang_String_empty = NULL;
 static const char* java_lang_String_length = NULL;
+static const char* kw_init;
+static const char* kw_concat;
 int java_lang_String_onload()
 {
 	if((java_lang_String_empty = stringpool_query("")) == NULL)
@@ -23,6 +25,8 @@ int java_lang_String_onload()
 		LOG_ERROR("Failed to initialize java.lang.String");
 		return -1;
 	}
+	kw_init = stringpool_query("<init>");
+	kw_concat = stringpool_query("concat");
 	return 0;
 }
 int java_lang_String_init(void* this, const char* classpath, const void* param, tag_set_t** tags)
@@ -115,6 +119,77 @@ int java_lang_String_instance_of(const void* this, const dalvik_type_t* type)
 	if(type->typecode != DALVIK_TYPECODE_OBJECT) return BCI_BOOLEAN_FALSE;
 	return type->data.object.path ==  java_lang_Object_metadata.provides[0];
 }
+int java_lang_String_get_method(const void* this_ptr, const char* classpath, const char* method, const dalvik_type_t* const * signature, const dalvik_type_t* rettype)
+{
+	if(method == kw_init) return 0;
+	if(method == kw_concat) return 1;
+	return -1;
+}
+static inline int _java_lang_String_concat(bci_method_env_t* env)
+{
+	extern bci_class_t java_lang_String_metadata;
+	const cesk_set_t* this = bci_interface_read_arg(env, 0, 2);
+	const cesk_set_t* that = bci_interface_read_arg(env, 1, 2);
+	if(NULL == this || NULL == that)
+	{
+		LOG_ERROR("can not read argument");
+		return -1;
+	}
+	tag_set_t* new_tags = tag_set_empty();
+	if(NULL == new_tags)
+	{
+		LOG_ERROR("can not create new tag set");
+		return -1;
+	}
+	uint32_t addr;
+	cesk_set_iter_t iter;
+	if(NULL == cesk_set_iter(this, &iter))
+	{
+		LOG_ERROR("can not read `this' set");
+		return -1;
+	}
+	while(CESK_STORE_ADDR_NULL != (addr = cesk_set_iter_next(&iter)))
+	{
+		tag_set_t* tmp = tag_set_merge(new_tags, bci_interface_read_tag(env, addr));
+		tag_set_free(new_tags);
+		new_tags = tmp;
+	}
+	
+	if(NULL == cesk_set_iter(that, &iter))
+	{
+		LOG_ERROR("can not read `that' set");
+		return -1;
+	}
+	while(CESK_STORE_ADDR_NULL != (addr = cesk_set_iter_next(&iter)))
+	{
+		tag_set_t* tmp = tag_set_merge(new_tags, bci_interface_read_tag(env, addr));
+		tag_set_free(new_tags);
+		new_tags = tmp;
+	}
+
+	addr = bci_interface_new_object(env, java_lang_String_metadata.provides[0], _UNDETERM);
+	if(CESK_STORE_ADDR_NULL == addr)
+	{
+		LOG_ERROR("can not allocate new object");
+		return -1;
+	}
+
+	if(bci_interface_append_tag_set(env, addr, new_tags) < 0)
+	{
+		LOG_ERROR("can not change the tag set");
+		return -1;
+	}
+
+	bci_interface_return_object(env, addr);
+	bci_interface_return_single_address(env, addr);
+	return 0;
+}
+int java_lang_String_invoke(int method_id, bci_method_env_t* env)
+{
+	if(method_id == 0) return 0;
+	else if(method_id == 1) return _java_lang_String_concat(env);
+	return -1;
+}
 bci_class_t java_lang_String_metadata = {
 	.size = sizeof(string_data_t),
 	.load = java_lang_String_onload,
@@ -126,6 +201,8 @@ bci_class_t java_lang_String_metadata = {
 	.equal = java_lang_String_equal,
 	.get = java_lang_String_get_field,
 	.is_instance = java_lang_String_instance_of,
+	.get_method = java_lang_String_get_method,
+	.invoke = java_lang_String_invoke,
 	.super = "java/lang/Object",
 	.provides = {
 		"java/lang/String", 

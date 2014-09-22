@@ -210,7 +210,7 @@ int addressContainer_get_reloc_flag(const void* this_ptr)
 	int ret = 0;
 	int i;
 	for(i = 0; i < this->N && !ret; i ++)
-		ret = cesk_set_get_reloc(this->args[i]);
+		ret += cesk_set_get_reloc(this->args[i]);
 	return ret;
 }
 int addressContainer_instance_of(const void* this_ptr, const dalvik_type_t* type)

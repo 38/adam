@@ -5,6 +5,7 @@
  */
 #include <stdint.h>
 
+typedef struct _dalvik_method_t dalvik_method_t;
 #include <const_assertion.h>
 #include <log.h>
 #include <sexp.h>
@@ -12,7 +13,7 @@
 #include <dalvik/dalvik_type.h>
 #include <dalvik/dalvik_attrs.h>
 /** @brief the method defination structure */
-typedef struct {
+struct _dalvik_method_t{
 	/* DO NOT ADD ANY DEFINITION HERE */
 	const char*          name;     /*!<Method Name. THIS MUST BE THE FIRST MEMBER OF THE STRCUT*/
 	const char*          path;     /*!<class Path */
@@ -24,7 +25,7 @@ typedef struct {
 	uint32_t             entry;     /*!<the offset of first instruction */
 	const dalvik_type_t*       args_type[0];   /*!<the type list contains a null tail */
 	/* DO NOT ADD DEFINITION AFTER args_type */
-} dalvik_method_t;
+};
 CONST_ASSERTION_FIRST(dalvik_method_t, name);
 CONST_ASSERTION_LAST(dalvik_method_t, args_type);
 CONST_ASSERTION_SIZE(dalvik_method_t, args_type, 0);

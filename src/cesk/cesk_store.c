@@ -218,8 +218,6 @@ static inline int _cesk_store_apply_alloc_tab(cesk_store_t* store, uint32_t base
 		return -1;
 	}
 	int ofs;
-	/* clear the reloc bit first */
-	blk->reloc = 0;   
 
 	for(ofs = 0; ofs < CESK_STORE_BLOCK_NSLOTS; ofs ++)
 	{
@@ -342,7 +340,12 @@ static inline int _cesk_store_apply_alloc_tab(cesk_store_t* store, uint32_t base
 		/* release the write pointer */
 		cesk_store_release_rw(store, base_addr + ofs);
 	}
-	blk->reloc = 0;
+	
+	if(blk->num_reloc != 0)
+	{
+		LOG_ERROR("opps, unexpected num_reloc after applying allocation table to store, something goes wrong!");
+		return -1;
+	}
 	return 0;
 }
 int cesk_store_apply_alloctab(cesk_store_t* store)
@@ -352,7 +355,7 @@ int cesk_store_apply_alloctab(cesk_store_t* store)
 	int i;
 	for(i = 0, base_addr = 0; i < store->nblocks; i ++, base_addr += CESK_STORE_BLOCK_NSLOTS)
 	{
-		if(store->blocks[i]->reloc)
+		if(store->blocks[i]->num_reloc > 0)
 		{
 			/* there's some relocated address here */
 			if(_cesk_store_apply_alloc_tab(store, base_addr) < 0)
@@ -534,6 +537,8 @@ cesk_value_t* cesk_store_get_rw(cesk_store_t* store, uint32_t addr, int noval)
 	 * After finish updating, you should call the function release the 
 	 * value and update the hashcode */
 	store->hashcode ^= HASH_INC(addr, val, block->slots[offset].reuse);
+	/* decrease the reloc num first, and we are going to increase it back */
+	if(val->reloc) block->num_reloc --;
 	if(val->write_count > 15) 
 		LOG_WARNING("too many write pointer acquired, which up to 15 at store address "PRSAddr, addr);
 	else
@@ -567,7 +572,7 @@ void cesk_store_release_rw(cesk_store_t* store, uint32_t addr)
 	if(0 == val->write_count)
 	{
 		/* update the relocation bit */
-		block->reloc |= val->reloc;
+		if(val->reloc) block->num_reloc ++;
 		/* update the hashcode */
 		store->hashcode ^= HASH_INC(addr, val, block->slots[offset].reuse);
 	}

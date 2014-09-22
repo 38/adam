@@ -105,6 +105,24 @@ void* bci_interface_get_rw(bci_method_env_t* env, uint32_t addr, const char* cla
 	}
 	return NULL;
 }
+const tag_set_t* bci_interface_read_tag(bci_method_env_t* env, uint32_t addr)
+{
+	if(NULL == env || CESK_STORE_ADDR_NULL == addr)
+	{
+		LOG_ERROR("invalid argument");
+		return NULL;
+	}
+	cesk_value_const_t* value = cesk_store_get_ro(env->frame->store, addr);
+	if(NULL == value)
+	{
+		LOG_ERROR("can not read value at "PRSAddr" at store %p", addr, env->frame->store);
+		return NULL;
+	}
+	if(CESK_TYPE_SET == value->type)
+		return cesk_set_get_tags(value->pointer.set);
+	else
+		return value->pointer.object->tags;
+}
 int bci_interface_append_tag_set(bci_method_env_t* env, uint32_t addr, const tag_set_t* tags)
 {
 	if(NULL == env || CESK_STORE_ADDR_NULL == addr)

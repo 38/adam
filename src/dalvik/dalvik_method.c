@@ -214,6 +214,7 @@ dalvik_method_t* dalvik_method_from_sexp(const sexpression_t* sexp, const char* 
 		else
 		{
 			dalvik_instruction_t* inst = dalvik_instruction_new();
+			inst->method = method;
 			if(NULL == inst) 
 			{
 				LOG_ERROR("can not create new instruction");

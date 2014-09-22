@@ -161,5 +161,11 @@ const char* tag_set_to_string(const tag_set_t* ts, char* buf, size_t sz);
  * @param what the tagid
  * @return 0 if not contains, 1 if contains, < 0 error
  **/
-int tag_set_contains(tag_set_t* set, uint32_t what);
+int tag_set_contains(const tag_set_t* set, uint32_t what);
+/**
+ * @brief get tagset id
+ * @param set the tagset
+ * @return the tagset id
+ **/
+uint32_t tag_set_id(const tag_set_t* set);
 #endif
