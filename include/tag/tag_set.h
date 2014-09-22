@@ -112,22 +112,6 @@ tag_set_t* tag_set_change_resolution(tag_set_t* set, uint32_t tagid, uint32_t va
 void tag_set_register_handler(uint32_t* tagid, tag_set_to_string_callback_t to_string, tag_set_strreason_callback_t strreason);
 
 /**
- * @brief report this function invokation is malicious
- * @param why the reasoncode
- * @param class the class path
- * @param method the method name
- * @param sig the signature
- * @param rtype the return type
- * @return a reason code for why this is malicious(the reason code actually (TAGID << 16)|(TAG_REASON_CODE) ), < 0 when error happens
- **/
-int tag_set_report_malicious(
-		const uint32_t why,
-		const char* class, 
-		const char* method,
-		const dalvik_type_t* const * sig,
-		const dalvik_type_t* rtype);
-
-/**
  * @brief convert the reason code to human readable string
  * @param why the reason code
  * @return the human readable code
@@ -164,12 +148,18 @@ uint32_t tag_set_get_resol(const tag_set_t* set, uint32_t k);
  **/
 hashval_t tag_set_compute_hashcode(const tag_set_t* set);
 /**
- * @param convert the tag set to a human readable string
+ * @brief convert the tag set to a human readable string
  * @pparam ts the tag set
  * @param buf the output buffer
  * @param sz the size
  * @return the result string
  **/
 const char* tag_set_to_string(const tag_set_t* ts, char* buf, size_t sz);
+/**
+ * @biref check wether or not this tag set contains the given tag
+ * @param set the tag set
+ * @param what the tagid
+ * @return 0 if not contains, 1 if contains, < 0 error
+ **/
 int tag_set_contains(tag_set_t* set, uint32_t what);
 #endif

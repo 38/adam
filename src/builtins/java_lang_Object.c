@@ -68,6 +68,8 @@ bci_class_t java_lang_Object_metadata = {
 	.super = NULL,
 	.provides = {
 		"java/lang/Object",
+		"org/apache/http/protocol/BasicHttpContext",
+		"org/apache/http/protocol/HttpContext",
 		NULL
 	}
 };

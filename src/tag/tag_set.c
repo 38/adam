@@ -340,16 +340,6 @@ void tag_set_register_handler(uint32_t* tagid, tag_set_to_string_callback_t to_s
 	_tag_strreason[*tagid] = strreason;
 	_tag_tostring[*tagid] = to_string;
 }
-int tag_set_report_malicious(
-		const uint32_t why,
-		const char* class, 
-		const char* method,
-		const dalvik_type_t* const * sig,
-		const dalvik_type_t* rtype)
-{
-	/* TODO */
-	return 0;
-}
 
 const char* tag_set_reason_code_to_string(uint32_t why)
 {

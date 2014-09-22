@@ -195,6 +195,5 @@ int tag_tacker_get_path(uint32_t tag_id, uint32_t tagset_id, uint32_t** instruct
 	inst_buf = instruction;
 	_N = N;
 	static int tick = 0;
-	
 	return _tag_tracker_dfs(tag_id, tagset_id, 0, tick ++);
 }
