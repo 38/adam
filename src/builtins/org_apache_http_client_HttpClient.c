@@ -56,7 +56,7 @@ bci_class_t org_apache_http_HttpClient_metadata = {
 	.invoke = org_apache_http_HttpClient_invoke,
 	.super = "java/lang/Object",
 	.provides = {
-		"org/apache/http/HttpClient",
+		"org/apache/http/client/HttpClient",
 		"org/apache/http/impl/client/DefaultHttpClient",
 		NULL
 	}
