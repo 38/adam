@@ -32,12 +32,16 @@ enum{
 					       record to show that this is not the first time we allocate the object */
 	CESK_DIFF_REG,     /*!<Set a value to a register [set-reg reg-id new-value] */
 	CESK_DIFF_STORE,   /*!<Set a value to a store cell [set-store address new-value] */
-	CESK_DIFF_DEALLOC, /*!<Deallocate the object (must not apply to a store) [deallocate reloc_addr] */
 	CESK_DIFF_NTYPES   /*!<Number of segmentations in a diff */
 };
 CONST_ASSERTION_EQ(CESK_DIFF_DEALLOC, CESK_DIFF_NTYPES - 1);
 CONST_ASSERTION_EQ(CESK_DIFF_ALLOC, 0);
 CONST_ASSERTION_EQ(CESK_DIFF_REUSE, 1);
+/**
+ * @brief the pointer that is used to represents deallocation in alloc section
+ **/
+#define CESK_DIFF_ALLOC_DEALLOC ((void*)0)
+
 /* Diff Buffer */
 
 /** 

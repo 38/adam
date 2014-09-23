@@ -15,6 +15,16 @@
 
 #include <cesk/cesk_diff.h>
 #include <cesk/cesk_value.h>
+
+/**
+ * @brief the pointer that is used to represents allocation-deallocation pair, which leads deletion of all record relcated to this address
+ **/
+#define CESK_DIFF_ALLOC_DEAD ((void*)1)
+/**
+ * @brief the pointer that is used to represents deallocation-allocation pair, which leads deletion of this pair itself
+ **/
+#define CESK_DIFF_ALLOC_CANCLED ((void*)2)
+
 /* previous defs */
 typedef struct _cesk_diff_node_t _cesk_diff_node_t;
 /**
@@ -83,10 +93,14 @@ static inline const char* _cesk_diff_record_to_string(int type, int addr, const 
 	switch(type)
 	{
 		case CESK_DIFF_ALLOC:
-			__PR("(allocate "PRSAddr" %s)", addr, cesk_value_to_string((cesk_value_t*)value, NULL, 0));
-			break;
-		case CESK_DIFF_DEALLOC:
-			__PR("(deallocate "PRSAddr")", addr);
+			if(CESK_DIFF_ALLOC_DEALLOC == value) 
+				__PR("(deallocate "PRSAddr")", addr);
+			else if(CESK_DIFF_ALLOC_DEAD == value)
+				__PR("(earase "PRSAddr")", addr);
+			else if(CESK_DIFF_ALLOC_CANCLED == value)
+				__PR("(nop "PRSAddr")", addr);
+			else
+				__PR("(allocate "PRSAddr" %s)", addr, cesk_value_to_string((cesk_value_t*)value, NULL, 0));
 			break;
 		case CESK_DIFF_REG:
 			if(CESK_FRAME_REG_IS_STATIC(addr))
@@ -153,7 +167,11 @@ int cesk_diff_buffer_append(cesk_diff_buffer_t* buffer, int type, uint32_t addr,
 		.time = vector_size(buffer->buffer)
 	};
 	if(buffer->reverse) node.time = -node.time;  /* so we reverse the time order */
-	if(CESK_DIFF_STORE == type || CESK_DIFF_ALLOC == type) cesk_value_incref((cesk_value_t*)value);
+	if(CESK_DIFF_STORE == type || CESK_DIFF_ALLOC == type) 
+	{
+		if(CESK_DIFF_ALLOC_DEALLOC != vlaue)
+			cesk_value_incref((cesk_value_t*)value);
+	}
 	else if(CESK_DIFF_REG == type) node.value = cesk_set_fork((cesk_set_t*)value);
 	LOG_DEBUG("append a new record to the buffer %s, timestamp = %d", _cesk_diff_record_to_string(type, addr, value, NULL, 0), node.time);
 	return vector_pushback(buffer->buffer, &node);
@@ -357,6 +375,7 @@ static inline int _cesk_diff_gc_check_allocation_rec_inuse(const cesk_diff_rec_t
 			LOG_WARNING("no way to allocate an new object in non-relocated address, must be an mistake");
 			continue;
 		}
+		//TODO rewrite diff gc
 		uint32_t idx = CESK_STORE_ADDR_RELOC_IDX(addr);
 		if(flags[idx] == tick)
 		{
