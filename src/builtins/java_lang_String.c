@@ -180,6 +180,8 @@ static inline int _java_lang_String_concat(bci_method_env_t* env)
 		return -1;
 	}
 
+	tag_set_free(new_tags);
+
 	bci_interface_return_object(env, addr);
 	bci_interface_return_single_address(env, addr);
 	return 0;

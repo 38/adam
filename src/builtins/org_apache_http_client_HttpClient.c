@@ -73,7 +73,8 @@ static inline int _execute_handler(bci_method_env_t* env)
 			if(tag_set_contains(tags, TAG_FILECONTENT))
 			{
 				uint32_t* inst[1000];
-				int N = tag_tracker_get_path(TAG_FILECONTENT, tag_set_id(tags), inst, 1000);
+				void* stack[1000];
+				int N = tag_tracker_get_path(TAG_FILECONTENT, tag_set_id(tags), inst, 1000, stack);
 				int i, j;
 				printf("Try to send user's file content to internet\n");
 				printf("%s:%d %s\n", env->instruction->method->file, env->instruction->line, dalvik_instruction_to_string(env->instruction, NULL, 0));
@@ -84,6 +85,14 @@ static inline int _execute_handler(bci_method_env_t* env)
 					{
 						const dalvik_instruction_t* ist = dalvik_instruction_get(inst[i][j]);
 						if(j == 0 || inst[i][j-1] != inst[i][j]) printf("%s:%d %s\n", ist->method->file, ist->line, dalvik_instruction_to_string(ist, NULL, 0));
+					}
+					puts("-------stack---------");
+					for(;stack[i];)
+					{
+						uint32_t ip = tag_tracker_stack_backtrace(stack + i);
+						const dalvik_instruction_t* ins = dalvik_instruction_get(ip);
+						if(DALVIK_INSTRUCTION_INVALID != ip) 
+							printf("%s:%d %s\n", ins->method->file, ins->line, dalvik_instruction_to_string(ins, NULL, 0)); 
 					}
 					free(inst[i]);
 				}

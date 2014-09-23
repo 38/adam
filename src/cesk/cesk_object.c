@@ -204,6 +204,7 @@ void cesk_object_free(cesk_object_t* object)
 		}
 		CESK_OBJECT_STRUCT_ADVANCE(this);
 	}
+	if(NULL != object->tags) tag_set_free(object->tags);
 	free(object);   /* the object is just an array */
 }
 /**

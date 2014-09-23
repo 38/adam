@@ -6,7 +6,10 @@
 #define __TAG_SET_H__
 #include <tag/tag_def.h>
 #include <dalvik/dalvik.h>
-
+/**
+ * @brief id of a inavlid tag-set
+ **/
+#define TAG_SET_IDX_INVALID 0xfffffffful
 /**
  * @brief the data structure for a tag set
  **/

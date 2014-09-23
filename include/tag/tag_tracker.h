@@ -58,7 +58,14 @@ int tag_tracker_register_tagset(uint32_t tsid, const tag_set_t* tagset, const ui
  * @param tagset_id the id of tagset that we are instrested in 
  * @param buf the path buffer
  * @param N the size of buffer
+ * @param stack_info the pointer to return stack_info
  * @return the number of pathes found < 0 on error
  **/
-int tag_tracker_get_path(uint32_t tag_id, uint32_t tagset_id, uint32_t** instruction, size_t N);
+int tag_tracker_get_path(uint32_t tag_id, uint32_t tagset_id, uint32_t** instruction, size_t N, void** stack_info);
+/**
+ * @brief move upward in the call stack
+ * @param stack_info the pointer to the stack info
+ * @return the instruction pointer, DALVIK_INSTRUCTION_INVALID indicates no more elements
+ **/
+uint32_t tag_tracker_stack_backtrace(void** stack_info);
 #endif

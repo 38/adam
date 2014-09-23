@@ -264,17 +264,12 @@ static inline int _java_io_BufferedReader_readLine(bci_method_env_t* env)
 		LOG_ERROR("can not return the object");
 		return -1;
 	}
-	cesk_set_t* result = cesk_set_empty_set();
-	if(NULL == result)
-	{
-		LOG_ERROR("can not allocate the result set");
-		return -1;
-	}
 	if(bci_interface_return_single_address(env, addr) < 0)
 	{
 		LOG_ERROR("can not return address");
 		return -1;
 	}
+
 	return 0;
 }
 int java_io_BufferedReader_invoke(int id, bci_method_env_t* env)
