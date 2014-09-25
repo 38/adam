@@ -149,6 +149,7 @@ int bci_interface_append_tag_set(bci_method_env_t* env, uint32_t addr, const tag
 		if(NULL != old_tags) tag_set_free(old_tags);
 		value->pointer.object->tags = new_tags;
 	}
+	cesk_store_release_rw(env->frame->store, addr);
 	return 0;
 }
 void bci_interface_release_rw(bci_method_env_t* env, uint32_t addr)

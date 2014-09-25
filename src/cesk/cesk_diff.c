@@ -998,7 +998,7 @@ cesk_diff_t* cesk_diff_apply(int N, cesk_diff_t** args)
 					LOG_DEBUG("elimiate deallocation record %d at store address "PRSAddr"", dealloc_ptr, ret->data[dealloc_ptr].addr);
 				matches = 0;
 			}
-			if(ret->data[dealloc_ptr].addr != ret->data[alloc_ptr].addr)
+			if(dealloc_ptr < dealloc_begin || ret->data[dealloc_ptr].addr != ret->data[alloc_ptr].addr)
 			{
 				ret->data[--alloc_free] = ret->data[alloc_ptr];
 			}

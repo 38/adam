@@ -16,6 +16,9 @@ cesk_frame_t* current_frame = NULL;
 const void* break_context = NULL;
 const void* current_context = NULL;
 
+cesk_reloc_table_t* reloc_tab = NULL;
+cesk_alloctab_t* alloc_tab = NULL;
+
 uint32_t breakpoints[1024];
 uint32_t n_breakpoints = 0;
 int step = 0;  // 0 means do not break, 1 means step, 2 means next
@@ -710,6 +713,10 @@ int do_frame_new(cli_command_t* cmd)
 		return CLI_COMMAND_ERROR;
 	}
 	input_frame = cesk_frame_new(graph->nregs);
+	if(NULL != reloc_tab) cesk_reloc_table_free(reloc_tab);
+	reloc_tab = cesk_reloc_table_new();
+	if(NULL == alloc_tab) alloc_tab = cesk_alloctab_new(NULL);
+	cesk_frame_set_alloctab(input_frame, alloc_tab);
 	return CLI_COMMAND_DONE;
 }
 int do_frame_set(cli_command_t* cmd)
@@ -812,6 +819,15 @@ int do_clean_cache(cli_command_t* cmd)
 	cesk_method_clean_cache();
 	return CLI_COMMAND_DONE;
 }
+int do_frame_allocate(cli_command_t* cmd)
+{
+	const char* classpath = cmd->args[2].class;
+	cesk_alloc_param_t aparam = {CESK_ALLOC_NA, CESK_ALLOC_NA};
+	if(CESK_STORE_ADDR_NULL == cesk_frame_store_new_object(input_frame, reloc_tab, dalvik_instruction_get(0), &aparam, classpath, "i'm a string", NULL, NULL))
+		return CLI_COMMAND_ERROR;
+	cesk_store_apply_alloctab(input_frame->store);
+	return CLI_COMMAND_DONE;
+}
 Commands
 	Command(0)
 		{"help", SEXPRESSION, NULL}
@@ -844,7 +860,7 @@ Commands
 	EndCommand
 
 	Command(5)
-		{"quit"}
+		{"quit", NULL}
 		Desc("Leave ADAM")
 		Method(do_quit)
 	EndCommand
@@ -956,5 +972,12 @@ Commands
 		Desc("Vistualize current frame")
 		Method(do_frame_dot)
 	EndCommand
+
+	Command(24)
+		{"frame", "allocate", CLASSPATH, NULL}
+		Desc("Allocate a new object instance")
+		Method(do_frame_allocate)
+	EndCommand
+
 EndCommands
 
