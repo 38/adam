@@ -717,6 +717,20 @@ int do_frame_new(cli_command_t* cmd)
 	reloc_tab = cesk_reloc_table_new();
 	if(NULL == alloc_tab) alloc_tab = cesk_alloctab_new(NULL);
 	cesk_frame_set_alloctab(input_frame, alloc_tab);
+
+	/* invoke <clinit> */
+	name = stringpool_query("<clinit>");
+	const dalvik_type_t* sig[] = {NULL};
+	const dalvik_type_t* ret = dalvik_type_atom[DALVIK_TYPECODE_VOID];
+	const dalvik_block_t* code = dalvik_block_from_method(class, name, sig, ret);
+	if(NULL != code)
+	{
+		cesk_frame_t* init_frame = cesk_frame_new(code->nregs); 
+		cesk_reloc_table_t* rtab;
+		cesk_diff_t* res = cesk_method_analyze(code, init_frame, NULL, &rtab);
+		cesk_frame_apply_diff(input_frame, res, reloc_tab, NULL, NULL);
+		cesk_frame_free(init_frame);
+	}
 	return CLI_COMMAND_DONE;
 }
 int do_frame_set(cli_command_t* cmd)
@@ -727,7 +741,19 @@ int do_frame_set(cli_command_t* cmd)
 	uint32_t* data = cmd->args[3].list.values;
 	int i;
 	for(i = 0; i < N; i ++)
+	{
 		cesk_frame_register_push(input_frame, regid, data[i], 1, NULL, NULL);
+	}
+	return CLI_COMMAND_DONE;
+}
+int do_frame_tag(cli_command_t* cmd)
+{
+	if(NULL == input_frame) return CLI_COMMAND_ERROR;
+	uint32_t regid = cmd->args[2].numeral;
+	uint32_t N = cmd->args[3].list.size;
+	uint32_t* data = cmd->args[3].list.values;
+	tag_set_t* tags = tag_set_from_array(data, NULL, N);
+	cesk_set_assign_tags(input_frame->regs[regid], tags);
 	return CLI_COMMAND_DONE;
 }
 int do_run(cli_command_t* cmd)
@@ -821,13 +847,43 @@ int do_clean_cache(cli_command_t* cmd)
 }
 int do_frame_allocate(cli_command_t* cmd)
 {
+	static int dummy_instruction = 0;
 	const char* classpath = cmd->args[2].class;
 	cesk_alloc_param_t aparam = {CESK_ALLOC_NA, CESK_ALLOC_NA};
-	if(CESK_STORE_ADDR_NULL == cesk_frame_store_new_object(input_frame, reloc_tab, dalvik_instruction_get(0), &aparam, classpath, "i'm a string", NULL, NULL))
+	if(CESK_STORE_ADDR_NULL == cesk_frame_store_new_object(input_frame, reloc_tab, dalvik_instruction_get(dummy_instruction ++), &aparam, classpath, "i'm a string", NULL, NULL))
 		return CLI_COMMAND_ERROR;
 	cesk_store_apply_alloctab(input_frame->store);
+	cesk_frame_set_alloctab(input_frame, alloc_tab);
 	return CLI_COMMAND_DONE;
 }
+int do_frame_sets(cli_command_t* cmd)
+{
+	uint32_t addr = cmd->args[2].numeral;
+	uint32_t size = cmd->args[3].list.size;
+	uint32_t* data = cmd->args[3].list.values;
+	cesk_store_t* store = input_frame->store;
+	cesk_value_t* val = cesk_store_get_rw(store, addr, 0);
+	uint32_t i;
+	for(i = 0; i < size; i ++)
+		cesk_set_push(val->pointer.set, data[i]);
+	cesk_store_incref(store, addr);
+	cesk_store_release_rw(store, addr);
+	return CLI_COMMAND_DONE;
+}
+int do_frame_tagst(cli_command_t* cmd)
+{
+	uint32_t addr = cmd->args[2].numeral;
+	uint32_t size = cmd->args[3].list.size;
+	uint32_t* data = cmd->args[3].list.values;
+	cesk_store_t* store = input_frame->store;
+	cesk_value_t* val = cesk_store_get_rw(store, addr, 0);
+	tag_set_t* tags = tag_set_from_array(data, NULL, size);
+	if(val->type == CESK_TYPE_SET) cesk_set_assign_tags(val->pointer.set, tags);
+	else val->pointer.object->tags = tags;
+	cesk_store_release_rw(store, addr);
+	return CLI_COMMAND_DONE;
+}
+
 Commands
 	Command(0)
 		{"help", SEXPRESSION, NULL}
@@ -977,6 +1033,24 @@ Commands
 		{"frame", "allocate", CLASSPATH, NULL}
 		Desc("Allocate a new object instance")
 		Method(do_frame_allocate)
+	EndCommand
+
+	Command(25)
+		{"frame", "sets", NUMBER, VALUELIST}
+		Desc("Set A Value in the store")
+		Method(do_frame_sets)
+	EndCommand
+
+	Command(26)
+		{"frame", "tag", REGNAME, VALUELIST}
+		Desc("Set a tag set")
+		Method(do_frame_tag)
+	EndCommand
+
+	Command(27)
+		{"frame", "tagst", NUMBER, VALUELIST}
+		Desc("Set A tag set to an address")
+		Method(do_frame_tagst)
 	EndCommand
 
 EndCommands

@@ -2234,7 +2234,7 @@ const char* dalvik_instruction_to_string(const dalvik_instruction_t* inst, char*
 		default:
 			__CI(unknown-instruction);
 	}
-	__PR("%s", name);
+	__PR("%s:%d %s", inst->method->file, inst->line  ,name);
 	int i;
 	for(i = 0; i < inst->num_operands; i ++)
 	{

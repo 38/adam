@@ -7,5 +7,6 @@ PackageInit_Begin
 	Provides_Class(addressContainer);
 	Provides_Class(java_io_BufferedReader);
 	Provides_Class(org_apache_http_HttpClient);
+	Provides_Class(unknown);
 PackageInit_End
 

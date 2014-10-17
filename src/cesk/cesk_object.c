@@ -33,6 +33,11 @@ cesk_object_t* cesk_object_new(const char* classpath)
 		if(NULL == target_class)
 		{
 			const bci_class_wrap_t* class_wrap = bci_nametab_get_class(classpath);
+			if(NULL == class_wrap)
+			{
+				LOG_WARNING("can not allocate memory for new object %s, use <__any__> instead",classpath);
+				class_wrap = bci_nametab_get_class(stringpool_query("<__any__>"));
+			}
 			/* we found a built-in class */
 			if(NULL != class_wrap)
 			{
@@ -50,7 +55,6 @@ cesk_object_t* cesk_object_new(const char* classpath)
 				continue;
 			}
 			/* not a built-in class, so we don't know the type of this class. */
-			LOG_WARNING("can not find class %s", classpath);
 			break;
 		}
 		int i;
@@ -66,6 +70,10 @@ cesk_object_t* cesk_object_new(const char* classpath)
 		}
 		LOG_DEBUG("found class %s at %p", classpath, target_class);
 		classpath = target_class->super;
+	}
+	if(class_count + nbci == 0) 
+	{
+		return NULL;
 	}
 	/* compute the size required for this instance */
 	size_t size = sizeof(cesk_object_t) +                   	   /* header */
