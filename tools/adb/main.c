@@ -268,12 +268,14 @@ char* cli_readline(const char* prompt)
 	return fgets(buffer, sizeof(buffer), stdin);
 #endif
 }
+#if 0
 static inline int cli_char_in(char c, const char* chars)
 {
 	for(;*chars;chars++)
 		if(c == *chars) return 1;
 	return 0;
 }
+#endif
 enum{
 	CLI_COMMAND_ERROR = -1,
 	CLI_COMMAND_EXIT = 0,

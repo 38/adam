@@ -32,11 +32,13 @@ static inline dalvik_type_t* _dalvik_type_alloc(int typecode)
 	ret->typecode = typecode;
 	return ret;
 }
+#if 0
 static inline dalvik_type_t* _dalvik_type_new(int typecode)
 {
 	if(DALVIK_TYPE_IS_ATOM(typecode)) return dalvik_type_atom[typecode];
 	else return _dalvik_type_alloc(typecode);
 }
+#endif
 int dalvik_type_init(void)
 {
 	int i;

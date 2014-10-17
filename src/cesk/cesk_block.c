@@ -75,6 +75,7 @@ static inline const tag_set_t* _cesk_block_register_get_tags(const cesk_frame_t*
 {
 	return cesk_set_get_tags(frame->regs[reg]);
 }
+#if 0
 /**
  * @brief set the tag set of a register to a new value(borrow the reference from the caller)
  * @param frame the target frame
@@ -86,6 +87,7 @@ static inline int _cesk_block_register_assign_tags(cesk_frame_t* frame, uint32_t
 {
 	return cesk_set_assign_tags(frame->regs[reg], tags);
 }
+#endif 
 /**
  * @brief the instruction handler for move instructions 
  * @param ins current instruction
