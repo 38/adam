@@ -658,6 +658,7 @@ static inline int _cesk_method_return(
 /* TODO: exception return */
 cesk_diff_t* cesk_method_analyze(const dalvik_block_t* code, cesk_frame_t* frame, const void* caller, cesk_reloc_table_t** p_rtab)
 {
+	static int _printed = 0;
 	LOG_DEBUG("start analyzing code block graph at %p with frame %p (hashcode = %u)", code, frame, cesk_frame_hashcode(frame));
 	/* first we try to find in the cache for this state */
 	_cesk_method_cache_node_t* node = _cesk_method_cache_find(code, frame);
@@ -721,6 +722,7 @@ cesk_diff_t* cesk_method_analyze(const dalvik_block_t* code, cesk_frame_t* frame
 			LOG_ERROR("can not open transaction");
 			goto ERR;
 		}
+		static int xxxx=0;xxxx++;
 		if(_cesk_method_compute_next_input(context, blkctx) < 0) 
 		{
 			LOG_ERROR("can not compute the next input");
@@ -770,7 +772,7 @@ cesk_diff_t* cesk_method_analyze(const dalvik_block_t* code, cesk_frame_t* frame
 				LOG_ERROR("can not open transaction");
 				goto ERR;
 			}
-			if(0 == _cesk_method_compute_branch_frame(context, input_ctx, b_diff) && input_ctx->visited)
+			if( _cesk_method_compute_branch_frame(context, input_ctx, b_diff) <= 0 && input_ctx->visited)
 			{
 				tag_tracker_transaction_close();
 				LOG_DEBUG("there's no modification in this branch, so we skip");
@@ -861,6 +863,7 @@ cesk_diff_t* cesk_method_analyze(const dalvik_block_t* code, cesk_frame_t* frame
 	LOG_DEBUG("---------------------");
 	return cesk_diff_fork(result);
 ERR:
+	if(_printed == 0) cesk_method_print_backtrace(context), _printed = 1;
 	if(result) cesk_diff_free(result);
 	if(context->rtable) cesk_reloc_table_free(context->rtable);
 	if(context) _cesk_method_context_free(context);

@@ -1,0 +1,38 @@
+(class (attrs final ) org/nws/aweather/AddLocation$GeocodeResultsHandler
+ (super java/lang/Object)
+ (source "AddLocation.java")
+ (implements java/lang/Runnable)
+
+ (field (attrs final ) this$0 [object org/nws/aweather/AddLocation] )
+
+(method (attrs private ) <init>([object org/nws/aweather/AddLocation] )void
+  (limit registers 2)
+  ; this: v0 ([object org/nws/aweather/AddLocation$GeocodeResultsHandler])
+  ; parameter[0] : v1 ([object org/nws/aweather/AddLocation])
+  (line 25)
+  (iput-object v1 v0 org/nws/aweather/AddLocation$GeocodeResultsHandler.this$0 [object org/nws/aweather/AddLocation])
+  (invoke-direct {v0} java/lang/Object/<init> ()void)
+  (return-void )
+ )
+
+(method (attrs ) <init>([object org/nws/aweather/AddLocation] [object org/nws/aweather/AddLocation$1] )void
+  (limit registers 3)
+  ; this: v0 ([object org/nws/aweather/AddLocation$GeocodeResultsHandler])
+  ; parameter[0] : v1 ([object org/nws/aweather/AddLocation])
+  ; parameter[1] : v2 ([object org/nws/aweather/AddLocation$1])
+  (line 25)
+  (invoke-direct {v0 v1} org/nws/aweather/AddLocation$GeocodeResultsHandler/<init> ([object org/nws/aweather/AddLocation] )void)
+  (return-void )
+ )
+
+(method (attrs public ) run()void
+  (limit registers 2)
+  ; this: v1 ([object org/nws/aweather/AddLocation$GeocodeResultsHandler])
+  (line 28)
+  (iget-object v0 v1 org/nws/aweather/AddLocation$GeocodeResultsHandler.this$0 [object org/nws/aweather/AddLocation])
+  (invoke-virtual {v0} org/nws/aweather/AddLocation/geocodeFinished ()void)
+  (line 29)
+  (return-void )
+)
+
+)

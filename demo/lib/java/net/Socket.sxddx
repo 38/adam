@@ -1,0 +1,22 @@
+(class (attrs ) java/net/Socket
+ (super java/lang/Object)
+ (source "Socket.java")
+
+
+(method (attrs ) <init>([object java/lang/String] int )void
+  (limit registers 5)
+  ; this: v2 ([object Socket])
+  ; parameter[0] : v3 ([object java/lang/String])
+  ; parameter[1] : v4 (int)
+  (line 2)
+  (invoke-direct {v2} java/lang/Object/<init> ()void)
+  (line 3)
+  (const-string v0 "Trying to open a TCP socket")
+  (invoke-static {v4} java/lang/Integer/valueOf (int )[object java/lang/Integer])
+  (move-result-object v1)
+  (invoke-static {v0 v3} __Report__/report_1 ([object java/lang/String] [object java/lang/Object])void)
+  (line 4)
+  (return-void )
+ )
+
+)

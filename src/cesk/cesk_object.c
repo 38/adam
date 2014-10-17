@@ -33,11 +33,6 @@ cesk_object_t* cesk_object_new(const char* classpath)
 		if(NULL == target_class)
 		{
 			const bci_class_wrap_t* class_wrap = bci_nametab_get_class(classpath);
-			if(NULL == class_wrap)
-			{
-				LOG_WARNING("can not allocate memory for new object %s, use <__any__> instead",classpath);
-				class_wrap = bci_nametab_get_class(stringpool_query("<__any__>"));
-			}
 			/* we found a built-in class */
 			if(NULL != class_wrap)
 			{

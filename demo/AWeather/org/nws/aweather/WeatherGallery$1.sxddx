@@ -1,0 +1,31 @@
+(class (attrs ) org/nws/aweather/WeatherGallery$1
+ (super java/lang/Thread)
+ (source "WeatherGallery.java")
+
+ (field (attrs final ) this$0 [object org/nws/aweather/WeatherGallery] )
+ (field (attrs final ) val$nwo [object org/nws/aweather/forecast/NWSWeatherObject] )
+
+(method (attrs ) <init>([object org/nws/aweather/WeatherGallery] [object org/nws/aweather/forecast/NWSWeatherObject] )void
+  (limit registers 3)
+  ; this: v0 ([object org/nws/aweather/WeatherGallery$1])
+  ; parameter[0] : v1 ([object org/nws/aweather/WeatherGallery])
+  ; parameter[1] : v2 ([object org/nws/aweather/forecast/NWSWeatherObject])
+  (line 73)
+  (iput-object v1 v0 org/nws/aweather/WeatherGallery$1.this$0 [object org/nws/aweather/WeatherGallery])
+  (iput-object v2 v0 org/nws/aweather/WeatherGallery$1.val$nwo [object org/nws/aweather/forecast/NWSWeatherObject])
+  (invoke-direct {v0} java/lang/Thread/<init> ()void)
+  (return-void )
+ )
+
+(method (attrs public ) run()void
+  (limit registers 3)
+  ; this: v2 ([object org/nws/aweather/WeatherGallery$1])
+  (line 76)
+  (iget-object v0 v2 org/nws/aweather/WeatherGallery$1.this$0 [object org/nws/aweather/WeatherGallery])
+  (iget-object v1 v2 org/nws/aweather/WeatherGallery$1.val$nwo [object org/nws/aweather/forecast/NWSWeatherObject])
+  (invoke-static {v0 v1} org/nws/aweather/WeatherGallery/access$000 ([object org/nws/aweather/WeatherGallery] [object org/nws/aweather/forecast/NWSWeatherObject] )void)
+  (line 77)
+  (return-void )
+)
+
+)

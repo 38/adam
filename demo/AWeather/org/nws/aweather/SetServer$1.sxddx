@@ -1,0 +1,29 @@
+(class (attrs ) org/nws/aweather/SetServer$1
+ (super java/lang/Object)
+ (source "SetServer.java")
+ (implements android/view/View$OnClickListener)
+
+ (field (attrs final ) this$0 [object org/nws/aweather/SetServer] )
+
+(method (attrs ) <init>([object org/nws/aweather/SetServer] )void
+  (limit registers 2)
+  ; this: v0 ([object org/nws/aweather/SetServer$1])
+  ; parameter[0] : v1 ([object org/nws/aweather/SetServer])
+  (line 20)
+  (iput-object v1 v0 org/nws/aweather/SetServer$1.this$0 [object org/nws/aweather/SetServer])
+  (invoke-direct {v0} java/lang/Object/<init> ()void)
+  (return-void )
+ )
+
+(method (attrs public ) onClick([object android/view/View] )void
+  (limit registers 3)
+  ; this: v1 ([object org/nws/aweather/SetServer$1])
+  ; parameter[0] : v2 ([object android/view/View])
+  (line 23)
+  (iget-object v0 v1 org/nws/aweather/SetServer$1.this$0 [object org/nws/aweather/SetServer])
+  (invoke-virtual {v0} org/nws/aweather/SetServer/finish ()void)
+  (line 24)
+  (return-void )
+)
+
+)

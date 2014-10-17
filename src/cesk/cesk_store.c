@@ -469,6 +469,7 @@ int cesk_store_set_reuse(cesk_store_t* store, uint32_t addr)
 		return -1;
 	}
 	cesk_store_block_t* block = _cesk_store_getblock_rw(store, addr);
+	if(block->slots[offset].value == NULL) return 0;
 	if(block->slots[offset].value->write_count == 0)
 		store->hashcode ^= HASH_INC(addr, block->slots[offset].value, block->slots[offset].reuse);
 	if(NULL == block)

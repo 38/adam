@@ -22,10 +22,12 @@ cesk_alloctab_t* alloc_tab = NULL;
 uint32_t breakpoints[1024];
 uint32_t n_breakpoints = 0;
 int step = 0;  // 0 means do not break, 1 means step, 2 means next
+
+uint32_t results[10240];
+uint32_t nresults = 0;
 #ifdef WITH_GRAPHVIZ
 GVC_t* gvc = NULL;
 #endif
-
 #define PROMPT "(adb) "
 static inline void dfs_block_list(const dalvik_block_t* entry, const dalvik_block_t** bl)
 {
@@ -245,6 +247,12 @@ void cli_error(const char* fmt, ...)
 	fputs("\033[0m\n", stderr);
 	va_end(vp);
 }
+static inline void cli_add_result(int value)
+{
+	results[nresults] = value;
+	cli_error("$%u = %u", nresults, results[nresults]);
+	nresults ++;
+}
 char* cli_readline(const char* prompt)
 {
 #ifdef WITH_READLINE
@@ -277,6 +285,36 @@ static int do_command(const char* cmdline)
 	if(NULL == cmdline) return 0;
 	sexpression_t* sexp;
 	int ret = CLI_COMMAND_DONE;
+	static char buffer[10240];
+	char* ptr = buffer;
+	int i, flag = 0, id = 0;
+	for(i = 0; cmdline[i]; i ++)
+	{
+		switch(flag)
+		{
+			case 0:
+
+				if(cmdline[i] == ' ' || cmdline[i] == '\t') flag = 1;
+				break;
+			case 1:
+				if(cmdline[i] == ' ' || cmdline[i] == '\t') flag = 1;
+				else if(cmdline[i] == '$') flag = 2;
+				else flag = 0;
+				id = 0;
+				break;
+			case 2:
+				if(cmdline[i] >= '0' && cmdline[i] <= '9') id = id * 10 + cmdline[i] - '0';
+				else 
+				{
+					snprintf(ptr, sizeof(buffer) - (ptr - buffer), "0x%x", results[id]);
+					ptr += strlen(ptr);
+					if(cmdline[i] == ' ' || cmdline[i] == '\t') flag = 1;
+					else flag = 0;
+				}
+		}
+		if(flag != 2) *(ptr ++) = cmdline[i], *ptr = 0;
+	}
+	cmdline = buffer;
 	for(;;)
 	{
 		if((cmdline = sexp_parse(cmdline, &sexp)) != NULL)
@@ -719,6 +757,7 @@ int do_frame_new(cli_command_t* cmd)
 	cesk_frame_set_alloctab(input_frame, alloc_tab);
 
 	/* invoke <clinit> */
+#if 0
 	name = stringpool_query("<clinit>");
 	const dalvik_type_t* sig[] = {NULL};
 	const dalvik_type_t* ret = dalvik_type_atom[DALVIK_TYPECODE_VOID];
@@ -731,6 +770,7 @@ int do_frame_new(cli_command_t* cmd)
 		cesk_frame_apply_diff(input_frame, res, reloc_tab, NULL, NULL);
 		cesk_frame_free(init_frame);
 	}
+#endif
 	return CLI_COMMAND_DONE;
 }
 int do_frame_set(cli_command_t* cmd)
@@ -850,8 +890,10 @@ int do_frame_allocate(cli_command_t* cmd)
 	static int dummy_instruction = 0;
 	const char* classpath = cmd->args[2].class;
 	cesk_alloc_param_t aparam = {CESK_ALLOC_NA, CESK_ALLOC_NA};
-	if(CESK_STORE_ADDR_NULL == cesk_frame_store_new_object(input_frame, reloc_tab, dalvik_instruction_get(dummy_instruction ++), &aparam, classpath, "i'm a string", NULL, NULL))
+	uint32_t res;
+	if(CESK_STORE_ADDR_NULL == (res = cesk_frame_store_new_object(input_frame, reloc_tab, dalvik_instruction_get(dummy_instruction ++), &aparam, classpath, "i'm a string", NULL, NULL)))
 		return CLI_COMMAND_ERROR;
+	cli_add_result(cesk_alloctab_query(alloc_tab, input_frame->store, res));
 	cesk_store_apply_alloctab(input_frame->store);
 	cesk_frame_set_alloctab(input_frame, alloc_tab);
 	return CLI_COMMAND_DONE;
@@ -881,6 +923,36 @@ int do_frame_tagst(cli_command_t* cmd)
 	if(val->type == CESK_TYPE_SET) cesk_set_assign_tags(val->pointer.set, tags);
 	else val->pointer.object->tags = tags;
 	cesk_store_release_rw(store, addr);
+	return CLI_COMMAND_DONE;
+}
+int do_frame_field(cli_command_t* cmd)
+{
+	const char* class = cmd->args[2].string;
+	const char* field = cmd->args[3].string;
+	uint32_t size = cmd->args[4].list.size;
+	uint32_t* data = cmd->args[4].list.values;
+	cesk_static_table_t* statics = input_frame->statics;
+	uint32_t fid = CESK_FRAME_REG_STATIC_PREFIX | cesk_static_field_query(class, field);
+	cesk_set_t** set = cesk_static_table_get_rw(statics, fid, 0);
+	*set = cesk_set_empty_set();
+	int i = 0;
+	for(i = 0; i < size; i ++)
+		cesk_set_push(*set, data[i]);
+	cesk_static_table_release_rw(statics, fid, *set);
+	return CLI_COMMAND_DONE;
+}
+int do_object_read(cli_command_t* cmd)
+{
+	const char* class = cmd->args[2].class;
+	const char* field = cmd->args[3].string;
+	uint32_t addr = cmd->args[4].numeral;
+	cesk_value_const_t* value = cesk_store_get_ro(input_frame->store, addr);
+	if(NULL == value) return CLI_COMMAND_ERROR;
+	if(CESK_TYPE_OBJECT != value->type) return CLI_COMMAND_ERROR;
+	const cesk_object_t* object = value->pointer.object;
+	uint32_t* res = cesk_object_get((cesk_object_t*)object, class, field, NULL, NULL);
+	if(NULL == res) return CLI_COMMAND_ERROR;
+	cli_add_result(*res);
 	return CLI_COMMAND_DONE;
 }
 
@@ -1053,5 +1125,16 @@ Commands
 		Method(do_frame_tagst)
 	EndCommand
 
+	Command(28)
+		{"frame", "field", CLASSPATH, STRING, VALUELIST}
+		Desc("Set a field")
+		Method(do_frame_field)
+	EndCommand
+
+	Command(29)
+		{"object", "read", CLASSPATH, STRING, NUMBER}
+		Desc("Read a result to the result buffer")
+		Method(do_object_read)
+	EndCommand 
 EndCommands
 

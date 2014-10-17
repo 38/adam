@@ -1,0 +1,30 @@
+(class (attrs public final ) org/nws/aweather/R$id
+ (super java/lang/Object)
+ (source "R.java")
+
+ (field (attrs public static final ) CancelButton int "2131034127" )
+ (field (attrs public static final ) buttonShowWeather int "2131034117" )
+ (field (attrs public static final ) day int "2131034120" )
+ (field (attrs public static final ) defaultButton int "2131034125" )
+ (field (attrs public static final ) enterLocation int "2131034113" )
+ (field (attrs public static final ) enterLocationInstruction int "2131034112" )
+ (field (attrs public static final ) enterurl int "2131034124" )
+ (field (attrs public static final ) fireLocationLookup int "2131034114" )
+ (field (attrs public static final ) image1 int "2131034119" )
+ (field (attrs public static final ) locationChooser int "2131034118" )
+ (field (attrs public static final ) locationSpinner int "2131034115" )
+ (field (attrs public static final ) log int "2131034116" )
+ (field (attrs public static final ) refreshButton int "2131034121" )
+ (field (attrs public static final ) setUrlButton int "2131034126" )
+ (field (attrs public static final ) startButton int "2131034122" )
+ (field (attrs public static final ) stopButton int "2131034123" )
+
+(method (attrs public ) <init>()void
+  (limit registers 1)
+  ; this: v0 ([object org/nws/aweather/R$id])
+  (line 17)
+  (invoke-direct {v0} java/lang/Object/<init> ()void)
+  (return-void )
+ )
+
+)

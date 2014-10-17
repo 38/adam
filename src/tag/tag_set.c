@@ -133,7 +133,7 @@ tag_set_t* tag_set_empty()
 }
 tag_set_t* tag_set_from_array(const uint32_t* tags, const uint32_t* resols, size_t N)
 {
-	if(NULL == tags || NULL == resols)
+	if(NULL == tags)
 	{
 		LOG_ERROR("invalid argument");
 		return NULL;
@@ -145,7 +145,7 @@ tag_set_t* tag_set_from_array(const uint32_t* tags, const uint32_t* resols, size
 	for(i = 0; i < N; i ++)
 	{
 		ret->data[i].tid = tags[i];
-		ret->data[i].resol = resols[i];
+		ret->data[i].resol = resols?resols[i]:0;
 		ret->hashcode ^= _tag_set_item_hashcode(ret->data[i]);
 		if(i > 0 && tags[i - 1] >= tags[i])
 		{

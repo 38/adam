@@ -24,5 +24,6 @@ struct _bci_method_env_t {
 	cesk_frame_t*             frame;    /*!< envrion store */
 	const dalvik_instruction_t* instruction; /*!< the instruction that calls this  function */
 	cesk_diff_buffer_t*       D;        /*!< the diff buffer */
+	const void* context;
 } __attribute__((__packed__));
 #endif

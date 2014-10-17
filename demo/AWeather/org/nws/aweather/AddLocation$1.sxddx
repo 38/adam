@@ -1,0 +1,6 @@
+(class (attrs ) org/nws/aweather/AddLocation$1
+ (super java/lang/Object)
+ (source "AddLocation.java")
+
+
+)

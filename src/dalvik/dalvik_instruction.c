@@ -529,7 +529,7 @@ __DI_CONSTRUCTOR(CHECK)
  **/
 __DI_CONSTRUCTOR(THROW)
 {
-	buf->opcode = DVM_THROW;
+	buf->opcode = DVM_RETURN; /* sooo dirty */
 	buf->num_operands = 1;
 	const char* sour;
 	if(sexp_match(next, "(L?", &sour))  /* throw */

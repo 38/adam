@@ -26,7 +26,8 @@ typedef struct _method_t {
 		NEW_ARRAY_FILLED,
 		FILL_ARRAY,
 		ARRAY_GET,
-		ARRAY_SET
+		ARRAY_SET,
+		ARRAY_LEN
 	} type;   /*!< type of this method call */
 	const dalvik_type_t *const* signature; /*!< the function signature */
 	uint32_t method_id;   /*!< the method id assigned to this method */
@@ -47,7 +48,7 @@ static _method_t* _method_hash[HASH_SIZE];
 /**
  * @brief pooled strings for the function name
  **/
-static const char *_new_array, *_new_array_filled, *_fill_array, *_array_get, *_array_put, *_classpath;
+static const char *_new_array, *_new_array_filled, *_fill_array, *_array_get, *_array_put, *_classpath, *_array_length;
 /**
  * @brief the hashcode of a method 
  * @param typecode the type of this method
@@ -98,6 +99,7 @@ int java_lang_reflect_Array_onload()
 	_fill_array = stringpool_query("<fill_array_data>");
 	_array_get = stringpool_query("<array_get>");
 	_array_put = stringpool_query("<array_put>");
+	_array_length = stringpool_query("<array_length>");
 	_classpath = stringpool_query("java/lang/reflect/Array");
 	return 0;
 }
@@ -373,6 +375,8 @@ int java_lang_reflect_Array_get_method(const void* this_ptr, const char* classpa
 		typecode = ARRAY_GET;
 	else if(_array_put == method)
 		typecode = ARRAY_SET;
+	else if(_array_length == method)
+		typecode = ARRAY_LEN;
 	else
 	{
 		/* TODO other functions */
@@ -492,6 +496,10 @@ static inline int _array_get_handler(bci_method_env_t* env)
 	cesk_set_free(ret);
 	return rc;
 }
+static inline int _array_length_handler(bci_method_env_t* env)
+{
+	return bci_interface_return_single_address(env, CESK_STORE_ADDR_ZERO | CESK_STORE_ADDR_POS);
+}
 /**
  * @brief handler for &lt;fill_array_data&gt;
  * @brief env the envrion
@@ -582,6 +590,8 @@ int java_lang_reflect_Array_invoke(int method_id, bci_method_env_t* env)
 			return _array_get_handler(env);
 		case FILL_ARRAY:
 			return _array_fill_handler(env, method->signature[0]);
+		case ARRAY_LEN:
+			return _array_length_handler(env);
 		//TODO: newInstance, because it depends on java.lang.Class and refelction
 		default:
 			LOG_ERROR("unsupported method");

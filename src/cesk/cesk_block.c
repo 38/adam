@@ -291,7 +291,7 @@ static inline int _cesk_block_handler_instance(
 	const cesk_set_t* set;
 	cesk_set_iter_t it;
 	int keep_old = 0;
-	uint32_t addr;
+	uint32_t addr, raddr;
 	const dalvik_type_t* type;
 	switch(ins->flags)
 	{
@@ -392,7 +392,7 @@ static inline int _cesk_block_handler_instance(
 				LOG_ERROR("can not read the value set of regsiter v%d", sour);
 				return -1;
 			}
-			addr = CESK_STORE_ADDR_EMPTY;
+			raddr = CESK_STORE_ADDR_EMPTY;
 			/* TODO: use a single pass tag set merge */
 			tag_set_t* tags = tag_set_empty();
 			if(NULL == tags)
@@ -423,9 +423,10 @@ static inline int _cesk_block_handler_instance(
 				if(CESK_STORE_ADDR_NULL == rc)
 				{
 					LOG_ERROR("failed to check type of the object");
-					return -1;
+					rc = CESK_STORE_ADDR_ZERO | CESK_STORE_ADDR_POS;
+					//return -1;
 				}
-				addr |= rc;
+				raddr |= rc;
 				/* TODO: use a faster method to merge a series of tags */
 				tag_set_t* new_tags = tag_set_merge(tags, object->tags);
 				if(NULL == new_tags) 
@@ -436,7 +437,7 @@ static inline int _cesk_block_handler_instance(
 				tag_set_free(tags);
 				tags = new_tags;
 			}
-			if(cesk_frame_register_load(frame, dest, sour, tags, D, I) < 0)
+			if(cesk_frame_register_load(frame, dest, raddr, tags, D, I) < 0)
 			{
 				LOG_ERROR("can not load new value to register v%u", dest);
 				return -1;
@@ -1401,6 +1402,9 @@ static inline int _cesk_block_find_invoke_method(const dalvik_instruction_t* ins
 	const dalvik_type_t* const * typelist = ins->operands[2].payload.typelist;
 	const dalvik_type_t* rtype = ins->operands[3].payload.type;
 	
+	//printf("invoking method %s.%s [%s:%d]\n", classpath, methodname, ins->method->file, ins->line ); 
+	
+	
 	if(NULL == classpath || NULL == methodname || NULL == typelist)
 	{
 		LOG_ERROR("invalid instruction format");
@@ -1442,6 +1446,11 @@ static inline int _cesk_block_find_invoke_method(const dalvik_instruction_t* ins
 			uint32_t addr;
 			while(CESK_STORE_ADDR_NULL != (addr = cesk_set_iter_next(&iter)))
 			{
+				if(!CESK_STORE_ADDR_IS_RELOC(addr) && !CESK_STORE_ADDR_IS_OBJ(addr))
+				{
+					LOG_WARNING("ignore non-object address "PRSAddr" for 'this' pointer", addr);
+					continue;
+				}
 				cesk_value_const_t* value = cesk_store_get_ro(frame->store, addr);
 				if(NULL == value || value->type != CESK_TYPE_OBJECT)
 				{
@@ -1555,6 +1564,8 @@ static inline int _cesk_block_handler_invoke(
 
 	cesk_reloc_table_t* callee_rtable[CESK_BLOCK_MAX_NUM_OF_FUNC];
 	cesk_diff_t* invoke_result[CESK_BLOCK_MAX_NUM_OF_FUNC];
+	//const void *p;	
+	//for(p = context; NULL != p; p = cesk_method_context_get_caller_context(p)) putchar('.');
 
 	int nfunc = _cesk_block_find_invoke_method(ins, frame, code, this, class, method_id);
 	if(nfunc < 0)
@@ -1646,7 +1657,8 @@ static inline int _cesk_block_handler_invoke(
 				.frame = callee_frame,
 				.rtable = cesk_reloc_table_new(),
 				.instruction = ins,
-				.D = buf
+				.D = buf,
+				.context = context
 			};
 			if(NULL == env.rtable)
 			{

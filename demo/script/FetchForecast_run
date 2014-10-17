@@ -1,0 +1,26 @@
+(load "demo/AWeather/")
+(load "demo/lib")
+(frame new [org/nws/aweather/forecast/FetchForecast/run()void] )
+(frame allocate org/nws/aweather/forecast/FetchForecast) ;==>$0
+(frame allocate org/nws/aweather/WeatherGallery) ;==>$1
+(frame allocate org/nws/aweather/AWeather) ;==>$2
+(frame allocate org/nws/aweather/AWeather$2) ;==>$3
+(frame allocate org/nws/aweather/AWeatherService) ;==>$4
+(frame allocate org/nws/aweather/Responder) ;==>$5
+(frame field org/nws/aweather/forecast/FetchForecast "parent" 0x175)
+(object read org/nws/aweather/WeatherGallery "owner" $1) ;==>$6
+(frame sets $6 $2)
+(object read org/nws/aweather/AWeather "m_handler" $2) ;==>$7
+(frame sets $7 $3)
+(object read org/nws/aweather/AWeather "m_service" $2) ;==>$8
+(frame sets $8 $4)
+(object read org/nws/aweather/AWeather$2 "this$0" $3) ;==>$9
+(frame sets $9 $2)
+(object read org/nws/aweather/AWeatherService "m_responder" $4) ;==>$10
+(frame sets $10 $5)
+(frame set v8 $0) 
+(frame allocate java/util/concurrent/LinkedBlockingQueue) ;==>$11
+(object read org/nws/aweather/Responder "queue" $5) ;==>$12
+(frame sets $12 $11)
+(run [org/nws/aweather/forecast/FetchForecast/run()void])
+(quit)

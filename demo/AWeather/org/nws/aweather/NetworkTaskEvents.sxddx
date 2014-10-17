@@ -1,0 +1,21 @@
+(interface (attrs public abstract ) org/nws/aweather/NetworkTaskEvents
+ (super java/lang/Object)
+ (source "NetworkTaskEvents.java")
+
+
+(method (attrs public abstract ) handleConnected([object org/nws/aweather/Msg] )void
+)
+
+(method (attrs public abstract ) handleDisconnected([object org/nws/aweather/Msg] )void
+)
+
+(method (attrs public abstract ) handleError([object org/nws/aweather/Msg] )void
+)
+
+(method (attrs public abstract ) handleInfo([object org/nws/aweather/Msg] )void
+)
+
+(method (attrs public abstract ) handleReceived([object org/nws/aweather/Msg] )void
+)
+
+)

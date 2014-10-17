@@ -1,0 +1,15 @@
+(class (attrs ) java/lang/System
+ (super java/lang/Object)
+ (source "System.java")
+
+ (field (attrs public static ) out [object java/io/PrintStream]  )
+
+(method (attrs ) <init>()void
+  (limit registers 1)
+  ; this: v0 ([object System])
+  (line 2)
+  (invoke-direct {v0} java/lang/Object/<init> ()void)
+  (return-void )
+ )
+
+)

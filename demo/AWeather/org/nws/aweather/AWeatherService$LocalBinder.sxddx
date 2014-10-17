@@ -1,0 +1,25 @@
+(class (attrs public ) org/nws/aweather/AWeatherService$LocalBinder
+ (super android/os/Binder)
+ (source "AWeatherService.java")
+
+ (field (attrs final ) this$0 [object org/nws/aweather/AWeatherService] )
+
+(method (attrs public ) <init>([object org/nws/aweather/AWeatherService] )void
+  (limit registers 2)
+  ; this: v0 ([object org/nws/aweather/AWeatherService$LocalBinder])
+  ; parameter[0] : v1 ([object org/nws/aweather/AWeatherService])
+  (line 20)
+  (iput-object v1 v0 org/nws/aweather/AWeatherService$LocalBinder.this$0 [object org/nws/aweather/AWeatherService])
+  (invoke-direct {v0} android/os/Binder/<init> ()void)
+  (return-void )
+ )
+
+(method (attrs ) getService()[object org/nws/aweather/AWeatherService]
+  (limit registers 2)
+  ; this: v1 ([object org/nws/aweather/AWeatherService$LocalBinder])
+  (line 22)
+  (iget-object v0 v1 org/nws/aweather/AWeatherService$LocalBinder.this$0 [object org/nws/aweather/AWeatherService])
+  (return-object v0)
+)
+
+)

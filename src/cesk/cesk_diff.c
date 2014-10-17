@@ -1424,7 +1424,7 @@ int cesk_diff_sub(cesk_diff_t* dest, const cesk_diff_t* sour)
 			}
 			else
 			{
-				dest->offset[dest_ptr --] = dest->offset[i];
+				dest->data[dest_ptr --] = dest->data[i];
 			}
 		}
 		dest->offset[CESK_DIFF_ALLOC] = dest_ptr + 1;
@@ -1448,7 +1448,7 @@ int cesk_diff_sub(cesk_diff_t* dest, const cesk_diff_t* sour)
 			}
 			else
 			{
-				dest->offset[dest_ptr ++] = dest->offset[i];
+				dest->data[dest_ptr ++] = dest->data[i];
 			}
 		}
 		dest->offset[CESK_DIFF_DEALLOC + 1] = dest_ptr;

@@ -1,0 +1,5 @@
+(load "demo/AWeather/")
+(load "demo/lib")
+(frame new [org/nws/aweather/forecast/FetchForecast/getDirectNWS([object java/lang/String],[object java/lang/String])void])
+(run [org/nws/aweather/forecast/FetchForecast/getDirectNWS([object java/lang/String],[object java/lang/String])void])
+(quit)

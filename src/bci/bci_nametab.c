@@ -98,7 +98,7 @@ static inline _bci_nametab_node_t* _bci_nametab_find(const char* class)
 	for(ptr = _bci_nametab[h]; NULL != ptr; ptr = ptr->next)
 		if(ptr->clspath == class)
 			return ptr;
-	return NULL;
+	return _bci_nametab_find(stringpool_query("<__dummy__>"));
 }
 
 int bci_nametab_register_class(const char* clspath, bci_class_t* def)

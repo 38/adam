@@ -1,0 +1,8 @@
+(load "demo/AWeather")
+(load "demo/lib")
+(frame new [org/nws/aweather/Responder/begin()void] ) 
+(frame allocate org/nws/aweather/Responder);==>$0
+(frame set v4 $0)
+(run [org/nws/aweather/Responder/begin()void])
+(quit)
+

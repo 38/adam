@@ -623,8 +623,8 @@ static inline int _cesk_frame_apply_diff_alloc_sec(
 		LOG_DEBUG("allocating object %s at store address "PRSAddr"", cesk_value_to_string(rec->arg.value, NULL, 0) ,rec->addr);
 		if(cesk_reloc_addr_init(reloctab, frame->store, rec->addr, rec->arg.value) == CESK_STORE_ADDR_NULL)
 		{
-			LOG_ERROR("can not initialize relocated address "PRSAddr" in store %p", rec->addr, frame->store);
-			return -1;
+			LOG_WARNING("can not initialize relocated address "PRSAddr" in store %p", rec->addr, frame->store);
+			continue;
 		}
 		else
 			ret ++;
@@ -917,6 +917,7 @@ static inline int _cesk_frame_apply_incref_store_sec(
 	{
 		const cesk_diff_rec_t* rec = section + i;
 		cesk_value_const_t* oldval = cesk_store_get_ro(frame->store, rec->addr);
+		if(NULL == oldval) continue;
 		if(oldval->type != rec->arg.value->type)
 		{
 			LOG_ERROR("the diff record value and the target value was supposed to be the same type, but they are not");
@@ -1010,6 +1011,7 @@ static inline int _cesk_frame_apply_diff_store_sec(
 		const cesk_diff_rec_t* rec = section + i;
 		LOG_DEBUG("setting store address "PRSAddr" to value %s", rec->addr, cesk_value_to_string(rec->arg.value, NULL, 0));
 		cesk_value_const_t* oldval = cesk_store_get_ro(frame->store, rec->addr);
+		if(oldval == NULL) continue;
 		if(oldval->type != rec->arg.value->type)
 		{
 			LOG_ERROR("the diff record value and the target value was supposed to be the same type, but they are not");
@@ -1703,6 +1705,7 @@ uint32_t cesk_frame_store_new_object(
 			LOG_ERROR("invalid value");
 			return CESK_STORE_ADDR_NULL; 
 		}
+#if 0
 		if(cesk_object_classpath(object) != clspath)
 		{
 			LOG_ERROR("address %x is for class %s but the new object is a instance of %s (but suppose to be homogenous)", 
@@ -1711,6 +1714,7 @@ uint32_t cesk_frame_store_new_object(
 					  clspath);
 			return CESK_STORE_ADDR_NULL;
 		}
+#endif
 
 		/* push default zero to the class */
 		int i;
